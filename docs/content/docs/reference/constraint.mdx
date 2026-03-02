@@ -1,0 +1,945 @@
+---
+title: "Constraint"
+description: "Fluent API operators for building Constraints."
+---
+
+```solidity
+struct Constraint {
+    /// SCOPE_CONTEXT or SCOPE_CALLDATA.
+    uint8 scope;
+    /// BE16-encoded path to the target value.
+    bytes path;
+    /// Encoded operators. Each item = opCode(1) || data.
+    bytes[] operators;
+}
+```
+
+### arg(uint16)
+
+Creates a constraint targeting a top-level argument.
+
+```solidity
+function arg(uint16 p0) pure returns (Constraint memory);
+```
+
+### arg(uint16, uint16)
+
+Creates a constraint targeting a nested path of depth 2.
+
+```solidity
+function arg(uint16 p0, uint16 p1) pure returns (Constraint memory);
+```
+
+### arg(uint16, uint16, uint16)
+
+Creates a constraint targeting a nested path of depth 3.
+
+```solidity
+function arg(uint16 p0, uint16 p1, uint16 p2) pure returns (Constraint memory);
+```
+
+### arg(uint16, uint16, uint16, uint16)
+
+Creates a constraint targeting a nested path of depth 4.
+
+```solidity
+function arg(uint16 p0, uint16 p1, uint16 p2, uint16 p3) pure returns (Constraint memory);
+```
+
+### arg(bytes)
+
+Creates a constraint from a pre-encoded BE16 path.
+
+```solidity
+function arg(bytes memory path) pure returns (Constraint memory);
+```
+
+```solidity
+function blockNumber() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                   |
+| -------- | ------------ | --------------------------------------------- |
+| `<none>` | `Constraint` | A context-scoped constraint for block.number. |
+
+```solidity
+function blockTimestamp() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                      |
+| -------- | ------------ | ------------------------------------------------ |
+| `<none>` | `Constraint` | A context-scoped constraint for block.timestamp. |
+
+```solidity
+function chainId() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                    |
+| -------- | ------------ | ---------------------------------------------- |
+| `<none>` | `Constraint` | A context-scoped constraint for block.chainid. |
+
+```solidity
+function msgSender() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                 |
+| -------- | ------------ | ------------------------------------------- |
+| `<none>` | `Constraint` | A context-scoped constraint for msg.sender. |
+
+```solidity
+function msgValue() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                |
+| -------- | ------------ | ------------------------------------------ |
+| `<none>` | `Constraint` | A context-scoped constraint for msg.value. |
+
+```solidity
+function txOrigin() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                |
+| -------- | ------------ | ------------------------------------------ |
+| `<none>` | `Constraint` | A context-scoped constraint for tx.origin. |
+
+## Functions
+
+### eq
+
+Requires the value to equal `value`.
+
+```solidity
+function eq(Constraint memory c, uint256 value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description               |
+| ------- | ------------ | ------------------------- |
+| `c`     | `Constraint` | The constraint to extend. |
+| `value` | `uint256`    | The expected value.       |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### neq
+
+Requires the value to not equal `value`.
+
+```solidity
+function neq(Constraint memory c, uint256 value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description               |
+| ------- | ------------ | ------------------------- |
+| `c`     | `Constraint` | The constraint to extend. |
+| `value` | `uint256`    | The excluded value.       |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### gt
+
+Requires the value to be strictly greater than `bound`.
+
+```solidity
+function gt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `uint256`    | The lower bound (exclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lt
+
+Requires the value to be strictly less than `bound`.
+
+```solidity
+function lt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `uint256`    | The upper bound (exclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### gte
+
+Requires the value to be greater than or equal to `bound`.
+
+```solidity
+function gte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `uint256`    | The lower bound (inclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lte
+
+Requires the value to be less than or equal to `bound`.
+
+```solidity
+function lte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `uint256`    | The upper bound (inclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### between
+
+Requires the value to be within \[min, max] inclusive.
+
+```solidity
+function between(Constraint memory c, uint256 min, uint256 max) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name  | Type         | Description                  |
+| ----- | ------------ | ---------------------------- |
+| `c`   | `Constraint` | The constraint to extend.    |
+| `min` | `uint256`    | The lower bound (inclusive). |
+| `max` | `uint256`    | The upper bound (inclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### eq
+
+Requires the signed value to equal `value`.
+
+```solidity
+function eq(Constraint memory c, int256 value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description               |
+| ------- | ------------ | ------------------------- |
+| `c`     | `Constraint` | The constraint to extend. |
+| `value` | `int256`     | The expected value.       |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### neq
+
+Requires the signed value to not equal `value`.
+
+```solidity
+function neq(Constraint memory c, int256 value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description               |
+| ------- | ------------ | ------------------------- |
+| `c`     | `Constraint` | The constraint to extend. |
+| `value` | `int256`     | The excluded value.       |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### gt
+
+Requires the signed value to be strictly greater than `bound`.
+
+```solidity
+function gt(Constraint memory c, int256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `int256`     | The lower bound (exclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lt
+
+Requires the signed value to be strictly less than `bound`.
+
+```solidity
+function lt(Constraint memory c, int256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `int256`     | The upper bound (exclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### gte
+
+Requires the signed value to be greater than or equal to `bound`.
+
+```solidity
+function gte(Constraint memory c, int256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `int256`     | The lower bound (inclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lte
+
+Requires the signed value to be less than or equal to `bound`.
+
+```solidity
+function lte(Constraint memory c, int256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `int256`     | The upper bound (inclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### between
+
+Requires the signed value to be within \[min, max] inclusive.
+
+```solidity
+function between(Constraint memory c, int256 min, int256 max) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name  | Type         | Description                  |
+| ----- | ------------ | ---------------------------- |
+| `c`   | `Constraint` | The constraint to extend.    |
+| `min` | `int256`     | The lower bound (inclusive). |
+| `max` | `int256`     | The upper bound (inclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### eq
+
+Requires the value to equal `value` (address).
+
+```solidity
+function eq(Constraint memory c, address value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description               |
+| ------- | ------------ | ------------------------- |
+| `c`     | `Constraint` | The constraint to extend. |
+| `value` | `address`    | The expected address.     |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### neq
+
+Requires the value to not equal `value` (address).
+
+```solidity
+function neq(Constraint memory c, address value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description               |
+| ------- | ------------ | ------------------------- |
+| `c`     | `Constraint` | The constraint to extend. |
+| `value` | `address`    | The excluded address.     |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### eq
+
+Requires the value to equal `value` (bytes32).
+
+```solidity
+function eq(Constraint memory c, bytes32 value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                 |
+| ------- | ------------ | --------------------------- |
+| `c`     | `Constraint` | The constraint to extend.   |
+| `value` | `bytes32`    | The expected bytes32 value. |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### neq
+
+Requires the value to not equal `value` (bytes32).
+
+```solidity
+function neq(Constraint memory c, bytes32 value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                 |
+| ------- | ------------ | --------------------------- |
+| `c`     | `Constraint` | The constraint to extend.   |
+| `value` | `bytes32`    | The excluded bytes32 value. |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### eq
+
+Requires the value to equal `value` (bool).
+
+```solidity
+function eq(Constraint memory c, bool value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description               |
+| ------- | ------------ | ------------------------- |
+| `c`     | `Constraint` | The constraint to extend. |
+| `value` | `bool`       | The expected boolean.     |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### neq
+
+Requires the value to not equal `value` (bool).
+
+```solidity
+function neq(Constraint memory c, bool value) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description               |
+| ------- | ------------ | ------------------------- |
+| `c`     | `Constraint` | The constraint to extend. |
+| `value` | `bool`       | The excluded boolean.     |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### isIn
+
+Requires the value to be in the given address set.
+
+```solidity
+function isIn(Constraint memory c, address[] memory values) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name     | Type         | Description               |
+| -------- | ------------ | ------------------------- |
+| `c`      | `Constraint` | The constraint to extend. |
+| `values` | `address[]`  | The allowed addresses.    |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### notIn
+
+Requires the value to not be in the given address set.
+
+```solidity
+function notIn(Constraint memory c, address[] memory values) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name     | Type         | Description               |
+| -------- | ------------ | ------------------------- |
+| `c`      | `Constraint` | The constraint to extend. |
+| `values` | `address[]`  | The excluded addresses.   |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### isIn
+
+Requires the value to be in the given bytes32 set.
+
+```solidity
+function isIn(Constraint memory c, bytes32[] memory values) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name     | Type         | Description               |
+| -------- | ------------ | ------------------------- |
+| `c`      | `Constraint` | The constraint to extend. |
+| `values` | `bytes32[]`  | The allowed values.       |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### notIn
+
+Requires the value to not be in the given bytes32 set.
+
+```solidity
+function notIn(Constraint memory c, bytes32[] memory values) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name     | Type         | Description               |
+| -------- | ------------ | ------------------------- |
+| `c`      | `Constraint` | The constraint to extend. |
+| `values` | `bytes32[]`  | The excluded values.      |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### isIn
+
+Requires the value to be in the given uint256 set.
+
+```solidity
+function isIn(Constraint memory c, uint256[] memory values) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name     | Type         | Description               |
+| -------- | ------------ | ------------------------- |
+| `c`      | `Constraint` | The constraint to extend. |
+| `values` | `uint256[]`  | The allowed values.       |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### notIn
+
+Requires the value to not be in the given uint256 set.
+
+```solidity
+function notIn(Constraint memory c, uint256[] memory values) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name     | Type         | Description               |
+| -------- | ------------ | ------------------------- |
+| `c`      | `Constraint` | The constraint to extend. |
+| `values` | `uint256[]`  | The excluded values.      |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### isIn
+
+Requires the value to be in the given int256 set.
+
+```solidity
+function isIn(Constraint memory c, int256[] memory values) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name     | Type         | Description               |
+| -------- | ------------ | ------------------------- |
+| `c`      | `Constraint` | The constraint to extend. |
+| `values` | `int256[]`   | The allowed values.       |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### notIn
+
+Requires the value to not be in the given int256 set.
+
+```solidity
+function notIn(Constraint memory c, int256[] memory values) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name     | Type         | Description               |
+| -------- | ------------ | ------------------------- |
+| `c`      | `Constraint` | The constraint to extend. |
+| `values` | `int256[]`   | The excluded values.      |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lengthEq
+
+Requires the dynamic type length to equal `length`.
+
+```solidity
+function lengthEq(Constraint memory c, uint256 length) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name     | Type         | Description               |
+| -------- | ------------ | ------------------------- |
+| `c`      | `Constraint` | The constraint to extend. |
+| `length` | `uint256`    | The expected length.      |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lengthGt
+
+Requires the dynamic type length to be strictly greater than `bound`.
+
+```solidity
+function lengthGt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `uint256`    | The lower bound (exclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lengthLt
+
+Requires the dynamic type length to be strictly less than `bound`.
+
+```solidity
+function lengthLt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `uint256`    | The upper bound (exclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lengthGte
+
+Requires the dynamic type length to be greater than or equal to `bound`.
+
+```solidity
+function lengthGte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `uint256`    | The lower bound (inclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lengthLte
+
+Requires the dynamic type length to be less than or equal to `bound`.
+
+```solidity
+function lengthLte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name    | Type         | Description                  |
+| ------- | ------------ | ---------------------------- |
+| `c`     | `Constraint` | The constraint to extend.    |
+| `bound` | `uint256`    | The upper bound (inclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lengthBetween
+
+Requires the dynamic type length to be within \[min, max] inclusive.
+
+```solidity
+function lengthBetween(Constraint memory c, uint256 min, uint256 max) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name  | Type         | Description                  |
+| ----- | ------------ | ---------------------------- |
+| `c`   | `Constraint` | The constraint to extend.    |
+| `min` | `uint256`    | The lower bound (inclusive). |
+| `max` | `uint256`    | The upper bound (inclusive). |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### bitmaskAll
+
+Requires all bits in `mask` to be set.
+
+```solidity
+function bitmaskAll(Constraint memory c, uint256 mask) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name   | Type         | Description               |
+| ------ | ------------ | ------------------------- |
+| `c`    | `Constraint` | The constraint to extend. |
+| `mask` | `uint256`    | The bitmask to check.     |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### bitmaskAny
+
+Requires at least one bit in `mask` to be set.
+
+```solidity
+function bitmaskAny(Constraint memory c, uint256 mask) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name   | Type         | Description               |
+| ------ | ------------ | ------------------------- |
+| `c`    | `Constraint` | The constraint to extend. |
+| `mask` | `uint256`    | The bitmask to check.     |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### bitmaskNone
+
+Requires no bits in `mask` to be set.
+
+```solidity
+function bitmaskNone(Constraint memory c, uint256 mask) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name   | Type         | Description               |
+| ------ | ------------ | ------------------------- |
+| `c`    | `Constraint` | The constraint to extend. |
+| `mask` | `uint256`    | The bitmask to check.     |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### addOp
+
+Appends a raw operator with its data payload.
+
+```solidity
+function addOp(Constraint memory c, uint8 op, bytes memory data) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name   | Type         | Description                |
+| ------ | ------------ | -------------------------- |
+| `c`    | `Constraint` | The constraint to extend.  |
+| `op`   | `uint8`      | The operator code byte.    |
+| `data` | `bytes`      | The operator data payload. |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+## Errors
+
+### InvalidRange
+
+Thrown when the range minimum exceeds the maximum.
+
+```solidity
+error InvalidRange();
+```
+
+### EmptySet
+
+Thrown when an empty set is passed to a set membership operator.
+
+```solidity
+error EmptySet();
+```
+
+### SetTooLarge
+
+Thrown when a set exceeds the maximum element count (2047).
+
+```solidity
+error SetTooLarge();
+```

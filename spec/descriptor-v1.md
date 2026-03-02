@@ -1,0 +1,320 @@
+# Callcium Descriptor Spec v1.0
+
+## 1. Document Control
+- Version: 1.0
+- Status: Normative
+- Date: 2026-02-22
+
+---
+
+## 2. Purpose, Scope, and Exclusions
+
+This document specifies the Descriptor binary format for Callcium, an on-chain policy engine for ABI-encoded data. The descriptor enables deterministic traversal of ABI-encoded data for runtime validation, parsing, and extraction without storing or shipping full ABI JSON.
+
+### Exclusions
+
+This document does not define:
+- Validation rule languages or constraints on values (see Callcium Policy Spec).
+- Contract- or application-specific policies.
+- Non-ABI encodings.
+- Implementation strategies, gas optimization techniques, or API design.
+
+---
+
+## 3. Terminology and Conformance
+
+- The key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY in this document are to be interpreted as described in RFC 2119.
+- "Validator" refers to any component that checks the well-formedness of a descriptor or uses it to traverse calldata.
+- "Builder" refers to any component that constructs descriptor blobs from higher-level type definitions.
+- "ABI word" means a 32-byte slot in ABI encoding.
+
+A descriptor is conformant if and only if it adheres to all MUST/REQUIRED statements in Sections 4–8.
+
+---
+
+## 4. Wire Format
+
+### 4.1 Top-Level Structure
+```
+[version:1][paramCount:1][param_0][param_1]…[param_(paramCount-1)]
+```
+
+`version` is a single byte identifying the descriptor format version. This specification describes format version `0x01`. The descriptor format version is independent of the policy format version (see Callcium Policy Spec). Validators MUST reject any descriptor with `version != 0x01`.
+
+`paramCount` is a single byte declaring the number of top-level parameters (0–255). The descriptor body MUST contain exactly `paramCount` parameter descriptors, concatenated back-to-back with no padding. Validators MUST reject descriptors where the parsed count does not equal `paramCount`, or where trailing bytes remain after parsing the last parameter.
+
+### 4.2 Elementary Types (Leaf Nodes)
+
+"Elementary" in this specification refers to descriptor leaf nodes: types encoded as a single type code byte with no nested children. This includes `bytes` (`0x70`) and `string` (`0x71`), which are dynamic in ABI encoding but elementary in the descriptor tree.
+
+- Encoding: `[typeCode]`.
+- Node length is exactly one byte.
+- ABI head contribution is one word (32 bytes) for all elementary types except `bytes` and `string`, which are dynamic.
+- For traversal purposes, elementary types have an implied `staticWords`: 1 for static elementary types (all except `bytes` and `string`), 0 for dynamic elementary types (`bytes`, `string`). Composite types carry explicit `staticWords` in their metadata.
+
+### 4.3 Composite Types (Common Structure)
+
+All composite types begin with `[typeCode][meta]`.
+
+`meta` is a big-endian 24-bit (3-byte) field split into two 12-bit components:
+- `staticWords` (high 12 bits, bits 23–12): number of 32-byte words in the ABI head for this node when it is static. Zero indicates a dynamic node.
+- `nodeLength` (low 12 bits, bits 11–0): total descriptor node length in bytes for this node.
+
+The following constants define the composite header layout:
+- `COMPOSITE_META_SIZE` = 3.
+- `TUPLE_HEADER_SIZE` = 6 (`typeCode` + `meta` + `fieldCount`).
+- `ARRAY_HEADER_SIZE` = 4 (`typeCode` + `meta`). Applies to both static and dynamic arrays.
+- `ARRAY_LENGTH_SIZE` = 2 (big-endian uint16).
+
+### 4.4 Static Arrays
+
+Layout: `[STATIC_ARRAY][meta][elemDesc][length]`.
+
+- `length` is big-endian uint16.
+- `staticWords` encodes `length * elemStaticWords`, or zero if the element type is dynamic. Here and throughout, `elemStaticWords` refers to the element node's `staticWords` metadata value (or the implied value 1 for static elementary types, 0 for dynamic elementary types).
+
+### 4.5 Dynamic Arrays
+
+Layout: `[DYNAMIC_ARRAY][meta][elemDesc]`.
+
+Element descriptors follow immediately after the common header.
+
+### 4.6 Tuples
+
+Layout: `[TUPLE][meta][fieldCount:be16][field_0][field_1]…[field_(fieldCount-1)]`.
+
+- `fieldCount` is big-endian uint16.
+- `staticWords` is the sum of static words for all static fields; zero if any field is dynamic.
+
+---
+
+## 5. Type Codes
+
+### 5.1 Type Code Ranges
+
+| Range | Category | Description |
+|:---|:---|:---|
+| `0x00`–`0x1F` | Unsigned Integers | 32 variants: `uint8` … `uint256` |
+| `0x20`–`0x3F` | Signed Integers | 32 variants: `int8` … `int256` |
+| `0x40`–`0x4F` | Fixed Types | `address`, `bool`, `function` (external function pointer) |
+| `0x50`–`0x6F` | Fixed Bytes | 32 variants: `bytes1` … `bytes32` |
+| `0x70`–`0x7F` | Dynamic Elementary | `bytes`, `string` |
+| `0x80`–`0x8F` | Arrays | static array, dynamic array |
+| `0x90`–`0x9F` | Tuples | aggregate of fields |
+| `0xA0`–`0xFF` | Reserved | MUST NOT be used; validators MUST reject descriptors containing these codes |
+
+### 5.2 Derivation Formulas
+
+The following formulas are normative and MUST produce the same code points as Appendix A:
+- `uint<N>`: code = `(N / 8) - 1` → `0x00`–`0x1F`.
+- `int<N>`: code = `0x20 + (N / 8) - 1` → `0x20`–`0x3F`.
+- `bytes<N>` (N ∈ {1, ..., 32}): code = `0x4F + N` → `0x50`–`0x6F`.
+
+### 5.3 Reserved Codes
+
+Codes not listed in Appendix A within ranges `0x40`–`0x4F`, `0x70`–`0x7F`, `0x80`–`0x8F`, and `0x90`–`0x9F` are reserved for future use within their respective range. Validators MUST reject them in format version 1.
+
+---
+
+## 6. Calldata Traversal
+
+Conformant validators MUST maintain a state triple `(head, base, descOffset)` during path navigation through ABI-encoded calldata.
+
+### 6.1 State Triple
+
+| Variable | Description |
+|:---|:---|
+| `head` | Byte offset in calldata for the head slot of the current node. |
+| `base` | Composite start offset for resolving relative ABI offsets. |
+| `descOffset` | Byte offset into the descriptor for the current node's type. |
+
+### 6.2 Initial State
+
+Given a `baseOffset` (the byte offset where ABI-encoded parameters begin):
+- `head = baseOffset`, `base = baseOffset`, `descOffset = HEADER_SIZE` (2).
+- The validator resolves the target parameter by iterating through prior parameters, advancing `head` by each parameter's head contribution and `descOffset` by each parameter's `nodeLength`.
+
+The calling layer determines `baseOffset`. Standard calldata uses `baseOffset = 4` (after the 4-byte selector); raw ABI payloads use `baseOffset = 0`.
+
+### 6.3 Tuple Descent
+
+To navigate to field `childIndex` of a tuple at `(head, base, descOffset)`:
+
+1. Read `isDynamic` from the tuple's `staticWords` metadata (0 = dynamic).
+2. Compute the tuple's data region:
+   - Dynamic: `tupleBase = base + calldataload(head)`, `cursor = tupleBase`.
+   - Static: `tupleBase = base`, `cursor = head`.
+3. Skip fields `0..childIndex-1`: for each skipped field, advance `cursor` by
+   `(staticWords == 0 ? 1 : staticWords) * 32` and advance `descOffset` by the
+   field's `nodeLength` (1 for elementary types).
+4. Result: `(head = cursor, base = tupleBase, descOffset = fieldDescOffset)`.
+
+### 6.4 Array Descent
+
+To navigate to element `childIndex` of an array at `(head, base, descOffset)`:
+
+In both cases below, `elementStaticSize = elemStaticWords * 32` — the element's ABI head size in bytes, derived from its descriptor metadata (see Section 4.4 for `elemStaticWords`).
+
+**Dynamic array:**
+1. `arrayBase = base + calldataload(head)`.
+2. `length = calldataload(arrayBase)`. Validator MUST check `childIndex < length`.
+3. `headsSection = arrayBase + 32` (skip the length word).
+4. If elements are dynamic: `newHead = headsSection + (childIndex * 32)`,
+   `newBase = headsSection`.
+5. If elements are static: `newHead = headsSection + (childIndex * elementStaticSize)`,
+   `newBase = arrayBase`.
+
+**Static array:**
+1. If elements are dynamic: `arrayBase = base + calldataload(head)`,
+   `newHead = arrayBase + (childIndex * 32)`, `newBase = arrayBase`.
+2. If elements are static: `newHead = head + (childIndex * elementStaticSize)`,
+   `newBase = base` (unchanged).
+
+**Key invariant:** For dynamic elements, `base` MUST be set to the start of the heads section (where per-element offsets are measured from), not to the array's data start.
+
+### 6.5 Bounds Checking
+
+Validators MUST verify that ABI offsets read from calldata point within the calldata bounds. An offset that would cause a read beyond `calldatasize()` MUST cause validation failure, not silent mis-parsing.
+
+- **Bounds**: For every 32-byte read at offset `offset`, validators MUST check `offset + 32 <= calldatasize()`. For dynamic-length reads (e.g., `bytes`/`string` payload), validators MUST check that the declared length does not extend beyond the calldata boundary.
+- **Arithmetic overflow**: When computing a resolved offset as `base + offset`, validators MUST ensure the addition does not overflow.
+- **Word alignment**: Validators are NOT required to check that ABI offsets are 32-byte aligned. Implementations MAY reject non-aligned offsets as a strictness option but this is not required for conformance.
+- **Overlapping regions**: Validators are NOT required to detect overlapping data regions. Implementations MAY perform overlap detection as an optional strictness check.
+
+---
+
+## 7. Validation Rules
+
+### 7.1 Structural (Runtime)
+
+Runtime validators MUST reject descriptors that violate any of the following rules:
+
+- MUST reject if fewer than 2 bytes (cannot read header).
+- MUST reject if `version != 0x01`.
+- MUST reject if the descriptor body does not contain exactly `paramCount` complete parameter nodes.
+- MUST reject if trailing bytes remain after the last parameter node.
+- MUST reject any type code in the reserved range `0xA0`–`0xFF` or any unassigned code within an allocated range (see Section 5.3).
+
+### 7.2 Semantic (Builder)
+
+Builders MUST reject descriptors that violate any of the following rules:
+
+- MUST reject if `nodeLength` for a composite type does not equal the actual byte span of the node.
+- MUST reject if `staticWords != 0` for a node that contains any dynamic sub-value.
+- MUST reject if `staticWords == 0` for a node where all sub-values are static.
+- MUST reject tuple where `fieldCount` does not match the number of parsed field descriptors within `nodeLength`.
+- MUST reject static array where `length` exceeds `MAX_STATIC_ARRAY_LENGTH` (4,095).
+- MUST reject tuples with `fieldCount == 0` and static arrays with `length == 0`.
+
+---
+
+## 8. Normative Limits
+
+### 8.1 Descriptor Format Limits
+
+| Constant | Value | Category | Derivation |
+|:---|:---|:---|:---|
+| `MAX_NODE_LENGTH` | 4,095 bytes | Format | 12-bit `nodeLength` field in composite metadata (`0x0FFF`). |
+| `MAX_STATIC_WORDS` | 4,095 words (~128 KB) | Format | 12-bit `staticWords` field in composite metadata. |
+| `MAX_STATIC_ARRAY_LENGTH` | 4,095 elements | Format | 12-bit field width uniformity with other composite metadata limits. |
+| `MAX_TUPLE_FIELDS` | 4,089 fields | Derived | `MAX_NODE_LENGTH - TUPLE_HEADER_SIZE` (4,095 - 6). |
+| Max parameters | 255 | Format | 1-byte `paramCount` in descriptor header. |
+
+### 8.2 Limit Categories
+
+- **Format**: Structural constraint from the binary encoding field width. Cannot change without a format version bump.
+- **Derived**: Mechanically follows from other limits.
+
+### 8.3 Enforcement
+
+Validators MUST reject descriptors where `nodeLength`, `staticWords`, array length, or tuple field count exceed the limits above.
+
+---
+
+## 9. References
+
+- [ABI Specification](https://docs.soliditylang.org/en/latest/abi-spec.html) (Solidity documentation, applicable to all EVM languages).
+- [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) — Key words for use in RFCs to Indicate Requirement Levels.
+- Callcium reference implementation (non-normative).
+- Conformance test vector suite: `test/vectors/` in the reference implementation repository.
+
+---
+
+## Appendix A. Complete Type Code Assignments
+
+#### Unsigned Integers (`0x00`–`0x1F`)
+
+| ABI Type | Code | ABI Type | Code | ABI Type | Code | ABI Type | Code |
+|:---|:---|:---|:---|:---|:---|:---|:---|
+| `uint8` | `0x00` | `uint72` | `0x08` | `uint136` | `0x10` | `uint200` | `0x18` |
+| `uint16` | `0x01` | `uint80` | `0x09` | `uint144` | `0x11` | `uint208` | `0x19` |
+| `uint24` | `0x02` | `uint88` | `0x0A` | `uint152` | `0x12` | `uint216` | `0x1A` |
+| `uint32` | `0x03` | `uint96` | `0x0B` | `uint160` | `0x13` | `uint224` | `0x1B` |
+| `uint40` | `0x04` | `uint104` | `0x0C` | `uint168` | `0x14` | `uint232` | `0x1C` |
+| `uint48` | `0x05` | `uint112` | `0x0D` | `uint176` | `0x15` | `uint240` | `0x1D` |
+| `uint56` | `0x06` | `uint120` | `0x0E` | `uint184` | `0x16` | `uint248` | `0x1E` |
+| `uint64` | `0x07` | `uint128` | `0x0F` | `uint192` | `0x17` | `uint256` | `0x1F` |
+
+#### Signed Integers (`0x20`–`0x3F`)
+
+| ABI Type | Code | ABI Type | Code | ABI Type | Code | ABI Type | Code |
+|:---|:---|:---|:---|:---|:---|:---|:---|
+| `int8` | `0x20` | `int72` | `0x28` | `int136` | `0x30` | `int200` | `0x38` |
+| `int16` | `0x21` | `int80` | `0x29` | `int144` | `0x31` | `int208` | `0x39` |
+| `int24` | `0x22` | `int88` | `0x2A` | `int152` | `0x32` | `int216` | `0x3A` |
+| `int32` | `0x23` | `int96` | `0x2B` | `int160` | `0x33` | `int224` | `0x3B` |
+| `int40` | `0x24` | `int104` | `0x2C` | `int168` | `0x34` | `int232` | `0x3C` |
+| `int48` | `0x25` | `int112` | `0x2D` | `int176` | `0x35` | `int240` | `0x3D` |
+| `int56` | `0x26` | `int120` | `0x2E` | `int184` | `0x36` | `int248` | `0x3E` |
+| `int64` | `0x27` | `int128` | `0x2F` | `int192` | `0x37` | `int256` | `0x3F` |
+
+#### Fixed Types (`0x40`–`0x4F`)
+
+| ABI Type | Code |
+|:---|:---|
+| `address` | `0x40` |
+| `bool` | `0x41` |
+| `function` | `0x42` |
+
+`function` refers to the ABI external function pointer type, encoded as 24 bytes (20-byte address + 4-byte selector) left-padded to one 32-byte ABI word.
+
+Codes `0x43`–`0x4F` are reserved and MUST be rejected in format version 1.
+
+#### Fixed Bytes (`0x50`–`0x6F`)
+
+| ABI Type | Code | ABI Type | Code | ABI Type | Code | ABI Type | Code |
+|:---|:---|:---|:---|:---|:---|:---|:---|
+| `bytes1` | `0x50` | `bytes9` | `0x58` | `bytes17` | `0x60` | `bytes25` | `0x68` |
+| `bytes2` | `0x51` | `bytes10` | `0x59` | `bytes18` | `0x61` | `bytes26` | `0x69` |
+| `bytes3` | `0x52` | `bytes11` | `0x5A` | `bytes19` | `0x62` | `bytes27` | `0x6A` |
+| `bytes4` | `0x53` | `bytes12` | `0x5B` | `bytes20` | `0x63` | `bytes28` | `0x6B` |
+| `bytes5` | `0x54` | `bytes13` | `0x5C` | `bytes21` | `0x64` | `bytes29` | `0x6C` |
+| `bytes6` | `0x55` | `bytes14` | `0x5D` | `bytes22` | `0x65` | `bytes30` | `0x6D` |
+| `bytes7` | `0x56` | `bytes15` | `0x5E` | `bytes23` | `0x66` | `bytes31` | `0x6E` |
+| `bytes8` | `0x57` | `bytes16` | `0x5F` | `bytes24` | `0x67` | `bytes32` | `0x6F` |
+
+#### Dynamic Elementary (`0x70`–`0x7F`)
+
+| ABI Type | Code |
+|:---|:---|
+| `bytes` | `0x70` |
+| `string` | `0x71` |
+
+Codes `0x72`–`0x7F` are reserved and MUST be rejected in format version 1.
+
+#### Arrays (`0x80`–`0x8F`)
+
+| ABI Type      | Code |
+|:--------------|:---|
+| `static array`  | `0x80` |
+| `dynamic array` | `0x81` |
+
+Codes `0x82`–`0x8F` are reserved and MUST be rejected in format version 1.
+
+#### Tuples (`0x90`–`0x9F`)
+
+| ABI Type | Code |
+|:---|:---|
+| `tuple` | `0x90` |
+
+Codes `0x91`–`0x9F` are reserved and MUST be rejected in format version 1.

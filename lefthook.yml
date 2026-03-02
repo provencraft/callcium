@@ -1,0 +1,9 @@
+pre-commit:
+  commands:
+    forge-fmt:
+      glob: "src/**/*.sol test/**/*.sol"
+      run: forge fmt --check {staged_files}
+
+    docs-lint:
+      glob: "docs/**/*.{ts,tsx,js,jsx,json,mdx,md,css}"
+      run: bunx biome check --config-path=docs {staged_files}

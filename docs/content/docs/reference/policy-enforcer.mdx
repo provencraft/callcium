@@ -1,0 +1,120 @@
+---
+title: "PolicyEnforcer"
+description: "Enforces that `callData` complies with a `policy`."
+---
+
+## State Variables
+
+### MAX_PATH_DEPTH
+
+Path scratch capacity in steps (be16 per step).
+
+```solidity
+uint8 internal constant MAX_PATH_DEPTH = 32
+```
+
+### MAX_QUANTIFIED_ARRAY_LENGTH
+
+Maximum array length for quantifier iteration (gas DoS protection).
+
+```solidity
+uint256 internal constant MAX_QUANTIFIED_ARRAY_LENGTH = 256
+```
+
+## Functions
+
+### enforce
+
+Reverts when `callData` violates `policy`.
+
+```solidity
+function enforce(bytes memory policy, bytes calldata callData) internal view;
+```
+
+**Parameters**
+
+| Name       | Type    | Description                               |
+| ---------- | ------- | ----------------------------------------- |
+| `policy`   | `bytes` | The policy blob with embedded descriptor. |
+| `callData` | `bytes` | The calldata to validate.                 |
+
+### check
+
+Returns true if `callData` complies with `policy`.
+
+Reverts for malformed policies; returns false for violations.
+
+```solidity
+function check(bytes memory policy, bytes calldata callData) internal view returns (bool ok);
+```
+
+**Parameters**
+
+| Name       | Type    | Description                               |
+| ---------- | ------- | ----------------------------------------- |
+| `policy`   | `bytes` | The policy blob with embedded descriptor. |
+| `callData` | `bytes` | The calldata to validate.                 |
+
+**Returns**
+
+| Name | Type   | Description                                |
+| ---- | ------ | ------------------------------------------ |
+| `ok` | `bool` | True if calldata complies with the policy. |
+
+## Errors
+
+### PolicyViolation
+
+Thrown when policy validation fails.
+
+```solidity
+error PolicyViolation(uint32 groupIndex, uint32 ruleIndex);
+```
+
+### SelectorMismatch
+
+Thrown when the function selector does not match the policy header.
+
+```solidity
+error SelectorMismatch(bytes4 expected, bytes4 actual);
+```
+
+### UnknownOperator
+
+Thrown when an unknown operator code is encountered.
+
+```solidity
+error UnknownOperator(uint8 opCode);
+```
+
+### UnknownContextProperty
+
+Thrown when an unknown context property ID is requested.
+
+```solidity
+error UnknownContextProperty(uint16 contextId);
+```
+
+### MissingSelector
+
+Thrown when calldata is too short to contain a selector.
+
+```solidity
+error MissingSelector();
+```
+
+### NestedQuantifiersUnsupported
+
+Thrown when nested quantifiers are used (unsupported).
+
+```solidity
+error NestedQuantifiersUnsupported();
+```
+
+### ArrayTooLargeForQuantifier
+
+Thrown when array exceeds max length for quantified iteration.
+
+```solidity
+error ArrayTooLargeForQuantifier(uint256 length, uint256 maxLength);
+```

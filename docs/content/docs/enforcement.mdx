@@ -1,0 +1,157 @@
+---
+title: Enforcement
+description: Enforce policies against calldata at runtime.
+---
+
+`PolicyEnforcer` takes a policy blob and calldata and determines whether the data is valid against the policy.
+
+## enforce vs check
+
+Two functions expose the enforcer. `enforce(policy, callData)` reverts with `PolicyViolation` when the data fails. `check(policy, callData)` returns `true` when the data is valid against the policy and `false` otherwise.
+
+Both revert on a malformed policy. Only `enforce` reverts on a violation.
+
+```solidity
+import { PolicyEnforcer } from "callcium/PolicyEnforcer.sol";
+import { PolicyManager } from "callcium/PolicyManager.sol";
+
+contract MyVault is PolicyManager {
+    // Aborts if calldata violates the policy.
+    function withdraw(address to, uint256 amount) external {
+        bytes memory policy = _resolvePolicy(address(this), msg.sig);
+        PolicyEnforcer.enforce(policy, msg.data);
+        // ...
+    }
+
+    // Returns false on violation.
+    function canWithdraw(bytes calldata data) external view returns (bool) {
+        bytes memory policy = _resolvePolicy(address(this), IVault.withdraw.selector);
+        return PolicyEnforcer.check(policy, data);
+    }
+}
+```
+
+## Selector matching
+
+For selector-bound policies, the enforcer validates the first 4 bytes of calldata before evaluating any constraints:
+
+- **Match** — the selector equals the policy's embedded selector. Arguments are read from byte 4 onward.
+- **Mismatch** — reverts with `SelectorMismatch(expected, actual)`. `expected` is the selector embedded in the policy; `actual` is what appeared in calldata.
+- **Missing** — calldata shorter than 4 bytes reverts with `MissingSelector`.
+
+Selector matching is a precondition, not a constraint. It runs before group and rule evaluation. A `SelectorMismatch` is not a `PolicyViolation`.
+
+The standard pattern is to pass `msg.data` directly — the function's own selector is already present:
+
+```solidity
+function withdraw(address to, uint256 amount) external {
+    bytes memory policy = _resolvePolicy(address(this), msg.sig);
+    PolicyEnforcer.enforce(policy, msg.data);
+    // ...
+}
+```
+
+## Integration examples
+
+How enforcement is wired into a contract's call flow is left to the integrator. The examples below illustrate a few approaches.
+
+### Modifier
+
+**Skip when unbound.** If `_resolvePolicy` returns empty bytes, enforcement is skipped and the function runs unguarded.
+
+```solidity
+modifier withPolicy() {
+    bytes memory policy = _resolvePolicy(address(this), msg.sig);
+    if (policy.length > 0) PolicyEnforcer.enforce(policy, msg.data);
+    _;
+}
+```
+
+**Revert when unbound.** If `_resolvePolicy` returns empty bytes, the call is blocked.
+
+```solidity
+error PolicyNotBound();
+
+modifier withPolicy() {
+    bytes memory policy = _resolvePolicy(address(this), msg.sig);
+    if (policy.length == 0) revert PolicyNotBound();
+    PolicyEnforcer.enforce(policy, msg.data);
+    _;
+}
+```
+
+Both are used identically:
+
+```solidity
+function withdraw(address to, uint256 amount) external withPolicy {
+    // ...
+}
+```
+
+### Proxy fallback
+
+In a proxy contract, `msg.sig` carries the forwarded call's selector. Enforcement runs before delegation — the data is validated against the policy bound to that selector regardless of what the implementation does.
+
+```solidity
+fallback() external payable {
+    bytes memory policy = _resolvePolicy(address(this), msg.sig);
+    if (policy.length > 0) PolicyEnforcer.enforce(policy, msg.data);
+    // delegate ...
+}
+```
+
+## Group and rule evaluation
+
+Callcium's evaluation model has two levels.
+
+**Groups use OR semantics.** The enforcer evaluates groups in order starting from group 0. The first group that passes ends evaluation — the data is valid against the policy. If every group fails, `PolicyViolation` is thrown.
+
+**Rules within a group use AND semantics.** All rules in a group must pass for the group to pass. Evaluation short-circuits on the first failing rule.
+
+A policy with two groups is satisfied if the calldata passes all rules in either group. Both groups can fail for entirely different reasons — the enforcer tries each candidate in sequence.
+
+This is the runtime expression of `.or()` in the builder: each call to `.or()` starts a new group.
+
+## Handling violations
+
+When the data fails, `enforce` reverts with `PolicyViolation`:
+
+```solidity
+error PolicyViolation(uint32 groupIndex, uint32 ruleIndex);
+```
+
+Both indices are zero-indexed.
+
+**`groupIndex`** is the index of the last group evaluated. Since groups use OR semantics, a `PolicyViolation` means every group failed — `groupIndex` is the final one attempted.
+
+**`ruleIndex`** is the index of the first rule within that group that failed; evaluation short-circuits, so no subsequent rules in that group were checked.
+
+The error reflects a single point of failure, not a complete trace. If a policy has multiple groups, the indices only reflect the failure in the final group; earlier group failures are discarded as the enforcer advances.
+
+## Selectorless policies
+
+For selectorless policies, created with `PolicyBuilder.createRaw()`, the enforcer skips selector validation entirely and reads arguments from byte 0. No `SelectorMismatch` or `MissingSelector` can be thrown.
+
+`enforce` and `check` are called identically regardless of policy type. The policy blob encodes whether it is selectorless; the enforcer detects this from the policy header.
+
+If the raw data has a selector prefix, strip it before passing to `enforce`. Those 4 bytes would otherwise be interpreted as the start of the first argument.
+
+For creating selectorless policies, see [Selectorless Policies](/docs/building-policies/selectorless-policies).
+
+## Off-chain usage
+
+`check` is a `view` function — call it via `eth_call` to validate a payload against a policy without submitting a transaction. Context properties (`msg.sender`, `msg.value`, and others) reflect the `from` and `value` fields of the simulated call; set them explicitly in the `eth_call` parameters to match the intended execution context.
+
+## Error reference
+
+| Error | When thrown |
+|---|---|
+| `PolicyViolation` | Calldata fails all groups. |
+| `SelectorMismatch` | Calldata selector doesn't match the policy. |
+| `MissingSelector` | Calldata too short to contain a selector. |
+| `UnknownOperator` | Policy contains an unrecognized operator code. |
+| `UnknownContextProperty` | Policy references an unknown context property ID. |
+| `NestedQuantifiersUnsupported` | Policy path contains nested quantifiers. |
+| `ArrayTooLargeForQuantifier` | Array exceeds 256 elements during quantifier evaluation. |
+
+The last three errors indicate a malformed or invalid policy. They will not be thrown if the policy was built with `PolicyBuilder.build()`.

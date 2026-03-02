@@ -1,0 +1,62 @@
+---
+title: Overview
+description: Normative binary format specifications for Callcium.
+---
+
+Callcium defines two binary formats: one for describing ABI types, one for encoding constraint policies. These specifications are normative — they define the wire format precisely enough to audit a policy blob, verify encoding edge cases, or build tooling that parses the binary format directly.
+
+If you are using the Solidity library, you do not need to read these. The builder and enforcer handle all encoding and traversal internally.
+
+## When to read the specs
+
+- You are auditing a policy blob and need to verify its encoding byte-by-byte.
+- You are writing tooling — a policy debugger, calldata simulator, or off-chain decoder — that parses the binary format.
+- You need authoritative answers on edge case semantics: quantifier behavior on empty arrays, canonicalization requirements, contradiction detection rules.
+
+## Specifications
+
+| Spec | Version | Status | Description |
+|------|---------|--------|-------------|
+| [Descriptor](/docs/specifications/descriptor-v1) | v1.0 | Normative | Binary encoding of ABI types. Used by policies to describe the shape of calldata they constrain. |
+| [Policy](/docs/specifications/policy-v1) | v1.0 | Normative | Binary encoding of constraint policies. Defines wire format, canonicalization rules, and evaluation semantics. |
+
+## Versioning
+
+Both specs are versioned independently. A version bump signals a breaking change to the binary format. The current version byte for both formats is `0x01`, embedded in each blob's header.
+
+## Effective limits
+
+Many nominal format limits are superseded in practice by `MAX_POLICY_SIZE` (24,575 bytes — the SSTORE2 contract code ceiling). The table below shows the effective upper bounds.
+
+| Nominal limit | Effective limit | Why |
+|:---|:---|:---|
+| Rules per group (65,535) | ~2,730 | `MAX_POLICY_SIZE` / `RULE_MIN_SIZE` (24,575 / 9) |
+| Encoded path depth (255) | 32 | `MAX_PATH_DEPTH` constant |
+| Descriptor length (65,535) | 24,568 bytes | `MAX_POLICY_SIZE` minus 7-byte policy header |
+| Group size (4,294,967,295) | 24,575 bytes | Bounded by `MAX_POLICY_SIZE` |
+| Set cardinality (2,047) | ~768 elements | `MAX_POLICY_SIZE` / 32 bytes per element |
+
+## Limits: format-derived vs design-choice
+
+1. **Format-derived limits** (uint8 → 255, uint16 → 65,535, 12-bit → 4,095) are inherent to the binary encoding. Changing them requires a format version bump.
+
+2. **Design-choice limits** (`MAX_PATH_DEPTH`, `MAX_QUANTIFIED_ARRAY_LENGTH`, `MAX_POLICY_SIZE`) can be adjusted without format changes but affect gas characteristics and interoperability.
+
+3. **There is no explicit `MAX_SET_SIZE` constant.** Set cardinality is bounded by the 2-byte `dataLength` field (2,047 elements) and further by `MAX_POLICY_SIZE` (~768 elements). Implementations MUST NOT assume a tighter bound than what the format allows.
+
+4. **`OP_IN` sets are sorted and deduplicated** for canonicalization. Implementations MAY exploit sort order for lookup optimization (e.g. binary search).
+
+5. **Signed integer set ordering** is defined on the encoded bytes, independent of numeric interpretation. For signed integers, negative values (which start with `0xFF…` in two's complement) sort after positive values. For example, a set `{-1, 0, 1}` has encoded order `[0, 1, -1]` because `0x00..00 < 0x00..01 < 0xFF..FF`.
+
+## Bitmask type restrictions
+
+`BITMASK_*` operators are restricted to `uint*` and `bytes32`. The exclusions are intentional:
+
+- **`BYTES1`–`BYTES31`**: Smaller fixed-byte types are right-padded in ABI encoding. A bitmask would require left-aligned masks — a confusing inversion from numeric types, which are left-padded. Restricting to `BYTES32` (fills the full word) eliminates this ambiguity.
+- **Signed integers**: Sign extension causes leading `0xFF…` bytes for negative values, making mask semantics value-dependent. Restricting to `uint*` (consistent right-alignment) avoids this.
+
+## Value operators and dynamic types
+
+Value operators (`EQ`, `GT`, `LT`, `GTE`, `LTE`, `BETWEEN`, `IN`, `BITMASK_*`) require 32-byte static elementary types. Dynamic types (`bytes`, `string`, dynamic arrays) and composite types (tuples, static arrays) are incompatible because their ABI head slot contains an offset or a multi-word layout, not a scalar value.
+
+To constrain dynamic types, use `LENGTH_*` operators. To constrain a specific element of an array or field of a struct, target it via path navigation.

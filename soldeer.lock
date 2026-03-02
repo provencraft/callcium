@@ -1,0 +1,13 @@
+[[dependencies]]
+name = "forge-std"
+version = "1.15.0"
+url = "https://soldeer-revisions.s3.amazonaws.com/forge-std/1_15_0_27-02-2026_08:26:17_forge-std-1.15.zip"
+checksum = "40d9b3b3d786eec4cd05fb9d818616015cbe7b8866643a9f0854495c938588c4"
+integrity = "92accf4f7850eb9f5832f0ea77d633d36ebe993efc6d6c9f32369d31befc8a75"
+
+[[dependencies]]
+name = "solady"
+version = "0.1.26"
+url = "https://soldeer-revisions.s3.amazonaws.com/solady/0_1_26_25-08-2025_15:30:06_solady.zip"
+checksum = "9872ac7cfd32c1eba32800508a1325c49f4a4aa8c6f670454db91971a583e26b"
+integrity = "5da4b5ca9cbad98812a4b75ad528ff34c72a0b84433204be6d1420c81de1d6ff"

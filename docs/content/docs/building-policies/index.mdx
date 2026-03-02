@@ -1,0 +1,270 @@
+---
+title: Constraints
+description: Define constraints on function arguments and transaction context.
+---
+
+A policy is a set of constraint groups. All constraints in a group must pass for the group to match; the data is valid against the policy if any group matches.
+
+## Targeting arguments
+
+Constraints target values by path. `arg(n)` selects the zero-indexed parameter `n` of the function.\
+`arg(n, field)` descends into a struct, selecting field `field` of the value at position `n`. Paths nest up to four steps deep using the same indexed syntax.
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+
+arg(0)     // first parameter
+arg(1)     // second parameter
+arg(0, 2)  // third field of the first parameter (struct)
+```
+
+Array quantifiers and deeper nested access are covered in [Array Constraints](./building-policies/array-constraints).
+
+## Equality and comparison
+
+`eq` and `neq` test exact equality. Both accept `uint256`, `int256`, `address`, `bytes32`, and `bool`. For boolean parameters, `eq(true)` and `eq(false)` are the only operators — there is no dedicated boolean operator.
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+// approve(address spender, uint256 amount)
+bytes memory policy = PolicyBuilder
+    .create("approve(address,uint256)")
+    .add(arg(0).eq(TREASURY))              // spender
+    .build();
+```
+
+Range operators — `gt`, `lt`, `gte`, `lte`, and `between` — impose ordering constraints. **Type restriction:** Valid for `uint*` and `int*` parameters only. Applying a range operator to a non-numeric parameter is rejected by `build()`.
+
+`lte` caps a value at an upper bound. `between` defines a closed inclusive range `[min, max]`:
+
+```solidity
+// approve(address spender, uint256 amount)
+bytes memory policy = PolicyBuilder
+    .create("approve(address,uint256)")
+    .add(arg(0).eq(TREASURY))                                    // spender
+    .add(arg(1).between(uint256(1e18), uint256(1_000e18)))       // amount
+    .build();
+```
+
+## Set membership
+
+`isIn` requires the value to match one element in a set. `notIn` requires it to match none.
+
+**Type restriction:** Accepts `address[]`, `uint256[]`, `int256[]`, and `bytes32[]`. The builder automatically sorts and deduplicates the set. The set must have at least one element and no more than 2,047.
+
+Allowlists (`isIn`) are the safer default over denylists (`notIn`) — an allowlist is bounded and exhaustive; a denylist can be bypassed by values not yet anticipated.
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+address[] memory spenders = new address[](2);
+spenders[0] = TREASURY;
+spenders[1] = MULTISIG;
+
+// approve(address spender, uint256 amount)
+bytes memory policy = PolicyBuilder
+    .create("approve(address,uint256)")
+    .add(arg(0).isIn(spenders))            // spender
+    .add(arg(1).lte(uint256(1_000e18)))    // amount
+    .build();
+```
+
+### Cast helpers
+
+`isIn` and `notIn` require arrays of 32-byte types. For narrower types — `bytes4`, `uint16`, `int32`, and similar — use `Cast` to upcast the array:
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { Cast } from "callcium/Cast.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+bytes4[] memory allowedSelectors = new bytes4[](2);
+allowedSelectors[0] = IERC20.transfer.selector;
+allowedSelectors[1] = IERC20.approve.selector;
+
+// dispatch(bytes4 selector, bytes calldata payload)
+bytes memory policy = PolicyBuilder
+    .create("dispatch(bytes4,bytes)")
+    .add(arg(0).isIn(Cast.toBytes32Array(allowedSelectors)))  // selector
+    .build();
+```
+
+`Cast` provides `toBytes32Array`, `toUint256Array`, and `toInt256Array`, each accepting any array of the corresponding fixed-width type.
+
+## Bitmask operators
+
+`bitmaskAll`, `bitmaskAny`, and `bitmaskNone` check specific bits in an integer value.
+
+**Type restriction:** Valid for `uint*` and `bytes32` parameters only.
+
+| Operator | Semantics |
+|---|---|
+| `bitmaskAll(mask)` | `(value & mask) == mask` — all bits in `mask` are set |
+| `bitmaskAny(mask)` | `(value & mask) != 0` — at least one bit in `mask` is set |
+| `bitmaskNone(mask)` | `(value & mask) == 0` — no bit in `mask` is set |
+
+A common pattern: require that a `roles` parameter has all required bits set.
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+uint256 constant ROLE_OPERATOR = 1 << 0;
+uint256 constant ROLE_GUARDIAN = 1 << 1;
+
+// execute(address target, uint256 roles, bytes calldata data)
+bytes memory policy = PolicyBuilder
+    .create("execute(address,uint256,bytes)")
+    .add(arg(1).bitmaskAll(ROLE_OPERATOR | ROLE_GUARDIAN))  // roles
+    .build();
+```
+
+## Length constraints
+
+`lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, and `lengthBetween` constrain the byte length of a dynamic value.
+
+**Type restriction:** Valid for `bytes`, `string`, and dynamic array parameters only. Not valid for static arrays.
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+// execute(address target, bytes calldata data)
+bytes memory policy = PolicyBuilder
+    .create("execute(address,bytes)")
+    .add(arg(1).lengthBetween(4, 256))  // data
+    .build();
+```
+
+`lengthBetween(4, 256)` ensures the payload is at least 4 bytes and imposes a hard upper bound on untrusted input size.
+
+## Transaction context
+
+Six context properties are available as constraint targets:
+
+| Target | Solidity equivalent | Type |
+|---|---|---|
+| `msgSender()` | `msg.sender` | `address` |
+| `msgValue()` | `msg.value` | `uint256` |
+| `blockTimestamp()` | `block.timestamp` | `uint256` |
+| `blockNumber()` | `block.number` | `uint256` |
+| `chainId()` | `block.chainid` | `uint256` |
+| `txOrigin()` | `tx.origin` | `address` |
+
+When enforced via a static call, `msgSender()` reflects the `from` address of the call — set it explicitly to simulate the intended caller. `msgValue()` always resolves to 0; static calls cannot forward value.
+
+Context targets are imported alongside `arg`:
+
+```solidity
+import { arg, msgSender, msgValue, blockTimestamp, chainId, txOrigin } from "callcium/Constraint.sol";
+```
+
+A `msgSender` constraint does not impose any requirement on argument values — pair it with argument constraints for complete coverage.
+
+```solidity
+import { arg, msgSender } from "callcium/Constraint.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+address[] memory operators = new address[](2);
+operators[0] = OPERATOR_A;
+operators[1] = OPERATOR_B;
+
+address[] memory spenders = new address[](2);
+spenders[0] = TREASURY;
+spenders[1] = MULTISIG;
+
+// approve(address spender, uint256 amount)
+bytes memory policy = PolicyBuilder
+    .create("approve(address,uint256)")
+    .add(msgSender().isIn(operators))      // caller
+    .add(arg(0).isIn(spenders))            // spender
+    .add(arg(1).lte(uint256(1_000e18)))    // amount
+    .build();
+```
+
+## Array quantifiers
+
+`Path.ALL`, `Path.ANY`, and `Path.ALL_OR_EMPTY` apply a constraint across all elements of an array parameter:
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { Path } from "callcium/Path.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+// batchTransfer(address[] recipients, uint256[] amounts)
+bytes memory policy = PolicyBuilder
+    .create("batchTransfer(address[],uint256[])")
+    .add(arg(0, Path.ALL).isIn(allowlist))           // recipients — all must be approved
+    .add(arg(1, Path.ALL).lte(uint256(1_000e18)))    // amounts — all within limit
+    .build();
+```
+
+Full quantifier semantics, empty-array behavior, and nested path patterns are in [Array Constraints](./building-policies/array-constraints).
+
+## OR groups
+
+`.or()` starts a new constraint group. The data is valid against the policy when any group matches.
+
+```solidity
+import { arg, msgSender } from "callcium/Constraint.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+address[] memory spenders = new address[](2);
+spenders[0] = TREASURY;
+spenders[1] = MULTISIG;
+
+// approve(address spender, uint256 amount)
+bytes memory policy = PolicyBuilder
+    .create("approve(address,uint256)")
+    // Standard operation.
+    .add(arg(0).isIn(spenders))             // spender
+    .add(arg(1).lte(uint256(1_000e18)))     // amount
+    .or()
+    // Admin bypass.
+    .add(msgSender().eq(ADMIN))             // caller
+    .build();
+```
+
+The data is valid where either (spender is in the set and amount is within the cap) or (caller is the admin).
+
+`.or()` requires the current group to have at least one constraint.
+
+## Building safely
+
+`build()` is the default entry point. It validates the policy's internal logic — type compatibility and structural consistency — and reverts if any issue is found. It does not check whether any specific data satisfies the policy; that is the enforcer's role.
+
+For issue types, severity levels, and how to inspect issues without reverting, see [Policy Validation](/docs/policy-validation).
+
+## Unsafe builds
+
+<Callout type="warn" title="No validation">
+  `buildUnsafe()` skips all validation. Type mismatches and logical contradictions are not detected at
+  build time — they surface at enforcement, where the policy may match data it should reject, or fail
+  on valid data. Use only when validation has been confirmed separately or in controlled test environments.
+</Callout>
+
+`buildUnsafe()` encodes policy bytes directly without a validation pass. Its primary uses are benchmarking, testing enforcement behavior with edge-case inputs, and programmatic pipelines that validate separately.
+
+```solidity
+// approve(address spender, uint256 amount)
+bytes memory policy = PolicyBuilder
+    .create("approve(address,uint256)")
+    .add(arg(0).isIn(spenders))
+    .add(arg(1).lte(uint256(1_000e18)))
+    .buildUnsafe(); // validation skipped
+```
+
+## Operator compatibility
+
+| Operator family | Operators | Valid argument types |
+|---|---|---|
+| Equality | `eq`, `neq` | All 32-byte static types (`address`, `uint*`, `int*`, `bytes32`, `bool`) |
+| Comparison | `gt`, `lt`, `gte`, `lte`, `between` | `uint*`, `int*` |
+| Set membership | `isIn`, `notIn` | `address`, `uint*`, `int*`, `bytes32` (use `Cast` for narrower types) |
+| Bitmask | `bitmaskAll`, `bitmaskAny`, `bitmaskNone` | `uint*`, `bytes32` |
+| Length | `lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, `lengthBetween` | `bytes`, `string`, dynamic arrays |
+
+`build()` enforces these restrictions and reports violations as `Issue` entries in `ValidationError`.

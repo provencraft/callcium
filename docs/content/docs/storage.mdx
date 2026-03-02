@@ -1,0 +1,143 @@
+---
+title: Storage
+description: Store, bind, and resolve policies on-chain.
+---
+
+Enforcing a policy at call time requires the policy blob to be available on-chain. While Callcium's binary format specifies what a policy contains, how that data is stored and retrieved is a separate concern. Different systems have different constraints: some need policies to be updatable, others fix them at deployment, and multi-contract setups may share a single policy across several addresses.
+
+`PolicyManager` covers the common case without prescribing how policies are exposed or who can update them. It is designed to work in both upgradable and immutable contracts. For systems with specialized requirements, the underlying `PolicyRegistry` library is available for custom implementations.
+
+<Callout type="warn" title="Security boundary">
+  Policy storage is the enforcement security boundary. Stored policies are trusted at enforcement time without revalidation — structural integrity is checked once at storage, but semantic correctness is not reverified on every enforcement call.
+
+  `_storePolicy`, `_bindPolicy`, and `_storeAndBindPolicy` are `internal` because they require access control that only the inheriting contract can define. An unrestricted store or bind path nullifies enforcement — whoever can invoke these functions controls what the enforcer accepts.
+</Callout>
+
+## PolicyManager
+
+`PolicyManager` is an abstract contract. Inherit it to add policy storage to your contract:
+
+```solidity
+import { PolicyManager } from "callcium/PolicyManager.sol";
+
+contract MyVault is PolicyManager {
+    // ...
+}
+```
+
+`PolicyManager` delegates all storage operations to `PolicyRegistry`, an internal library. Storage lives in an EIP-7201 namespaced slot, guaranteeing Callcium's internal mappings never collide with your contract's own state variables regardless of inheritance order or declaration sequence.
+
+All storage functions are `internal`. You define the public API surface and access control.
+
+## Storing policies
+
+Policies are stored as contract bytecode via SSTORE2. This has two consequences:
+
+**Gas profile.** Storing a policy triggers a contract creation — a one-time, high-cost write. Resolving a policy at runtime uses `EXTCODECOPY`, which is significantly cheaper than repeated `SLOAD` operations for blobs of any meaningful size. Pay once on setup; pay little on every call.
+
+**Immutability.** Stored policies cannot be patched — only replaced. To change what a function enforces, store a new blob and update the binding.
+
+`_storePolicy` writes the blob and returns its hash and SSTORE2 pointer address:
+
+```solidity
+(bytes32 policyHash, address pointer) = _storePolicy(policy);
+```
+
+`policyHash` is the `keccak256` of the blob — the content-addressed identifier for that specific set of rules. If the rules don't change, the hash doesn't change.
+
+For the common case of storing and immediately binding, use `_storeAndBindPolicy`:
+
+```solidity
+// function withdraw(address to, uint256 amount)
+bytes32 policyHash = _storeAndBindPolicy(address(this), policy);
+```
+
+Policies are validated on-chain during storage. `_storePolicy` runs a structural integrity check — it rejects malformed blobs that don't conform to the policy binary format. Semantic validation (type mismatches, contradictions, redundancies) is handled earlier by `PolicyBuilder.build()` at build time. The two checks are independent: build-time validation catches logic errors; storage-time validation catches format errors.
+
+The maximum policy size is 24,575 bytes (the SSTORE2 contract code ceiling).
+
+## Binding policies
+
+The binding layer is separate from the blob. A binding maps `(target, selector)` to a `policyHash`. The blob is immutable; the binding is not.
+
+**Multi-target binding** is where the separation pays off. The `address[]` form of `_storeAndBindPolicy` stores the blob once and binds it to all targets atomically — one SSTORE2 write regardless of target count:
+
+```solidity
+address[] memory targets = new address[](2);
+targets[0] = address(vaultA);
+targets[1] = address(vaultB);
+
+// function withdraw(address to, uint256 amount)
+bytes32 policyHash = _storeAndBindPolicy(targets, policy);
+```
+
+To bind an already-stored policy to additional targets (for example, when a new contract joins a shared policy), use `_bindPolicy` directly:
+
+```solidity
+_bindPolicy(address(vaultC), IVault.withdraw.selector, policyHash);
+```
+
+`_bindPolicy` requires the hash to already exist in storage; it reverts with `PolicyNotFound` otherwise.
+
+**Updating a policy** means storing a new blob and rebinding the selector:
+
+```solidity
+(bytes32 newHash,) = _storePolicy(newPolicy);
+_bindPolicy(address(this), IVault.withdraw.selector, newHash);
+```
+
+The old blob remains in storage permanently. Only the binding changes.
+
+**Unbinding** removes the `(target, selector)` mapping. The blob itself is not removed — SSTORE2 storage is permanent:
+
+```solidity
+_unbindPolicy(address(this), IVault.withdraw.selector);
+```
+
+After unbinding, resolution falls back to the global default or returns empty bytes.
+
+## Resolving policies
+
+`_resolvePolicy` returns the policy blob for a `(target, selector)` pair, or empty bytes if none is found:
+
+```solidity
+bytes memory policy = _resolvePolicy(address(this), msg.sig);
+```
+
+Resolution follows a fixed priority:
+
+1. **Target-specific binding** — the policy bound to `(target, selector)`.
+2. **Global default** — the policy bound to `(address(0), selector)`.
+3. **Empty** — `bytes("")` if neither exists.
+
+The global default is only consulted when `(target, selector)` has no binding — a target with a specific binding for a selector always resolves to it, regardless of what the global default contains.
+
+**Global default policies** apply to any target that has no specific binding for that selector. Bind to `address(0)` to set one:
+
+```solidity
+// function withdraw(address to, uint256 amount)
+_storeAndBindPolicy(address(0), policy);
+```
+
+Any contract that resolves `(self, IVault.withdraw.selector)` with no specific binding receives this policy.
+
+For selectorless policies, the selector is `bytes4(0)` in the internal mapping; resolution follows the same hierarchy.
+
+**Lookup-only variants** avoid loading the full blob when only the hash or existence is needed:
+
+| Function | Returns | Use case |
+|---|---|---|
+| `_policyHashFor(target, selector)` | `bytes32` | Check which policy is active without loading the blob |
+| `_policyExists(policyHash)` | `bool` | Verify a hash is stored before binding |
+| `_loadPolicy(policyHash)` | `bytes` | Load by hash directly, bypassing the binding lookup |
+| `_policyPointerOf(policyHash)` | `address` | SSTORE2 pointer address, for off-chain inspection |
+
+## Deduplication
+
+`_storePolicy` checks whether the `policyHash` already exists before deploying a new SSTORE2 contract. If the blob is already stored, the write is skipped — only the binding mapping is updated.
+
+Two practical consequences:
+
+**Multi-target binding is gas-efficient.** Binding the same policy to ten targets costs one SSTORE2 write plus ten mapping writes — not ten.
+
+**Rolling back is cheap.** If a policy is updated and then reverted to an earlier version, the original blob is already in storage. Rebinding to the old hash costs a single mapping write, not a new SSTORE2 deploy.

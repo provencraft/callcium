@@ -1,0 +1,66 @@
+---
+title: Getting Started
+description: Install Callcium and write your first on-chain policy.
+---
+
+## Install
+
+```bash
+forge install provencraft/callcium
+```
+
+<Callout type="info">
+  Callcium depends on [Solady](https://github.com/Vectorized/solady). Install it separately and ensure it is mapped in your `remappings.txt`.
+</Callout>
+
+## Define a policy
+
+Policies are designed to be built in Forge scripts and stored on-chain for enforcement. A policy starts with a function signature and a set of constraints. Here's one that restricts vault withdrawals to approved recipients and caps the amount:
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+address[] memory allowed = new address[](2);
+allowed[0] = TREASURY;
+allowed[1] = OPS_MULTISIG;
+
+// function withdraw(address to, uint256 amount)
+bytes memory policy = PolicyBuilder
+    .create("withdraw(address,uint256)")
+    .add(arg(0).isIn(allowed))             // to
+    .add(arg(1).lte(uint256(1_000e18)))    // amount
+    .build();
+```
+
+## Store and enforce
+
+[`PolicyManager`](/docs/reference/policy-manager) provides policy storage. [`PolicyEnforcer`](/docs/reference/policy-enforcer) checks calldata against a stored policy at runtime. Together, they wire Callcium into your contract:
+
+```solidity
+import { Ownable } from "solady/auth/Ownable.sol";
+import { PolicyEnforcer } from "callcium/PolicyEnforcer.sol";
+import { PolicyManager } from "callcium/PolicyManager.sol";
+
+contract MyVault is PolicyManager, Ownable {
+    function setPolicy(bytes calldata policy) external onlyOwner {
+        _storeAndBindPolicy(address(this), policy);
+    }
+
+    function withdraw(address to, uint256 amount) external {
+        bytes memory policy = _resolvePolicy(address(this), msg.sig);
+        PolicyEnforcer.enforce(policy, msg.data);
+        // ...
+    }
+}
+```
+
+<Callout type="warn" title="Access control">
+  PolicyManager exposes internal functions only — you define the public API surface and access control.
+</Callout>
+
+## Next steps
+
+- [Building Policies](/docs/building-policies) — all constraint types, OR groups, and context constraints.
+- [Storage](/docs/storage) — managing policy lifecycle on-chain.
+- [Enforcement](/docs/enforcement) — how policies are checked against ABI-encoded data at runtime.

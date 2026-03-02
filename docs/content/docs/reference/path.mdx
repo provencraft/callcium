@@ -1,0 +1,284 @@
+---
+title: "Path"
+description: "Encodes and inspects descriptor paths as big-endian uint16 sequences."
+---
+
+Paths represent navigation through ABI-encoded calldata:
+
+- path\[0] is the top-level argument index
+- path\[1..n] are indices into nested composites (tuples, arrays)
+
+## State Variables
+
+### ALL_OR_EMPTY
+
+Universal quantifier for array paths (∀). Rule must pass for ALL elements.
+
+Only valid immediately after an array node. Empty arrays yield true (vacuous truth).
+
+```solidity
+uint16 internal constant ALL_OR_EMPTY = 0xFFFF
+```
+
+### ALL
+
+Universal quantifier for array paths (∀). Rule must pass for ALL elements and the array MUST NOT be empty.
+
+Only valid immediately after an array node. Empty arrays yield false.
+
+```solidity
+uint16 internal constant ALL = 0xFFFE
+```
+
+### ANY
+
+Existential quantifier for array paths (∃). Rule must pass for AT LEAST ONE element.
+
+Only valid immediately after an array node. Empty arrays yield false.
+
+```solidity
+uint16 internal constant ANY = 0xFFFD
+```
+
+## Functions
+
+### encode
+
+Encodes a single-step path.
+
+```solidity
+function encode(uint16 p0) internal pure returns (bytes memory out);
+```
+
+**Parameters**
+
+| Name | Type     | Description          |
+| ---- | -------- | -------------------- |
+| `p0` | `uint16` | The first path step. |
+
+**Returns**
+
+| Name  | Type    | Description             |
+| ----- | ------- | ----------------------- |
+| `out` | `bytes` | The encoded path bytes. |
+
+### encode
+
+Encodes a two-step path.
+
+```solidity
+function encode(uint16 p0, uint16 p1) internal pure returns (bytes memory out);
+```
+
+**Parameters**
+
+| Name | Type     | Description           |
+| ---- | -------- | --------------------- |
+| `p0` | `uint16` | The first path step.  |
+| `p1` | `uint16` | The second path step. |
+
+**Returns**
+
+| Name  | Type    | Description             |
+| ----- | ------- | ----------------------- |
+| `out` | `bytes` | The encoded path bytes. |
+
+### encode
+
+Encodes a three-step path.
+
+```solidity
+function encode(uint16 p0, uint16 p1, uint16 p2) internal pure returns (bytes memory out);
+```
+
+**Parameters**
+
+| Name | Type     | Description           |
+| ---- | -------- | --------------------- |
+| `p0` | `uint16` | The first path step.  |
+| `p1` | `uint16` | The second path step. |
+| `p2` | `uint16` | The third path step.  |
+
+**Returns**
+
+| Name  | Type    | Description             |
+| ----- | ------- | ----------------------- |
+| `out` | `bytes` | The encoded path bytes. |
+
+### encode
+
+Encodes a four-step path.
+
+```solidity
+function encode(uint16 p0, uint16 p1, uint16 p2, uint16 p3) internal pure returns (bytes memory out);
+```
+
+**Parameters**
+
+| Name | Type     | Description           |
+| ---- | -------- | --------------------- |
+| `p0` | `uint16` | The first path step.  |
+| `p1` | `uint16` | The second path step. |
+| `p2` | `uint16` | The third path step.  |
+| `p3` | `uint16` | The fourth path step. |
+
+**Returns**
+
+| Name  | Type    | Description             |
+| ----- | ------- | ----------------------- |
+| `out` | `bytes` | The encoded path bytes. |
+
+### encode
+
+Encodes a path from a uint16 array.
+
+```solidity
+function encode(uint16[] memory path) internal pure returns (bytes memory out);
+```
+
+**Parameters**
+
+| Name   | Type       | Description                   |
+| ------ | ---------- | ----------------------------- |
+| `path` | `uint16[]` | The path indices as an array. |
+
+**Returns**
+
+| Name  | Type    | Description             |
+| ----- | ------- | ----------------------- |
+| `out` | `bytes` | The encoded path bytes. |
+
+### decode
+
+Decodes a be16-encoded path into a uint16 array.
+
+```solidity
+function decode(bytes memory self) internal pure returns (uint16[] memory out);
+```
+
+**Parameters**
+
+| Name   | Type    | Description             |
+| ------ | ------- | ----------------------- |
+| `self` | `bytes` | The encoded path bytes. |
+
+**Returns**
+
+| Name  | Type       | Description             |
+| ----- | ---------- | ----------------------- |
+| `out` | `uint16[]` | The decoded path steps. |
+
+### depth
+
+Returns the depth (number of steps) in a path.
+
+```solidity
+function depth(bytes memory self) internal pure returns (uint256);
+```
+
+**Parameters**
+
+| Name   | Type    | Description             |
+| ------ | ------- | ----------------------- |
+| `self` | `bytes` | The encoded path bytes. |
+
+**Returns**
+
+| Name     | Type      | Description                      |
+| -------- | --------- | -------------------------------- |
+| `<none>` | `uint256` | The number of steps in the path. |
+
+### validate
+
+Validates strict be16 payload: non-empty and even length. Returns depth.
+
+```solidity
+function validate(bytes memory self) internal pure returns (uint256);
+```
+
+**Parameters**
+
+| Name   | Type    | Description             |
+| ------ | ------- | ----------------------- |
+| `self` | `bytes` | The encoded path bytes. |
+
+**Returns**
+
+| Name     | Type      | Description                      |
+| -------- | --------- | -------------------------------- |
+| `<none>` | `uint256` | The number of steps in the path. |
+
+### at
+
+Returns the step at a given step index in the path.
+
+```solidity
+function at(bytes memory self, uint256 stepIndex) internal pure returns (uint16);
+```
+
+**Parameters**
+
+| Name        | Type      | Description             |
+| ----------- | --------- | ----------------------- |
+| `self`      | `bytes`   | The encoded path bytes. |
+| `stepIndex` | `uint256` | The 0-based step index. |
+
+**Returns**
+
+| Name     | Type     | Description                               |
+| -------- | -------- | ----------------------------------------- |
+| `<none>` | `uint16` | The uint16 step value at the given index. |
+
+### atUnchecked
+
+Returns the step at a given step index without bounds checks. Caller must ensure `stepIndex < depth`.
+
+```solidity
+function atUnchecked(bytes memory self, uint256 stepIndex) internal pure returns (uint16);
+```
+
+**Parameters**
+
+| Name        | Type      | Description             |
+| ----------- | --------- | ----------------------- |
+| `self`      | `bytes`   | The encoded path bytes. |
+| `stepIndex` | `uint256` | The 0-based step index. |
+
+**Returns**
+
+| Name     | Type     | Description                               |
+| -------- | -------- | ----------------------------------------- |
+| `<none>` | `uint16` | The uint16 step value at the given index. |
+
+## Errors
+
+### EmptyPath
+
+Thrown when the path is empty.
+
+```solidity
+error EmptyPath();
+```
+
+### IndexOutOfBounds
+
+Thrown when accessing a step position beyond the path depth.
+
+```solidity
+error IndexOutOfBounds(uint256 stepIndex, uint256 depth);
+```
+
+**Parameters**
+
+| Name        | Type      | Description             |
+| ----------- | --------- | ----------------------- |
+| `stepIndex` | `uint256` | The 0-based step index. |
+| `depth`     | `uint256` | The path depth.         |
+
+### MalformedPath
+
+Thrown when the be16-encoded path is malformed (empty or odd length).
+
+```solidity
+error MalformedPath();
+```

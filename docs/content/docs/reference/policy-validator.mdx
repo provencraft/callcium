@@ -1,0 +1,42 @@
+---
+title: "PolicyValidator"
+description: "Semantic validation for policies - checks for type mismatches, contradictions, and redundancies."
+---
+
+## Functions
+
+### validate
+
+Validates policy data for semantic issues.
+
+```solidity
+function validate(PolicyData memory data) internal pure returns (Issue[] memory issues);
+```
+
+**Parameters**
+
+| Name   | Type         | Description                  |
+| ------ | ------------ | ---------------------------- |
+| `data` | `PolicyData` | The policy data to validate. |
+
+**Returns**
+
+| Name     | Type      | Description                  |
+| -------- | --------- | ---------------------------- |
+| `issues` | `Issue[]` | All validation issues found. |
+
+## Errors
+
+### ValidationError
+
+Thrown when validate finds errors and the caller wants to revert.
+
+```solidity
+error ValidationError(Issue[] issues);
+```
+
+**Parameters**
+
+| Name     | Type      | Description                |
+| -------- | --------- | -------------------------- |
+| `issues` | `Issue[]` | The validate issues found. |

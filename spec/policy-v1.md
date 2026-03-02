@@ -1,0 +1,524 @@
+# Callcium Policy Spec v1.0
+
+## 1. Document Control
+- Version: 1.0
+- Status: Normative
+- Date: 2026-02-22
+
+---
+
+## 2. Purpose, Scope, and Exclusions
+
+This document specifies the canonical binary format for Policies in Callcium, an on-chain policy engine for ABI-encoded data. A Policy defines constraints that ABI-encoded data must satisfy to be considered compliant.
+
+### Scope
+- Binary format and encoding rules.
+- Validation semantics.
+- Canonicalization requirements.
+
+### Exclusions
+
+This document does not define:
+- Builder API design or usage patterns.
+- Implementation strategies, gas optimization techniques, or evaluation order heuristics.
+- Application-specific policy templates.
+- Descriptor format (see Callcium Descriptor Spec).
+
+---
+
+## 3. Terminology and Conformance
+
+- The key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY in this document are to be interpreted as described in RFC 2119.
+- "Validator" refers to any component that evaluates a policy against calldata and execution context.
+- "Builder" refers to any component that constructs canonical policy blobs from higher-level definitions.
+
+A policy is conformant if and only if it adheres to all MUST/REQUIRED statements in Sections 4–9.
+
+---
+
+## 4. Wire Format
+
+### 4.1 Policy Structure
+
+```
++--------+----------+------------+----------+------------+----------+
+| header | selector | descLength | desc     | groupCount | groups   |
+| 1 byte | 4 bytes  | 2 bytes    | variable | 1 byte     | variable |
++--------+----------+------------+----------+------------+----------+
+```
+
+| Offset | Field | Size | Description |
+|--------|-------|------|-------------|
+| 0 | header | 1 | Composite header byte (see below) |
+| 1 | selector | 4 | Function selector (must be `0x00000000` if selectorless) |
+| 5 | descLength | 2 | Descriptor length in bytes (big-endian) |
+| 7 | desc | descLength | Embedded function descriptor |
+| 7+descLength | groupCount | 1 | Number of rule groups [1, 255] |
+| 8+descLength | groups | var | Concatenated group records |
+
+**Header byte layout:**
+```
++----------+------------------+----------+
+| reserved | FLAG_NO_SELECTOR | version  |
+| bits 7-5 | bit 4            | bits 3-0 |
++----------+------------------+----------+
+```
+
+- **Bits 3-0 (version)**: Format version. Current value: `0x1`.
+- **Bit 4 (FLAG_NO_SELECTOR)**: If set (`0x10`), the policy targets raw ABI-encoded calldata without a 4-byte function selector. The selector slot is ignored by the enforcer, which uses `baseOffset = 0` instead of `4`.
+- **Bits 7-5 (reserved)**: MUST be zero. Validators MUST reject non-zero reserved bits.
+
+**Invariants:**
+- `(header & 0x0F) == 0x01`. The policy format version is independent of the descriptor format version.
+- `(header & 0xE0) == 0x00`. Reserved bits must be zero.
+- If `(header & 0x10) != 0`: `selector == 0x00000000` (canonical encoding).
+- `descLength >= 2` (the minimum descriptor header: version + paramCount).
+- `desc` is a valid descriptor blob (conforming to Callcium Descriptor Spec).
+- `groupCount >= 1` (empty policy is invalid).
+- Groups are stored contiguously, group-major order.
+
+### 4.2 Group Structure
+
+```
++-----------+-----------+----------+
+| ruleCount | groupSize | rules    |
+| 2 bytes   | 4 bytes   | variable |
++-----------+-----------+----------+
+```
+
+| Offset | Field | Size | Description |
+|--------|-------|------|-------------|
+| 0 | ruleCount | 2 | Number of rules in group (big-endian) |
+| 2 | groupSize | 4 | Total bytes of rules payload (big-endian) |
+| 6 | rules | var | Concatenated rule records |
+
+**Invariants:**
+- Group identity = position in blob (0-indexed).
+- `ruleCount >= 1` (empty group is invalid).
+- `groupSize == sum of all rule bytes in this group`.
+- Rules within a group are sorted by `(scope, pathDepth, pathBytes, operatorBytes)` ascending.
+
+**Semantics:**
+- Rules within a group have AND semantics (all must pass).
+- Groups have OR semantics (first passing group succeeds).
+- This structure is Disjunctive Normal Form (DNF): an OR of ANDs.
+
+### 4.3 Rule Structure
+
+```
++----------+--------+-----------+---------------+--------+------------+------------------+
+| ruleSize | scope  | pathDepth | path          | opCode | dataLength | data             |
+| 2 bytes  | 1 byte | 1 byte    | 2*depth bytes | 1 byte | 2 bytes    | dataLength bytes |
++----------+--------+-----------+---------------+--------+------------+------------------+
+```
+
+| Offset | Field | Size | Description |
+|--------|-------|------|-------------|
+| 0 | ruleSize | 2 | Total size of this rule in bytes, including this field (big-endian) |
+| 2 | scope | 1 | Rule scope (0=context, 1=calldata) |
+| 3 | pathDepth | 1 | Number of path steps |
+| 4 | path | 2*depth | Path steps (big-endian uint16 each) |
+| 4+2*depth | opCode | 1 | Comparison operator |
+| 5+2*depth | dataLength | 2 | Length of data section (big-endian) |
+| 7+2*depth | data | dataLength | Operator-specific data |
+
+**Invariants:**
+- `ruleSize == 4 + pathDepth*2 + 3 + dataLength`.
+- When `scope == 0`: `pathDepth == 1` and `path[0]` is a reserved context property ID.
+- When `scope == 1`: `pathDepth >= 1` and path navigates calldata structure.
+
+**Type Resolution:**
+- For calldata rules: type is resolved by navigating the descriptor using the rule's path (see Callcium Descriptor Spec, Section 6).
+- For context rules: type is implicit from the context property ID.
+
+### 4.4 Data Encoding
+
+All multi-byte integers are big-endian. All values in the data section are encoded as fixed 32-byte fields.
+
+**Operator Data Formats:**
+
+| Operator | dataLength | Format | Description |
+|----------|---------|--------|-------------|
+| EQ | 32 | `[value:32]` | Single comparison value |
+| GT | 32 | `[bound:32]` | Lower bound (exclusive) |
+| LT | 32 | `[bound:32]` | Upper bound (exclusive) |
+| GTE | 32 | `[bound:32]` | Lower bound (inclusive) |
+| LTE | 32 | `[bound:32]` | Upper bound (inclusive) |
+| BETWEEN | 64 | `[min:32][max:32]` | Range bounds (inclusive) |
+| IN | `32*n` | `[v1:32][v2:32]...` | Set members (`n = dataLength/32`), sorted and deduped |
+| BITMASK_ALL | 32 | `[mask:32]` | Required bits (all must be set) |
+| BITMASK_ANY | 32 | `[mask:32]` | Any-of bits (at least one set) |
+| BITMASK_NONE | 32 | `[mask:32]` | Forbidden bits (none may be set) |
+| LENGTH_EQ | 32 | `[length:32]` | Exact length |
+| LENGTH_GT | 32 | `[bound:32]` | Minimum length (exclusive) |
+| LENGTH_LT | 32 | `[bound:32]` | Maximum length (exclusive) |
+| LENGTH_GTE | 32 | `[bound:32]` | Minimum length (inclusive) |
+| LENGTH_LTE | 32 | `[bound:32]` | Maximum length (inclusive) |
+| LENGTH_BETWEEN | 64 | `[min:32][max:32]` | Length range (inclusive) |
+
+Length operators apply to dynamic arrays (element count) and `bytes`/`string` (byte length). Static arrays are forbidden.
+
+### 4.5 Type-Specific Encoding
+
+**Address (typeCode = 0x40):**
+```
+[0x000000000000000000000000][address:20]
+```
+Left-padded with 12 zero bytes.
+
+**Unsigned Integers (typeCode = 0x00-0x1F):**
+```
+[padding][value]
+```
+Left-padded to 32 bytes. Value occupies rightmost N bytes where N = (typeCode + 1).
+
+**Signed Integers (typeCode = 0x20-0x3F):**
+```
+[sign-extension][value]
+```
+Sign-extended to 32 bytes (two's complement). Comparison operators (`GT`, `LT`, `GTE`, `LTE`, `BETWEEN`) MUST use signed arithmetic (EVM `slt`/`sgt`). The `EQ` and `IN` operators use bitwise equality and are sign-agnostic.
+
+**Boolean (typeCode = 0x41):**
+```
+[0x00...00][0x00 or 0x01]
+```
+0x00 = false, 0x01 = true. Only EQ and NOT_EQ operators are valid for booleans.
+
+**Fixed Bytes (typeCode = 0x50-0x6F):**
+```
+[value:N][0x00...00]
+```
+Right-padded with zeros. N = typeCode - 0x4F.
+
+---
+
+## 5. Constants
+
+### 5.1 Version and Header
+```
+VERSION          = 0x01   // format version (lower nibble of header)
+VERSION_MASK     = 0x0F   // mask to extract version from header
+FLAG_NO_SELECTOR = 0x10   // bit 4: selectorless policy
+RESERVED_MASK    = 0xE0   // bits 7-5: must be zero
+```
+
+### 5.2 Header Sizes
+```
+POLICY_HEADER_PREFIX = 7  // header(1) + selector(4) + descLength(2)
+GROUP_HEADER_SIZE = 6     // ruleCount(2) + groupSize(4)
+RULE_MIN_SIZE = 9         // ruleSize(2) + scope(1) + pathDepth(1) + path(2) + opCode(1) + dataLength(2)
+```
+
+### 5.3 Scope Values
+```
+SCOPE_CONTEXT = 0x00
+SCOPE_CALLDATA = 0x01
+```
+
+### 5.4 Context Property IDs
+
+When `scope == SCOPE_CONTEXT`, the path contains exactly one step identifying the context property:
+
+```
+CTX_MSG_SENDER = 0x0000       // msg.sender (address)
+CTX_MSG_VALUE = 0x0001        // msg.value (uint256)
+CTX_BLOCK_TIMESTAMP = 0x0002  // block.timestamp (uint256)
+CTX_BLOCK_NUMBER = 0x0003     // block.number (uint256)
+CTX_CHAIN_ID = 0x0004         // chain.id (uint256)
+CTX_TX_ORIGIN = 0x0005        // tx.origin (address)
+```
+
+Builders MUST validate operator-type compatibility for context rules using the declared types above (`address` or `uint256`). Validators MUST treat all context values as raw 32-byte words at evaluation time; runtime type checking is not required.
+
+### 5.5 Path Quantifiers
+
+```
+ALL_OR_EMPTY = 0xFFFF     // Universal quantifier (∀): passes for ALL elements; empty arrays yield true
+ALL          = 0xFFFE     // Universal quantifier (∀): passes for ALL elements; empty arrays yield false
+ANY          = 0xFFFD     // Existential quantifier (∃): passes for AT LEAST ONE element; empty arrays yield false
+```
+
+Reserved index range: indices `i >= 0xFFFD` are reserved for quantifiers. Valid concrete indices are `0..0xFFFC`.
+
+### 5.6 Operator Codes
+
+**Encoding:** `[NOT:1 bit][OPERATOR:7 bits]`
+- Bit 7 (0x80): NOT flag — inverts the operator result.
+- Bits 0-6: Operator code.
+
+Operator code `0x00` is unassigned and MUST be rejected.
+
+**Base Operators (0x01–0x7F):**
+```
+OP_EQ       = 0x01        // value == operand
+OP_GT       = 0x02        // value > operand
+OP_LT       = 0x03        // value < operand
+OP_GTE      = 0x04        // value >= operand
+OP_LTE      = 0x05        // value <= operand
+OP_BETWEEN  = 0x06        // min <= value <= max (inclusive)
+OP_IN       = 0x07        // value in {v1, v2, ...}
+OP_BITMASK_ALL  = 0x10    // (value & mask) == mask
+OP_BITMASK_ANY  = 0x11    // (value & mask) != 0
+OP_BITMASK_NONE = 0x12    // (value & mask) == 0
+OP_LENGTH_EQ      = 0x20  // length(value) == operand
+OP_LENGTH_GT      = 0x21  // length(value) > operand
+OP_LENGTH_LT      = 0x22  // length(value) < operand
+OP_LENGTH_GTE     = 0x23  // length(value) >= operand
+OP_LENGTH_LTE     = 0x24  // length(value) <= operand
+OP_LENGTH_BETWEEN = 0x25  // min <= length(value) <= max
+```
+
+**Negation:**
+```
+NOT_FLAG    = 0x80
+```
+
+Negated forms follow the same type restrictions as their base operators.
+
+### 5.7 Operator-Type Validity Matrix
+
+| Operator | Valid Types |
+|----------|-------------|
+| `EQ` | All 32-byte static elementary types. |
+| `GT`, `LT`, `GTE`, `LTE`, `BETWEEN` | Numeric types (`UINT*`, `INT*`) only. `BOOL` forbidden. |
+| `IN` | All 32-byte static elementary types. |
+| `BITMASK_*` | Unsigned integer types (`UINT*`) and `BYTES32` only. |
+| `LENGTH_*` | `BYTES`, `STRING`, `DYNAMIC_ARRAY` only. Static arrays forbidden. |
+
+Value operators (`EQ`, `GT`, `LT`, `GTE`, `LTE`, `BETWEEN`, `IN`, `BITMASK_*`) require 32-byte static elementary types. Dynamic types and composite types are incompatible.
+
+---
+
+## 6. Path Encoding and Rule Ordering
+
+### 6.1 Path Format
+
+Path is encoded as a sequence of big-endian uint16 values:
+```
+[step0:2][step1:2]...[stepN:2]
+```
+
+### 6.2 Path Interpretation
+
+- `path[0]`: Top-level parameter index (0-based).
+- `path[1..n]`: Navigation into nested structures.
+  - For tuples: field index.
+  - For arrays: element index, `ALL_OR_EMPTY` (0xFFFF), `ALL` (0xFFFE), or `ANY` (0xFFFD).
+
+### 6.3 Quantifier Constraints
+
+- `ALL_OR_EMPTY`, `ALL`, and `ANY` steps are only valid immediately after array nodes.
+- A path MUST contain at most one quantifier step. Nested quantifiers are forbidden in format version 1.
+- Valid concrete indices are `0..0xFFFC`.
+
+### 6.4 Examples
+
+```
+// Function: foo(address recipient, uint256 amount)
+// Rule: amount >= 100
+path = [0x0001]  // parameter index 1
+
+// Function: bar((address token, uint256 amount) payment)
+// Rule: payment.amount <= 1000
+path = [0x0000, 0x0001]  // parameter 0, field 1
+
+// Function: baz(address[] recipients)
+// Rule: all recipients in allowlist (universal, vacuous)
+path = [0x0000, 0xFFFF]  // parameter 0, ALL_OR_EMPTY elements
+
+// Rule: all recipients in allowlist (strict universal)
+path = [0x0000, 0xFFFE]  // parameter 0, ALL elements
+
+// Rule: at least one recipient in allowlist (existential)
+path = [0x0000, 0xFFFD]  // parameter 0, ANY element
+```
+
+### 6.5 Canonical Rule Sort Key
+
+Rules within each group MUST be sorted by `(scope, pathDepth, pathBytes, operatorBytes)` in ascending order.
+
+**Sort priority:**
+1. `scope`: 0 (context) before 1 (calldata).
+2. `pathDepth`: shorter paths before longer.
+3. `pathBytes`: lexicographic comparison of path bytes.
+4. `operatorBytes`: lexicographic comparison of `opCode || data` (tie-breaker for multiple rules on the same path).
+
+### 6.6 Comparison Algorithm
+
+```
+function compareRules(a, b):
+    // Primary: scope
+    if a.scope != b.scope:
+        return a.scope - b.scope
+
+    // Secondary: pathDepth
+    if a.pathDepth != b.pathDepth:
+        return a.pathDepth - b.pathDepth
+
+    // Tertiary: pathBytes (lexicographic)
+    for i in 0 ..< a.pathDepth:      // exclusive upper bound
+        if a.path[i] < b.path[i]: return -1
+        if a.path[i] > b.path[i]: return +1
+
+    // Quaternary: operatorBytes (lexicographic over opCode || data)
+    return lexicographicCompare(a.operatorBytes, b.operatorBytes)
+```
+
+Lexicographic comparison of byte arrays: compare byte-by-byte from index 0. At the first differing byte, the array with the smaller byte value sorts first. If all bytes of the shorter array match the corresponding prefix of the longer array, the shorter array sorts first.
+
+### 6.7 Sort Invariants
+
+- `scope == 0` ⇒ `pathDepth == 1` with reserved context property ID.
+- `scope == 1` ⇒ `pathDepth >= 1` with BE16 path steps.
+
+---
+
+## 7. Evaluation and Canonicalization
+
+### 7.1 Evaluation Algorithm
+
+1. Extract version from header byte (`header & VERSION_MASK`); verify `== 0x01`.
+2. If `FLAG_NO_SELECTOR` is not set: verify selector in calldata matches policy selector; set `baseOffset = 4`.
+3. If `FLAG_NO_SELECTOR` is set: skip selector validation; set `baseOffset = 0`.
+4. Extract descriptor from policy header.
+5. Evaluate groups in order; first passing group succeeds (OR semantics).
+6. Within each group, all rules must pass (AND semantics).
+
+### 7.2 Rule Evaluation
+
+- Context rules (`scope == 0`) resolve the value from the execution environment using the context property ID in `path[0]`.
+- Calldata rules (`scope == 1`) resolve the value by traversing calldata using the descriptor and path (see Callcium Descriptor Spec, Section 6) and loading the scalar at the resolved location.
+- The resolved value and type code are then checked against the operator and data.
+
+### 7.3 Quantifier Handling
+
+When a path contains `ALL_OR_EMPTY`, `ALL`, or `ANY`, the evaluator expands the quantifier into concrete element indices and evaluates each. Empty-array semantics are defined in Section 5.5.
+
+Sentinels (`ALL_OR_EMPTY`, `ALL`, `ANY`) are evaluator-level markers and MUST NOT be passed into calldata traversal functions. Evaluators MUST pre-process quantified paths by expanding them into concrete element paths.
+
+### 7.4 Builder Canonicalization
+
+Builders MUST:
+
+1. **Normalize negations**: Aliases and negations compile to `baseOp | NOT_FLAG`.
+2. **Canonical immediate encodings**: Fixed 32-byte width, left-padded.
+3. **Sort and dedupe sets (`OP_IN`)**: Each set element MUST first be encoded to its canonical 32-byte representation. Elements MUST then be sorted ascending by lexicographic comparison of the 32-byte encodings (most-significant byte first). After sorting, duplicates MUST be removed (byte-for-byte equality). This ordering is defined on the encoded bytes and is independent of any signed/unsigned numeric interpretation.
+4. **Sort rules**: Within each group, sort by `(scope, pathDepth, pathBytes, operatorBytes)`.
+5. **Sort groups**: Groups MUST be sorted ascending by group hash, where `groupHash = keccak256(ruleBytes)` and `ruleBytes` is the concatenation of all rule byte sequences in the group in their already-sorted order (per item 4). The group hash is not serialized; it is derived from the on-wire rule bytes for sorting purposes only.
+6. **Reject invalid policies**: Empty groups, empty policies, contradictions.
+7. **Produce policy hash**: `keccak256(policy)` for audit logs.
+
+### 7.5 Conformance Boundary
+
+This specification defines semantics only for canonical policies. A non-canonical policy is non-conformant, and validator behavior for non-conformant input is undefined. Validators are not required to verify canonicality.
+
+### 7.6 Contradiction Detection
+
+Builders MUST detect at least the following categories of unsatisfiable groups and fail the build. Builders MAY detect additional contradictions beyond this list.
+- Bound contradictions (e.g., conflicting equalities, values outside type range, impossible ranges).
+- Set contradictions (e.g., empty set intersection, all set values excluded).
+- Bitmask contradictions (e.g., conflicting `bitmaskAll`/`bitmaskNone` bits).
+
+### 7.7 Multiple Rules on Same Path
+
+Multiple binary rules targeting the same `(path, quantifier)` within a group are valid and expected. Range composition (e.g., `gte(5)` + `lte(10)`) produces two distinct binary rules on the same path, or may be optimized into a single `BETWEEN` rule.
+
+At the source level, builders MUST enforce a single-definition-point constraint: a given `(path, quantifier)` MUST NOT appear in more than one source-level rule definition within the same group.
+
+---
+
+## 8. Validation Rules
+
+### 8.1 Structural (Mandatory)
+
+Structural checks operate on a rule's self-contained fields without descriptor navigation. Conformant validators MUST reject policies that violate any of the following rules.
+
+- MUST reject if fewer than 8 bytes (minimum fixed header).
+- MUST reject if `(header & VERSION_MASK) != 0x01`.
+- MUST reject if `(header & RESERVED_MASK) != 0x00`.
+- MUST reject if `FLAG_NO_SELECTOR` is set and `selector != 0x00000000`.
+- MUST reject if `descLength < 2`.
+- MUST reject if `7 + descLength + 1` exceeds the policy blob size.
+- MUST reject if `groupCount == 0`.
+- MUST reject if any `ruleCount == 0`.
+- MUST reject if any `groupSize < ruleCount * RULE_MIN_SIZE`.
+- MUST reject if `ruleSize` does not match computed size (`4 + pathDepth*2 + 3 + dataLength`).
+- MUST reject if `scope` not in {0, 1}.
+- MUST reject if `scope == 0` and `pathDepth != 1`.
+- MUST reject if path bytes are empty or not an even number of bytes.
+- MUST reject if `opCode` (masked with `0x7F`) is not a defined operator.
+
+### 8.2 Semantic (Mandatory)
+
+Builders MUST perform the following semantic checks and reject invalid policies:
+
+**Path navigation:** Navigate paths against descriptor; forbid stepping into elementary types and out-of-bounds tuple fields.
+
+**Operator-type compatibility:** Reject operators applied to incompatible types per the type validity matrix (Section 5.7).
+
+**Quantifier validity:** `ALL_OR_EMPTY`/`ALL`/`ANY` steps are only valid immediately after array nodes. Reserved indices `i >= 0xFFFD` MUST be rejected as explicit indices.
+
+**Single-definition-point:** No duplicate `(pathBytes, quantifier)` pairs within a group.
+
+**Contradiction detection:** Builders MUST reject unsatisfiable groups (see Section 7.6).
+
+---
+
+## 9. Normative Limits
+
+### 9.1 Enforcement Limits
+
+| Constant | Value | Category |
+|:---|:---|:---|
+| `MAX_PATH_DEPTH` | 32 steps | Design |
+| `MAX_QUANTIFIED_ARRAY_LENGTH` | 256 elements | Design |
+
+`MAX_PATH_DEPTH`: The binary format allows up to 255 (1-byte `depth` field). Conformant encoders MUST NOT produce paths deeper than 32.
+
+`MAX_QUANTIFIED_ARRAY_LENGTH`: Bounds iteration for `ANY`/`ALL`/`ALL_OR_EMPTY` quantifiers over calldata arrays.
+
+### 9.2 Policy Format Limits
+
+| Component | Limit | Category |
+|:---|:---|:---|
+| Policy size | 24,575 bytes | Design |
+| Groups per policy | 255 | Format |
+| Rules per group | 65,535 | Format |
+| Rule size | 65,535 bytes | Format |
+| Group size | 4,294,967,295 bytes | Format |
+| Operator payload | 65,535 bytes | Format |
+| Path depth (encoded) | 255 | Format |
+| Descriptor length | 65,535 bytes | Format |
+| Minimum rule size | 9 bytes | Format |
+
+### 9.3 Constraint Limits
+
+| Limit | Value | Category |
+|:---|:---|:---|
+| Min set cardinality | 1 element | Design |
+| Max set cardinality | 2,047 elements | Format |
+| Set sort order | Unsigned ascending | Design |
+| Set deduplication | Required | Design |
+
+### 9.4 Limit Categories
+
+- **Format**: Structural constraint from the binary encoding field width. Cannot change without a format version bump.
+- **Design**: Operational cap chosen for gas safety, storage, or usability. Can be tuned independently of the format.
+
+### 9.5 Descriptor Format Limits
+
+Descriptor format limits are defined normatively in the Callcium Descriptor Spec, Section 8. Conformant policy encoders MUST respect those limits when constructing embedded descriptors.
+
+---
+
+## 10. References
+
+- [ABI Specification](https://docs.soliditylang.org/en/latest/abi-spec.html) (Solidity documentation, applicable to all EVM languages).
+- [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) — Key words for use in RFCs to Indicate Requirement Levels.
+- Callcium Descriptor Spec v1.0.
+- Callcium reference implementation (non-normative).
+
+---
+
+## Appendix A. Changelog
+- v1.0: Initial specification.

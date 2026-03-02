@@ -1,0 +1,51 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/lib/default-colors.css";
+@import "fumadocs-ui/css/preset.css";
+
+/* Brand theme — red primary, amber accent, teal/navy info, charcoal base. */
+/* Palette: #177E89 teal, #084C61 navy, #DB3A34 red, #FFC857 amber, #323031 charcoal */
+
+@theme {
+  --color-fd-background: hsl(30, 8%, 98%);
+  --color-fd-foreground: hsl(330, 2%, 19%);
+  --color-fd-muted: hsl(30, 8%, 94%);
+  --color-fd-muted-foreground: hsl(7, 5%, 44%);
+  --color-fd-popover: hsl(0, 0%, 100%);
+  --color-fd-popover-foreground: hsl(330, 2%, 19%);
+  --color-fd-card: hsl(0, 0%, 100%);
+  --color-fd-card-foreground: hsl(330, 2%, 19%);
+  --color-fd-border: hsla(2, 40%, 55%, 0.18);
+  --color-fd-primary: hsl(2, 70%, 53%);
+  --color-fd-primary-foreground: hsl(0, 0%, 100%);
+  --color-fd-secondary: hsl(40, 60%, 90%);
+  --color-fd-secondary-foreground: hsl(40, 60%, 20%);
+  --color-fd-accent: hsl(40, 60%, 91%);
+  --color-fd-accent-foreground: hsl(40, 70%, 22%);
+  --color-fd-ring: hsl(2, 70%, 53%);
+  --color-fd-overlay: hsla(0, 0%, 0%, 0.2);
+}
+
+.dark {
+  --color-fd-background: hsl(7, 3%, 9%);
+  --color-fd-foreground: hsl(40, 15%, 92%);
+  --color-fd-muted: hsl(7, 3%, 13%);
+  --color-fd-muted-foreground: hsl(30, 10%, 62%);
+  --color-fd-popover: hsl(7, 3%, 10%);
+  --color-fd-popover-foreground: hsl(40, 15%, 88%);
+  --color-fd-card: hsl(7, 3%, 11%);
+  --color-fd-card-foreground: hsl(40, 15%, 92%);
+  --color-fd-border: hsla(2, 40%, 50%, 0.22);
+  --color-fd-primary: hsl(2, 72%, 60%);
+  --color-fd-primary-foreground: hsl(7, 3%, 8%);
+  --color-fd-secondary: hsl(40, 20%, 13%);
+  --color-fd-secondary-foreground: hsl(40, 15%, 90%);
+  --color-fd-accent: hsl(40, 35%, 13%);
+  --color-fd-accent-foreground: hsl(40, 80%, 72%);
+  --color-fd-ring: hsl(2, 72%, 60%);
+  --color-fd-overlay: hsla(0, 0%, 0%, 0.4);
+}
+
+:root {
+  --fd-font-mono: var(--font-mono);
+  font-size: 112.5%; /* 18px equivalent */
+}

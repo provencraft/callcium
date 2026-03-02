@@ -1,0 +1,88 @@
+---
+title: Array Constraints
+description: Constrain elements of array parameters using path quantifiers.
+---
+
+Array parameters can be constrained element-by-element using path quantifiers. A quantifier extends the `arg()` path to apply a constraint across every element, or to require that at least one element satisfies it.
+
+## Path indexing
+
+To constrain a specific element, add the element index as the next step after the array argument index:
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+
+arg(0, 0)  // first element of the first parameter
+arg(0, 3)  // fourth element of the first parameter
+```
+
+This is the same indexing syntax used for struct fields.
+
+## Quantifiers
+
+`Path.ALL`, `Path.ANY`, and `Path.ALL_OR_EMPTY` replace a concrete element index to apply a constraint across the entire array. Import them from `Path`:
+
+```solidity
+import { Path } from "callcium/Path.sol";
+```
+
+| Quantifier | Semantics | Empty array |
+|---|---|---|
+| `Path.ALL` | All elements must satisfy the constraint | Fails |
+| `Path.ANY` | At least one element must satisfy the constraint | Fails |
+| `Path.ALL_OR_EMPTY` | All elements must satisfy the constraint, or the array is empty | Passes |
+
+Use `Path.ALL` as the default when an empty array is an invalid input. Use `Path.ALL_OR_EMPTY` when an empty array is an acceptable no-op.
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { Path } from "callcium/Path.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+// function batchTransfer(address[] recipients, uint256[] amounts)
+bytes memory policy = PolicyBuilder
+    .create("batchTransfer(address[],uint256[])")
+    .add(arg(0, Path.ALL).isIn(allowlist))           // recipients — all must be approved
+    .add(arg(1, Path.ALL).lte(uint256(1_000e18)))    // amounts — all within limit
+    .build();
+```
+
+## Nested patterns
+
+Quantifiers compose with the rest of the path. To constrain a field inside each element of an array of structs, place the quantifier between the array step and the field step:
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { Path } from "callcium/Path.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+// struct Transfer { address to; uint256 amount; }
+// function batchTransfer(Transfer[] transfers)
+bytes memory policy = PolicyBuilder
+    .create("batchTransfer((address,uint256)[])")
+    .add(arg(0, Path.ALL, 0).isIn(allowlist))           // transfers[*].to
+    .add(arg(0, Path.ALL, 1).lte(uint256(1_000e18)))    // transfers[*].amount
+    .build();
+```
+
+A struct that contains an array is navigated in the opposite order — reach the array via its field index, then apply the quantifier:
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { Path } from "callcium/Path.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+// struct Order { address spender; uint256[] amounts; }
+// function submit(Order order)
+bytes memory policy = PolicyBuilder
+    .create("submit((address,uint256[]))")
+    .add(arg(0, 0).eq(TREASURY))                          // order.spender
+    .add(arg(0, 1, Path.ALL).lte(uint256(1_000e18)))      // order.amounts[*]
+    .build();
+```
+
+## Limits
+
+<Callout type="warn">
+  A single quantified traversal evaluates at most 256 elements — enforcement reverts with `ArrayTooLargeForQuantifier` when exceeded. Only one quantifier is allowed per path; `add()` rejects paths that contain more than one.
+</Callout>

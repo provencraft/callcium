@@ -1,0 +1,45 @@
+---
+title: Selectorless Policies
+description: Validate raw ABI-encoded data without a function selector.
+---
+
+Policies created with `PolicyBuilder.create(signature)` are bound to a specific function selector — the first 4 bytes of calldata are matched against it before arguments are evaluated. Selectorless policies validate the ABI-encoded payload directly.
+
+## When to use
+
+Selectorless policies are appropriate when the data being validated has no function selector prefix. Examples:
+
+- Signed payloads verified on-chain and passed as parameters to a relayer.
+- Cross-chain messages decoded and forwarded by a bridge contract.
+- Batch entries where each entry is an independently ABI-encoded parameter set.
+
+## Creating a selectorless policy
+
+Use `PolicyBuilder.createRaw()` with a comma-separated list of ABI types instead of a function signature:
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+address[] memory recipients = new address[](2);
+recipients[0] = TREASURY;
+recipients[1] = MULTISIG;
+
+bytes memory policy = PolicyBuilder
+    .createRaw("address,uint256")
+    .add(arg(0).isIn(recipients))          // recipient
+    .add(arg(1).lte(uint256(1_000e18)))    // amount
+    .build();
+```
+
+The full constraint API — `arg()`, context targets, `isIn`, `notIn`, bitmask, length operators, `.or()`, `build()`, `buildUnsafe()` — is identical to function-bound policies.
+
+## Passing data to enforce
+
+`PolicyEnforcer.enforce` reads selectorless payloads from byte 0 — `arg(0)` resolves to the first byte of the data passed in.
+
+<Callout type="warn" title="Selector prefix">
+  If the raw data has a function selector prefix, strip it before passing to `enforce`. Those 4 bytes are interpreted as the start of the first argument — no error is thrown.
+</Callout>
+
+Standard (selector-bound) policies are the inverse: the enforcer validates the first 4 bytes against the policy's selector and reads arguments from byte 4. The selector must be present.

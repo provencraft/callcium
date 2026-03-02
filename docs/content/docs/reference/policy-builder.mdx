@@ -1,0 +1,290 @@
+---
+title: "PolicyBuilder"
+description: "Fluent API for drafting policies from constraints."
+---
+
+## Functions
+
+### createRaw
+
+Creates a selectorless draft from a comma-separated type list.
+
+```solidity
+function createRaw(string memory typesCsv) internal pure returns (PolicyDraft memory draft);
+```
+
+**Parameters**
+
+| Name       | Type     | Description                                             |
+| ---------- | -------- | ------------------------------------------------------- |
+| `typesCsv` | `string` | The comma-separated ABI types (e.g. "uint256,address"). |
+
+**Returns**
+
+| Name    | Type          | Description            |
+| ------- | ------------- | ---------------------- |
+| `draft` | `PolicyDraft` | The initialized draft. |
+
+### create
+
+Creates a draft from a function signature.
+
+```solidity
+function create(string memory signature) internal pure returns (PolicyDraft memory draft);
+```
+
+**Parameters**
+
+| Name        | Type     | Description             |
+| ----------- | -------- | ----------------------- |
+| `signature` | `string` | The function signature. |
+
+**Returns**
+
+| Name    | Type          | Description            |
+| ------- | ------------- | ---------------------- |
+| `draft` | `PolicyDraft` | The initialized draft. |
+
+### add
+
+Adds a constraint to the active group with validation.
+
+```solidity
+function add(PolicyDraft memory draft, Constraint memory constraint) internal pure returns (PolicyDraft memory);
+```
+
+**Parameters**
+
+| Name         | Type          | Description            |
+| ------------ | ------------- | ---------------------- |
+| `draft`      | `PolicyDraft` | The draft state.       |
+| `constraint` | `Constraint`  | The constraint to add. |
+
+**Returns**
+
+| Name     | Type          | Description                                           |
+| -------- | ------------- | ----------------------------------------------------- |
+| `<none>` | `PolicyDraft` | The updated draft state with the constraint appended. |
+
+### or
+
+Starts a new constraint group (OR semantics between groups).
+
+```solidity
+function or(PolicyDraft memory draft) internal pure returns (PolicyDraft memory);
+```
+
+**Parameters**
+
+| Name    | Type          | Description      |
+| ------- | ------------- | ---------------- |
+| `draft` | `PolicyDraft` | The draft state. |
+
+**Returns**
+
+| Name     | Type          | Description                                     |
+| -------- | ------------- | ----------------------------------------------- |
+| `<none>` | `PolicyDraft` | The updated draft state with a new empty group. |
+
+### build
+
+Builds the final policy blob with strict validation.
+
+Validates the policy and reverts on any issue.
+
+```solidity
+function build(PolicyDraft memory draft) internal pure returns (bytes memory);
+```
+
+**Parameters**
+
+| Name    | Type          | Description                    |
+| ------- | ------------- | ------------------------------ |
+| `draft` | `PolicyDraft` | The draft state to build from. |
+
+**Returns**
+
+| Name     | Type    | Description               |
+| -------- | ------- | ------------------------- |
+| `<none>` | `bytes` | The encoded policy bytes. |
+
+### buildUnsafe
+
+Builds the final policy blob without validation.
+
+Skips validation. The resulting policy may be invalid.
+
+```solidity
+function buildUnsafe(PolicyDraft memory draft) internal pure returns (bytes memory);
+```
+
+**Parameters**
+
+| Name    | Type          | Description                    |
+| ------- | ------------- | ------------------------------ |
+| `draft` | `PolicyDraft` | The draft state to build from. |
+
+**Returns**
+
+| Name     | Type    | Description               |
+| -------- | ------- | ------------------------- |
+| `<none>` | `bytes` | The encoded policy bytes. |
+
+### validate
+
+Validates the policy without building.
+
+Use for inspection, debugging, or custom error handling.
+
+```solidity
+function validate(PolicyDraft memory draft) internal pure returns (Issue[] memory);
+```
+
+**Parameters**
+
+| Name    | Type          | Description                  |
+| ------- | ------------- | ---------------------------- |
+| `draft` | `PolicyDraft` | The draft state to validate. |
+
+**Returns**
+
+| Name     | Type      | Description                  |
+| -------- | --------- | ---------------------------- |
+| `<none>` | `Issue[]` | All validation issues found. |
+
+## Errors
+
+### NoConstraintOperators
+
+Thrown when the constraint has no operators.
+
+```solidity
+error NoConstraintOperators();
+```
+
+### DuplicatePathInGroup
+
+Thrown when the same `(scope,path)` appears twice within a group.
+
+```solidity
+error DuplicatePathInGroup(uint8 scope, bytes path);
+```
+
+**Parameters**
+
+| Name    | Type    | Description            |
+| ------- | ------- | ---------------------- |
+| `scope` | `uint8` | The constraint scope.  |
+| `path`  | `bytes` | The encoded be16 path. |
+
+### InvalidScope
+
+Thrown when an unsupported scope value is provided.
+
+```solidity
+error InvalidScope(uint8 scope);
+```
+
+**Parameters**
+
+| Name    | Type    | Description              |
+| ------- | ------- | ------------------------ |
+| `scope` | `uint8` | The invalid scope value. |
+
+### ArgIndexOutOfBounds
+
+Thrown when the first path step exceeds the number of arguments.
+
+```solidity
+error ArgIndexOutOfBounds(uint256 argIndex, uint256 paramCount);
+```
+
+**Parameters**
+
+| Name         | Type      | Description                          |
+| ------------ | --------- | ------------------------------------ |
+| `argIndex`   | `uint256` | The provided argument index.         |
+| `paramCount` | `uint256` | The parameter count from descriptor. |
+
+### InvalidPathNavigation
+
+Thrown when the path cannot be navigated according to scope rules.
+
+```solidity
+error InvalidPathNavigation(bytes path, uint256 stepIndex);
+```
+
+**Parameters**
+
+| Name        | Type      | Description                                   |
+| ----------- | --------- | --------------------------------------------- |
+| `path`      | `bytes`   | The encoded be16 path that failed validation. |
+| `stepIndex` | `uint256` | The step index at which navigation failed.    |
+
+### TupleFieldOutOfBounds
+
+Thrown when a tuple field index is out of bounds.
+
+```solidity
+error TupleFieldOutOfBounds(uint256 fieldIndex, uint256 fieldCount);
+```
+
+**Parameters**
+
+| Name         | Type      | Description               |
+| ------------ | --------- | ------------------------- |
+| `fieldIndex` | `uint256` | The provided field index. |
+| `fieldCount` | `uint256` | The tuple field count.    |
+
+### QuantifierOnNonArray
+
+Thrown when a quantifier is used on a non-array node.
+
+```solidity
+error QuantifierOnNonArray(bytes path, uint256 stepIndex);
+```
+
+**Parameters**
+
+| Name        | Type      | Description                               |
+| ----------- | --------- | ----------------------------------------- |
+| `path`      | `bytes`   | The encoded be16 path.                    |
+| `stepIndex` | `uint256` | The step index of the invalid quantifier. |
+
+### NestedQuantifier
+
+Thrown when a path contains more than one quantifier step.
+
+```solidity
+error NestedQuantifier(bytes path, uint256 stepIndex);
+```
+
+**Parameters**
+
+| Name        | Type      | Description                              |
+| ----------- | --------- | ---------------------------------------- |
+| `path`      | `bytes`   | The encoded be16 path.                   |
+| `stepIndex` | `uint256` | The step index of the second quantifier. |
+
+### EmptyGroup
+
+Thrown when a group is empty.
+
+```solidity
+error EmptyGroup(uint256 groupIndex);
+```
+
+**Parameters**
+
+| Name         | Type      | Description                   |
+| ------------ | --------- | ----------------------------- |
+| `groupIndex` | `uint256` | The index of the empty group. |
+
+```solidity
+struct PolicyDraft {
+    /// The canonical policy data.
+    PolicyData data;
+    /// Path hashes used per group for duplicate detection.
+    bytes32[][] usedPathHashes;
+}
+```
