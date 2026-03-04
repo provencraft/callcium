@@ -26,7 +26,7 @@ bytes memory policy = PolicyBuilder
     .create("swap((address,address,uint256))")
     .add(arg(0, 0).notIn(sanctioned)) // params.tokenIn
     .add(arg(0, 1).notIn(sanctioned)) // params.tokenOut
-    .add(arg(0, 2).gt(uint256(0)))     // params.amount
+    .add(arg(0, 2).gt(uint256(0)))    // params.amount
     .build();`,
   },
   {
@@ -92,11 +92,11 @@ export async function Hero() {
             height={144}
           />
           <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Programmable Calldata&nbsp;Validation&nbsp;Engine
+            Programmable Calldata Validation Engine
           </h1>
-          <p className="max-w-xl text-lg text-fd-muted-foreground">
+          <p className="max-w-xl text-pretty text-lg text-fd-muted-foreground">
             <span className="block">
-              Define type-safe constraints on ABI-encoded data.
+              Define type-safe constraints on ABI‑encoded data.
             </span>
             <span className="block">
               Update validation rules without redeploying contracts.
