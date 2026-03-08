@@ -839,14 +839,14 @@ library PolicyValidator {
 
     /// @dev Reads a single uint256 value from an operator's payload.
     function _readValue(bytes memory op) private pure returns (uint256 value) {
-        assembly ("memory-safe") {
+        assembly {
             value := mload(add(op, 33))
         }
     }
 
     /// @dev Reads a pair of uint256 values from an operator's payload (for BETWEEN operators).
     function _readPair(bytes memory op) private pure returns (uint256 low, uint256 high) {
-        assembly ("memory-safe") {
+        assembly {
             low := mload(add(op, 33))
             high := mload(add(op, 65))
         }

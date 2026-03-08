@@ -47,6 +47,32 @@ library PolicyEnforcer {
         uint16 dataLength;
     }
 
+    /// @dev Quantifier evaluation parameters.
+    struct QParams {
+        /// The operator code without the NOT flag.
+        uint8 opBase;
+        /// The full operator code (may include NOT flag).
+        uint8 opCode;
+        /// Length of the operator data payload.
+        uint16 dataLength;
+        /// Offset of the operator data payload within the policy blob.
+        uint256 dataOffset;
+        /// True if the path continues past the quantifier.
+        bool hasSuffix;
+        /// True for ALL/ALL_OR_EMPTY, false for ANY.
+        bool isUniversal;
+    }
+
+    /// @dev Mutable state for the quantifier iteration loop.
+    struct QLoopState {
+        /// The loaded value (32 bytes for scalars, zero for dynamic types).
+        bytes32 value;
+        /// Length in bytes of the loaded value.
+        uint256 valueLength;
+        /// The TypeCode of the resolved value.
+        uint8 typeCode;
+    }
+
     /// @dev Path scratch capacity in steps (be16 per step).
     uint8 internal constant MAX_PATH_DEPTH = 32;
 
@@ -318,32 +344,6 @@ library PolicyEnforcer {
         }
     }
 
-    /// @dev Quantifier evaluation parameters.
-    struct QParams {
-        /// The operator code without the NOT flag.
-        uint8 opBase;
-        /// The full operator code (may include NOT flag).
-        uint8 opCode;
-        /// Length of the operator data payload.
-        uint16 dataLength;
-        /// Offset of the operator data payload within the policy blob.
-        uint256 dataOffset;
-        /// True if the path continues past the quantifier.
-        bool hasSuffix;
-        /// True for ALL/ALL_OR_EMPTY, false for ANY.
-        bool isUniversal;
-    }
-
-    /// @dev Mutable state for the quantifier iteration loop.
-    struct QLoopState {
-        /// The loaded value (32 bytes for scalars, zero for dynamic types).
-        bytes32 value;
-        /// Length in bytes of the loaded value.
-        uint256 valueLength;
-        /// The TypeCode of the resolved value.
-        uint8 typeCode;
-    }
-
     /// @dev Evaluates a quantified path by iterating array elements.
     function _evalQuantifiedPath(
         EvalState memory state,
@@ -567,7 +567,7 @@ library PolicyEnforcer {
         } else if (base == OpCode.BETWEEN) {
             bytes32 lowerRaw;
             bytes32 upperRaw;
-            assembly ("memory-safe") {
+            assembly {
                 let ptr := add(add(policy, 32), dataOffset)
                 lowerRaw := mload(ptr)
                 upperRaw := mload(add(ptr, 32))
@@ -613,7 +613,7 @@ library PolicyEnforcer {
         } else if (base == OpCode.LENGTH_BETWEEN) {
             uint256 lower;
             uint256 upper;
-            assembly ("memory-safe") {
+            assembly {
                 let ptr := add(add(policy, 32), dataOffset)
                 lower := mload(ptr)
                 upper := mload(add(ptr, 32))
@@ -641,7 +641,7 @@ library PolicyEnforcer {
         pure
         returns (bool found)
     {
-        assembly ("memory-safe") {
+        assembly {
             let base := add(add(policy, 32), dataOffset)
             // Linear scan for small sets (<=6 elements).
             switch lt(shr(5, dataLength), 7)

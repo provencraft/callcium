@@ -532,7 +532,7 @@ library Operator {
     function _packSet(int256[] memory values) private pure returns (bytes memory out) {
         require(values.length != 0, EmptySet());
         uint256[] memory unsigned;
-        assembly {
+        assembly ("memory-safe") {
             unsigned := values
         }
         LibSort.sort(unsigned);

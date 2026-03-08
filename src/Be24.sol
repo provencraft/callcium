@@ -38,7 +38,7 @@ library Be24 {
     /// @param value The uint24 value to encode.
     function write(bytes memory data, uint256 offset, uint24 value) internal pure {
         require(offset + 3 <= data.length, OutOfBounds());
-        assembly ("memory-safe") {
+        assembly {
             let ptr := add(add(data, 32), offset)
             mstore8(ptr, shr(16, value))
             mstore8(add(ptr, 1), shr(8, value))
@@ -52,7 +52,7 @@ library Be24 {
     /// @param offset The byte offset to start writing.
     /// @param value The uint24 value to encode.
     function writeUnchecked(bytes memory data, uint256 offset, uint24 value) internal pure {
-        assembly ("memory-safe") {
+        assembly {
             let ptr := add(add(data, 32), offset)
             mstore8(ptr, shr(16, value))
             mstore8(add(ptr, 1), shr(8, value))
