@@ -66,17 +66,17 @@ abstract contract PolicyCoderTest is BaseTest {
     }
 
     /// @dev Encodes an operator with one bytes32 argument.
-    function _op1(uint8 code, bytes32 a) internal pure returns (bytes memory) {
-        return abi.encodePacked(code, a);
+    function _op1(uint8 code, bytes32 value) internal pure returns (bytes memory) {
+        return abi.encodePacked(code, value);
     }
 
     /// @dev Encodes an operator with two bytes32 arguments.
-    function _op2(uint8 code, bytes32 a, bytes32 b) internal pure returns (bytes memory) {
-        return abi.encodePacked(code, a, b);
+    function _op2(uint8 code, bytes32 first, bytes32 second) internal pure returns (bytes memory) {
+        return abi.encodePacked(code, first, second);
     }
 
     /// @dev Encodes an operator with three bytes32 arguments.
-    function _op3(uint8 code, bytes32 a, bytes32 b, bytes32 c) internal pure returns (bytes memory) {
-        return abi.encodePacked(code, a, b, c);
+    function _op3(uint8 code, bytes32 first, bytes32 second, bytes32 third) internal pure returns (bytes memory) {
+        return abi.encodePacked(code, first, second, third);
     }
 }

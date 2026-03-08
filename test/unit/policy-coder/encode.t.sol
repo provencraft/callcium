@@ -353,7 +353,7 @@ contract EncodeTest is PolicyCoderTest {
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                                 ENCODING ERRORS
+                                ENCODING ERRORS
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_RevertWhen_EmptyPolicy() public {

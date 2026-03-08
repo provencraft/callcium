@@ -175,7 +175,7 @@ library PolicyBuilder {
     /// @notice Builds the final policy blob with strict validation.
     /// @dev Validates the policy and reverts on any issue.
     /// @param draft The draft state to build from.
-    /// @return The encoded policy bytes.
+    /// @return The encoded policy blob.
     function build(PolicyDraft memory draft) internal pure returns (bytes memory) {
         _requireNonEmpty(draft);
 
@@ -189,7 +189,7 @@ library PolicyBuilder {
     /// @notice Builds the final policy blob without validation.
     /// @dev Skips validation. The resulting policy may be invalid.
     /// @param draft The draft state to build from.
-    /// @return The encoded policy bytes.
+    /// @return The encoded policy blob.
     function buildUnsafe(PolicyDraft memory draft) internal pure returns (bytes memory) {
         _requireNonEmpty(draft);
 

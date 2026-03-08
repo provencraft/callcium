@@ -105,7 +105,7 @@ library PolicyCoder {
     /// @param groups The groups to encode.
     /// @param selector The 4-byte function selector.
     /// @param desc The function descriptor to embed.
-    /// @return The encoded policy bytes.
+    /// @return The encoded policy blob.
     function encode(Group[] memory groups, bytes4 selector, bytes memory desc) internal pure returns (bytes memory) {
         return _encode(groups, PF.POLICY_VERSION, selector, desc);
     }
@@ -220,7 +220,7 @@ library PolicyCoder {
 
     /// @notice Encodes policy data into a canonical blob.
     /// @param data The policy data to encode.
-    /// @return The encoded policy bytes.
+    /// @return The encoded policy blob.
     function encode(PolicyData memory data) internal pure returns (bytes memory) {
         Group[] memory groups = _flatten(data.groups);
         uint8 header = PF.POLICY_VERSION | (data.isSelectorless ? PF.FLAG_NO_SELECTOR : 0);
@@ -229,18 +229,18 @@ library PolicyCoder {
 
     /// @notice Decodes a policy blob into policy data.
     /// @dev Groups rules by (scope, path) to reconstruct constraints.
-    /// @param policyBlob The encoded policy bytes.
+    /// @param policy The encoded policy blob.
     /// @return data The decoded policy data.
-    function decode(bytes memory policyBlob) internal pure returns (PolicyData memory data) {
-        data.isSelectorless = Policy.isSelectorless(policyBlob);
-        data.selector = data.isSelectorless ? bytes4(0) : Policy.selector(policyBlob);
-        data.descriptor = Policy.descriptor(policyBlob);
+    function decode(bytes memory policy) internal pure returns (PolicyData memory data) {
+        data.isSelectorless = Policy.isSelectorless(policy);
+        data.selector = data.isSelectorless ? bytes4(0) : Policy.selector(policy);
+        data.descriptor = Policy.descriptor(policy);
 
-        uint8 groupCount = Policy.groupCount(policyBlob);
+        uint8 groupCount = Policy.groupCount(policy);
         data.groups = new Constraint[][](groupCount);
 
         for (uint32 groupIndex; groupIndex < groupCount; ++groupIndex) {
-            data.groups[groupIndex] = _decodeGroup(policyBlob, groupIndex);
+            data.groups[groupIndex] = _decodeGroup(policy, groupIndex);
         }
     }
 
@@ -338,9 +338,9 @@ library PolicyCoder {
     }
 
     /// @dev Decodes a single group from the policy blob into Constraints.
-    function _decodeGroup(bytes memory policyBlob, uint32 groupIndex) private pure returns (Constraint[] memory) {
-        uint256 groupOffset = Policy.groupAt(policyBlob, groupIndex);
-        uint16 ruleCount = Policy.ruleCount(policyBlob, groupOffset);
+    function _decodeGroup(bytes memory policy, uint32 groupIndex) private pure returns (Constraint[] memory) {
+        uint256 groupOffset = Policy.groupAt(policy, groupIndex);
+        uint16 ruleCount = Policy.ruleCount(policy, groupOffset);
 
         if (ruleCount == 0) return new Constraint[](0);
 
@@ -349,8 +349,8 @@ library PolicyCoder {
         uint256 ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
 
         for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-            rules[ruleIndex] = _readRule(policyBlob, ruleOffset);
-            ruleOffset += Policy.ruleSize(policyBlob, ruleOffset);
+            rules[ruleIndex] = _readRule(policy, ruleOffset);
+            ruleOffset += Policy.ruleSize(policy, ruleOffset);
         }
 
         // Second pass: group rules by (scope, path) into Constraints.
@@ -358,23 +358,23 @@ library PolicyCoder {
     }
 
     /// @dev Reads a single rule from the policy blob at the given offset.
-    function _readRule(bytes memory policyBlob, uint256 ruleOffset) private pure returns (Rule memory rule) {
-        rule.scope = Policy.scope(policyBlob, ruleOffset);
-        uint8 depth = Policy.pathDepth(policyBlob, ruleOffset);
+    function _readRule(bytes memory policy, uint256 ruleOffset) private pure returns (Rule memory rule) {
+        rule.scope = Policy.scope(policy, ruleOffset);
+        uint8 depth = Policy.pathDepth(policy, ruleOffset);
 
         rule.path = new bytes(uint256(depth) * PF.PATH_STEP_SIZE);
         for (uint256 i; i < depth; ++i) {
-            uint16 step = Policy.pathStep(policyBlob, ruleOffset, i);
+            uint16 step = Policy.pathStep(policy, ruleOffset, i);
             Be16.write(rule.path, i * 2, step);
         }
 
-        uint8 opCode = Policy.opCode(policyBlob, ruleOffset);
-        (uint256 dataOffset, uint16 dataLength) = Policy.dataView(policyBlob, ruleOffset);
+        uint8 opCode = Policy.opCode(policy, ruleOffset);
+        (uint256 dataOffset, uint16 dataLength) = Policy.dataView(policy, ruleOffset);
 
         rule.operator = new bytes(1 + dataLength);
         rule.operator[0] = bytes1(opCode);
         for (uint256 i; i < dataLength; ++i) {
-            rule.operator[1 + i] = policyBlob[dataOffset + i];
+            rule.operator[1 + i] = policy[dataOffset + i];
         }
     }
 

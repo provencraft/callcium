@@ -53,7 +53,7 @@ contract DecodeTest is PolicyCoderTest {
         PolicyData memory data = PolicyCoder.decode(policy);
 
         assertEq(data.groups.length, 1);
-        // Note: Multiple operators on same path get grouped into one constraint
+        // Multiple operators on the same path are grouped into one constraint.
         assertEq(data.groups[0].length, 1);
         assertEq(data.groups[0][0].operators.length, 2);
     }

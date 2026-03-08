@@ -58,7 +58,7 @@ abstract contract PolicyCoderBench is Test {
     PolicyCoder.Group[] internal manyRulesPerGroup;
     PolicyCoder.Group[] internal mixedOpCodes;
 
-    // Pre-encoded blobs (for decode benchmarks)
+    // Pre-encoded blobs (for decode benchmarks).
     bytes internal encodedSingleGroup1Rule;
     bytes internal encodedSingleGroup4Rules;
     bytes internal encodedSingleGroup8Rules;
@@ -93,6 +93,7 @@ abstract contract PolicyCoderBench is Test {
         _buildEncodedFixtures();
     }
 
+    /// @dev Populates single-group fixtures varying rule count.
     function _buildSingleGroupFixtures() internal {
         singleGroup1Rule = _makeGroups(1, 1);
         singleGroup4Rules = _makeGroups(1, 4);
@@ -100,18 +101,21 @@ abstract contract PolicyCoderBench is Test {
         singleGroup16Rules = _makeGroups(1, 16);
     }
 
+    /// @dev Populates multi-group fixtures varying group count.
     function _buildMultiGroupFixtures() internal {
         twoGroups = _makeGroups(2, 2);
         fourGroups = _makeGroups(4, 2);
         eightGroups = _makeGroups(8, 2);
     }
 
+    /// @dev Populates fixtures varying path depth.
     function _buildPathDepthFixtures() internal {
         pathDepth1 = _makeGroupsWithPath(1, Path.encode(0));
         pathDepth2 = _makeGroupsWithPath(1, Path.encode(0, 1));
         pathDepth4 = _makeGroupsWithPath(1, Path.encode(0, 1, 2, 3));
     }
 
+    /// @dev Populates fixtures varying operator data size.
     function _buildDataSizeFixtures() internal {
         dataSize32 = _makeGroupsWithData(1, _makeEqOp(uint256(42)));
         dataSize128 = _makeGroupsWithData(1, _makeInOp(4));
@@ -129,14 +133,16 @@ abstract contract PolicyCoderBench is Test {
         returns (PolicyCoder.Group[] memory groups)
     {
         groups = new PolicyCoder.Group[](groupCount);
-        for (uint256 g; g < groupCount; ++g) {
+        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](rulesPerGroup);
-            for (uint256 r; r < rulesPerGroup; ++r) {
-                rules[r] = PolicyCoder.Rule({
-                    scope: PF.SCOPE_CALLDATA, path: Path.encode(uint16(r)), operator: _makeEqOp(uint256(r + 1))
+            for (uint256 ruleIndex; ruleIndex < rulesPerGroup; ++ruleIndex) {
+                rules[ruleIndex] = PolicyCoder.Rule({
+                    scope: PF.SCOPE_CALLDATA,
+                    path: Path.encode(uint16(ruleIndex)),
+                    operator: _makeEqOp(uint256(ruleIndex + 1))
                 });
             }
-            groups[g] = PolicyCoder.Group({ rules: rules });
+            groups[groupIndex] = PolicyCoder.Group({ rules: rules });
         }
     }
 
@@ -150,10 +156,10 @@ abstract contract PolicyCoderBench is Test {
         returns (PolicyCoder.Group[] memory groups)
     {
         groups = new PolicyCoder.Group[](groupCount);
-        for (uint256 g; g < groupCount; ++g) {
+        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](1);
             rules[0] = PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: path, operator: _makeEqOp(uint256(42)) });
-            groups[g] = PolicyCoder.Group({ rules: rules });
+            groups[groupIndex] = PolicyCoder.Group({ rules: rules });
         }
     }
 
@@ -167,10 +173,10 @@ abstract contract PolicyCoderBench is Test {
         returns (PolicyCoder.Group[] memory groups)
     {
         groups = new PolicyCoder.Group[](groupCount);
-        for (uint256 g; g < groupCount; ++g) {
+        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](1);
             rules[0] = PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: operator });
-            groups[g] = PolicyCoder.Group({ rules: rules });
+            groups[groupIndex] = PolicyCoder.Group({ rules: rules });
         }
     }
 
@@ -192,6 +198,7 @@ abstract contract PolicyCoderBench is Test {
                               SORTING STRESS FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Populates fixtures that stress canonicalization sort paths.
     function _buildSortingStressFixtures() internal {
         reverseSortedRules = _makeReverseSortedGroup(16);
         equalKeyRules = _makeEqualKeyGroup(8);
@@ -226,11 +233,11 @@ abstract contract PolicyCoderBench is Test {
     /// @dev Creates multiple groups with identical rules (same hash).
     function _makeIdenticalGroups(uint256 groupCount) internal pure returns (PolicyCoder.Group[] memory groups) {
         groups = new PolicyCoder.Group[](groupCount);
-        for (uint256 g; g < groupCount; ++g) {
+        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](1);
             rules[0] =
                 PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(42)) });
-            groups[g] = PolicyCoder.Group({ rules: rules });
+            groups[groupIndex] = PolicyCoder.Group({ rules: rules });
         }
     }
 
@@ -238,6 +245,7 @@ abstract contract PolicyCoderBench is Test {
                             LARGE GROUP COUNT FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Populates fixtures with large group counts up to the format maximum.
     function _buildLargeGroupCountFixtures() internal {
         groups32 = _makeGroups(32, 1);
         groups64 = _makeGroups(64, 1);
@@ -249,6 +257,7 @@ abstract contract PolicyCoderBench is Test {
                               CONTEXT SCOPE FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Populates context-scope and mixed-scope fixtures.
     function _buildContextScopeFixtures() internal {
         contextOnly = _makeContextOnlyGroup();
         mixedScope = _makeMixedScopeGroup();
@@ -300,6 +309,7 @@ abstract contract PolicyCoderBench is Test {
                                 DEEP PATH FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Populates fixtures with deep paths and long common-prefix rules.
     function _buildDeepPathFixtures() internal {
         pathDepth8 = _makeGroupsWithPath(1, _makeDeepPath(8));
         pathDepth16 = _makeGroupsWithPath(1, _makeDeepPath(16));
@@ -338,6 +348,7 @@ abstract contract PolicyCoderBench is Test {
                             LARGE PAYLOAD FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Populates fixtures with large IN operator payloads.
     function _buildLargePayloadFixtures() internal {
         dataSize1024 = _makeGroupsWithData(1, _makeInOp(32));
         dataSize2048 = _makeGroupsWithData(1, _makeInOp(64));
@@ -348,6 +359,7 @@ abstract contract PolicyCoderBench is Test {
                               BOUNDARY FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Populates boundary-condition fixtures (high rule count, mixed operators).
     function _buildBoundaryFixtures() internal {
         manyRulesPerGroup = _makeGroups(1, 100);
         mixedOpCodes = _makeMixedOpCodesGroup();
@@ -382,6 +394,7 @@ abstract contract PolicyCoderBench is Test {
                           PRE-ENCODED BLOB FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Pre-encodes all group fixtures into policy blobs for decode benchmarks.
     function _buildEncodedFixtures() internal {
         encodedSingleGroup1Rule = harness.encode(singleGroup1Rule, SELECTOR, DESCRIPTOR);
         encodedSingleGroup4Rules = harness.encode(singleGroup4Rules, SELECTOR, DESCRIPTOR);

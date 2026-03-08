@@ -21,7 +21,7 @@ contract PolicyCoderHarness {
         return PolicyCoder.encode(data);
     }
 
-    function decode(bytes memory policyBlob) external pure returns (PolicyData memory) {
-        return PolicyCoder.decode(policyBlob);
+    function decode(bytes memory policy) external pure returns (PolicyData memory) {
+        return PolicyCoder.decode(policy);
     }
 }

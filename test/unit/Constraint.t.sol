@@ -8,7 +8,7 @@ import { BaseTest } from "test/unit/BaseTest.sol";
 /// @dev Base contract for Constraint unit tests.
 abstract contract ConstraintTest is BaseTest {
     /// @dev Extracts the packed set as a bytes32 array from a constraint operator.
-    /// The operator format is: opCode (1 byte) || packedSet (n * 32 bytes)
+    /// The operator format is: opCode (1 byte) || packedSet (n * 32 bytes).
     function _extractPackedSet(bytes memory operator) internal pure returns (bytes32[] memory) {
         require(operator.length > 1, "Operator too short");
 
@@ -55,10 +55,10 @@ abstract contract ConstraintTest is BaseTest {
     }
 
     /// @dev Asserts two arrays are element-wise equal.
-    function assertArrayEq(bytes32[] memory a, bytes32[] memory b) internal pure {
-        assertEq(a.length, b.length, "array length mismatch");
-        for (uint256 i; i < a.length; ++i) {
-            assertEq(a[i], b[i]);
+    function assertArrayEq(bytes32[] memory expected, bytes32[] memory actual) internal pure {
+        assertEq(expected.length, actual.length, "array length mismatch");
+        for (uint256 i; i < expected.length; ++i) {
+            assertEq(expected[i], actual[i]);
         }
     }
 
@@ -67,13 +67,13 @@ abstract contract ConstraintTest is BaseTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function _toBytes32Array(uint256[] memory arr) internal pure returns (bytes32[] memory out) {
-        assembly {
+        assembly ("memory-safe") {
             out := arr
         }
     }
 
     function _toBytes32Array(int256[] memory arr) internal pure returns (bytes32[] memory out) {
-        assembly {
+        assembly ("memory-safe") {
             out := arr
         }
     }
@@ -99,7 +99,7 @@ abstract contract ConstraintTest is BaseTest {
 
     function _shuffle(int256[] memory arr, uint256 seed) internal pure {
         uint256[] memory u;
-        assembly {
+        assembly ("memory-safe") {
             u := arr
         }
         _shuffle(u, seed);
@@ -107,7 +107,7 @@ abstract contract ConstraintTest is BaseTest {
 
     function _shuffle(address[] memory arr, uint256 seed) internal pure {
         uint256[] memory u;
-        assembly {
+        assembly ("memory-safe") {
             u := arr
         }
         _shuffle(u, seed);
@@ -115,7 +115,7 @@ abstract contract ConstraintTest is BaseTest {
 
     function _shuffle(bytes32[] memory arr, uint256 seed) internal pure {
         uint256[] memory u;
-        assembly {
+        assembly ("memory-safe") {
             u := arr
         }
         _shuffle(u, seed);
