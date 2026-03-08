@@ -102,7 +102,7 @@ contract DecodeTest is PolicyCoderTest {
         PolicyData memory original;
         original.isSelectorless = true;
         original.selector = bytes4(0);
-        original.descriptor = hex"";
+        original.descriptor = hex"01011f";
         original.groups = _makeSelectorlessGroup();
 
         bytes memory blob = PolicyCoder.encode(original);

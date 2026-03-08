@@ -13,7 +13,7 @@ import { PolicyCoderHarness } from "test/harnesses/PolicyCoderHarness.sol";
 // forge-lint: disable-next-item(unsafe-typecast)
 abstract contract PolicyCoderBench is Test {
     bytes4 internal constant SELECTOR = bytes4(keccak256("foo(uint256)"));
-    bytes internal constant DESCRIPTOR = hex"";
+    bytes internal constant DESCRIPTOR = hex"0100";
 
     PolicyCoderHarness internal harness;
 

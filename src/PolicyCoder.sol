@@ -224,7 +224,9 @@ library PolicyCoder {
     function encode(PolicyData memory data) internal pure returns (bytes memory) {
         Group[] memory groups = _flatten(data.groups);
         uint8 header = PF.POLICY_VERSION | (data.isSelectorless ? PF.FLAG_NO_SELECTOR : 0);
-        return _encode(groups, header, data.selector, data.descriptor);
+        // Selector slot is defined as zero for selectorless policies regardless of what the caller provides.
+        bytes4 selector = data.isSelectorless ? bytes4(0) : data.selector;
+        return _encode(groups, header, selector, data.descriptor);
     }
 
     /// @notice Decodes a policy blob into policy data.
@@ -232,6 +234,8 @@ library PolicyCoder {
     /// @param policy The encoded policy blob.
     /// @return data The decoded policy data.
     function decode(bytes memory policy) internal pure returns (PolicyData memory data) {
+        Policy.validate(policy);
+
         data.isSelectorless = Policy.isSelectorless(policy);
         data.selector = data.isSelectorless ? bytes4(0) : Policy.selector(policy);
         data.descriptor = Policy.descriptor(policy);

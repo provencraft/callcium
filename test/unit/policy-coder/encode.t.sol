@@ -332,6 +332,21 @@ contract EncodeTest is PolicyCoderTest {
         assertEq(blob[PF.POLICY_SELECTOR_OFFSET + 3], bytes1(0), "sel[3]");
     }
 
+    function test_SelectorlessZeroesNonZeroSelector() public pure {
+        PolicyData memory data;
+        data.isSelectorless = true;
+        data.selector = bytes4(keccak256("anything()"));
+        data.descriptor = DESCRIPTOR;
+        data.groups = _makeOneConstraintGroup();
+
+        bytes memory blob = PolicyCoder.encode(data);
+
+        assertEq(blob[PF.POLICY_SELECTOR_OFFSET], bytes1(0), "sel[0]");
+        assertEq(blob[PF.POLICY_SELECTOR_OFFSET + 1], bytes1(0), "sel[1]");
+        assertEq(blob[PF.POLICY_SELECTOR_OFFSET + 2], bytes1(0), "sel[2]");
+        assertEq(blob[PF.POLICY_SELECTOR_OFFSET + 3], bytes1(0), "sel[3]");
+    }
+
     function test_NormalPolicyHeaderUnchanged() public pure {
         PolicyData memory data;
         data.selector = SELECTOR;
