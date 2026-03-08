@@ -1,0 +1,816 @@
+[
+  {
+    "blob": "0x012fbebd38000301011f01000100000029002901010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "single EQ rule on uint256 arg(0), calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-eq-uint256",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x01000000000000000000000000000000000000000000000000000000000000002a"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x01000000000000000000000000000000000000000000000000000000000000002a",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x01fdf80bda0003010140010001000000290029010100000100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "single EQ rule on address arg(0), calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-eq-address",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x010140",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x010000000000000000000000000000000000000000000000000000000000000001"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0xfdf80bda"
+      },
+      "encodingInput": {
+        "descriptor": "0x010140",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0xfdf80bda"
+      }
+    }
+  },
+  {
+    "blob": "0x01fdf80bda000301014001000100000069006901010000070060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
+    "description": "IN rule on address arg(0), 3-element set {addr(1),addr(2),addr(3)}, calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-in-address",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x010140",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0xfdf80bda"
+      },
+      "encodingInput": {
+        "descriptor": "0x010140",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0xfdf80bda"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f01000100000049004901010000060040000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000064",
+    "description": "BETWEEN rule on uint256 arg(0), range [10,100], calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-between-uint256",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x06000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000064"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x06000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000064",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f010001000000290029010100000200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "GT rule on uint256 arg(0), bound=0, calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-gt-uint256",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x020000000000000000000000000000000000000000000000000000000000000000"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x020000000000000000000000000000000000000000000000000000000000000000",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x01fdf80bda0003010140010001000000290029010100008100200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "NOT_EQ rule on address arg(0), value=address(0), calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-not-eq-address",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x010140",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x810000000000000000000000000000000000000000000000000000000000000000"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0xfdf80bda"
+      },
+      "encodingInput": {
+        "descriptor": "0x010140",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x810000000000000000000000000000000000000000000000000000000000000000",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0xfdf80bda"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f0100010000002900290101000010002000000000000000000000000000000000000000000000000000000000000000ff",
+    "description": "BITMASK_ALL rule on uint256 arg(0), mask=0xff, calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-bitmask-all",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x1000000000000000000000000000000000000000000000000000000000000000ff"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x1000000000000000000000000000000000000000000000000000000000000000ff",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x0130c8d1da0003010170010001000000290029010100002400200000000000000000000000000000000000000000000000000000000000000064",
+    "description": "LENGTH_LTE rule on bytes arg(0), bound=100, calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-length-lte-bytes",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x010170",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x240000000000000000000000000000000000000000000000000000000000000064"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x30c8d1da"
+      },
+      "encodingInput": {
+        "descriptor": "0x010170",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x240000000000000000000000000000000000000000000000000000000000000064",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x30c8d1da"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f010001000000290029000100000100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "EQ rule on msg.sender context property, value=address(1)",
+    "error": "",
+    "errorArgs": [],
+    "id": "context-msg-sender-eq",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x010000000000000000000000000000000000000000000000000000000000000001"
+                ],
+                "path": "0x0000",
+                "scope": 0
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
+                "path": "0x0000",
+                "scope": 0
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f010002000000520029000100000100200000000000000000000000000000000000000000000000000000000000000001002901010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "two rules in one group: context msg.sender=addr(1) AND calldata arg(0)=uint256(42)",
+    "error": "",
+    "errorArgs": [],
+    "id": "mixed-scope",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x010000000000000000000000000000000000000000000000000000000000000001"
+                ],
+                "path": "0x0000",
+                "scope": 0
+              },
+              {
+                "operators": [
+                  "0x01000000000000000000000000000000000000000000000000000000000000002a"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
+                "path": "0x0000",
+                "scope": 0
+              },
+              {
+                "operator": "0x01000000000000000000000000000000000000000000000000000000000000002a",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f0200010000002900290101000001002000000000000000000000000000000000000000000000000000000000000000020001000000290029010100000100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "two groups (OR semantics): EQ(arg0,2) | EQ(arg0,1); canonical group order is by hash",
+    "error": "",
+    "errorArgs": [],
+    "id": "multi-group",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x010000000000000000000000000000000000000000000000000000000000000002"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          },
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x010000000000000000000000000000000000000000000000000000000000000001"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x010000000000000000000000000000000000000000000000000000000000000002",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          },
+          {
+            "rules": [
+              {
+                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x1100000000000301011f01000100000029002901010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "FLAG_NO_SELECTOR set, zeroed selector, single EQ rule on uint256 arg(0)",
+    "error": "",
+    "errorArgs": [],
+    "id": "selectorless",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x01000000000000000000000000000000000000000000000000000000000000002a"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": true,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x01000000000000000000000000000000000000000000000000000000000000002a",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": true,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x01217d581c000a0101900020080002401f0100010000002b002b010200000001010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "EQ rule on field (0,1) of (address,uint256) tuple arg, path depth=2",
+    "error": "",
+    "errorArgs": [],
+    "id": "nested-path-tuple",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x0101900020080002401f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x01000000000000000000000000000000000000000000000000000000000000002a"
+                ],
+                "path": "0x00000001",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x217d581c"
+      },
+      "encodingInput": {
+        "descriptor": "0x0101900020080002401f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x01000000000000000000000000000000000000000000000000000000000000002a",
+                "path": "0x00000001",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x217d581c"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f0100020000005200290101000002002000000000000000000000000000000000000000000000000000000000000000000029010100000500200000000000000000000000000000000000000000000000000000000000000064",
+    "description": "two calldata rules on arg(0) in one group: GT(0) AND LTE(100); canonical rule order by opCode",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-two-constraints-same-group",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x020000000000000000000000000000000000000000000000000000000000000000",
+                  "0x050000000000000000000000000000000000000000000000000000000000000064"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x01011f",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x020000000000000000000000000000000000000000000000000000000000000000",
+                "path": "0x0000",
+                "scope": 1
+              },
+              {
+                "operator": "0x050000000000000000000000000000000000000000000000000000000000000064",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x022fbebd38000301011f01000100000029002901010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: version nibble = 2 (unsupported)",
+    "error": "UnsupportedVersion",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002"
+    ],
+    "id": "invalid-version",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x01",
+    "description": "MUST reject: blob too short (1 byte, missing selector and descriptor)",
+    "error": "MalformedHeader",
+    "errorArgs": [],
+    "id": "malformed-header-short",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x212fbebd38000301011f01000100000029002901010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: reserved bit 5 (0x20) set in header byte",
+    "error": "MalformedHeader",
+    "errorArgs": [],
+    "id": "reserved-bits-set",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x1112345678000301011f01000100000029002901010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: FLAG_NO_SELECTOR set but selector field is non-zero",
+    "error": "MalformedHeader",
+    "errorArgs": [],
+    "id": "selectorless-nonzero-selector",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd380001010100010000002900290101000001002000000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: descLength=1 which is less than the minimum of 2",
+    "error": "MalformedHeader",
+    "errorArgs": [],
+    "id": "desc-length-too-short",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f00",
+    "description": "MUST reject: groupCount=0 (empty policy)",
+    "error": "EmptyPolicy",
+    "errorArgs": [],
+    "id": "zero-group-count",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f010000000000000000",
+    "description": "MUST reject: group with ruleCount=0 (empty group)",
+    "error": "EmptyGroup",
+    "errorArgs": [
+      "0x000000000000000000000000000000000000000000000000000000000000000b"
+    ],
+    "id": "empty-group",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f01000100000029002901010000000020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: opCode=0x00 (unassigned, unknown operator)",
+    "error": "UnknownOperator",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "unknown-opcode",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  }
+]

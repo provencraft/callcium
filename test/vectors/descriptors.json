@@ -1,0 +1,281 @@
+[
+  {
+    "blob": "0x0100",
+    "description": "zero params",
+    "error": "",
+    "errorArgs": [],
+    "id": "empty-params",
+    "params": [],
+    "version": 1
+  },
+  {
+    "blob": "0x01011f",
+    "description": "single uint256 param",
+    "error": "",
+    "errorArgs": [],
+    "id": "uint256",
+    "params": [
+      {
+        "index": 0,
+        "isDynamic": false,
+        "path": "0x0000",
+        "staticSize": 32,
+        "typeCode": 31
+      }
+    ],
+    "version": 1
+  },
+  {
+    "blob": "0x010140",
+    "description": "single address param",
+    "error": "",
+    "errorArgs": [],
+    "id": "address",
+    "params": [
+      {
+        "index": 0,
+        "isDynamic": false,
+        "path": "0x0000",
+        "staticSize": 32,
+        "typeCode": 64
+      }
+    ],
+    "version": 1
+  },
+  {
+    "blob": "0x010141",
+    "description": "single bool param",
+    "error": "",
+    "errorArgs": [],
+    "id": "bool",
+    "params": [
+      {
+        "index": 0,
+        "isDynamic": false,
+        "path": "0x0000",
+        "staticSize": 32,
+        "typeCode": 65
+      }
+    ],
+    "version": 1
+  },
+  {
+    "blob": "0x010170",
+    "description": "single bytes param (dynamic)",
+    "error": "",
+    "errorArgs": [],
+    "id": "bytes-dynamic",
+    "params": [
+      {
+        "index": 0,
+        "isDynamic": true,
+        "path": "0x0000",
+        "staticSize": 0,
+        "typeCode": 112
+      }
+    ],
+    "version": 1
+  },
+  {
+    "blob": "0x01016f",
+    "description": "single bytes32 param (fixed)",
+    "error": "",
+    "errorArgs": [],
+    "id": "bytes32-fixed",
+    "params": [
+      {
+        "index": 0,
+        "isDynamic": false,
+        "path": "0x0000",
+        "staticSize": 32,
+        "typeCode": 111
+      }
+    ],
+    "version": 1
+  },
+  {
+    "blob": "0x0101800040071f0004",
+    "description": "uint256[4] static array",
+    "error": "",
+    "errorArgs": [],
+    "id": "static-array",
+    "params": [
+      {
+        "index": 0,
+        "isDynamic": false,
+        "path": "0x0000",
+        "staticSize": 128,
+        "typeCode": 128
+      }
+    ],
+    "version": 1
+  },
+  {
+    "blob": "0x01018100000540",
+    "description": "address[] dynamic array",
+    "error": "",
+    "errorArgs": [],
+    "id": "dynamic-array",
+    "params": [
+      {
+        "index": 0,
+        "isDynamic": true,
+        "path": "0x0000",
+        "staticSize": 0,
+        "typeCode": 129
+      }
+    ],
+    "version": 1
+  },
+  {
+    "blob": "0x0101900020080002401f",
+    "description": "(address,uint256) tuple",
+    "error": "",
+    "errorArgs": [],
+    "id": "tuple-two-fields",
+    "params": [
+      {
+        "index": 0,
+        "isDynamic": false,
+        "path": "0x0000",
+        "staticSize": 64,
+        "typeCode": 144
+      }
+    ],
+    "version": 1
+  },
+  {
+    "blob": "0x0103401f70",
+    "description": "three params: address, uint256, bytes",
+    "error": "",
+    "errorArgs": [],
+    "id": "multi-param",
+    "params": [
+      {
+        "index": 0,
+        "isDynamic": false,
+        "path": "0x0000",
+        "staticSize": 32,
+        "typeCode": 64
+      },
+      {
+        "index": 1,
+        "isDynamic": false,
+        "path": "0x0001",
+        "staticSize": 32,
+        "typeCode": 31
+      },
+      {
+        "index": 2,
+        "isDynamic": true,
+        "path": "0x0002",
+        "staticSize": 0,
+        "typeCode": 112
+      }
+    ],
+    "version": 1
+  },
+  {
+    "blob": "0x",
+    "description": "MUST reject: empty blob",
+    "error": "MalformedHeader",
+    "errorArgs": [],
+    "id": "empty-blob",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x01",
+    "description": "MUST reject: one byte (too short for header)",
+    "error": "MalformedHeader",
+    "errorArgs": [],
+    "id": "too-short",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x0200",
+    "description": "MUST reject: version 2 unsupported",
+    "error": "UnsupportedVersion",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002"
+    ],
+    "id": "unsupported-version",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x01018100",
+    "description": "MUST reject: dynamic array with incomplete meta",
+    "error": "UnexpectedEnd",
+    "errorArgs": [],
+    "id": "dynamic-array-missing-meta",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x01018000",
+    "description": "MUST reject: static array with incomplete meta",
+    "error": "UnexpectedEnd",
+    "errorArgs": [],
+    "id": "static-array-missing-meta",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x010190",
+    "description": "MUST reject: tuple with incomplete meta (only typeCode)",
+    "error": "UnexpectedEnd",
+    "errorArgs": [],
+    "id": "tuple-missing-meta",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x01014040",
+    "description": "MUST reject: declares 1 param but blob contains 2",
+    "error": "ParamCountMismatch",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+      "0x0000000000000000000000000000000000000000000000000000000000000002"
+    ],
+    "id": "param-count-mismatch-extra",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x010240",
+    "description": "MUST reject: declares 2 params but blob contains 1",
+    "error": "ParamCountMismatch",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "0x0000000000000000000000000000000000000000000000000000000000000001"
+    ],
+    "id": "param-count-mismatch-missing",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x010181000000",
+    "description": "MUST reject: dynamic array nodeLength=0",
+    "error": "NodeLengthTooSmall",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ],
+    "id": "node-length-zero",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x0101810000ff40",
+    "description": "MUST reject: nodeLength=255 but descriptor only 6 bytes (overflow)",
+    "error": "NodeOverflow",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002"
+    ],
+    "id": "node-overflow",
+    "params": [],
+    "version": 0
+  }
+]

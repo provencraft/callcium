@@ -11,19 +11,6 @@ contract ValidateTest is DescriptorTest {
                              VALID DESCRIPTORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_EmptyBody() public pure {
-        Descriptor.validate(hex"0100");
-    }
-
-    function test_SingleAddress() public pure {
-        Descriptor.validate(hex"010140");
-    }
-
-    function test_DynamicArrayAddress() public pure {
-        // Dynamic array of address: [code:81][meta:000005][elem:40].
-        Descriptor.validate(hex"01018100000540");
-    }
-
     function test_StaticArrayAddressMinLength() public pure {
         // Static array of address[1]: [code:80][meta:001007][elem:40][length:0001].
         Descriptor.validate(hex"010180001007400001");
@@ -52,53 +39,10 @@ contract ValidateTest is DescriptorTest {
                            MALFORMED DESCRIPTORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_RevertWhen_HeaderEmpty() public {
-        vm.expectRevert(Descriptor.MalformedHeader.selector);
-        Descriptor.validate("");
-    }
-
-    function test_RevertWhen_HeaderTooShort() public {
-        vm.expectRevert(Descriptor.MalformedHeader.selector);
-        Descriptor.validate(hex"01");
-    }
-
-    function test_RevertWhen_VersionUnsupported() public {
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.UnsupportedVersion.selector, uint8(0x02)));
-        Descriptor.validate(hex"0200");
-    }
-
     function testFuzz_RevertWhen_UnknownTypeCode(uint8 code) public {
         vm.assume(!TypeRule.isValid(code));
         vm.expectRevert(abi.encodeWithSelector(Descriptor.UnknownTypeCode.selector, code));
         Descriptor.validate(bytes.concat(hex"0101", bytes1(code)));
-    }
-
-    function test_RevertWhen_DynamicArrayMissingMeta() public {
-        // Dynamic array with incomplete meta (only 1 byte of 3).
-        vm.expectRevert(Descriptor.UnexpectedEnd.selector);
-        Descriptor.validate(hex"01018100");
-    }
-
-    function test_RevertWhen_StaticArrayMissingMeta() public {
-        // Static array with incomplete meta.
-        vm.expectRevert(Descriptor.UnexpectedEnd.selector);
-        Descriptor.validate(hex"01018000");
-    }
-
-    function test_RevertWhen_TupleMissingMeta() public {
-        // Tuple with incomplete meta (only code).
-        vm.expectRevert(Descriptor.UnexpectedEnd.selector);
-        Descriptor.validate(hex"010190");
-    }
-
-    function test_RevertWhen_ParamCountMismatchExtraParam() public {
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.ParamCountMismatch.selector, uint8(1), 2));
-        Descriptor.validate(hex"01014040");
-    }
-
-    function test_RevertWhen_ParamCountMismatchMissingParam() public {
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.ParamCountMismatch.selector, uint8(2), 1));
-        Descriptor.validate(hex"010240");
     }
 
     function test_RevertWhen_TooManyParams256() public {
@@ -115,12 +59,6 @@ contract ValidateTest is DescriptorTest {
                          NODE LENGTH AND LIMIT CHECKS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_RevertWhen_CompositeNodeLengthZero() public {
-        // Dynamic array with nodeLength=0: [code:81][meta:000000][elem:40].
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.NodeLengthTooSmall.selector, 2, uint16(0)));
-        Descriptor.validate(hex"010181000000");
-    }
-
     function test_RevertWhen_NodeLengthTooSmallForArray() public {
         // Dynamic array with nodeLength=3 (min is ARRAY_HEADER_SIZE=4): [code:81][meta:000003][elem:40].
         vm.expectRevert(abi.encodeWithSelector(Descriptor.NodeLengthTooSmall.selector, 2, uint16(3)));
@@ -131,12 +69,6 @@ contract ValidateTest is DescriptorTest {
         // Tuple with nodeLength=5 (min is TUPLE_HEADER_SIZE=6): [code:90][meta:001005][fc:0001][field:40].
         vm.expectRevert(abi.encodeWithSelector(Descriptor.NodeLengthTooSmall.selector, 2, uint16(5)));
         Descriptor.validate(hex"01019000100500014000");
-    }
-
-    function test_RevertWhen_NodeOverflowsBuffer() public {
-        // Dynamic array with nodeLength=255 but descriptor is only 6 bytes.
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.NodeOverflow.selector, 2));
-        Descriptor.validate(hex"0101810000FF40");
     }
 
     function test_RevertWhen_StaticArrayLengthExceedsMax() public {
