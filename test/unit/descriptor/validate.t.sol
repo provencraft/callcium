@@ -3,7 +3,6 @@ pragma solidity ^0.8.26;
 
 import { DescriptorTest } from "../Descriptor.t.sol";
 import { Descriptor } from "src/Descriptor.sol";
-import { TypeCode } from "src/TypeCode.sol";
 import { TypeRule } from "src/TypeRule.sol";
 
 contract ValidateTest is DescriptorTest {
@@ -45,16 +44,6 @@ contract ValidateTest is DescriptorTest {
         Descriptor.validate(bytes.concat(hex"0101", bytes1(code)));
     }
 
-    function test_RevertWhen_TooManyParams256() public {
-        bytes memory body;
-        for (uint256 i; i < 256; ++i) {
-            body = bytes.concat(body, bytes1(TypeCode.ADDRESS));
-        }
-
-        vm.expectRevert(Descriptor.TooManyParams.selector);
-        Descriptor.validate(bytes.concat(hex"01FF", body));
-    }
-
     /*/////////////////////////////////////////////////////////////////////////
                          NODE LENGTH AND LIMIT CHECKS
     /////////////////////////////////////////////////////////////////////////*/
@@ -69,34 +58,6 @@ contract ValidateTest is DescriptorTest {
         // Tuple with nodeLength=5 (min is TUPLE_HEADER_SIZE=6): [code:90][meta:001005][fc:0001][field:40].
         vm.expectRevert(abi.encodeWithSelector(Descriptor.NodeLengthTooSmall.selector, 2, uint16(5)));
         Descriptor.validate(hex"01019000100500014000");
-    }
-
-    function test_RevertWhen_StaticArrayLengthExceedsMax() public {
-        // Static array of address[4096]: [code:80][meta:000007][elem:40][length:1000].
-        // nodeLength=7 = ARRAY_HEADER(4) + elemDesc(1) + lengthSuffix(2).
-        // staticWords=0 because 4096 overflows 12 bits, but we only test the length check.
-        // Actually, for length=4096, staticWords would be 4096 which overflows. Use staticWords=0.
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.ArrayLengthTooLarge.selector, 2, uint16(4096)));
-        Descriptor.validate(hex"010180000007401000");
-    }
-
-    function test_RevertWhen_TupleFieldCountExceedsMax() public {
-        // Tuple with fieldCount=4090 (exceeds MAX_TUPLE_FIELDS=4089).
-        // We need nodeLength large enough for the header + field descriptors.
-        // fieldCount=4090 requires 4090 single-byte fields = 4090 bytes.
-        // nodeLength = TUPLE_HEADER_SIZE(6) + 4090 = 4096 → exceeds MAX_NODE_LENGTH(4095).
-        // But nodeLength is 12-bit, so can only encode up to 4095. Set nodeLength=4095.
-        // Build: [version:01][paramCount:01][code:90][meta: staticWords=0, nodeLength=4095][fieldCount:4090=0x0FFA]
-        // meta: 0x000FFF (staticWords=0, nodeLength=4095).
-        // Then pad with enough bytes (address type codes) to fill the descriptor.
-        bytes memory header = hex"01019000" hex"0FFF" hex"0FFA";
-        bytes memory fields = new bytes(4090);
-        for (uint256 i; i < 4090; ++i) {
-            fields[i] = bytes1(TypeCode.ADDRESS);
-        }
-        bytes memory desc = bytes.concat(header, fields);
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.TupleFieldCountTooLarge.selector, 2, uint16(4090)));
-        Descriptor.validate(desc);
     }
 
     function test_RevertWhen_NestedInvalidComposite() public {

@@ -1,10 +1,5 @@
 import type { InferPageType } from "fumadocs-core/source";
-import {
-  type FileObject,
-  printErrors,
-  scanURLs,
-  validateFiles,
-} from "next-validate-link";
+import { type FileObject, printErrors, scanURLs, validateFiles } from "next-validate-link";
 import { source } from "@/lib/source";
 
 async function checkLinks() {
@@ -32,9 +27,7 @@ function getHeadings({ data }: InferPageType<typeof source>): string[] {
 }
 
 async function getFiles(): Promise<FileObject[]> {
-  const pages = source
-    .getPages()
-    .filter((page) => page.absolutePath !== undefined);
+  const pages = source.getPages().filter((page) => page.absolutePath !== undefined);
   return Promise.all(
     pages.map(async (page) => ({
       path: page.absolutePath as string,

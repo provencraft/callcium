@@ -5,8 +5,7 @@ const features = [
   {
     Icon: Package,
     title: "Self-Contained",
-    description:
-      "Descriptors are embedded in the policy blob — no external registry or lookup at enforce-time.",
+    description: "Descriptors are embedded in the policy blob — no external registry or lookup at enforce-time.",
     href: "/docs/specifications",
   },
   {
@@ -19,8 +18,7 @@ const features = [
   {
     Icon: Eye,
     title: "Auditable",
-    description:
-      "Any policy blob decoded and inspected entirely on-chain. Audits are reproducible and trustless.",
+    description: "Any policy blob decoded and inspected entirely on-chain. Audits are reproducible and trustless.",
     href: "/docs/reference/policy-validator",
   },
 ];

@@ -60,11 +60,17 @@ contract DescriptorConformanceTest is BaseTest {
     /// @dev Maps a fixture error name to its error selector.
     function _errorSelector(string memory name) private pure returns (bytes4) {
         bytes32 h = keccak256(bytes(name));
+        if (h == keccak256("ArrayLengthTooLarge")) return Descriptor.ArrayLengthTooLarge.selector;
+        if (h == keccak256("InvalidArrayLength")) return Descriptor.InvalidArrayLength.selector;
+        if (h == keccak256("InvalidTupleFieldCount")) return Descriptor.InvalidTupleFieldCount.selector;
         if (h == keccak256("MalformedHeader")) return Descriptor.MalformedHeader.selector;
         if (h == keccak256("NodeLengthTooSmall")) return Descriptor.NodeLengthTooSmall.selector;
         if (h == keccak256("NodeOverflow")) return Descriptor.NodeOverflow.selector;
         if (h == keccak256("ParamCountMismatch")) return Descriptor.ParamCountMismatch.selector;
+        if (h == keccak256("TooManyParams")) return Descriptor.TooManyParams.selector;
+        if (h == keccak256("TupleFieldCountTooLarge")) return Descriptor.TupleFieldCountTooLarge.selector;
         if (h == keccak256("UnexpectedEnd")) return Descriptor.UnexpectedEnd.selector;
+        if (h == keccak256("UnknownTypeCode")) return Descriptor.UnknownTypeCode.selector;
         if (h == keccak256("UnsupportedVersion")) return Descriptor.UnsupportedVersion.selector;
         revert UnknownFixtureError(name);
     }

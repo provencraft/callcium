@@ -32,15 +32,12 @@ const SPECS: Record<string, SpecMeta> = {
 ///////////////////////////////////////////////////////////////////////////
 
 const processor = unified().use(remarkParse).use(remarkGfm);
-const serializer = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkStringify, {
-    bullet: "-",
-    fences: true,
-    listItemIndent: "one",
-    resourceLink: true,
-  });
+const serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, {
+  bullet: "-",
+  fences: true,
+  listItemIndent: "one",
+  resourceLink: true,
+});
 
 function parse(md: string): Root {
   return processor.parse(md);
@@ -54,9 +51,7 @@ function stringify(tree: Root): string {
 function extractTitle(tree: Root): string | undefined {
   for (const node of tree.children) {
     if (node.type === "heading" && node.depth === 1) {
-      return serializer
-        .stringify({ type: "root", children: node.children } as Root)
-        .trim();
+      return serializer.stringify({ type: "root", children: node.children } as Root).trim();
     }
   }
   return undefined;
@@ -76,13 +71,10 @@ function stripH1(tree: Root): void {
 
 /** Escape `{` and `}` in prose while leaving fenced code blocks untouched. */
 function escapeBracesOutsideCodeBlocks(text: string): string {
-  return text.replace(
-    /(```[\s\S]*?```)|([{}])/g,
-    (_match, codeBlock, brace) => {
-      if (codeBlock) return codeBlock;
-      return `\\${brace}`;
-    },
-  );
+  return text.replace(/(```[\s\S]*?```)|([{}])/g, (_match, codeBlock, brace) => {
+    if (codeBlock) return codeBlock;
+    return `\\${brace}`;
+  });
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -124,10 +116,7 @@ async function main() {
     title: "Specifications",
     pages,
   };
-  await writeFile(
-    join(OUTPUT_DIR, "meta.json"),
-    `${JSON.stringify(meta, null, 2)}\n`,
-  );
+  await writeFile(join(OUTPUT_DIR, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`);
 
   console.log(`Synced ${pages.length} spec pages.`);
 }

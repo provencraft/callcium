@@ -812,5 +812,280 @@
         "selector": "0x00000000"
       }
     }
+  },
+  {
+    "blob": "0x012fbebd38000301011f0100010000001d001d0101000001001400000000000000000000000000000000000000002a",
+    "description": "MUST reject: EQ operator with 20-byte payload (requires exactly 32)",
+    "error": "UnknownOperator",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "eq-invalid-payload-size",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f0100010000003600360101000007002d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "description": "MUST reject: IN operator with 45-byte payload (must be non-zero multiple of 32)",
+    "error": "UnknownOperator",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "in-invalid-payload-size",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f010001000000080000000000000000",
+    "description": "MUST reject: groupSize=8 which is less than ruleCount(1) * RULE_MIN_SIZE(9)",
+    "error": "GroupTooSmall",
+    "errorArgs": [
+      "0x000000000000000000000000000000000000000000000000000000000000000b"
+    ],
+    "id": "group-too-small",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f0100010000002b002901010000010020000000000000000000000000000000000000000000000000000000000000002a0000",
+    "description": "MUST reject: rules do not exactly fill the declared group size (2 trailing bytes)",
+    "error": "GroupSizeMismatch",
+    "errorArgs": [
+      "0x000000000000000000000000000000000000000000000000000000000000000b"
+    ],
+    "id": "group-size-mismatch",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f0100010000002a002901010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: groupSize=42 but only 41 bytes remain in the blob",
+    "error": "GroupOverflow",
+    "errorArgs": [
+      "0x000000000000000000000000000000000000000000000000000000000000000b"
+    ],
+    "id": "group-overflow",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f01000100000029000801010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: ruleSize=8 which is below the minimum of 9",
+    "error": "RuleTooSmall",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011",
+      "0x0000000000000000000000000000000000000000000000000000000000000008"
+    ],
+    "id": "rule-too-small",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f01000100000028002901010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: rule (41 bytes) overflows the declared group region (40 bytes)",
+    "error": "RuleOverflow",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "rule-overflow",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f0100010000002a002a01010000010020000000000000000000000000000000000000000000000000000000000000002a00",
+    "description": "MUST reject: declared ruleSize=42 does not match computed layout size=41",
+    "error": "RuleSizeMismatch",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "rule-size-mismatch",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f010001000000270027010001002000000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: rule path depth=0 (must have at least one step)",
+    "error": "EmptyPath",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "empty-path",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f01000100000029002902010000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: scope byte 0x02 is neither CONTEXT (0x00) nor CALLDATA (0x01)",
+    "error": "InvalidScope",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "invalid-scope",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f0100010000002b002b0002000000010100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "MUST reject: context-scope rule with depth=2 (must be exactly 1)",
+    "error": "InvalidContextPath",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "invalid-context-path",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x012fbebd38000301011f010001",
+    "description": "MUST reject: blob truncated mid-group-header (only 2 of 6 header bytes present)",
+    "error": "UnexpectedEnd",
+    "errorArgs": [],
+    "id": "truncated-group-header",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
   }
 ]

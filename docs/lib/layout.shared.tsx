@@ -26,6 +26,18 @@ export function baseOptions(): BaseLayoutProps {
         </>
       ),
     },
+    searchToggle: { enabled: false },
+    links: [
+      {
+        text: "Docs",
+        url: "/docs",
+        active: "nested-url",
+      },
+      {
+        text: "Policy Inspector",
+        url: "/policy-inspector",
+      },
+    ],
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,
   };
 }

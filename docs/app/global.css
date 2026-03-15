@@ -22,6 +22,8 @@
   --color-fd-accent: hsl(40, 60%, 91%);
   --color-fd-accent-foreground: hsl(40, 70%, 22%);
   --color-fd-ring: hsl(2, 70%, 53%);
+  --color-fd-info: hsl(185, 60%, 85%);
+  --color-fd-info-foreground: hsl(185, 68%, 25%);
   --color-fd-overlay: hsla(0, 0%, 0%, 0.2);
 }
 
@@ -42,6 +44,8 @@
   --color-fd-accent: hsl(40, 35%, 13%);
   --color-fd-accent-foreground: hsl(40, 80%, 72%);
   --color-fd-ring: hsl(2, 72%, 60%);
+  --color-fd-info: hsl(185, 45%, 20%);
+  --color-fd-info-foreground: hsl(185, 60%, 65%);
   --color-fd-overlay: hsla(0, 0%, 0%, 0.4);
 }
 

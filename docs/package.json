@@ -11,7 +11,10 @@
     "fmt": "biome format --write",
     "sync": "bun run sync:reference && bun run sync:specs",
     "sync:reference": "bun run --cwd .. docs && bun tools/sync-reference.ts",
-    "sync:specs": "bun tools/sync-specs.ts"
+    "sync:specs": "bun tools/sync-specs.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tools:policy:explain": "bun tools/policy-inspector/cli.ts"
   },
   "dependencies": {
     "@orama/orama": "^3.1.18",
@@ -22,7 +25,8 @@
     "next": "16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "viem": "^2.47.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.5",
@@ -40,6 +44,7 @@
     "typescript": "^5.9.3",
     "unified": "^11.0.5",
     "unist-util-remove": "^4.0.0",
-    "unist-util-visit": "^5.1.0"
+    "unist-util-visit": "^5.1.0",
+    "vitest": "^4.0.18"
   }
 }

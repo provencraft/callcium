@@ -1,13 +1,6 @@
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type {
-  Heading,
-  Paragraph,
-  PhrasingContent,
-  Root,
-  RootContent,
-  Strong,
-} from "mdast";
+import type { Heading, Paragraph, PhrasingContent, Root, RootContent, Strong } from "mdast";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
@@ -34,13 +27,7 @@ const INCLUDED_CONTRACTS = [
 /** Structs that are internal implementation details — skip from output. */
 const INTERNAL_STRUCTS: Record<string, string[]> = {
   "PolicyEnforcer.sol": ["EvalState", "RuleView", "QParams", "QLoopState"],
-  "PolicyValidator.sol": [
-    "BoundDomain",
-    "BitmaskDomain",
-    "SetDomain",
-    "ConstraintContext",
-    "ValidationState",
-  ],
+  "PolicyValidator.sol": ["BoundDomain", "BitmaskDomain", "SetDomain", "ConstraintContext", "ValidationState"],
 };
 
 /**
@@ -49,11 +36,7 @@ const INTERNAL_STRUCTS: Record<string, string[]> = {
  * Use "*" as a glob for all matching files of that prefix.
  */
 const ASSEMBLY_ORDER: Record<string, string[]> = {
-  "Constraint.sol": [
-    "struct.Constraint.md",
-    "function.*.md",
-    "library.Operator.md",
-  ],
+  "Constraint.sol": ["struct.Constraint.md", "function.*.md", "library.Operator.md"],
 };
 
 /** Page titles (used for frontmatter). Extracted from main file if not specified. */
@@ -66,15 +49,12 @@ const PAGE_TITLES: Record<string, string> = {
 ///////////////////////////////////////////////////////////////////////////
 
 const processor = unified().use(remarkParse).use(remarkGfm);
-const serializer = unified()
-  .use(remarkParse)
-  .use(remarkGfm)
-  .use(remarkStringify, {
-    bullet: "-",
-    fences: true,
-    listItemIndent: "one",
-    resourceLink: true,
-  });
+const serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, {
+  bullet: "-",
+  fences: true,
+  listItemIndent: "one",
+  resourceLink: true,
+});
 
 function parse(md: string): Root {
   return processor.parse(md);
@@ -117,11 +97,7 @@ function isTitleBlock(node: RootContent): boolean {
   const first = p.children[0];
   if (first?.type !== "strong") return false;
   const strong = first as Strong;
-  return (
-    strong.children.length === 1 &&
-    strong.children[0].type === "text" &&
-    strong.children[0].value === "Title:"
-  );
+  return strong.children.length === 1 && strong.children[0].type === "text" && strong.children[0].value === "Title:";
 }
 
 /**
@@ -147,9 +123,7 @@ function extractDescription(tree: Root): string {
           if (c.type === "inlineCode") return `\`${c.value}\``;
           if (c.type === "strong") {
             const text = (c as Strong).children
-              .map((sc: PhrasingContent) =>
-                sc.type === "text" ? sc.value : "",
-              )
+              .map((sc: PhrasingContent) => (sc.type === "text" ? sc.value : ""))
               .join("");
             return `**${text}**`;
           }
@@ -259,11 +233,7 @@ function removePrivateConstants(tree: Root): void {
       // Check if any code block in this section contains "private constant".
       const isPrivate = children
         .slice(i, end)
-        .some(
-          (n) =>
-            n.type === "code" &&
-            (n as { value: string }).value.includes("private constant"),
-        );
+        .some((n) => n.type === "code" && (n as { value: string }).value.includes("private constant"));
       if (isPrivate) {
         children.splice(i, end - i);
         continue;
@@ -325,11 +295,7 @@ function removeInternalStructs(tree: Root, internalNames: string[]): void {
   i = 0;
   while (i < children.length) {
     const node = children[i];
-    if (
-      node.type === "heading" &&
-      (node as Heading).depth === 2 &&
-      headingText(node as Heading) === "Structs"
-    ) {
+    if (node.type === "heading" && (node as Heading).depth === 2 && headingText(node as Heading) === "Structs") {
       // Check if next node is another ## heading (or EOF) — meaning section is empty.
       const next = children[i + 1];
       if (!next || (next.type === "heading" && (next as Heading).depth <= 2)) {
@@ -467,10 +433,7 @@ interface ProcessedFile {
 }
 
 /** Read and parse a forge doc markdown file. */
-async function readForgeDoc(
-  dir: string,
-  filename: string,
-): Promise<ProcessedFile> {
+async function readForgeDoc(dir: string, filename: string): Promise<ProcessedFile> {
   const content = await readFile(join(dir, filename), "utf-8");
   const tree = parse(content);
   const title = extractTitle(tree);
@@ -531,9 +494,7 @@ function assembleOrder(files: string[], contractDir: string): string[] {
   }
 
   // Default: main file first, then structs, then functions.
-  const main = files.find(
-    (f) => f.startsWith("library.") || f.startsWith("abstract."),
-  );
+  const main = files.find((f) => f.startsWith("library.") || f.startsWith("abstract."));
   const structs = files.filter((f) => f.startsWith("struct.")).sort();
   const functions = files.filter((f) => f.startsWith("function.")).sort();
   const result: string[] = [];
@@ -638,9 +599,7 @@ async function main() {
     const frontmatter = [
       "---",
       `title: "${pageTitle}"`,
-      pageDescription
-        ? `description: "${pageDescription.replace(/"/g, '\\"')}"`
-        : null,
+      pageDescription ? `description: "${pageDescription.replace(/"/g, '\\"')}"` : null,
       "---",
     ]
       .filter(Boolean)
@@ -657,10 +616,7 @@ async function main() {
     title: "Reference",
     pages: INCLUDED_CONTRACTS.map(contractSlug),
   };
-  await writeFile(
-    join(OUTPUT_ROOT, "meta.json"),
-    `${JSON.stringify(meta, null, 2)}\n`,
-  );
+  await writeFile(join(OUTPUT_ROOT, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`);
 
   console.log(`Generated ${totalPages} reference pages.`);
 }

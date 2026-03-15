@@ -277,5 +277,67 @@
     "id": "node-overflow",
     "params": [],
     "version": 0
+  },
+  {
+    "blob": "0x010143",
+    "description": "MUST reject: type code 0x43 is not a recognized elementary or composite type",
+    "error": "UnknownTypeCode",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000043"
+    ],
+    "id": "unknown-type-code",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x0101900000060000",
+    "description": "MUST reject: tuple with fieldCount=0 (must have at least one field)",
+    "error": "InvalidTupleFieldCount",
+    "errorArgs": [],
+    "id": "tuple-zero-fields",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x010180000007400000",
+    "description": "MUST reject: static array with length=0 (must be at least 1)",
+    "error": "InvalidArrayLength",
+    "errorArgs": [],
+    "id": "static-array-zero-length",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x01ff40404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040",
+    "description": "MUST reject: 256 top-level params exceeds the uint8 maximum of 255",
+    "error": "TooManyParams",
+    "errorArgs": [],
+    "id": "too-many-params",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x010180000007401000",
+    "description": "MUST reject: static array length=4096 exceeds the maximum of 4095",
+    "error": "ArrayLengthTooLarge",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "0x0000000000000000000000000000000000000000000000000000000000001000"
+    ],
+    "id": "static-array-length-exceeds-max",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x0101900000080ffa0000",
+    "description": "MUST reject: tuple fieldCount=4090 exceeds the maximum of 4089",
+    "error": "TupleFieldCountTooLarge",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "0x0000000000000000000000000000000000000000000000000000000000000ffa"
+    ],
+    "id": "tuple-field-count-exceeds-max",
+    "params": [],
+    "version": 0
   }
 ]

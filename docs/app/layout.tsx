@@ -23,11 +23,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export default function Layout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${hankenGrotesk.className} ${jetbrainsMono.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="en" className={`${hankenGrotesk.className} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
         <Banner>Pre-release — The API surface may change. Unaudited.</Banner>
         <Provider>{children}</Provider>

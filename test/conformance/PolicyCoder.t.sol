@@ -34,8 +34,18 @@ contract PolicyCoderConformanceTest is BaseTest {
     function _errorSelector(string memory name) private pure returns (bytes4) {
         bytes32 h = keccak256(bytes(name));
         if (h == keccak256("EmptyGroup")) return Policy.EmptyGroup.selector;
+        if (h == keccak256("EmptyPath")) return Policy.EmptyPath.selector;
         if (h == keccak256("EmptyPolicy")) return Policy.EmptyPolicy.selector;
+        if (h == keccak256("GroupOverflow")) return Policy.GroupOverflow.selector;
+        if (h == keccak256("GroupSizeMismatch")) return Policy.GroupSizeMismatch.selector;
+        if (h == keccak256("GroupTooSmall")) return Policy.GroupTooSmall.selector;
+        if (h == keccak256("InvalidContextPath")) return Policy.InvalidContextPath.selector;
+        if (h == keccak256("InvalidScope")) return Policy.InvalidScope.selector;
         if (h == keccak256("MalformedHeader")) return Policy.MalformedHeader.selector;
+        if (h == keccak256("RuleOverflow")) return Policy.RuleOverflow.selector;
+        if (h == keccak256("RuleSizeMismatch")) return Policy.RuleSizeMismatch.selector;
+        if (h == keccak256("RuleTooSmall")) return Policy.RuleTooSmall.selector;
+        if (h == keccak256("UnexpectedEnd")) return Policy.UnexpectedEnd.selector;
         if (h == keccak256("UnknownOperator")) return Policy.UnknownOperator.selector;
         if (h == keccak256("UnsupportedVersion")) return Policy.UnsupportedVersion.selector;
         revert UnknownFixtureError(name);
