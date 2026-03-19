@@ -2,7 +2,7 @@
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Abi } from "viem";
 import { cn } from "@/lib/utils";
 import {
@@ -17,6 +17,7 @@ import {
   parsePathSteps,
   type Span,
 } from "@/tools/policy-inspector";
+import { EXAMPLES, type PolicyExample } from "./examples";
 import { useDebounce } from "./use-debounce";
 
 const s = (n: number) => (n === 1 ? "" : "s");
@@ -98,9 +99,12 @@ export function Inspector() {
   const [lookedUpName, setLookedUpName] = useState<string | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
   const [inspectMode, setInspectMode] = useState(false);
+  const [activeExample, setActiveExample] = useState<PolicyExample | null>(null);
+  const [exampleDropdownOpen, setExampleDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const debouncedHex = useDebounce(hexInput, 300);
-  const abi = useMemo(() => parseAbi(abiInput), [abiInput]);
+  const abi = useMemo(() => (activeExample?.abi ? activeExample.abi : parseAbi(abiInput)), [activeExample, abiInput]);
 
   const result = useMemo(() => tryDecode(debouncedHex, abi), [debouncedHex, abi]);
 
@@ -134,13 +138,93 @@ export function Inspector() {
     }
   }, []);
 
+  const selectExample = useCallback((example: PolicyExample) => {
+    setActiveExample(example);
+    setHexInput(example.blob);
+    if (example.abi) {
+      setAbiInput(JSON.stringify(example.abi, null, 2));
+      setAbiOpen(true);
+    } else {
+      setAbiInput("");
+      setAbiOpen(false);
+    }
+    setExampleDropdownOpen(false);
+  }, []);
+
+  const clearExample = useCallback(() => {
+    setActiveExample(null);
+    setHexInput("");
+    setAbiInput("");
+    setAbiOpen(false);
+  }, []);
+
+  // Close dropdown on outside click.
+  useEffect(() => {
+    if (!exampleDropdownOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setExampleDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [exampleDropdownOpen]);
+
   return (
     <div className="space-y-4">
       {/* Policy blob input */}
       <div>
-        <label htmlFor="policy-hex" className="mb-1.5 block text-sm font-medium text-fd-foreground">
-          Policy Blob
-        </label>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label htmlFor="policy-hex" className="text-sm font-medium text-fd-foreground">
+            Policy Blob
+          </label>
+          {/* Examples dropdown */}
+          <div ref={dropdownRef} className="relative">
+            <button
+              type="button"
+              className="flex items-center gap-1 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
+              onClick={() => setExampleDropdownOpen(!exampleDropdownOpen)}
+            >
+              Examples
+              <ChevronDown className={cn("size-3.5 transition-transform", exampleDropdownOpen && "rotate-180")} />
+            </button>
+            {exampleDropdownOpen && (
+              <div className="absolute right-0 z-10 mt-1 w-48 rounded-lg border border-fd-border bg-fd-popover py-1 shadow-md">
+                {EXAMPLES.map((example) => (
+                  <button
+                    key={example.name}
+                    type="button"
+                    className={cn(
+                      "w-full px-3 py-1.5 text-left text-sm transition-colors",
+                      "hover:bg-fd-accent hover:text-fd-accent-foreground",
+                      activeExample?.name === example.name ? "text-fd-primary font-medium" : "text-fd-muted-foreground",
+                    )}
+                    onClick={() => selectExample(example)}
+                  >
+                    {example.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Example banner */}
+        {activeExample && (
+          <div className="mb-1.5 flex items-center justify-between rounded-lg bg-fd-info/10 px-3 py-2 text-sm text-fd-info-foreground">
+            <span>
+              <span className="font-medium">Example:</span> {activeExample.name}
+            </span>
+            <button
+              type="button"
+              className="text-fd-info-foreground/70 hover:text-fd-info-foreground transition-colors"
+              onClick={clearExample}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
         <textarea
           id="policy-hex"
           className={cn(
@@ -148,6 +232,7 @@ export function Inspector() {
             "placeholder:text-fd-muted-foreground/50",
             "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
             "resize-y",
+            activeExample && "cursor-default opacity-70",
             result && !result.ok ? "border-red-500/50" : "border-fd-border",
           )}
           rows={3}
@@ -155,14 +240,21 @@ export function Inspector() {
           value={hexInput}
           onChange={(e) => setHexInput(e.target.value)}
           onPaste={handlePaste}
+          readOnly={!!activeExample}
           spellCheck={false}
           autoComplete="off"
         />
       </div>
 
       {/* ABI input (collapsible) */}
-      <Collapsible open={abiOpen} onOpenChange={setAbiOpen}>
-        <CollapsibleTrigger className="flex items-center gap-1.5 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors">
+      <Collapsible open={abiOpen} onOpenChange={activeExample ? undefined : setAbiOpen}>
+        <CollapsibleTrigger
+          className={cn(
+            "flex items-center gap-1.5 text-sm text-fd-muted-foreground transition-colors",
+            activeExample ? "cursor-default" : "hover:text-fd-foreground",
+          )}
+          disabled={!!activeExample}
+        >
           <ChevronDown className={cn("size-4 transition-transform", abiOpen && "rotate-180")} />
           ABI (optional)
         </CollapsibleTrigger>
@@ -173,11 +265,13 @@ export function Inspector() {
               "placeholder:text-fd-muted-foreground/50",
               "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
               "resize-y",
+              activeExample && "cursor-default opacity-70",
             )}
             rows={4}
             placeholder='[{"type":"function","name":"approve",...}]'
             value={abiInput}
             onChange={(e) => setAbiInput(e.target.value)}
+            readOnly={!!activeExample}
             spellCheck={false}
           />
         </CollapsibleContent>
