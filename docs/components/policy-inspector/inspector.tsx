@@ -211,13 +211,14 @@ export function Inspector() {
 
         {/* Example banner */}
         {activeExample && (
-          <div className="mb-1.5 flex items-center justify-between rounded-lg bg-fd-info/10 px-3 py-2 text-sm text-fd-info-foreground">
+          <div className="mb-1.5 flex items-center justify-between rounded-lg bg-fd-info px-3 py-2 text-sm text-fd-info-foreground ring-1 ring-fd-info-foreground/30">
             <span>
-              <span className="font-medium">Example:</span> {activeExample.name}
+              <span className="font-semibold">Example:</span>{" "}
+              <span className="text-fd-foreground">{activeExample.name}</span>
             </span>
             <button
               type="button"
-              className="text-fd-info-foreground/70 hover:text-fd-info-foreground transition-colors"
+              className="font-semibold transition-colors hover:text-fd-foreground"
               onClick={clearExample}
             >
               Clear
@@ -750,8 +751,8 @@ const TreeRow = memo(function TreeRow({
         role={hasChildren ? "button" : undefined}
         tabIndex={hasChildren ? 0 : undefined}
         className={cn(
-          "flex items-baseline gap-2 border-b border-fd-border/30 px-3 py-1.5",
-          isHovered && "bg-fd-info",
+          "group flex items-baseline gap-2 border-b border-fd-border/30 px-3 py-1.5",
+          isHovered && "is-hovered bg-fd-info",
           hasChildren && "cursor-pointer",
         )}
         style={{ paddingLeft: `${depth * 16 + 12}px` }}
@@ -767,19 +768,16 @@ const TreeRow = memo(function TreeRow({
       >
         <span className="w-3 shrink-0 text-fd-muted-foreground/50">{hasChildren ? (expanded ? "▼" : "▶") : ""}</span>
         <span className="w-24 shrink-0 text-fd-muted-foreground">{node.label}</span>
-        <span className="min-w-0 flex-1 truncate text-fd-foreground">{node.value}</span>
+        <span className="min-w-0 flex-1 truncate text-fd-foreground group-[.is-hovered]:text-fd-info-foreground">
+          {node.value}
+        </span>
         {displayHex && (
-          <span className={cn("shrink-0", isHovered ? "text-fd-info-foreground" : "text-fd-muted-foreground/60")}>
+          <span className="shrink-0 text-fd-muted-foreground/60 group-[.is-hovered]:text-fd-info-foreground">
             {displayHex}
           </span>
         )}
 
-        <span
-          className={cn(
-            "w-16 shrink-0 text-right",
-            isHovered ? "text-fd-info-foreground" : "text-fd-muted-foreground/40",
-          )}
-        >
+        <span className="w-16 shrink-0 text-right text-fd-muted-foreground/40 group-[.is-hovered]:text-fd-info-foreground">
           {node.span.start === node.span.end - 1 ? `${node.span.start}` : `${node.span.start}–${node.span.end - 1}`}
         </span>
       </div>
