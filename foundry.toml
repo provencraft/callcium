@@ -11,7 +11,7 @@ optimizer = true
 optimizer_runs = 10_000
 via_ir = true
 isolate = true
-fs_permissions = [{ access = "read", path = "test/vectors/" }]
+fs_permissions = [{ access = "read-write", path = "test/vectors/" }]
 
 [fmt]
 single_line_statement_blocks = 'single'

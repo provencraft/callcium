@@ -7,3 +7,11 @@ pre-commit:
     docs-lint:
       glob: "docs/**/*.{ts,tsx,js,jsx,json,mdx,md,css}"
       run: bunx biome check --config-path=docs {staged_files}
+
+    sdk-fmt:
+      glob: "sdk/{src,test}/**/*.ts"
+      run: bunx oxfmt --check {staged_files}
+
+    sdk-lint:
+      glob: "sdk/{src,test}/**/*.ts"
+      run: bunx oxlint {staged_files}

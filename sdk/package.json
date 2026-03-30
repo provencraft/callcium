@@ -1,0 +1,38 @@
+{
+  "name": "@callcium/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the Callcium on-chain policy engine",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src/ test/",
+    "lint:fix": "oxlint --fix src/ test/",
+    "fmt": "oxfmt --write src/ test/",
+    "fmt:check": "oxfmt --check src/ test/"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.42.0",
+    "oxlint": "^1.57.0",
+    "oxlint-tsgolint": "^0.18.1",
+    "tsdown": "^0.21.0",
+    "typescript": "^6.0.0",
+    "vitest": "^3.0.0"
+  },
+"homepage": "https://callcium.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/provencraft/callcium.git",
+    "directory": "sdk"
+  },
+  "license": "MIT"
+}

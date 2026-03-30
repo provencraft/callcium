@@ -58,3 +58,36 @@ jobs:
       - name: Lint docs
         working-directory: docs
         run: bun run lint
+
+  sdk:
+    name: SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: sdk
+        run: bun install
+
+      - name: Check formatting
+        working-directory: sdk
+        run: bun run fmt:check
+
+      - name: Lint
+        working-directory: sdk
+        run: bun run lint
+
+      - name: Type check
+        working-directory: sdk
+        run: bun run typecheck
+
+      - name: Build
+        working-directory: sdk
+        run: bun run build
+
+      - name: Run tests
+        working-directory: sdk
+        run: bun test
