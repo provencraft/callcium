@@ -8,15 +8,7 @@ export {
   PolicyFormat,
   Scopes,
 } from "./constants";
-export type {
-  DecodedGroup,
-  DecodedParam,
-  DecodedPolicy,
-  DecodedRule,
-  Field,
-  Hex,
-  Span,
-} from "./decoder";
+export type { DecodedGroup, DecodedParam, DecodedPolicy, DecodedRule, Field, Hex, Span } from "./decoder";
 export { decodeDescriptor, decodePolicy } from "./decoder";
 export type {
   ExplainedConstraint,

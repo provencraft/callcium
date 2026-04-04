@@ -1,8 +1,7 @@
 "use client";
 
-import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
+import type React from "react";
 import { cn } from "@/lib/utils";
 
 interface FlickeringGridProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -33,7 +32,7 @@ export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
   const memoizedColor = useMemo(() => {
-    const toRGBA = (color: string) => {
+    const toRGBA = (colorStr: string) => {
       if (typeof window === "undefined") {
         return `rgba(0, 0, 0,`;
       }
@@ -41,7 +40,7 @@ export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
       canvas.width = canvas.height = 1;
       const ctx = canvas.getContext("2d");
       if (!ctx) return "rgba(255, 0, 0,";
-      ctx.fillStyle = color;
+      ctx.fillStyle = colorStr;
       ctx.fillRect(0, 0, 1, 1);
       const [r, g, b] = Array.from(ctx.getImageData(0, 0, 1, 1).data);
       return `rgba(${r}, ${g}, ${b},`;
@@ -50,14 +49,14 @@ export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
   }, [color]);
 
   const setupCanvas = useCallback(
-    (canvas: HTMLCanvasElement, width: number, height: number) => {
+    (canvas: HTMLCanvasElement, canvasWidth: number, canvasHeight: number) => {
       const dpr = window.devicePixelRatio || 1;
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      const cols = Math.floor(width / (squareSize + gridGap));
-      const rows = Math.floor(height / (squareSize + gridGap));
+      canvas.width = canvasWidth * dpr;
+      canvas.height = canvasHeight * dpr;
+      canvas.style.width = `${canvasWidth}px`;
+      canvas.style.height = `${canvasHeight}px`;
+      const cols = Math.floor(canvasWidth / (squareSize + gridGap));
+      const rows = Math.floor(canvasHeight / (squareSize + gridGap));
 
       const squares = new Float32Array(cols * rows);
       for (let i = 0; i < squares.length; i++) {
@@ -83,16 +82,16 @@ export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
   const drawGrid = useCallback(
     (
       ctx: CanvasRenderingContext2D,
-      width: number,
-      height: number,
+      canvasWidth: number,
+      canvasHeight: number,
       cols: number,
       rows: number,
       squares: Float32Array,
       dpr: number,
     ) => {
-      ctx.clearRect(0, 0, width, height);
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
       ctx.fillStyle = "transparent";
-      ctx.fillRect(0, 0, width, height);
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
       for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {

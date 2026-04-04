@@ -26,11 +26,11 @@ This is the same indexing syntax used for struct fields.
 import { Path } from "callcium/Path.sol";
 ```
 
-| Quantifier | Semantics | Empty array |
-|---|---|---|
-| `Path.ALL` | All elements must satisfy the constraint | Fails |
-| `Path.ANY` | At least one element must satisfy the constraint | Fails |
-| `Path.ALL_OR_EMPTY` | All elements must satisfy the constraint, or the array is empty | Passes |
+| Quantifier          | Semantics                                                       | Empty array |
+| ------------------- | --------------------------------------------------------------- | ----------- |
+| `Path.ALL`          | All elements must satisfy the constraint                        | Fails       |
+| `Path.ANY`          | At least one element must satisfy the constraint                | Fails       |
+| `Path.ALL_OR_EMPTY` | All elements must satisfy the constraint, or the array is empty | Passes      |
 
 Use `Path.ALL` as the default when an empty array is an invalid input. Use `Path.ALL_OR_EMPTY` when an empty array is an acceptable no-op.
 
@@ -84,5 +84,6 @@ bytes memory policy = PolicyBuilder
 ## Limits
 
 <Callout type="warn">
-  A single quantified traversal evaluates at most 256 elements — enforcement reverts with `ArrayTooLargeForQuantifier` when exceeded. Only one quantifier is allowed per path; `add()` rejects paths that contain more than one.
+  A single quantified traversal evaluates at most 256 elements — enforcement reverts with `ArrayTooLargeForQuantifier`
+  when exceeded. Only one quantifier is allowed per path; `add()` rejects paths that contain more than one.
 </Callout>

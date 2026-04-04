@@ -1,11 +1,11 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import type { Heading, Root } from "mdast";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
 import { remove } from "unist-util-remove";
+import type { Heading, Root } from "mdast";
 
 ///////////////////////////////////////////////////////////////////////////
 //                             CONFIGURATION
@@ -121,4 +121,4 @@ async function main() {
   console.log(`Synced ${pages.length} spec pages.`);
 }
 
-main();
+void main();

@@ -10,7 +10,8 @@ Enforcing a policy at call time requires the policy blob to be available on-chai
 <Callout type="warn" title="Security boundary">
   Policy storage is the enforcement security boundary. Stored policies are trusted at enforcement time without revalidation — structural integrity is checked once at storage, but semantic correctness is not reverified on every enforcement call.
 
-  `_storePolicy`, `_bindPolicy`, and `_storeAndBindPolicy` are `internal` because they require access control that only the inheriting contract can define. An unrestricted store or bind path nullifies enforcement — whoever can invoke these functions controls what the enforcer accepts.
+`_storePolicy`, `_bindPolicy`, and `_storeAndBindPolicy` are `internal` because they require access control that only the inheriting contract can define. An unrestricted store or bind path nullifies enforcement — whoever can invoke these functions controls what the enforcer accepts.
+
 </Callout>
 
 ## PolicyManager
@@ -125,12 +126,12 @@ For selectorless policies, the selector is `bytes4(0)` in the internal mapping; 
 
 **Lookup-only variants** avoid loading the full blob when only the hash or existence is needed:
 
-| Function | Returns | Use case |
-|---|---|---|
+| Function                           | Returns   | Use case                                              |
+| ---------------------------------- | --------- | ----------------------------------------------------- |
 | `_policyHashFor(target, selector)` | `bytes32` | Check which policy is active without loading the blob |
-| `_policyExists(policyHash)` | `bool` | Verify a hash is stored before binding |
-| `_loadPolicy(policyHash)` | `bytes` | Load by hash directly, bypassing the binding lookup |
-| `_policyPointerOf(policyHash)` | `address` | SSTORE2 pointer address, for off-chain inspection |
+| `_policyExists(policyHash)`        | `bool`    | Verify a hash is stored before binding                |
+| `_loadPolicy(policyHash)`          | `bytes`   | Load by hash directly, bypassing the binding lookup   |
+| `_policyPointerOf(policyHash)`     | `address` | SSTORE2 pointer address, for off-chain inspection     |
 
 ## Deduplication
 

@@ -1,5 +1,5 @@
-import type { InferPageType } from "fumadocs-core/source";
 import { type FileObject, printErrors, scanURLs, validateFiles } from "next-validate-link";
+import type { InferPageType } from "fumadocs-core/source";
 import { source } from "@/lib/source";
 
 async function checkLinks() {

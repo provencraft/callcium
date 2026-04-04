@@ -1,7 +1,7 @@
 import { type Abi, type AbiFunction, type AbiParameter, getAddress, toFunctionSelector } from "viem";
 import { ContextProperties, DescriptorFormat as DF, lookupTypeCode, OpCodes, Scopes } from "./constants";
-import type { DecodedPolicy, DecodedRule, Hex, Span } from "./decoder";
 import { hexToBytes, readU24 } from "./decoder";
+import type { DecodedPolicy, DecodedRule, Hex, Span } from "./decoder";
 
 ///////////////////////////////////////////////////////////////////////////
 //                                TYPES
@@ -279,7 +279,7 @@ export function explainPolicy(decoded: DecodedPolicy, opts?: ExplainOptions): Ex
     }
 
     const constraints: ExplainedConstraint[] = constraintOrder.map((key) => {
-      // biome-ignore lint/style/noNonNullAssertion: key comes from constraintOrder which is populated alongside constraintMap.
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- key comes from constraintOrder which is populated alongside constraintMap.
       const c = constraintMap.get(key)!;
       const steps = parsePathSteps(c.path);
       const scopeLabel = scopeByCode.get(c.scope) ?? `scope(${c.scope})`;

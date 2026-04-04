@@ -1,8 +1,8 @@
 import { Banner } from "fumadocs-ui/components/banner";
-import type { Metadata } from "next";
-import { Provider } from "./provider";
-import "./global.css";
 import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
+import type { Metadata } from "next";
+import "./global.css";
+import { Provider } from "./provider";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://callcium.dev"),

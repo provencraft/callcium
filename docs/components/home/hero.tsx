@@ -4,9 +4,9 @@ import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
+import { HeroBackground } from "./hero-background";
 import { shikiThemes } from "@/lib/shiki";
 import { cn } from "@/lib/utils";
-import { HeroBackground } from "./hero-background";
 
 const tabs = [
   {

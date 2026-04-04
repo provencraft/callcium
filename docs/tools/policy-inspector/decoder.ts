@@ -1,5 +1,5 @@
-import type { TypeClass } from "./constants";
 import { DecodeError, DescriptorFormat as DF, lookupTypeCode, OpCodes, PolicyFormat as PF, Scopes } from "./constants";
+import type { TypeClass } from "./constants";
 
 export { DecodeError };
 
@@ -91,7 +91,7 @@ function toHex(data: Uint8Array, start: number, end: number): Hex {
 
 // Format a param index as a BE16 path hex.
 function indexToPath(index: number): Hex {
-  return `0x${index.toString(16).padStart(4, "0")}` as Hex;
+  return `0x${index.toString(16).padStart(4, "0")}`;
 }
 
 // Remap domain objects to plain numeric constants for internal use.

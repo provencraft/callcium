@@ -1,10 +1,10 @@
-import type { Abi } from "viem";
 import { describe, expect, it } from "vitest";
+import type { Abi } from "viem";
 import policyVectors from "../../../../test/vectors/policies.json";
-import type { DecodedPolicy, Hex, Span } from "../decoder";
 import { decodePolicy } from "../decoder";
 import { explainPolicy } from "../explainer";
 import B from "./explainer-blobs.json";
+import type { DecodedPolicy, Hex, Span } from "../decoder";
 
 ///////////////////////////////////////////////////////////////////////////
 //                            TEST HELPERS

@@ -144,14 +144,14 @@ For creating selectorless policies, see [Selectorless Policies](/docs/building-p
 
 ## Error reference
 
-| Error | When thrown |
-|---|---|
-| `PolicyViolation` | Calldata fails all groups. |
-| `SelectorMismatch` | Calldata selector doesn't match the policy. |
-| `MissingSelector` | Calldata too short to contain a selector. |
-| `UnknownOperator` | Policy contains an unrecognized operator code. |
-| `UnknownContextProperty` | Policy references an unknown context property ID. |
-| `NestedQuantifiersUnsupported` | Policy path contains nested quantifiers. |
-| `ArrayTooLargeForQuantifier` | Array exceeds 256 elements during quantifier evaluation. |
+| Error                          | When thrown                                              |
+| ------------------------------ | -------------------------------------------------------- |
+| `PolicyViolation`              | Calldata fails all groups.                               |
+| `SelectorMismatch`             | Calldata selector doesn't match the policy.              |
+| `MissingSelector`              | Calldata too short to contain a selector.                |
+| `UnknownOperator`              | Policy contains an unrecognized operator code.           |
+| `UnknownContextProperty`       | Policy references an unknown context property ID.        |
+| `NestedQuantifiersUnsupported` | Policy path contains nested quantifiers.                 |
+| `ArrayTooLargeForQuantifier`   | Array exceeds 256 elements during quantifier evaluation. |
 
 The last three errors indicate a malformed or invalid policy. They will not be thrown if the policy was built with `PolicyBuilder.build()`.

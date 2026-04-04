@@ -100,11 +100,11 @@ bytes memory policy = PolicyBuilder
 
 **Type restriction:** Valid for `uint*` and `bytes32` parameters only.
 
-| Operator | Semantics |
-|---|---|
-| `bitmaskAll(mask)` | `(value & mask) == mask` — all bits in `mask` are set |
-| `bitmaskAny(mask)` | `(value & mask) != 0` — at least one bit in `mask` is set |
-| `bitmaskNone(mask)` | `(value & mask) == 0` — no bit in `mask` is set |
+| Operator            | Semantics                                                 |
+| ------------------- | --------------------------------------------------------- |
+| `bitmaskAll(mask)`  | `(value & mask) == mask` — all bits in `mask` are set     |
+| `bitmaskAny(mask)`  | `(value & mask) != 0` — at least one bit in `mask` is set |
+| `bitmaskNone(mask)` | `(value & mask) == 0` — no bit in `mask` is set           |
 
 A common pattern: require that a `roles` parameter has all required bits set.
 
@@ -145,14 +145,14 @@ bytes memory policy = PolicyBuilder
 
 Six context properties are available as constraint targets:
 
-| Target | Solidity equivalent | Type |
-|---|---|---|
-| `msgSender()` | `msg.sender` | `address` |
-| `msgValue()` | `msg.value` | `uint256` |
-| `blockTimestamp()` | `block.timestamp` | `uint256` |
-| `blockNumber()` | `block.number` | `uint256` |
-| `chainId()` | `block.chainid` | `uint256` |
-| `txOrigin()` | `tx.origin` | `address` |
+| Target             | Solidity equivalent | Type      |
+| ------------------ | ------------------- | --------- |
+| `msgSender()`      | `msg.sender`        | `address` |
+| `msgValue()`       | `msg.value`         | `uint256` |
+| `blockTimestamp()` | `block.timestamp`   | `uint256` |
+| `blockNumber()`    | `block.number`      | `uint256` |
+| `chainId()`        | `block.chainid`     | `uint256` |
+| `txOrigin()`       | `tx.origin`         | `address` |
 
 When enforced via a static call, `msgSender()` reflects the `from` address of the call — set it explicitly to simulate the intended caller. `msgValue()` always resolves to 0; static calls cannot forward value.
 
@@ -241,9 +241,9 @@ For issue types, severity levels, and how to inspect issues without reverting, s
 ## Unsafe builds
 
 <Callout type="warn" title="No validation">
-  `buildUnsafe()` skips all validation. Type mismatches and logical contradictions are not detected at
-  build time — they surface at enforcement, where the policy may match data it should reject, or fail
-  on valid data. Use only when validation has been confirmed separately or in controlled test environments.
+  `buildUnsafe()` skips all validation. Type mismatches and logical contradictions are not detected at build time — they
+  surface at enforcement, where the policy may match data it should reject, or fail on valid data. Use only when
+  validation has been confirmed separately or in controlled test environments.
 </Callout>
 
 `buildUnsafe()` encodes policy bytes directly without a validation pass. Its primary uses are benchmarking, testing enforcement behavior with edge-case inputs, and programmatic pipelines that validate separately.
@@ -259,12 +259,12 @@ bytes memory policy = PolicyBuilder
 
 ## Operator compatibility
 
-| Operator family | Operators | Valid argument types |
-|---|---|---|
-| Equality | `eq`, `neq` | All 32-byte static types (`address`, `uint*`, `int*`, `bytes32`, `bool`) |
-| Comparison | `gt`, `lt`, `gte`, `lte`, `between` | `uint*`, `int*` |
-| Set membership | `isIn`, `notIn` | `address`, `uint*`, `int*`, `bytes32` (use `Cast` for narrower types) |
-| Bitmask | `bitmaskAll`, `bitmaskAny`, `bitmaskNone` | `uint*`, `bytes32` |
-| Length | `lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, `lengthBetween` | `bytes`, `string`, dynamic arrays |
+| Operator family | Operators                                                                     | Valid argument types                                                     |
+| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Equality        | `eq`, `neq`                                                                   | All 32-byte static types (`address`, `uint*`, `int*`, `bytes32`, `bool`) |
+| Comparison      | `gt`, `lt`, `gte`, `lte`, `between`                                           | `uint*`, `int*`                                                          |
+| Set membership  | `isIn`, `notIn`                                                               | `address`, `uint*`, `int*`, `bytes32` (use `Cast` for narrower types)    |
+| Bitmask         | `bitmaskAll`, `bitmaskAny`, `bitmaskNone`                                     | `uint*`, `bytes32`                                                       |
+| Length          | `lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, `lengthBetween` | `bytes`, `string`, dynamic arrays                                        |
 
 `build()` enforces these restrictions and reports violations as `Issue` entries in `ValidationError`.

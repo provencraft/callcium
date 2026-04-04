@@ -1,6 +1,6 @@
 import type { Abi } from "viem";
-import type { Hex } from "./decoder";
 import { decodePolicy, explainPolicy } from "./index";
+import type { Hex } from "./decoder";
 
 const args = process.argv.slice(2);
 
@@ -29,6 +29,6 @@ try {
   const explained = explainPolicy(decoded, abi ? { abi } : undefined);
   console.log(JSON.stringify(explained, null, 2));
 } catch (e) {
-  console.error(`Error: ${e instanceof Error ? e.message : e}`);
+  console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);
   process.exit(1);
 }

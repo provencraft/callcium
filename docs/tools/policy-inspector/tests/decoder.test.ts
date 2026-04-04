@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import descriptorVectors from "../../../../test/vectors/descriptors.json";
 import policyVectors from "../../../../test/vectors/policies.json";
-import type { Hex } from "../decoder";
 import { DecodeError, decodeDescriptor, decodePolicy } from "../decoder";
+import type { Hex } from "../decoder";
 
 const ANY_SPAN = expect.objectContaining({
   start: expect.any(Number),
@@ -111,7 +111,7 @@ function groupRulesIntoConstraints(
       order.push(key);
     }
   }
-  // biome-ignore lint/style/noNonNullAssertion: key comes from order which is populated alongside map.
+  // oxlint-disable-next-line typescript/no-non-null-assertion -- key comes from order which is populated alongside map.
   return order.map((k) => map.get(k)!);
 }
 

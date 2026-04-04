@@ -1,10 +1,10 @@
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Heading, Paragraph, PhrasingContent, Root, RootContent, Strong } from "mdast";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
+import type { Heading, PhrasingContent, Root, RootContent } from "mdast";
 
 ///////////////////////////////////////////////////////////////////////////
 //                             CONFIGURATION
@@ -82,22 +82,19 @@ function headingText(heading: Heading): string {
 /** Check if a paragraph is a [Git Source](...) link. */
 function isGitSourceParagraph(node: RootContent): boolean {
   if (node.type !== "paragraph") return false;
-  const p = node as Paragraph;
   return (
-    p.children.length === 1 &&
-    p.children[0].type === "link" &&
-    (p.children[0].children[0] as { value?: string })?.value === "Git Source"
+    node.children.length === 1 &&
+    node.children[0].type === "link" &&
+    (node.children[0].children[0] as { value?: string })?.value === "Git Source"
   );
 }
 
 /** Check if a paragraph is a **Title:** block. */
 function isTitleBlock(node: RootContent): boolean {
   if (node.type !== "paragraph") return false;
-  const p = node as Paragraph;
-  const first = p.children[0];
+  const first = node.children[0];
   if (first?.type !== "strong") return false;
-  const strong = first as Strong;
-  return strong.children.length === 1 && strong.children[0].type === "text" && strong.children[0].value === "Title:";
+  return first.children.length === 1 && first.children[0].type === "text" && first.children[0].value === "Title:";
 }
 
 /**
@@ -107,7 +104,7 @@ function isTitleBlock(node: RootContent): boolean {
 function extractDescription(tree: Root): string {
   let pastMetadata = false;
   for (const node of tree.children) {
-    if (node.type === "heading" && (node as Heading).depth === 1) {
+    if (node.type === "heading" && node.depth === 1) {
       pastMetadata = true;
       continue;
     }
@@ -116,15 +113,12 @@ function extractDescription(tree: Root): string {
     if (node.type === "heading") return "";
     if (node.type === "paragraph") {
       // Serialize this paragraph's text content.
-      const p = node as Paragraph;
-      return p.children
+      return node.children
         .map((c: PhrasingContent) => {
           if (c.type === "text") return c.value;
           if (c.type === "inlineCode") return `\`${c.value}\``;
           if (c.type === "strong") {
-            const text = (c as Strong).children
-              .map((sc: PhrasingContent) => (sc.type === "text" ? sc.value : ""))
-              .join("");
+            const text = c.children.map((sc: PhrasingContent) => (sc.type === "text" ? sc.value : "")).join("");
             return `**${text}**`;
           }
           return "";
@@ -138,8 +132,8 @@ function extractDescription(tree: Root): string {
 /** Extract the title from the # heading. */
 function extractTitle(tree: Root): string {
   for (const node of tree.children) {
-    if (node.type === "heading" && (node as Heading).depth === 1) {
-      const raw = headingText(node as Heading);
+    if (node.type === "heading" && node.depth === 1) {
+      const raw = headingText(node);
       // "function arg" → "arg"
       if (raw.startsWith("function ")) return raw.slice("function ".length);
       return raw;
@@ -163,7 +157,7 @@ function stripMetadata(tree: Root, description: string): void {
   let descriptionStripped = !description;
   let pastTitle = false;
   tree.children = tree.children.filter((node) => {
-    if (node.type === "heading" && (node as Heading).depth === 1) {
+    if (node.type === "heading" && node.depth === 1) {
       pastTitle = true;
       return false;
     }
@@ -193,14 +187,14 @@ function removePrivateFunctions(tree: Root): void {
   let i = 0;
   while (i < children.length) {
     const node = children[i];
-    if (node.type === "heading" && (node as Heading).depth === 3) {
-      const text = headingText(node as Heading);
+    if (node.type === "heading" && node.depth === 3) {
+      const text = headingText(node);
       if (text.startsWith("_")) {
         // Find end of section.
         let end = i + 1;
         while (end < children.length) {
           const next = children[end];
-          if (next.type === "heading" && (next as Heading).depth <= 3) break;
+          if (next.type === "heading" && next.depth <= 3) break;
           end++;
         }
         children.splice(i, end - i);
@@ -222,12 +216,12 @@ function removePrivateConstants(tree: Root): void {
   let i = 0;
   while (i < children.length) {
     const node = children[i];
-    if (node.type === "heading" && (node as Heading).depth === 3) {
+    if (node.type === "heading" && node.depth === 3) {
       // Find end of section.
       let end = i + 1;
       while (end < children.length) {
         const next = children[end];
-        if (next.type === "heading" && (next as Heading).depth <= 3) break;
+        if (next.type === "heading" && next.depth <= 3) break;
         end++;
       }
       // Check if any code block in this section contains "private constant".
@@ -246,13 +240,9 @@ function removePrivateConstants(tree: Root): void {
   i = 0;
   while (i < children.length) {
     const node = children[i];
-    if (
-      node.type === "heading" &&
-      (node as Heading).depth === 2 &&
-      headingText(node as Heading) === "State Variables"
-    ) {
+    if (node.type === "heading" && node.depth === 2 && headingText(node) === "State Variables") {
       const next = children[i + 1];
-      if (!next || (next.type === "heading" && (next as Heading).depth <= 2)) {
+      if (!next || (next.type === "heading" && next.depth <= 2)) {
         children.splice(i, 1);
         continue;
       }
@@ -275,13 +265,13 @@ function removeInternalStructs(tree: Root, internalNames: string[]): void {
   let i = 0;
   while (i < children.length) {
     const node = children[i];
-    if (node.type === "heading" && (node as Heading).depth === 3) {
-      const text = headingText(node as Heading);
+    if (node.type === "heading" && node.depth === 3) {
+      const text = headingText(node);
       if (nameSet.has(text)) {
         let end = i + 1;
         while (end < children.length) {
           const next = children[end];
-          if (next.type === "heading" && (next as Heading).depth <= 3) break;
+          if (next.type === "heading" && next.depth <= 3) break;
           end++;
         }
         children.splice(i, end - i);
@@ -295,10 +285,10 @@ function removeInternalStructs(tree: Root, internalNames: string[]): void {
   i = 0;
   while (i < children.length) {
     const node = children[i];
-    if (node.type === "heading" && (node as Heading).depth === 2 && headingText(node as Heading) === "Structs") {
+    if (node.type === "heading" && node.depth === 2 && headingText(node) === "Structs") {
       // Check if next node is another ## heading (or EOF) — meaning section is empty.
       const next = children[i + 1];
-      if (!next || (next.type === "heading" && (next as Heading).depth <= 2)) {
+      if (!next || (next.type === "heading" && next.depth <= 2)) {
         children.splice(i, 1);
         continue;
       }
@@ -343,7 +333,7 @@ function reindentStructBodies(md: string): string {
     }
 
     // Detect closing brace.
-    if (inBody && /^\}/.test(line)) {
+    if (inBody && line.startsWith("}")) {
       inBody = false;
       result.push(line);
       continue;
@@ -484,7 +474,7 @@ function assembleOrder(files: string[], contractDir: string): string[] {
     for (const pattern of order) {
       if (pattern.includes("*")) {
         const prefix = pattern.split("*")[0];
-        const matching = files.filter((f) => f.startsWith(prefix)).sort();
+        const matching = files.filter((f) => f.startsWith(prefix)).toSorted();
         result.push(...matching);
       } else {
         if (files.includes(pattern)) result.push(pattern);
@@ -494,11 +484,11 @@ function assembleOrder(files: string[], contractDir: string): string[] {
   }
 
   // Default: main file first, then structs, then functions.
-  const main = files.find((f) => f.startsWith("library.") || f.startsWith("abstract."));
-  const structs = files.filter((f) => f.startsWith("struct.")).sort();
-  const functions = files.filter((f) => f.startsWith("function.")).sort();
+  const mainFile = files.find((f) => f.startsWith("library.") || f.startsWith("abstract."));
+  const structs = files.filter((f) => f.startsWith("struct.")).toSorted();
+  const functions = files.filter((f) => f.startsWith("function.")).toSorted();
   const result: string[] = [];
-  if (main) result.push(main);
+  if (mainFile) result.push(mainFile);
   result.push(...structs, ...functions);
   return result;
 }
@@ -562,9 +552,9 @@ async function main() {
     // Determine title and description.
     // Use the first main file, or the custom title, or the first file.
     const mainFilename = ordered.find(isMainFile);
-    // biome-ignore lint/style/noNonNullAssertion: ordered is non-empty and all entries are keys in parsed.
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- ordered is non-empty and all entries are keys in parsed.
     const firstFile = parsed.get(ordered[0])!;
-    // biome-ignore lint/style/noNonNullAssertion: mainFilename is a key in parsed by construction.
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- mainFilename is a key in parsed by construction.
     const mainFile = mainFilename ? parsed.get(mainFilename)! : firstFile;
 
     const pageTitle = PAGE_TITLES[contractDir] ?? mainFile.title;
@@ -573,7 +563,7 @@ async function main() {
     // Assemble the final AST by concatenating all processed trees.
     const assembledChildren: RootContent[] = [];
     for (const filename of ordered) {
-      // biome-ignore lint/style/noNonNullAssertion: filename is a key in parsed by construction.
+      // oxlint-disable-next-line typescript/no-non-null-assertion -- filename is a key in parsed by construction.
       const file = parsed.get(filename)!;
       assembledChildren.push(...file.tree.children);
     }

@@ -39,7 +39,8 @@ The full constraint API — `arg()`, context targets, `isIn`, `notIn`, bitmask, 
 `PolicyEnforcer.enforce` reads selectorless payloads from byte 0 — `arg(0)` resolves to the first byte of the data passed in.
 
 <Callout type="warn" title="Selector prefix">
-  If the raw data has a function selector prefix, strip it before passing to `enforce`. Those 4 bytes are interpreted as the start of the first argument — no error is thrown.
+  If the raw data has a function selector prefix, strip it before passing to `enforce`. Those 4 bytes are interpreted as
+  the start of the first argument — no error is thrown.
 </Callout>
 
 Standard (selector-bound) policies are the inverse: the enforcer validates the first 4 bytes against the policy's selector and reads arguments from byte 4. The selector must be present.

@@ -3,7 +3,6 @@ title: Policy Validation
 description: Type mismatches, contradictions, and redundancies.
 ---
 
-
 Callcium validates policies at build time through semantic analysis. When you call `PolicyBuilder.build()`, the [`PolicyValidator`](/docs/reference/policy-validator) inspects every constraint for type errors, logical contradictions, redundancies, and vacuous conditions — then reverts if any issue is found.
 
 ## Using validation
@@ -37,24 +36,24 @@ for (uint256 i = 0; i < issues.length; i++) {
 
 Each issue contains:
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `severity` | `IssueSeverity` | `Error`, `Warning`, or `Info`. |
-| `category` | `IssueCategory` | `TypeMismatch`, `Contradiction`, `Redundancy`, or `Vacuity`. |
-| `groupIndex` | `uint32` | Constraint group where the issue was found. |
-| `constraintIndex` | `uint32` | Constraint index within the group. |
-| `code` | `bytes32` | Machine-readable identifier. |
-| `message` | `string` | Human-readable description. |
+| Field             | Type            | Description                                                  |
+| ----------------- | --------------- | ------------------------------------------------------------ |
+| `severity`        | `IssueSeverity` | `Error`, `Warning`, or `Info`.                               |
+| `category`        | `IssueCategory` | `TypeMismatch`, `Contradiction`, `Redundancy`, or `Vacuity`. |
+| `groupIndex`      | `uint32`        | Constraint group where the issue was found.                  |
+| `constraintIndex` | `uint32`        | Constraint index within the group.                           |
+| `code`            | `bytes32`       | Machine-readable identifier.                                 |
+| `message`         | `string`        | Human-readable description.                                  |
 
 ## Severity levels
 
 `PolicyBuilder.build()` reverts on **any** issue regardless of severity. Use `PolicyBuilder.validate()` to inspect issues without reverting.
 
-| Severity | Meaning |
-| --- | --- |
-| **Error** | The policy is logically invalid (contradictions, type mismatches). |
+| Severity    | Meaning                                                               |
+| ----------- | --------------------------------------------------------------------- |
+| **Error**   | The policy is logically invalid (contradictions, type mismatches).    |
 | **Warning** | The policy is valid but contains redundant or suspicious constraints. |
-| **Info** | The constraint is technically correct but vacuous (always true). |
+| **Info**    | The constraint is technically correct but vacuous (always true).      |
 
 ## Issue catalog
 
@@ -62,13 +61,13 @@ Each issue contains:
 
 Operators applied to incompatible types. All are **Error** severity.
 
-| Code | Description |
-| --- | --- |
-| `VALUE_OP_ON_DYNAMIC` | Value operator used on a dynamic type. |
+| Code                        | Description                                     |
+| --------------------------- | ----------------------------------------------- |
+| `VALUE_OP_ON_DYNAMIC`       | Value operator used on a dynamic type.          |
 | `NUMERIC_OP_ON_NON_NUMERIC` | Comparison operator used on a non-numeric type. |
-| `BITMASK_ON_INVALID` | Bitmask operator used on an incompatible type. |
-| `LENGTH_ON_STATIC` | Length operator used on a non-dynamic type. |
-| `UNKNOWN_OPERATOR` | Unrecognized operator code. |
+| `BITMASK_ON_INVALID`        | Bitmask operator used on an incompatible type.  |
+| `LENGTH_ON_STATIC`          | Length operator used on a non-dynamic type.     |
+| `UNKNOWN_OPERATOR`          | Unrecognized operator code.                     |
 
 ### Contradictions
 
@@ -78,44 +77,44 @@ Make the constraint set unsatisfiable. All are **Error** severity.
 
 These apply to both numeric values and lengths. Length variants have the `LENGTH_` prefix.
 
-| Code | Description |
-| --- | --- |
-| `EQ_NEQ_CONTRADICTION` | `eq(v)` and `neq(v)` on same path. |
-| `LENGTH_EQ_NEQ_CONTRADICTION` | `lengthEq(v)` and `lengthNeq(v)` on same path. |
-| `CONFLICTING_EQUALITY` | Multiple `eq()` with different values. |
-| `CONFLICTING_LENGTH` | Multiple `lengthEq()` with different values. |
-| `OUT_OF_PHYSICAL_BOUNDS` | Value outside the type's physical range. |
-| `OUT_OF_PHYSICAL_LENGTH_BOUNDS` | Length value outside physical range. |
-| `IMPOSSIBLE_GT` | `gt()` on type maximum. |
-| `IMPOSSIBLE_LT` | `lt()` on type minimum. |
-| `IMPOSSIBLE_LENGTH_GT` | `lengthGt()` on maximum length. |
-| `IMPOSSIBLE_LENGTH_LT` | `lengthLt(0)` on minimum length. |
-| `BOUNDS_EXCLUDE_EQUALITY` | `eq()` value excluded by a bound. |
-| `BOUNDS_EXCLUDE_LENGTH` | `lengthEq()` value excluded by a bound. |
-| `IMPOSSIBLE_RANGE` | Lower bound exceeds upper bound. |
-| `IMPOSSIBLE_LENGTH_RANGE` | Lower length bound exceeds upper. |
+| Code                            | Description                                    |
+| ------------------------------- | ---------------------------------------------- |
+| `EQ_NEQ_CONTRADICTION`          | `eq(v)` and `neq(v)` on same path.             |
+| `LENGTH_EQ_NEQ_CONTRADICTION`   | `lengthEq(v)` and `lengthNeq(v)` on same path. |
+| `CONFLICTING_EQUALITY`          | Multiple `eq()` with different values.         |
+| `CONFLICTING_LENGTH`            | Multiple `lengthEq()` with different values.   |
+| `OUT_OF_PHYSICAL_BOUNDS`        | Value outside the type's physical range.       |
+| `OUT_OF_PHYSICAL_LENGTH_BOUNDS` | Length value outside physical range.           |
+| `IMPOSSIBLE_GT`                 | `gt()` on type maximum.                        |
+| `IMPOSSIBLE_LT`                 | `lt()` on type minimum.                        |
+| `IMPOSSIBLE_LENGTH_GT`          | `lengthGt()` on maximum length.                |
+| `IMPOSSIBLE_LENGTH_LT`          | `lengthLt(0)` on minimum length.               |
+| `BOUNDS_EXCLUDE_EQUALITY`       | `eq()` value excluded by a bound.              |
+| `BOUNDS_EXCLUDE_LENGTH`         | `lengthEq()` value excluded by a bound.        |
+| `IMPOSSIBLE_RANGE`              | Lower bound exceeds upper bound.               |
+| `IMPOSSIBLE_LENGTH_RANGE`       | Lower length bound exceeds upper.              |
 
 #### Set contradictions
 
-| Code | Description |
-| --- | --- |
-| `SET_EXCLUDES_EQUALITY` | Set operation excludes existing `eq()` value. |
-| `EMPTY_SET_INTERSECTION` | Multiple `isIn()` sets have no intersection. |
-| `SET_FULLY_EXCLUDED` | All `isIn()` values excluded by `neq`/`notIn`. |
+| Code                     | Description                                    |
+| ------------------------ | ---------------------------------------------- |
+| `SET_EXCLUDES_EQUALITY`  | Set operation excludes existing `eq()` value.  |
+| `EMPTY_SET_INTERSECTION` | Multiple `isIn()` sets have no intersection.   |
+| `SET_FULLY_EXCLUDED`     | All `isIn()` values excluded by `neq`/`notIn`. |
 
 #### Bitmask contradictions
 
-| Code | Description |
-| --- | --- |
-| `BITMASK_CONTRADICTION` | Conflicting `bitmaskAll`/`bitmaskNone` bits. |
+| Code                     | Description                                       |
+| ------------------------ | ------------------------------------------------- |
+| `BITMASK_CONTRADICTION`  | Conflicting `bitmaskAll`/`bitmaskNone` bits.      |
 | `BITMASK_ANY_IMPOSSIBLE` | `bitmaskAny` bits all forbidden by `bitmaskNone`. |
 
 #### Structural errors
 
-| Code | Description |
-| --- | --- |
+| Code              | Description                                                 |
+| ----------------- | ----------------------------------------------------------- |
 | `UNSORTED_IN_SET` | `isIn`/`notIn` set is not strictly sorted and deduplicated. |
-| `EMPTY_GROUP` | Group contains zero constraints. |
+| `EMPTY_GROUP`     | Group contains zero constraints.                            |
 
 ### Redundancies
 
@@ -123,40 +122,40 @@ Constraints with no effect because they are subsumed. All are **Warning** severi
 
 #### Bound redundancies
 
-| Code | Description |
-| --- | --- |
-| `DOMINATED_BOUND` | Numeric bound dominated by a stricter bound. |
-| `DOMINATED_LENGTH_BOUND` | Length bound dominated by a stricter bound. |
-| `REDUNDANT_BOUND` | Numeric bound redundant because `eq()` is set. |
+| Code                     | Description                                         |
+| ------------------------ | --------------------------------------------------- |
+| `DOMINATED_BOUND`        | Numeric bound dominated by a stricter bound.        |
+| `DOMINATED_LENGTH_BOUND` | Length bound dominated by a stricter bound.         |
+| `REDUNDANT_BOUND`        | Numeric bound redundant because `eq()` is set.      |
 | `REDUNDANT_LENGTH_BOUND` | Length bound redundant because `lengthEq()` is set. |
 
 #### Set redundancies
 
-| Code | Description |
-| --- | --- |
-| `SET_REDUCTION` | `notIn()` value was present in `isIn()` set. |
-| `SET_REDUNDANCY` | `isIn()` sets partially overlap. |
+| Code                     | Description                                     |
+| ------------------------ | ----------------------------------------------- |
+| `SET_REDUCTION`          | `notIn()` value was present in `isIn()` set.    |
+| `SET_REDUNDANCY`         | `isIn()` sets partially overlap.                |
 | `SET_PARTIALLY_EXCLUDED` | Some `isIn()` values excluded by `neq`/`notIn`. |
 
 #### Bitmask redundancies
 
-| Code | Description |
-| --- | --- |
+| Code                | Description                                  |
+| ------------------- | -------------------------------------------- |
 | `REDUNDANT_BITMASK` | Bitmask operation subsumed by existing mask. |
 
 #### Duplicates
 
-| Code | Description |
-| --- | --- |
+| Code                   | Description                       |
+| ---------------------- | --------------------------------- |
 | `DUPLICATE_CONSTRAINT` | Identical operator appears twice. |
 
 ### Vacuity
 
 Constraints that are always true. All are **Info** severity.
 
-| Code | Description |
-| --- | --- |
-| `VACUOUS_GTE` | `gte()` on type minimum (always true). |
-| `VACUOUS_LTE` | `lte()` on type maximum (always true). |
-| `VACUOUS_LENGTH_GTE` | `lengthGte(0)` (always true). |
+| Code                 | Description                             |
+| -------------------- | --------------------------------------- |
+| `VACUOUS_GTE`        | `gte()` on type minimum (always true).  |
+| `VACUOUS_LTE`        | `lte()` on type maximum (always true).  |
+| `VACUOUS_LENGTH_GTE` | `lengthGte(0)` (always true).           |
 | `VACUOUS_LENGTH_LTE` | `lengthLte()` on maximum (always true). |

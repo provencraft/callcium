@@ -4,9 +4,15 @@ pre-commit:
       glob: "src/**/*.sol test/**/*.sol"
       run: forge fmt --check {staged_files}
 
+    docs-fmt:
+      root: "docs/"
+      glob: "docs/**/*.{ts,tsx,mjs,css,json,md,mdx}"
+      run: bunx oxfmt --check {staged_files}
+
     docs-lint:
-      glob: "docs/**/*.{ts,tsx,js,jsx,json,mdx,md,css}"
-      run: bunx biome check --config-path=docs {staged_files}
+      root: "docs/"
+      glob: "docs/**/*.{ts,tsx}"
+      run: bunx oxlint {staged_files}
 
     sdk-fmt:
       glob: "sdk/{src,test}/**/*.ts"

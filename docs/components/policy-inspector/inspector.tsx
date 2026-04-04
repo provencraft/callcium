@@ -4,6 +4,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui
 import { ChevronDown } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Abi } from "viem";
+import { EXAMPLES, type PolicyExample } from "./examples";
+import { useDebounce } from "./use-debounce";
 import { cn } from "@/lib/utils";
 import {
   type DecodedPolicy,
@@ -17,8 +19,6 @@ import {
   parsePathSteps,
   type Span,
 } from "@/tools/policy-inspector";
-import { EXAMPLES, type PolicyExample } from "./examples";
-import { useDebounce } from "./use-debounce";
 
 const s = (n: number) => (n === 1 ? "" : "s");
 
@@ -119,7 +119,7 @@ export function Inspector() {
 
     const controller = new AbortController();
     setLookingUp(true);
-    lookup4byte(lookupSelector, controller.signal).then((name) => {
+    void lookup4byte(lookupSelector, controller.signal).then((name) => {
       if (!controller.signal.aborted) {
         setLookedUpName(name);
         setLookingUp(false);
@@ -365,6 +365,7 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
       {groupClauses.length === 1 ? (
         <div className="rounded-lg border border-fd-border bg-fd-card px-4 py-3 font-mono text-sm space-y-0.5">
           {groupClauses[0].map(({ constraint, rule }, ri) => (
+            // oxlint-disable-next-line react/no-array-index-key
             <div key={ri} className="flex flex-wrap items-baseline gap-1.5">
               <span className="text-fd-foreground">{constraint.pathLabel}</span>
               <span className="text-fd-muted-foreground">{rule.operator}</span>
@@ -376,6 +377,7 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
       ) : (
         <div className="grid grid-cols-[auto_1fr] gap-x-2">
           {groupClauses.map((clause, gi) => (
+            // oxlint-disable-next-line react/no-array-index-key
             <div key={gi} className="contents">
               {/* OR gap row */}
               {gi > 0 && (
@@ -404,6 +406,7 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
               {/* Card cell */}
               <div className="rounded-lg border border-fd-border bg-fd-card px-4 py-3 font-mono text-sm space-y-0.5">
                 {clause.map(({ constraint, rule }, ri) => (
+                  // oxlint-disable-next-line react/no-array-index-key
                   <div key={ri} className="flex flex-wrap items-baseline gap-1.5">
                     <span className="text-fd-foreground">{constraint.pathLabel}</span>
                     <span className="text-fd-muted-foreground">{rule.operator}</span>
@@ -623,7 +626,7 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
 
 // Map each byte index to its deepest owning span for hover interaction.
 function buildByteToSpan(nodes: TreeNode[], totalBytes: number): (Span | null)[] {
-  const map: (Span | null)[] = new Array(totalBytes).fill(null);
+  const map: (Span | null)[] = Array.from<Span | null>({ length: totalBytes }).fill(null);
   // Walk all nodes depth-first; deeper nodes overwrite shallower ones.
   function walk(node: TreeNode) {
     for (let i = node.span.start; i < node.span.end && i < totalBytes; i++) {
@@ -668,7 +671,7 @@ function HexDump({
 
   return (
     <div className="rounded-t-lg border-b border-fd-border bg-fd-muted/30 px-4 py-3">
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: hex dump uses event delegation for hover. */}
+      {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- hex dump uses event delegation for hover. */}
       <div
         className="flex flex-wrap gap-x-0.5 gap-y-0.5 font-mono text-xs leading-relaxed"
         onMouseMove={handleMouseMove}
@@ -720,6 +723,7 @@ function InspectView({ decoded, explained, hex }: { decoded: DecodedPolicy; expl
           <span className="w-16 shrink-0 text-right">Offset</span>
         </div>
         {tree.map((node, i) => (
+          // oxlint-disable-next-line react/no-array-index-key
           <TreeRow key={i} node={node} depth={0} hovered={hovered} onHover={setHovered} />
         ))}
       </div>
@@ -746,7 +750,7 @@ const TreeRow = memo(function TreeRow({
 
   return (
     <>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: role is set conditionally when hasChildren is true. */}
+      {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- role is set conditionally when hasChildren is true. */}
       <div
         role={hasChildren ? "button" : undefined}
         tabIndex={hasChildren ? 0 : undefined}
@@ -785,6 +789,7 @@ const TreeRow = memo(function TreeRow({
       {hasChildren &&
         expanded &&
         node.children?.map((child, i) => (
+          // oxlint-disable-next-line react/no-array-index-key
           <TreeRow key={i} node={child} depth={depth + 1} hovered={hovered} onHover={onHover} />
         ))}
     </>
