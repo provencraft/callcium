@@ -15,9 +15,11 @@ pre-commit:
       run: bunx oxlint {staged_files}
 
     sdk-fmt:
-      glob: "sdk/{src,test}/**/*.ts"
+      root: "sdk/"
+      glob: "sdk/**/*.{ts,json,md}"
       run: bunx oxfmt --check {staged_files}
 
     sdk-lint:
-      glob: "sdk/{src,test}/**/*.ts"
+      root: "sdk/"
+      glob: "sdk/**/*.ts"
       run: bunx oxlint {staged_files}

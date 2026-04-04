@@ -1,6 +1,7 @@
 import { defineConfig } from "oxfmt";
 
 export default defineConfig({
+  ignorePatterns: ["node_modules", "dist"],
   printWidth: 120,
   sortImports: {
     groups: [

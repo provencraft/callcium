@@ -1,6 +1,7 @@
 import { defineConfig } from "oxlint";
 
 export default defineConfig({
+  ignorePatterns: ["node_modules", "dist"],
   options: {
     typeAware: true,
   },
@@ -11,6 +12,6 @@ export default defineConfig({
   },
   rules: {
     "no-useless-concat": "off",
-    "no-inline-comments": "off"
+    "no-inline-comments": "off",
   },
 });
