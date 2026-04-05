@@ -1,6 +1,13 @@
 import { describe, expect, test } from "vitest";
 
-import { decodeDescriptor, _decodeDescriptorFromBytes, decodePolicy, _decodePolicyFromBytes } from "../src/decoder";
+import { lookupTypeCode } from "../src/constants";
+import {
+  decodeDescriptor,
+  _decodeDescriptorFromBytes,
+  decodePolicy,
+  _decodePolicyFromBytes,
+  parsePathSteps,
+} from "../src/decoder";
 import { hexToBytes } from "../src/hex";
 import { expectErrorCode } from "./helpers";
 
@@ -330,6 +337,102 @@ describe("decodePolicy", () => {
     const descLen = (desc.length / 2).toString(16).padStart(4, "0");
     const policyHex = "01" + "2fbebd38" + descLen + desc + "01" + group;
     expectErrorCode(() => decodePolicy(`0x${policyHex}`), "INVALID_CONTEXT_PATH");
+  });
+});
+
+describe("lookupTypeCode", () => {
+  ///////////////////////////////////////////////////////////////////////////
+  //                         ELEMENTARY TYPES
+  ///////////////////////////////////////////////////////////////////////////
+
+  test("uint8 (0x00)", () => {
+    expect(lookupTypeCode(0x00)).toEqual({ label: "uint8", typeClass: "elementary", isDynamic: false });
+  });
+
+  test("uint256 (0x1f)", () => {
+    expect(lookupTypeCode(0x1f)).toEqual({ label: "uint256", typeClass: "elementary", isDynamic: false });
+  });
+
+  test("int8 (0x20)", () => {
+    expect(lookupTypeCode(0x20)).toEqual({ label: "int8", typeClass: "elementary", isDynamic: false });
+  });
+
+  test("int256 (0x3f)", () => {
+    expect(lookupTypeCode(0x3f)).toEqual({ label: "int256", typeClass: "elementary", isDynamic: false });
+  });
+
+  test("address (0x40)", () => {
+    expect(lookupTypeCode(0x40)).toEqual({ label: "address", typeClass: "elementary", isDynamic: false });
+  });
+
+  test("bool (0x41)", () => {
+    expect(lookupTypeCode(0x41)).toEqual({ label: "bool", typeClass: "elementary", isDynamic: false });
+  });
+
+  test("function (0x42)", () => {
+    expect(lookupTypeCode(0x42)).toEqual({ label: "function", typeClass: "elementary", isDynamic: false });
+  });
+
+  test("bytes1 (0x50)", () => {
+    expect(lookupTypeCode(0x50)).toEqual({ label: "bytes1", typeClass: "elementary", isDynamic: false });
+  });
+
+  test("bytes32 (0x6f)", () => {
+    expect(lookupTypeCode(0x6f)).toEqual({ label: "bytes32", typeClass: "elementary", isDynamic: false });
+  });
+
+  ///////////////////////////////////////////////////////////////////////////
+  //                         DYNAMIC ELEMENTARY
+  ///////////////////////////////////////////////////////////////////////////
+
+  test("bytes (0x70)", () => {
+    expect(lookupTypeCode(0x70)).toEqual({ label: "bytes", typeClass: "elementary", isDynamic: true });
+  });
+
+  test("string (0x71)", () => {
+    expect(lookupTypeCode(0x71)).toEqual({ label: "string", typeClass: "elementary", isDynamic: true });
+  });
+
+  ///////////////////////////////////////////////////////////////////////////
+  //                         COMPOSITE TYPES
+  ///////////////////////////////////////////////////////////////////////////
+
+  test("static array T[k] (0x80)", () => {
+    expect(lookupTypeCode(0x80)).toEqual({ label: "T[k]", typeClass: "staticArray", isDynamic: false });
+  });
+
+  test("dynamic array T[] (0x81)", () => {
+    expect(lookupTypeCode(0x81)).toEqual({ label: "T[]", typeClass: "dynamicArray", isDynamic: true });
+  });
+
+  test("tuple (0x90)", () => {
+    expect(lookupTypeCode(0x90)).toEqual({ label: "tuple", typeClass: "tuple", isDynamic: false });
+  });
+
+  ///////////////////////////////////////////////////////////////////////////
+  //                         ERROR CASES
+  ///////////////////////////////////////////////////////////////////////////
+
+  test("rejects unknown type code (0x43)", () => {
+    expectErrorCode(() => lookupTypeCode(0x43), "UNKNOWN_TYPE_CODE");
+  });
+});
+
+describe("parsePathSteps", () => {
+  test("single step index 0", () => {
+    expect(parsePathSteps("0x0000")).toEqual([0]);
+  });
+
+  test("single step index 1", () => {
+    expect(parsePathSteps("0x0001")).toEqual([1]);
+  });
+
+  test("multiple steps", () => {
+    expect(parsePathSteps("0x000000010002")).toEqual([0, 1, 2]);
+  });
+
+  test("quantifier step (0xffff)", () => {
+    expect(parsePathSteps("0x0000ffff")).toEqual([0, 65535]);
   });
 });
 

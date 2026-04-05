@@ -5,4 +5,5 @@ export default defineConfig({
   format: ["esm"],
   dts: true,
   target: "es2024",
+  outExtensions: () => ({ js: ".js", dts: ".d.ts" }),
 });

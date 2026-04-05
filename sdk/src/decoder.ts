@@ -4,8 +4,8 @@ import {
   Scope,
   Limits,
   Op,
-  TypeCode,
   isValidOperatorData,
+  classifyTypeCode,
 } from "./constants";
 import { CallciumError } from "./errors";
 import { hexToBytes, toHex, readU16 } from "./hex";
@@ -24,65 +24,6 @@ function readU24(data: Uint8Array, offset: number): number {
 /** Read a big-endian uint32 from a byte array. */
 function readU32(data: Uint8Array, offset: number): number {
   return ((data[offset]! << 24) | (data[offset + 1]! << 16) | (data[offset + 2]! << 8) | data[offset + 3]!) >>> 0;
-}
-
-///////////////////////////////////////////////////////////////////////////
-//                      Type code classification
-///////////////////////////////////////////////////////////////////////////
-
-type TypeClass = "elementary" | "tuple" | "staticArray" | "dynamicArray";
-
-/** Format a byte value as 0x-prefixed 2-digit hex for error messages. */
-function formatTypeCode(code: number): string {
-  return `0x${code.toString(16).padStart(2, "0")}`;
-}
-
-type TypeInfo = { typeClass: TypeClass; isDynamic: boolean };
-
-/** Map a raw type code byte to its structural category and dynamism. */
-function classifyTypeCode(code: number): TypeInfo {
-  // Unsigned integers.
-  if (code >= TypeCode.UINT_MIN && code <= TypeCode.UINT_MAX) return { typeClass: "elementary", isDynamic: false };
-
-  // Signed integers.
-  if (code >= TypeCode.INT_MIN && code <= TypeCode.INT_MAX) return { typeClass: "elementary", isDynamic: false };
-
-  // Fixed types.
-  if (code === TypeCode.ADDRESS || code === TypeCode.BOOL || code === TypeCode.FUNCTION)
-    return { typeClass: "elementary", isDynamic: false };
-
-  // Reserved in fixed type range.
-  if (code >= 0x43 && code <= 0x4f)
-    throw new CallciumError("UNKNOWN_TYPE_CODE", `Unknown type code ${formatTypeCode(code)}`);
-
-  // Fixed bytes.
-  if (code >= TypeCode.FIXED_BYTES_MIN && code <= TypeCode.FIXED_BYTES_MAX)
-    return { typeClass: "elementary", isDynamic: false };
-
-  // Dynamic elementary.
-  if (code === TypeCode.BYTES || code === TypeCode.STRING) return { typeClass: "elementary", isDynamic: true };
-
-  // Reserved in dynamic elementary range.
-  if (code >= 0x72 && code <= 0x7f)
-    throw new CallciumError("UNKNOWN_TYPE_CODE", `Unknown type code ${formatTypeCode(code)}`);
-
-  // Arrays.
-  if (code === TypeCode.STATIC_ARRAY) return { typeClass: "staticArray", isDynamic: false };
-  if (code === TypeCode.DYNAMIC_ARRAY) return { typeClass: "dynamicArray", isDynamic: true };
-
-  // Reserved in array range.
-  if (code >= 0x82 && code <= 0x8f)
-    throw new CallciumError("UNKNOWN_TYPE_CODE", `Unknown type code ${formatTypeCode(code)}`);
-
-  // Tuple.
-  if (code === TypeCode.TUPLE) return { typeClass: "tuple", isDynamic: false };
-
-  // Reserved in tuple range.
-  if (code >= 0x91 && code <= 0x9f)
-    throw new CallciumError("UNKNOWN_TYPE_CODE", `Unknown type code ${formatTypeCode(code)}`);
-
-  // Reserved range 0xA0-0xFF and anything else.
-  throw new CallciumError("UNKNOWN_TYPE_CODE", `Unknown type code ${formatTypeCode(code)}`);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -225,6 +166,20 @@ function parseNode(data: Uint8Array, offset: number): ParseResult {
 /** Convert a zero-based param index to a BE16 hex path step. */
 function indexToPath(index: number): Hex {
   return `0x${index.toString(16).padStart(4, "0")}`;
+}
+
+/**
+ * Parse a BE16-encoded hex path into an array of step values.
+ * @param path - 0x-prefixed hex string containing BE16-encoded path steps.
+ * @returns Array of numeric step values.
+ */
+export function parsePathSteps(path: Hex): number[] {
+  const body = path.slice(2);
+  const steps: number[] = [];
+  for (let i = 0; i < body.length; i += 4) {
+    steps.push(parseInt(body.slice(i, i + 4), 16));
+  }
+  return steps;
 }
 
 ///////////////////////////////////////////////////////////////////////////
