@@ -53,8 +53,11 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        working-directory: docs
         run: bun install
+
+      - name: Build SDK
+        working-directory: sdk
+        run: bun run build
 
       - name: Build docs
         working-directory: docs
