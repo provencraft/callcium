@@ -1,4 +1,5 @@
 import { createMDX } from "fumadocs-mdx/next";
+import { resolve } from "node:path";
 
 const withMDX = createMDX();
 
@@ -8,7 +9,7 @@ const config = {
   reactStrictMode: true,
   transpilePackages: ["shiki"],
   turbopack: {
-    root: import.meta.dirname,
+    root: resolve(import.meta.dirname, ".."),
   },
 };
 

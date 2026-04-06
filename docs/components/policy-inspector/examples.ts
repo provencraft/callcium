@@ -1,5 +1,5 @@
+import type { Hex } from "@callcium/sdk";
 import type { Abi } from "viem";
-import type { Hex } from "@/tools/policy-inspector";
 
 export type PolicyExample = {
   /// Dropdown label and banner text.

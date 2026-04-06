@@ -1,5 +1,14 @@
 "use client";
 
+import {
+  CallciumError,
+  type DecodedPolicy,
+  decodePolicy,
+  type Hex,
+  parsePathSteps,
+  PolicyFormat as PF,
+  type Span,
+} from "@callcium/sdk";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -8,16 +17,10 @@ import { EXAMPLES, type PolicyExample } from "./examples";
 import { useDebounce } from "./use-debounce";
 import { cn } from "@/lib/utils";
 import {
-  type DecodedPolicy,
-  DecodeError,
-  decodePolicy,
   type ExplainedConstraint,
   type ExplainedPolicy,
   type ExplainedRule,
   explainPolicy,
-  type Hex,
-  parsePathSteps,
-  type Span,
 } from "@/tools/policy-inspector";
 
 const s = (n: number) => (n === 1 ? "" : "s");
@@ -49,7 +52,7 @@ function tryDecode(hex: string, abi: Abi | undefined): DecodeResult | null {
     const explained = explainPolicy(decoded, abi ? { abi } : undefined);
     return { ok: true, decoded, explained, hex: normalized };
   } catch (e) {
-    if (e instanceof DecodeError) {
+    if (e instanceof CallciumError) {
       return { ok: false, error: `${e.code}: ${e.message}` };
     }
     return {
@@ -464,12 +467,13 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
     span: decoded.selector.span,
   });
 
-  // Desc length.
+  // Desc length (derived from descriptor span + format constants).
+  const descLengthSpan: Span = { start: PF.DESC_LENGTH_OFFSET, end: PF.DESC_LENGTH_OFFSET + PF.DESC_LENGTH_SIZE };
   nodes.push({
     label: "Desc Length",
-    value: String(decoded.descLength.value),
-    hex: sliceHex(decoded.descLength.span),
-    span: decoded.descLength.span,
+    value: String(decoded.descriptor.span.end - decoded.descriptor.span.start),
+    hex: sliceHex(descLengthSpan),
+    span: descLengthSpan,
   });
 
   // Descriptor.
@@ -510,12 +514,16 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
     children: descChildren,
   });
 
-  // Group count.
+  // Group count (derived from groups array + descriptor end position).
+  const groupCountSpan: Span = {
+    start: decoded.descriptor.span.end,
+    end: decoded.descriptor.span.end + PF.GROUP_COUNT_SIZE,
+  };
   nodes.push({
     label: "Group Count",
-    value: String(decoded.groupCount.value),
-    hex: sliceHex(decoded.groupCount.span),
-    span: decoded.groupCount.span,
+    value: String(decoded.groups.length),
+    hex: sliceHex(groupCountSpan),
+    span: groupCountSpan,
   });
 
   // Groups.
@@ -537,10 +545,26 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
       }
     }
 
+    // Derive group header fields from spans and format constants.
+    const ruleCountSpan: Span = { start: group.span.start, end: group.span.start + PF.GROUP_RULECOUNT_SIZE };
+    const groupSizeSpan: Span = {
+      start: group.span.start + PF.GROUP_RULECOUNT_SIZE,
+      end: group.span.start + PF.GROUP_HEADER_SIZE,
+    };
+    const groupSizeValue = group.span.end - group.span.start - PF.GROUP_HEADER_SIZE;
+
     const ruleNodes: TreeNode[] = group.rules.map((rule, ri) => {
       const key = `${rule.span.start}:${rule.span.end}`;
       const info = ruleSummaries.get(key);
       const summary = info?.summary ?? "";
+
+      // Derive rule header fields from spans and format constants.
+      const ruleSizeSpan: Span = { start: rule.span.start, end: rule.span.start + PF.RULE_SIZE_SIZE };
+      const pathDepthSpan: Span = {
+        start: rule.span.start + PF.RULE_DEPTH_OFFSET,
+        end: rule.span.start + PF.RULE_DEPTH_OFFSET + 1,
+      };
+      const dataLengthSpan: Span = { start: rule.opCode.span.end, end: rule.opCode.span.end + PF.RULE_DATALENGTH_SIZE };
 
       const opDisplay = info?.operator ?? `0x${rule.opCode.value.toString(16).padStart(2, "0")}`;
       return {
@@ -551,9 +575,9 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
         children: [
           {
             label: "Rule Size",
-            value: String(rule.ruleSize.value),
-            hex: sliceHex(rule.ruleSize.span),
-            span: rule.ruleSize.span,
+            value: String(rule.span.end - rule.span.start),
+            hex: sliceHex(ruleSizeSpan),
+            span: ruleSizeSpan,
           },
           {
             label: "Scope",
@@ -563,9 +587,9 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
           },
           {
             label: "Path Depth",
-            value: String(rule.pathDepth.value),
-            hex: sliceHex(rule.pathDepth.span),
-            span: rule.pathDepth.span,
+            value: String((rule.path.value.length - 2) / 4),
+            hex: sliceHex(pathDepthSpan),
+            span: pathDepthSpan,
           },
           {
             label: "Path",
@@ -581,9 +605,9 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
           },
           {
             label: "Data Length",
-            value: String(rule.dataLength.value),
-            hex: sliceHex(rule.dataLength.span),
-            span: rule.dataLength.span,
+            value: String(rule.data.span.end - rule.data.span.start),
+            hex: sliceHex(dataLengthSpan),
+            span: dataLengthSpan,
           },
           {
             label: "Data",
@@ -597,24 +621,21 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
 
     nodes.push({
       label: `Group ${gi + 1}`,
-      value: `${group.rules.length} rule${s(group.rules.length)}, ${group.groupSize.value} byte${s(group.groupSize.value)}`,
-      hex: sliceHex({
-        start: group.ruleCount.span.start,
-        end: group.groupSize.span.end,
-      }),
+      value: `${group.rules.length} rule${s(group.rules.length)}, ${groupSizeValue} byte${s(groupSizeValue)}`,
+      hex: sliceHex({ start: ruleCountSpan.start, end: groupSizeSpan.end }),
       span: group.span,
       children: [
         {
           label: "Rule Count",
-          value: String(group.ruleCount.value),
-          hex: sliceHex(group.ruleCount.span),
-          span: group.ruleCount.span,
+          value: String(group.rules.length),
+          hex: sliceHex(ruleCountSpan),
+          span: ruleCountSpan,
         },
         {
           label: "Group Size",
-          value: String(group.groupSize.value),
-          hex: sliceHex(group.groupSize.span),
-          span: group.groupSize.span,
+          value: String(groupSizeValue),
+          hex: sliceHex(groupSizeSpan),
+          span: groupSizeSpan,
         },
         ...ruleNodes,
       ],
