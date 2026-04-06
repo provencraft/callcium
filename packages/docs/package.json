@@ -13,7 +13,7 @@
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "sync": "bun run sync:reference && bun run sync:specs",
-    "sync:reference": "bun run --cwd .. docs && bun tools/sync-reference.ts",
+    "sync:reference": "bun run --cwd ../contracts docs && bun tools/sync-reference.ts",
     "sync:specs": "bun tools/sync-specs.ts",
     "test": "vitest run",
     "test:watch": "vitest",

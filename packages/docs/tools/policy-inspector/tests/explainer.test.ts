@@ -2,7 +2,7 @@ import { decodePolicy } from "@callcium/sdk";
 import { describe, expect, it } from "vitest";
 import type { DecodedPolicy, Hex, Span } from "@callcium/sdk";
 import type { Abi } from "viem";
-import policyVectors from "../../../../test/vectors/policies.json";
+import policyVectors from "../../../../contracts/test/vectors/policies.json";
 import { explainPolicy } from "../explainer";
 import B from "./explainer-blobs.json";
 

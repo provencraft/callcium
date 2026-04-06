@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import vectorMap from "../../test/vectors/enforcement.json";
+import vectorMap from "../../contracts/test/vectors/enforcement.json";
 import { check, toAddress } from "../src";
 import { hex } from "./helpers";
 

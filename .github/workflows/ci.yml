@@ -17,6 +17,9 @@ jobs:
   forge:
     name: Forge
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/contracts
     steps:
       - uses: actions/checkout@v4
 
@@ -56,15 +59,15 @@ jobs:
         run: bun install
 
       - name: Build SDK
-        working-directory: sdk
+        working-directory: packages/sdk
         run: bun run build
 
       - name: Build docs
-        working-directory: docs
+        working-directory: packages/docs
         run: bun run build
 
       - name: Lint docs
-        working-directory: docs
+        working-directory: packages/docs
         run: bun run lint
 
   sdk:
@@ -82,25 +85,25 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        working-directory: sdk
+        working-directory: packages/sdk
         run: bun install
 
       - name: Check formatting
-        working-directory: sdk
+        working-directory: packages/sdk
         run: bun run fmt:check
 
       - name: Lint
-        working-directory: sdk
+        working-directory: packages/sdk
         run: bun run lint
 
       - name: Type check
-        working-directory: sdk
+        working-directory: packages/sdk
         run: bun run typecheck
 
       - name: Build
-        working-directory: sdk
+        working-directory: packages/sdk
         run: bun run build
 
       - name: Run tests
-        working-directory: sdk
+        working-directory: packages/sdk
         run: bun test

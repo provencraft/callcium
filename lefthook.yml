@@ -1,25 +1,26 @@
 pre-commit:
   commands:
     forge-fmt:
-      glob: "src/**/*.sol test/**/*.sol"
+      root: "packages/contracts/"
+      glob: "packages/contracts/{src,test}/**/*.sol"
       run: forge fmt --check {staged_files}
 
     docs-fmt:
-      root: "docs/"
-      glob: "docs/**/*.{ts,tsx,mjs,css,json,md,mdx}"
+      root: "packages/docs/"
+      glob: "packages/docs/**/*.{ts,tsx,mjs,css,json,md,mdx}"
       run: bunx oxfmt --check {staged_files}
 
     docs-lint:
-      root: "docs/"
-      glob: "docs/**/*.{ts,tsx}"
+      root: "packages/docs/"
+      glob: "packages/docs/**/*.{ts,tsx}"
       run: bunx oxlint {staged_files}
 
     sdk-fmt:
-      root: "sdk/"
-      glob: "sdk/**/*.{ts,json,md}"
+      root: "packages/sdk/"
+      glob: "packages/sdk/**/*.{ts,json,md}"
       run: bunx oxfmt --check {staged_files}
 
     sdk-lint:
-      root: "sdk/"
-      glob: "sdk/**/*.ts"
+      root: "packages/sdk/"
+      glob: "packages/sdk/**/*.ts"
       run: bunx oxlint {staged_files}

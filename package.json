@@ -1,17 +1,14 @@
 {
-  "name": "@callcium/contracts",
+  "name": "callcium",
   "private": true,
   "type": "module",
-  "workspaces": ["docs", "sdk"],
+  "workspaces": [
+    "packages/contracts",
+    "packages/sdk",
+    "packages/docs"
+  ],
   "scripts": {
-    "postinstall": "lefthook install",
-    "build": "forge build",
-    "test": "forge test",
-    "fmt": "forge fmt",
-    "docs": "forge doc",
-    "bench:baseline": "bun tools/bench-baseline.ts",
-    "bench:diff": "forge test --match-path 'test/benchmark/**' && bun tools/bench-compare.ts",
-    "bench:compare": "bun tools/bench-compare.ts"
+    "postinstall": "lefthook install"
   },
   "devDependencies": {
     "lefthook": "2.1.5"

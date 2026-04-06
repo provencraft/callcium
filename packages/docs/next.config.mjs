@@ -9,7 +9,7 @@ const config = {
   reactStrictMode: true,
   transpilePackages: ["shiki"],
   turbopack: {
-    root: resolve(import.meta.dirname, ".."),
+    root: resolve(import.meta.dirname, "../.."),
   },
 };
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import rawVectors from "../../test/vectors/policies.json";
+import rawVectors from "../../contracts/test/vectors/policies.json";
 import { decodePolicy } from "../src";
 import { expectErrorCode, hex } from "./helpers";
 

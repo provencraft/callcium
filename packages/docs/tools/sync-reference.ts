@@ -10,7 +10,7 @@ import type { Heading, PhrasingContent, Root, RootContent } from "mdast";
 //                             CONFIGURATION
 ///////////////////////////////////////////////////////////////////////////
 
-const FORGE_DOC_DIR = join(import.meta.dirname, "../../.forge-doc");
+const FORGE_DOC_DIR = join(import.meta.dirname, "../../contracts/.forge-doc");
 const FORGE_DOC_ROOT = join(FORGE_DOC_DIR, "src/src");
 const OUTPUT_ROOT = join(import.meta.dirname, "../content/docs/reference");
 
