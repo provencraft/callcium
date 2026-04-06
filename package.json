@@ -2,6 +2,7 @@
   "name": "@callcium/contracts",
   "private": true,
   "type": "module",
+  "workspaces": ["docs", "sdk"],
   "scripts": {
     "postinstall": "lefthook install",
     "build": "forge build",
@@ -13,6 +14,6 @@
     "bench:compare": "bun tools/bench-compare.ts"
   },
   "devDependencies": {
-    "lefthook": "^2.1.2"
+    "lefthook": "2.1.5"
   }
 }
