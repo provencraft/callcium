@@ -3,8 +3,7 @@ import { describe, expect, test } from "vitest";
 import { Op, TypeCode } from "../src/constants";
 import { applyOperator, isSigned, toBigInt } from "../src/operators";
 
-// Packs a bigint into a 32-byte big-endian Uint8Array (two's complement for
-// values that fit in 256 bits).
+/** Packs a bigint into a 32-byte big-endian Uint8Array (two's complement for values that fit in 256 bits). */
 function word(value: bigint): Uint8Array {
   const buf = new Uint8Array(32);
   let v = value & 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn;
@@ -15,7 +14,7 @@ function word(value: bigint): Uint8Array {
   return buf;
 }
 
-// Concatenates multiple 32-byte words into a single Uint8Array.
+/** Concatenates multiple 32-byte words into a single Uint8Array. */
 function words(...values: bigint[]): Uint8Array {
   const buf = new Uint8Array(values.length * 32);
   for (let i = 0; i < values.length; i++) {
@@ -32,7 +31,7 @@ const INT256 = TypeCode.INT_MAX; // 0x3f
 const MAX_UINT256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn;
 
 ///////////////////////////////////////////////////////////////////////////
-//                              toBigInt
+// toBigInt
 ///////////////////////////////////////////////////////////////////////////
 
 describe("toBigInt", () => {
@@ -56,7 +55,7 @@ describe("toBigInt", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                              isSigned
+// isSigned
 ///////////////////////////////////////////////////////////////////////////
 
 describe("isSigned", () => {
@@ -76,7 +75,7 @@ describe("isSigned", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                               Op.EQ
+// Op.EQ
 ///////////////////////////////////////////////////////////////////////////
 
 describe("Op.EQ", () => {
@@ -98,7 +97,7 @@ describe("Op.EQ", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                    Op.GT / Op.LT — unsigned
+// Op.GT / Op.LT — unsigned
 ///////////////////////////////////////////////////////////////////////////
 
 describe("Op.GT unsigned", () => {
@@ -153,7 +152,7 @@ describe("Op.LT signed", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                        Op.GTE / Op.LTE
+// Op.GTE / Op.LTE
 ///////////////////////////////////////////////////////////////////////////
 
 describe("Op.GTE", () => {
@@ -185,7 +184,7 @@ describe("Op.LTE", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                           Op.BETWEEN
+// Op.BETWEEN
 ///////////////////////////////////////////////////////////////////////////
 
 describe("Op.BETWEEN", () => {
@@ -223,7 +222,7 @@ describe("Op.BETWEEN", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                               Op.IN
+// Op.IN
 ///////////////////////////////////////////////////////////////////////////
 
 describe("Op.IN", () => {
@@ -260,7 +259,7 @@ describe("Op.IN", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                    Op.BITMASK_ALL / ANY / NONE
+// Op.BITMASK_ALL / Any / None
 ///////////////////////////////////////////////////////////////////////////
 
 describe("Op.BITMASK_ALL", () => {
@@ -309,7 +308,7 @@ describe("Op.BITMASK_NONE", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                        LENGTH_* operators
+// LENGTH_* operators
 ///////////////////////////////////////////////////////////////////////////
 
 describe("LENGTH_EQ", () => {
@@ -329,12 +328,12 @@ describe("LENGTH_EQ", () => {
     expect(applyOperator(Op.LENGTH_EQ, 0n, 3, word(3n), TypeCode.DYNAMIC_ARRAY)).toBe(true);
   });
 
-  test("rejected for static type (address)", () => {
-    expect(applyOperator(Op.LENGTH_EQ, 0n, 20, word(20n), TypeCode.ADDRESS)).toBe(false);
+  test("passes for static type when valueLength matches", () => {
+    expect(applyOperator(Op.LENGTH_EQ, 0n, 20, word(20n), TypeCode.ADDRESS)).toBe(true);
   });
 
-  test("rejected for uint256", () => {
-    expect(applyOperator(Op.LENGTH_EQ, 0n, 32, word(32n), UINT256)).toBe(false);
+  test("passes for uint256 when valueLength matches", () => {
+    expect(applyOperator(Op.LENGTH_EQ, 0n, 32, word(32n), UINT256)).toBe(true);
   });
 });
 
@@ -347,8 +346,8 @@ describe("LENGTH_GT", () => {
     expect(applyOperator(Op.LENGTH_GT, 0n, 5, word(5n), TypeCode.BYTES)).toBe(false);
   });
 
-  test("rejected for static type", () => {
-    expect(applyOperator(Op.LENGTH_GT, 0n, 10, word(5n), TypeCode.ADDRESS)).toBe(false);
+  test("passes for static type when valueLength satisfies", () => {
+    expect(applyOperator(Op.LENGTH_GT, 0n, 10, word(5n), TypeCode.ADDRESS)).toBe(true);
   });
 });
 
@@ -411,13 +410,13 @@ describe("LENGTH_BETWEEN", () => {
     expect(applyOperator(Op.LENGTH_BETWEEN, 0n, 11, words(5n, 10n), TypeCode.BYTES)).toBe(false);
   });
 
-  test("rejected for static type", () => {
-    expect(applyOperator(Op.LENGTH_BETWEEN, 0n, 7, words(5n, 10n), TypeCode.ADDRESS)).toBe(false);
+  test("passes for static type when valueLength in range", () => {
+    expect(applyOperator(Op.LENGTH_BETWEEN, 0n, 7, words(5n, 10n), TypeCode.ADDRESS)).toBe(true);
   });
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                    NOT flag with non-EQ operators
+// NOT flag with non-EQ operators
 ///////////////////////////////////////////////////////////////////////////
 
 describe("Op.NOT flag", () => {

@@ -2,10 +2,12 @@
 
 import {
   CallciumError,
-  type DecodedPolicy,
-  decodePolicy,
+  DescriptorFormat as DF,
   type Hex,
+  lookupTypeCode,
+  type PolicyData,
   parsePathSteps,
+  PolicyCoder,
   PolicyFormat as PF,
   type Span,
 } from "@callcium/sdk";
@@ -32,7 +34,7 @@ const s = (n: number) => (n === 1 ? "" : "s");
 type DecodeResult =
   | {
       ok: true;
-      decoded: DecodedPolicy;
+      policy: PolicyData;
       explained: ExplainedPolicy;
       hex: string;
     }
@@ -48,9 +50,9 @@ function tryDecode(hex: string, abi: Abi | undefined): DecodeResult | null {
   }
 
   try {
-    const decoded = decodePolicy(normalized as Hex);
-    const explained = explainPolicy(decoded, abi ? { abi } : undefined);
-    return { ok: true, decoded, explained, hex: normalized };
+    const policy = PolicyCoder.decode(normalized as Hex);
+    const explained = explainPolicy(policy, abi ? { abi } : undefined);
+    return { ok: true, policy, explained, hex: normalized };
   } catch (e) {
     if (e instanceof CallciumError) {
       return { ok: false, error: `${e.code}: ${e.message}` };
@@ -315,7 +317,7 @@ export function Inspector() {
             })}
           </div>
           {inspectMode ? (
-            <InspectView decoded={result.decoded} explained={result.explained} hex={result.hex} />
+            <InspectView policy={result.policy} explained={result.explained} hex={result.hex} />
           ) : (
             <SummaryView policy={result.explained} functionName={resolvedName} />
           )}
@@ -438,7 +440,15 @@ type TreeNode = {
   children?: TreeNode[];
 };
 
-function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: string): TreeNode[] {
+function readU16(hex: string, byteOffset: number): number {
+  return parseInt(hex.slice(byteOffset * 2, byteOffset * 2 + 4), 16);
+}
+
+function readU32(hex: string, byteOffset: number): number {
+  return parseInt(hex.slice(byteOffset * 2, byteOffset * 2 + 8), 16);
+}
+
+function buildTree(policy: PolicyData, explained: ExplainedPolicy, rawHex: string): TreeNode[] {
   const cleanHex = rawHex.startsWith("0x") ? rawHex.slice(2) : rawHex;
   const sliceHex = (span: Span) => {
     const raw = cleanHex.slice(span.start * 2, span.end * 2);
@@ -446,203 +456,243 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
   };
 
   const nodes: TreeNode[] = [];
+  const headerByte = parseInt(cleanHex.slice(0, 2), 16);
+  const version = headerByte & PF.VERSION_MASK;
 
   // Header.
-  const headerBits: string[] = [`v${decoded.version}`];
-  if (decoded.isSelectorless) headerBits.push("selectorless");
+  const headerSpan: Span = { start: 0, end: PF.HEADER_SIZE };
+  const headerBits: string[] = [`v${version}`];
+  if (policy.isSelectorless) headerBits.push("selectorless");
   nodes.push({
     label: "Header",
     value: headerBits.join(", "),
-    hex: sliceHex(decoded.header.span),
-    span: decoded.header.span,
+    hex: sliceHex(headerSpan),
+    span: headerSpan,
   });
 
   // Selector.
-  const selectorLabel = decoded.isSelectorless ? "zeroed" : decoded.selector.value;
+  const selectorSpan: Span = { start: PF.SELECTOR_OFFSET, end: PF.SELECTOR_OFFSET + PF.SELECTOR_SIZE };
+  const selectorLabel = policy.isSelectorless ? "zeroed" : policy.selector;
   const fnName = explained.functionName;
   nodes.push({
     label: "Selector",
     value: fnName ? `${selectorLabel} (${fnName})` : selectorLabel,
-    hex: sliceHex(decoded.selector.span),
-    span: decoded.selector.span,
+    hex: sliceHex(selectorSpan),
+    span: selectorSpan,
   });
 
-  // Desc length (derived from descriptor span + format constants).
+  // Descriptor length.
   const descLengthSpan: Span = { start: PF.DESC_LENGTH_OFFSET, end: PF.DESC_LENGTH_OFFSET + PF.DESC_LENGTH_SIZE };
+  const descLength = readU16(cleanHex, PF.DESC_LENGTH_OFFSET);
   nodes.push({
     label: "Desc Length",
-    value: String(decoded.descriptor.span.end - decoded.descriptor.span.start),
+    value: String(descLength),
     hex: sliceHex(descLengthSpan),
     span: descLengthSpan,
   });
 
   // Descriptor.
-  // Descriptor header spans from descriptor start to the first param (or descriptor end if no params).
-  const descHeaderEnd =
-    decoded.descriptor.params.length > 0 ? decoded.descriptor.params[0].span.start : decoded.descriptor.span.end;
-  const descHeaderSpan: Span = {
-    start: decoded.descriptor.span.start,
-    end: descHeaderEnd,
-  };
+  const descStart = PF.DESC_OFFSET;
+  const descEnd = descStart + descLength;
+  const descSpan: Span = { start: descStart, end: descEnd };
+  // Descriptor header is the first 2 bytes (version + paramCount).
+  const descHeaderEnd = descStart + 2;
+  const descHeaderSpan: Span = { start: descStart, end: descHeaderEnd };
+  const paramCount = explained.params.length;
+
   const descChildren: TreeNode[] = [
     {
       label: "Desc Header",
-      value: `v${decoded.version}, ${decoded.descriptor.params.length} param${s(decoded.descriptor.params.length)}`,
+      value: `v${version}, ${paramCount} param${s(paramCount)}`,
       hex: sliceHex(descHeaderSpan),
       span: descHeaderSpan,
     },
   ];
 
-  for (let i = 0; i < decoded.descriptor.params.length; i++) {
-    const p = decoded.descriptor.params[i];
+  // Walk descriptor param nodes to derive individual param spans.
+  let paramOffset = descHeaderEnd;
+  for (let i = 0; i < paramCount; i++) {
     const ep = explained.params[i];
-    const typeLabel = ep?.type ?? `code(${p.typeCode})`;
+    const paramNodeEnd = skipDescNode(cleanHex, paramOffset);
+    const paramSpan: Span = { start: paramOffset, end: paramNodeEnd };
+    const typeLabel = ep?.type ?? `param(${i})`;
     const nameLabel = ep?.name ? ` ${ep.name}` : "";
     descChildren.push({
       label: `Param [${i}]`,
       value: `${typeLabel}${nameLabel}`,
-      hex: sliceHex(p.span),
-      span: p.span,
+      hex: sliceHex(paramSpan),
+      span: paramSpan,
     });
+    paramOffset = paramNodeEnd;
   }
 
   nodes.push({
     label: "Descriptor",
-    value: `${decoded.descriptor.params.length} param${s(decoded.descriptor.params.length)}`,
-    hex: sliceHex(decoded.descriptor.span),
-    span: decoded.descriptor.span,
+    value: `${paramCount} param${s(paramCount)}`,
+    hex: sliceHex(descSpan),
+    span: descSpan,
     children: descChildren,
   });
 
-  // Group count (derived from groups array + descriptor end position).
-  const groupCountSpan: Span = {
-    start: decoded.descriptor.span.end,
-    end: decoded.descriptor.span.end + PF.GROUP_COUNT_SIZE,
-  };
+  // Group count.
+  const groupCountStart = descEnd;
+  const groupCountSpan: Span = { start: groupCountStart, end: groupCountStart + PF.GROUP_COUNT_SIZE };
+  const groupCount = parseInt(cleanHex.slice(groupCountStart * 2, groupCountStart * 2 + 2), 16);
   nodes.push({
     label: "Group Count",
-    value: String(decoded.groups.length),
+    value: String(groupCount),
     hex: sliceHex(groupCountSpan),
     span: groupCountSpan,
   });
 
-  // Groups.
-  decoded.groups.forEach((group, gi) => {
-    // Build a lookup from rule span to explained summary.
-    const ruleSummaries = new Map<string, { summary: string; operator: string; dataValue: string }>();
+  // Groups — walk the raw bytes to derive rule-level spans.
+  let groupOffset = groupCountStart + PF.GROUP_COUNT_SIZE;
+  for (let gi = 0; gi < groupCount; gi++) {
+    const ruleCount = readU16(cleanHex, groupOffset);
+    const groupBodySize = readU32(cleanHex, groupOffset + PF.GROUP_RULECOUNT_SIZE);
+    const groupBodyStart = groupOffset + PF.GROUP_HEADER_SIZE;
+    const groupEnd = groupBodyStart + groupBodySize;
+    const groupSpan: Span = { start: groupOffset, end: groupEnd };
+
+    const ruleCountSpan: Span = { start: groupOffset, end: groupOffset + PF.GROUP_RULECOUNT_SIZE };
+    const groupSizeSpan: Span = {
+      start: groupOffset + PF.GROUP_RULECOUNT_SIZE,
+      end: groupOffset + PF.GROUP_HEADER_SIZE,
+    };
+
+    // Build explained rule summaries for display.
     const eg = explained.groups[gi];
+    let explainedRuleIndex = 0;
+    const explainedRules: { constraint: ExplainedConstraint; rule: ExplainedRule }[] = [];
     if (eg) {
       for (const c of eg.constraints) {
-        for (const er of c.rules) {
-          const key = `${er.span.start}:${er.span.end}`;
-          const operands = formatOperands(er);
-          ruleSummaries.set(key, {
-            summary: `${c.pathLabel} ${er.operator} ${operands} : ${c.targetType}`,
-            operator: er.operator,
-            dataValue: `${operands} : ${c.targetType}`,
-          });
+        for (const r of c.rules) {
+          explainedRules.push({ constraint: c, rule: r });
         }
       }
     }
 
-    // Derive group header fields from spans and format constants.
-    const ruleCountSpan: Span = { start: group.span.start, end: group.span.start + PF.GROUP_RULECOUNT_SIZE };
-    const groupSizeSpan: Span = {
-      start: group.span.start + PF.GROUP_RULECOUNT_SIZE,
-      end: group.span.start + PF.GROUP_HEADER_SIZE,
-    };
-    const groupSizeValue = group.span.end - group.span.start - PF.GROUP_HEADER_SIZE;
+    const ruleNodes: TreeNode[] = [];
+    let ruleOffset = groupBodyStart;
+    for (let ri = 0; ri < ruleCount; ri++) {
+      const ruleSize = readU16(cleanHex, ruleOffset);
+      const ruleEnd = ruleOffset + ruleSize;
+      const ruleSpan: Span = { start: ruleOffset, end: ruleEnd };
 
-    const ruleNodes: TreeNode[] = group.rules.map((rule, ri) => {
-      const key = `${rule.span.start}:${rule.span.end}`;
-      const info = ruleSummaries.get(key);
-      const summary = info?.summary ?? "";
+      const scopeOffset = ruleOffset + PF.RULE_SCOPE_OFFSET;
+      const scopeValue = parseInt(cleanHex.slice(scopeOffset * 2, scopeOffset * 2 + 2), 16);
+      const depthOffset = ruleOffset + PF.RULE_DEPTH_OFFSET;
+      const depthValue = parseInt(cleanHex.slice(depthOffset * 2, depthOffset * 2 + 2), 16);
+      const pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
+      const pathLength = depthValue * PF.PATH_STEP_SIZE;
+      const pathEnd = pathStart + pathLength;
+      const pathHex: Hex = `0x${cleanHex.slice(pathStart * 2, pathEnd * 2)}`;
+      const opCodeOffset = pathEnd;
+      const opCodeValue = parseInt(cleanHex.slice(opCodeOffset * 2, opCodeOffset * 2 + 2), 16);
+      const dataLengthOffset = opCodeOffset + PF.RULE_OPCODE_SIZE;
+      const dataStart = dataLengthOffset + PF.RULE_DATALENGTH_SIZE;
+      const dataLength = readU16(cleanHex, dataLengthOffset);
 
-      // Derive rule header fields from spans and format constants.
-      const ruleSizeSpan: Span = { start: rule.span.start, end: rule.span.start + PF.RULE_SIZE_SIZE };
-      const pathDepthSpan: Span = {
-        start: rule.span.start + PF.RULE_DEPTH_OFFSET,
-        end: rule.span.start + PF.RULE_DEPTH_OFFSET + 1,
-      };
-      const dataLengthSpan: Span = { start: rule.opCode.span.end, end: rule.opCode.span.end + PF.RULE_DATALENGTH_SIZE };
+      const info = explainedRules[explainedRuleIndex];
+      explainedRuleIndex++;
+      const summary = info
+        ? `${info.constraint.pathLabel} ${info.rule.operator} ${formatOperands(info.rule)} : ${info.constraint.targetType}`
+        : "";
+      const opDisplay = info?.rule.operator ?? `0x${opCodeValue.toString(16).padStart(2, "0")}`;
+      const dataValue = info
+        ? `${formatOperands(info.rule)} : ${info.constraint.targetType}`
+        : `0x${cleanHex.slice(dataStart * 2, (dataStart + dataLength) * 2)}`;
 
-      const opDisplay = info?.operator ?? `0x${rule.opCode.value.toString(16).padStart(2, "0")}`;
-      return {
+      ruleNodes.push({
         label: `Rule ${ri + 1}`,
         value: summary,
         hex: "",
-        span: rule.span,
+        span: ruleSpan,
         children: [
           {
             label: "Rule Size",
-            value: String(rule.span.end - rule.span.start),
-            hex: sliceHex(ruleSizeSpan),
-            span: ruleSizeSpan,
+            value: String(ruleSize),
+            hex: sliceHex({ start: ruleOffset, end: ruleOffset + PF.RULE_SIZE_SIZE }),
+            span: { start: ruleOffset, end: ruleOffset + PF.RULE_SIZE_SIZE },
           },
           {
             label: "Scope",
-            value: rule.scope.value === 0 ? "context" : "calldata",
-            hex: sliceHex(rule.scope.span),
-            span: rule.scope.span,
+            value: scopeValue === 0 ? "context" : "calldata",
+            hex: sliceHex({ start: scopeOffset, end: scopeOffset + 1 }),
+            span: { start: scopeOffset, end: scopeOffset + 1 },
           },
           {
             label: "Path Depth",
-            value: String((rule.path.value.length - 2) / 4),
-            hex: sliceHex(pathDepthSpan),
-            span: pathDepthSpan,
+            value: String(depthValue),
+            hex: sliceHex({ start: depthOffset, end: depthOffset + 1 }),
+            span: { start: depthOffset, end: depthOffset + 1 },
           },
           {
             label: "Path",
-            value: `[${parsePathSteps(rule.path.value).join(", ")}]`,
-            hex: sliceHex(rule.path.span),
-            span: rule.path.span,
+            value: `[${parsePathSteps(pathHex).join(", ")}]`,
+            hex: sliceHex({ start: pathStart, end: pathEnd }),
+            span: { start: pathStart, end: pathEnd },
           },
           {
             label: "OpCode",
             value: opDisplay,
-            hex: sliceHex(rule.opCode.span),
-            span: rule.opCode.span,
+            hex: sliceHex({ start: opCodeOffset, end: opCodeOffset + PF.RULE_OPCODE_SIZE }),
+            span: { start: opCodeOffset, end: opCodeOffset + PF.RULE_OPCODE_SIZE },
           },
           {
             label: "Data Length",
-            value: String(rule.data.span.end - rule.data.span.start),
-            hex: sliceHex(dataLengthSpan),
-            span: dataLengthSpan,
+            value: String(dataLength),
+            hex: sliceHex({ start: dataLengthOffset, end: dataLengthOffset + PF.RULE_DATALENGTH_SIZE }),
+            span: { start: dataLengthOffset, end: dataLengthOffset + PF.RULE_DATALENGTH_SIZE },
           },
           {
             label: "Data",
-            value: info?.dataValue ?? rule.data.value,
-            hex: sliceHex(rule.data.span),
-            span: rule.data.span,
+            value: dataValue,
+            hex: sliceHex({ start: dataStart, end: dataStart + dataLength }),
+            span: { start: dataStart, end: dataStart + dataLength },
           },
         ],
-      };
-    });
+      });
+
+      ruleOffset = ruleEnd;
+    }
 
     nodes.push({
       label: `Group ${gi + 1}`,
-      value: `${group.rules.length} rule${s(group.rules.length)}, ${groupSizeValue} byte${s(groupSizeValue)}`,
+      value: `${ruleCount} rule${s(ruleCount)}, ${groupBodySize} byte${s(groupBodySize)}`,
       hex: sliceHex({ start: ruleCountSpan.start, end: groupSizeSpan.end }),
-      span: group.span,
+      span: groupSpan,
       children: [
         {
           label: "Rule Count",
-          value: String(group.rules.length),
+          value: String(ruleCount),
           hex: sliceHex(ruleCountSpan),
           span: ruleCountSpan,
         },
         {
           label: "Group Size",
-          value: String(groupSizeValue),
+          value: String(groupBodySize),
           hex: sliceHex(groupSizeSpan),
           span: groupSizeSpan,
         },
         ...ruleNodes,
       ],
     });
-  });
+
+    groupOffset = groupEnd;
+  }
 
   return nodes;
+}
+
+function skipDescNode(hex: string, byteOffset: number): number {
+  const typeCode = parseInt(hex.slice(byteOffset * 2, byteOffset * 2 + 2), 16);
+  if (lookupTypeCode(typeCode).typeClass === "elementary") return byteOffset + DF.TYPECODE_SIZE;
+  const meta = parseInt(
+    hex.slice((byteOffset + DF.TYPECODE_SIZE) * 2, (byteOffset + DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE) * 2),
+    16,
+  );
+  return byteOffset + (meta & DF.META_NODE_LENGTH_MASK);
 }
 
 // Map each byte index to its deepest owning span for hover interaction.
@@ -725,8 +775,8 @@ function HexDump({
   );
 }
 
-function InspectView({ decoded, explained, hex }: { decoded: DecodedPolicy; explained: ExplainedPolicy; hex: string }) {
-  const tree = useMemo(() => buildTree(decoded, explained, hex), [decoded, explained, hex]);
+function InspectView({ policy, explained, hex }: { policy: PolicyData; explained: ExplainedPolicy; hex: string }) {
+  const tree = useMemo(() => buildTree(policy, explained, hex), [policy, explained, hex]);
   const [hovered, setHovered] = useState<Span | null>(null);
 
   return (

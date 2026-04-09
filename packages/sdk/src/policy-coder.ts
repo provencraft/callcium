@@ -1,3 +1,5 @@
+import { keccak_256 } from "@noble/hashes/sha3";
+
 import {
   DescriptorFormat as DF,
   PolicyFormat as PF,
@@ -8,26 +10,56 @@ import {
   classifyTypeCode,
 } from "./constants";
 import { CallciumError } from "./errors";
-import { hexToBytes, toHex, readU16 } from "./hex";
+import { bytesToHex, hexToBytes, toHex, readU16, readU24, readU32, writeBE16 } from "./hex";
 
-import type { DecodedDescriptor, DecodedGroup, DecodedParam, DecodedPolicy, DecodedRule, DescNode, Hex } from "./types";
-
-///////////////////////////////////////////////////////////////////////////
-//                           Binary readers
-///////////////////////////////////////////////////////////////////////////
-
-/** Read a big-endian uint24 from a byte array. */
-function readU24(data: Uint8Array, offset: number): number {
-  return (data[offset]! << 16) | (data[offset + 1]! << 8) | data[offset + 2]!;
-}
-
-/** Read a big-endian uint32 from a byte array. */
-function readU32(data: Uint8Array, offset: number): number {
-  return ((data[offset]! << 24) | (data[offset + 1]! << 16) | (data[offset + 2]! << 8) | data[offset + 3]!) >>> 0;
-}
+import type { Constraint, DescNode, Hex, PolicyData, Span } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
-//                       Recursive node parser
+// Internal types
+///////////////////////////////////////////////////////////////////////////
+
+/** A decoded value with its byte position in the source blob. */
+type Field<T> = { value: T; span: Span };
+
+type DecodedParam = {
+  index: number;
+  typeCode: number;
+  isDynamic: boolean;
+  staticSize: number;
+  path: Hex;
+  span: Span;
+};
+
+type DecodedDescriptor = {
+  version: number;
+  params: DecodedParam[];
+};
+
+type DecodedRule = {
+  scope: Field<number>;
+  path: Field<Hex>;
+  opCode: Field<number>;
+  data: Field<Hex>;
+  span: Span;
+};
+
+type DecodedGroup = {
+  rules: DecodedRule[];
+  span: Span;
+};
+
+type DecodedPolicy = {
+  header: Field<number>;
+  selector: Field<Hex>;
+  descriptor: { raw: Hex; params: DecodedParam[]; span: Span };
+  groups: DecodedGroup[];
+  span: Span;
+  version: number;
+  isSelectorless: boolean;
+};
+
+///////////////////////////////////////////////////////////////////////////
+// Recursive node parser
 ///////////////////////////////////////////////////////////////////////////
 
 type ParseResult = { node: DescNode; next: number };
@@ -160,7 +192,7 @@ function parseNode(data: Uint8Array, offset: number): ParseResult {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                             Path helper
+// Path helper
 ///////////////////////////////////////////////////////////////////////////
 
 /** Convert a zero-based param index to a BE16 hex path step. */
@@ -183,7 +215,7 @@ export function parsePathSteps(path: Hex): number[] {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                        Descriptor decoder
+// Descriptor decoder
 ///////////////////////////////////////////////////////////////////////////
 
 /** Decode a binary descriptor blob, returning both the public structure and internal AST. */
@@ -256,7 +288,7 @@ export function decodeDescriptor(blob: Hex): DecodedDescriptor {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                         Policy field helper
+// Policy field helper
 ///////////////////////////////////////////////////////////////////////////
 
 /** Wrap a value with its byte span for positional tracking. */
@@ -265,7 +297,7 @@ function field<T>(value: T, start: number, end: number): { value: T; span: { sta
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                           POLICY DECODER
+// Policy Decoder
 ///////////////////////////////////////////////////////////////////////////
 
 /** Decode a binary policy blob, returning both the public structure and internal AST. */
@@ -386,13 +418,6 @@ export function _decodePolicyFromBytes(data: Uint8Array): {
       if (depthValue === 0) {
         throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step", ruleOffset);
       }
-      if (depthValue > Limits.MAX_PATH_DEPTH) {
-        throw new CallciumError(
-          "MALFORMED_HEADER",
-          `Path depth ${depthValue} exceeds maximum ${Limits.MAX_PATH_DEPTH}`,
-          ruleOffset,
-        );
-      }
       if (scopeValue === Scope.CONTEXT && depthValue !== 1) {
         throw new CallciumError(
           "INVALID_CONTEXT_PATH",
@@ -481,4 +506,245 @@ export function _decodePolicyFromBytes(data: Uint8Array): {
  */
 export function decodePolicy(blob: Hex): DecodedPolicy {
   return _decodePolicyFromBytes(hexToBytes(blob)).policy;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Encoder Internals
+///////////////////////////////////////////////////////////////////////////
+
+type Rule = { scope: number; path: Uint8Array; operator: Uint8Array };
+
+/** Flatten a Constraint into one Rule per operator. */
+function _flattenConstraint(constraint: Constraint): Rule[] {
+  const path = hexToBytes(constraint.path);
+  return constraint.operators.map((op) => ({
+    scope: constraint.scope,
+    path,
+    operator: hexToBytes(op),
+  }));
+}
+
+/** Compare two byte arrays lexicographically. */
+function _compareBytes(a: Uint8Array, b: Uint8Array): number {
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    if (a[i]! !== b[i]!) return a[i]! - b[i]!;
+  }
+  return a.length - b.length;
+}
+
+/** Sort rules by (scope, pathDepth, pathBytes, operatorBytes). */
+function _sortRules(rules: Rule[]): void {
+  rules.sort((a, b) => {
+    if (a.scope !== b.scope) return a.scope - b.scope;
+    const depthA = a.path.length / 2;
+    const depthB = b.path.length / 2;
+    if (depthA !== depthB) return depthA - depthB;
+    const pathCmp = _compareBytes(a.path, b.path);
+    if (pathCmp !== 0) return pathCmp;
+    return _compareBytes(a.operator, b.operator);
+  });
+}
+
+/** Serialize a single rule to its wire format bytes. */
+function _encodeRule(rule: Rule): Uint8Array {
+  if (rule.path.length === 0) {
+    throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step.");
+  }
+  if ((rule.path.length & 1) !== 0) {
+    throw new CallciumError("INVALID_PATH", "Path byte length must be even.");
+  }
+  if (rule.operator.length < 1) {
+    throw new CallciumError("INVALID_OPERATOR", "Operator must have at least one byte (opcode).");
+  }
+  const depth = rule.path.length / 2;
+  if (depth > Limits.MAX_PATH_DEPTH) {
+    throw new CallciumError("INVALID_PATH", `Path depth ${depth} exceeds maximum ${Limits.MAX_PATH_DEPTH}.`);
+  }
+  if (rule.scope === Scope.CONTEXT && depth !== 1) {
+    throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope rules must have exactly one path step.");
+  }
+  const opCode = rule.operator[0]!;
+  const data = rule.operator.subarray(1);
+  const ruleSize = PF.RULE_FIXED_OVERHEAD + rule.path.length + data.length;
+  if (ruleSize > 0xffff) {
+    throw new CallciumError("RULE_SIZE_OVERFLOW", `Rule size ${ruleSize} exceeds maximum 65535`);
+  }
+
+  const buf = new Uint8Array(ruleSize);
+  writeBE16(buf, 0, ruleSize);
+  buf[2] = rule.scope;
+  buf[3] = depth;
+  buf.set(rule.path, 4);
+  const opOffset = 4 + rule.path.length;
+  buf[opOffset] = opCode;
+  writeBE16(buf, opOffset + 1, data.length);
+  buf.set(data, opOffset + 3);
+
+  return buf;
+}
+
+/** Serialize all rules in a group to a single byte array. */
+function _encodeGroupRules(rules: Rule[]): Uint8Array {
+  const parts = rules.map(_encodeRule);
+  const totalSize = parts.reduce((sum, p) => sum + p.length, 0);
+  const buf = new Uint8Array(totalSize);
+  let offset = 0;
+  for (const part of parts) {
+    buf.set(part, offset);
+    offset += part.length;
+  }
+  return buf;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// PolicyCoder
+///////////////////////////////////////////////////////////////////////////
+
+/** Encode and decode policies in the canonical binary format. */
+export const PolicyCoder = {
+  /**
+   * Encode a PolicyData structure into the canonical binary format.
+   * @param data - The policy data to encode.
+   * @returns The encoded policy as a 0x-prefixed hex string.
+   */
+  encode(data: PolicyData): Hex {
+    // Flatten constraints into rules and sort within each group.
+    const sortedGroups: Rule[][] = data.groups.map((group) => {
+      const rules = group.flatMap(_flattenConstraint);
+      _sortRules(rules);
+      return rules;
+    });
+
+    if (sortedGroups.length === 0) {
+      throw new CallciumError("EMPTY_POLICY", "Policy must contain at least one group");
+    }
+    if (sortedGroups.length > 0xff) {
+      throw new CallciumError("GROUP_COUNT_OVERFLOW", `Group count ${sortedGroups.length} exceeds maximum 255`);
+    }
+
+    // Sort groups by keccak256 hash of their serialized rule bytes.
+    const groupsWithHash: { wireBytes: Uint8Array; hash: Uint8Array; ruleCount: number }[] = sortedGroups.map(
+      (rules, groupIndex) => {
+        if (rules.length === 0) {
+          throw new CallciumError("EMPTY_GROUP", `Group ${groupIndex} is empty`);
+        }
+        if (rules.length > 0xffff) {
+          throw new CallciumError(
+            "RULE_COUNT_OVERFLOW",
+            `Group ${groupIndex} rule count ${rules.length} exceeds maximum 65535`,
+          );
+        }
+        const wireBytes = _encodeGroupRules(rules);
+        return { wireBytes, hash: keccak_256(wireBytes), ruleCount: rules.length };
+      },
+    );
+    groupsWithHash.sort((a, b) => _compareBytes(a.hash, b.hash));
+
+    // Build the binary output.
+    const descBytes = hexToBytes(data.descriptor);
+    if (descBytes.length > 0xffff) {
+      throw new CallciumError("DESC_LENGTH_OVERFLOW", `Descriptor length ${descBytes.length} exceeds maximum 65535`);
+    }
+    const selectorBytes = data.isSelectorless ? new Uint8Array(4) : hexToBytes(data.selector);
+
+    const headerByte = PF.VERSION | (data.isSelectorless ? PF.FLAG_NO_SELECTOR : 0);
+
+    // Pre-compute total size.
+    let totalSize = PF.HEADER_SIZE + PF.SELECTOR_SIZE + PF.DESC_LENGTH_SIZE + descBytes.length + PF.GROUP_COUNT_SIZE;
+    for (const g of groupsWithHash) {
+      totalSize += PF.GROUP_HEADER_SIZE + g.wireBytes.length;
+    }
+
+    const out = new Uint8Array(totalSize);
+    let offset = 0;
+
+    // Header.
+    out[offset++] = headerByte;
+
+    // Selector.
+    out.set(selectorBytes, offset);
+    offset += PF.SELECTOR_SIZE;
+
+    // Descriptor length (BE16).
+    writeBE16(out, offset, descBytes.length);
+    offset += PF.DESC_LENGTH_SIZE;
+
+    // Descriptor.
+    out.set(descBytes, offset);
+    offset += descBytes.length;
+
+    // Group count.
+    out[offset++] = groupsWithHash.length;
+
+    // Groups.
+    for (const g of groupsWithHash) {
+      // Rule count (BE16).
+      writeBE16(out, offset, g.ruleCount);
+      offset += PF.GROUP_RULECOUNT_SIZE;
+
+      // Group size (BE32).
+      out[offset++] = (g.wireBytes.length >>> 24) & 0xff;
+      out[offset++] = (g.wireBytes.length >>> 16) & 0xff;
+      out[offset++] = (g.wireBytes.length >>> 8) & 0xff;
+      out[offset++] = g.wireBytes.length & 0xff;
+
+      // Rule bytes.
+      out.set(g.wireBytes, offset);
+      offset += g.wireBytes.length;
+    }
+
+    return bytesToHex(out);
+  },
+
+  /**
+   * Decode a binary policy blob into a PolicyData structure.
+   * @param blob - Binary policy as 0x-prefixed hex string.
+   * @returns The decoded policy data with constraints grouped by scope and path.
+   * @throws {CallciumError} If the blob is structurally malformed.
+   */
+  decode(blob: Hex): PolicyData {
+    const { policy } = _decodePolicyFromBytes(hexToBytes(blob));
+
+    const groups: Constraint[][] = policy.groups.map((group) => {
+      const constraintMap = new Map<string, Constraint>();
+      const constraintOrder: string[] = [];
+
+      for (const rule of group.rules) {
+        const key = `${rule.scope.value}:${rule.path.value}`;
+        const opHex = _buildOperatorHex(rule);
+
+        const existing = constraintMap.get(key);
+        if (existing !== undefined) {
+          existing.operators.push(opHex);
+        } else {
+          const constraint: Constraint = {
+            scope: rule.scope.value,
+            path: rule.path.value,
+            operators: [opHex],
+            span: rule.span,
+          };
+          constraintMap.set(key, constraint);
+          constraintOrder.push(key);
+        }
+      }
+
+      return constraintOrder.map((k) => constraintMap.get(k)!);
+    });
+
+    return {
+      isSelectorless: policy.isSelectorless,
+      selector: policy.selector.value,
+      descriptor: policy.descriptor.raw,
+      groups,
+      span: policy.span,
+    };
+  },
+};
+
+/** Build a single operator hex string from a decoded rule's opCode and data. */
+function _buildOperatorHex(rule: DecodedRule): Hex {
+  const opCodeHex = rule.opCode.value.toString(16).padStart(2, "0");
+  const dataBody = rule.data.value.slice(2);
+  return `0x${opCodeHex}${dataBody}`;
 }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import rawVectors from "../../contracts/test/vectors/descriptors.json";
-import { decodeDescriptor } from "../src";
+import { decodeDescriptor } from "../src/policy-coder";
 import { expectErrorCode, hex } from "./helpers";
 
 import type { CallciumErrorCode } from "../src";
@@ -40,7 +40,7 @@ type Vector = {
   errorArgs: string[];
 };
 
-const vectors = rawVectors as Vector[];
+const vectors: Vector[] = rawVectors;
 
 describe("descriptor conformance vectors", () => {
   for (const vector of vectors) {

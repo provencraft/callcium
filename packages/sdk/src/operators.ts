@@ -1,4 +1,5 @@
 import { Op, TypeCode } from "./constants";
+import { CallciumError } from "./errors";
 
 /** Read a big-endian 256-bit unsigned integer from a 32-byte window. */
 export function toBigInt(bytes: Uint8Array, offset = 0): bigint {
@@ -14,6 +15,12 @@ export function toBigInt(bytes: Uint8Array, offset = 0): bigint {
 /** Return true when the type code represents a signed integer (int8 through int256). */
 export function isSigned(typeCode: number): boolean {
   return typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX;
+}
+
+/** Return true when the operator code (with or without NOT flag) is a LENGTH_* variant. */
+export function isLengthOp(opCode: number): boolean {
+  const base = opCode & ~Op.NOT;
+  return base >= Op.LENGTH_EQ && base <= Op.LENGTH_BETWEEN;
 }
 
 /** Return true when LENGTH_* operators are valid for the given type code (bytes, string, or dynamic array). */
@@ -119,32 +126,26 @@ export function applyOperator(
     }
 
     case Op.LENGTH_EQ:
-      if (!isLengthValidType(typeCode)) return false;
       result = BigInt(valueLength) === toBigInt(operandData, 0);
       break;
 
     case Op.LENGTH_GT:
-      if (!isLengthValidType(typeCode)) return false;
       result = BigInt(valueLength) > toBigInt(operandData, 0);
       break;
 
     case Op.LENGTH_LT:
-      if (!isLengthValidType(typeCode)) return false;
       result = BigInt(valueLength) < toBigInt(operandData, 0);
       break;
 
     case Op.LENGTH_GTE:
-      if (!isLengthValidType(typeCode)) return false;
       result = BigInt(valueLength) >= toBigInt(operandData, 0);
       break;
 
     case Op.LENGTH_LTE:
-      if (!isLengthValidType(typeCode)) return false;
       result = BigInt(valueLength) <= toBigInt(operandData, 0);
       break;
 
     case Op.LENGTH_BETWEEN: {
-      if (!isLengthValidType(typeCode)) return false;
       const len = BigInt(valueLength);
       const min = toBigInt(operandData, 0);
       const max = toBigInt(operandData, 32);
@@ -153,7 +154,7 @@ export function applyOperator(
     }
 
     default:
-      return false;
+      throw new CallciumError("INVALID_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}.`);
   }
 
   return negate ? !result : result;

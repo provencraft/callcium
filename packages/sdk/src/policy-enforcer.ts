@@ -4,35 +4,21 @@ import {
   ContextProperty,
   MAX_CONTEXT_PROPERTY_ID,
   Limits,
-  Op,
   Quantifier,
   TypeCode,
 } from "./constants";
-import { _decodePolicyFromBytes } from "./decoder";
 import { CallciumError, PolicyViolationError } from "./errors";
-import { hexToBytes, bytesToHex, readU16 } from "./hex";
-import { applyOperator, toBigInt, isLengthValidType } from "./operators";
+import { hexToBytes, bytesToHex, readU16, bigintToHex } from "./hex";
+import { applyOperator, toBigInt, isLengthOp } from "./operators";
+import { _decodePolicyFromBytes } from "./policy-coder";
 import { locate, arrayShape, arrayElementAt, loadScalar, loadSlice, descendPath } from "./reader";
 
 import type { Location } from "./reader";
 import type { Context, DescNode, EnforceResult, Hex, Violation, ViolationCode } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
-//                              HELPERS
+// Helpers
 ///////////////////////////////////////////////////////////////////////////
-
-/** Check whether an operator code (with or without NOT flag) is a LENGTH_* variant. */
-function isLengthOp(opCode: number): boolean {
-  const base = opCode & ~Op.NOT;
-  return (
-    base === Op.LENGTH_EQ ||
-    base === Op.LENGTH_GT ||
-    base === Op.LENGTH_LT ||
-    base === Op.LENGTH_GTE ||
-    base === Op.LENGTH_LTE ||
-    base === Op.LENGTH_BETWEEN
-  );
-}
 
 /** Convert a hex address to a 256-bit bigint (zero-padded to 32 bytes). */
 function addressToBigInt(hex: string): bigint {
@@ -42,13 +28,8 @@ function addressToBigInt(hex: string): bigint {
   return toBigInt(padded, 0);
 }
 
-/** Format a bigint as a zero-padded 32-byte hex string for diagnostics. */
-function bigintToHex(value: bigint): Hex {
-  return `0x${value.toString(16).padStart(64, "0")}`;
-}
-
 ///////////////////////////////////////////////////////////////////////////
-//                        CONTEXT PROPERTY MAP
+// Context Property Map
 ///////////////////////////////////////////////////////////////////////////
 
 const CTX_PROPERTY_KEYS: Record<number, keyof Context> = {
@@ -61,7 +42,7 @@ const CTX_PROPERTY_KEYS: Record<number, keyof Context> = {
 };
 
 ///////////////////////////////////////////////////////////////////////////
-//                             PUBLIC API
+// Public API
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -148,7 +129,7 @@ export function enforce(policy: Hex, callData: Hex, context?: Context): void {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                           RULE EVALUATION
+// Rule Evaluation
 ///////////////////////////////////////////////////////////////////////////
 
 /** Evaluate a single rule against calldata or context, returning a violation or null on pass. */
@@ -170,6 +151,13 @@ function evaluateRule(
   const pathBytes = hexToBytes(rule.path.value);
   const opCode = rule.opCode.value;
   const operandData = hexToBytes(rule.data.value);
+
+  if (pathBytes.length / 2 > Limits.MAX_PATH_DEPTH) {
+    throw new CallciumError(
+      "INVALID_PATH",
+      `Path depth ${pathBytes.length / 2} exceeds maximum ${Limits.MAX_PATH_DEPTH}.`,
+    );
+  }
 
   if (scope === Scope.CONTEXT) {
     return evaluateContextRule(pathBytes, opCode, operandData, groupIndex, ruleIndex, rule.path.value, context);
@@ -206,7 +194,7 @@ function evaluateRule(
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                       CONTEXT RULE EVALUATION
+// Context Rule Evaluation
 ///////////////////////////////////////////////////////////////////////////
 
 /** Evaluate a context-scoped rule by resolving the property from the execution context. */
@@ -265,7 +253,7 @@ function evaluateContextRule(
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                        CORE LEAF OPERATOR
+// Core Leaf Operator
 ///////////////////////////////////////////////////////////////////////////
 
 type LeafResult =
@@ -285,12 +273,12 @@ function applyLeafOperator(
   if (isLengthOp(opCode)) {
     let valueLength: number;
 
-    if (isLengthValidType(node.typeCode)) {
+    if (node.isDynamic) {
       const lengthResult = loadSlice(callDataBytes, location);
       if (!lengthResult.ok) return { error: lengthResult.code };
       valueLength = lengthResult.length;
     } else {
-      valueLength = 0;
+      valueLength = node.staticSize;
     }
 
     const passed = applyOperator(opCode, 0n, valueLength, operandData, node.typeCode);
@@ -306,7 +294,7 @@ function applyLeafOperator(
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                           LEAF EVALUATION
+// Leaf Evaluation
 ///////////////////////////////////////////////////////////////////////////
 
 /** Evaluate a leaf rule, producing a violation on failure or null on pass. */
@@ -352,7 +340,7 @@ function evaluateLeaf(
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                        QUANTIFIER EVALUATION
+// Quantifier Evaluation
 ///////////////////////////////////////////////////////////////////////////
 
 /** Evaluate a quantified rule by iterating over array elements with ALL/ANY semantics. */
@@ -495,7 +483,7 @@ function evaluateQuantifier(
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                        LEAF VALUE EVALUATION
+// Leaf Value Evaluation
 ///////////////////////////////////////////////////////////////////////////
 
 /** Apply a leaf operator and return a boolean. Returns false on calldata read failure. */

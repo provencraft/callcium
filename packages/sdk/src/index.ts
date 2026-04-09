@@ -1,25 +1,28 @@
-export { decodePolicy, decodeDescriptor, parsePathSteps } from "./decoder";
-export { check, enforce } from "./enforcer";
+///////////////////////////////////////////////////////////////////////////
+// Builder pipeline
+///////////////////////////////////////////////////////////////////////////
+
+export { PolicyBuilder } from "./policy-builder";
+export { PolicyCoder } from "./policy-coder";
+export { PolicyValidator } from "./policy-validator";
+export { arg, msgSender, msgValue, blockTimestamp, blockNumber, chainId, txOrigin } from "./constraint";
+export type { ConstraintBuilder, ScalarValue } from "./constraint";
+
+///////////////////////////////////////////////////////////////////////////
+// Enforcement
+///////////////////////////////////////////////////////////////////////////
+
+export { check, enforce } from "./policy-enforcer";
+
+///////////////////////////////////////////////////////////////////////////
+// Utilities
+///////////////////////////////////////////////////////////////////////////
+
 export { toAddress, hexToBytes, bytesToHex } from "./hex";
 
-export type {
-  Hex,
-  Address,
-  Span,
-  Field,
-  DecodedPolicy,
-  DecodedGroup,
-  DecodedRule,
-  DecodedParam,
-  DecodedDescriptor,
-  EnforceResult,
-  Violation,
-  ViolationCode,
-  Context,
-} from "./types";
-
-export { CallciumError, PolicyViolationError } from "./errors";
-export type { CallciumErrorCode } from "./errors";
+///////////////////////////////////////////////////////////////////////////
+// Constants
+///////////////////////////////////////////////////////////////////////////
 
 export {
   Op,
@@ -46,3 +49,29 @@ export type {
   TypeClassInfo,
   TypeClass,
 } from "./constants";
+
+///////////////////////////////////////////////////////////////////////////
+// Types
+///////////////////////////////////////////////////////////////////////////
+
+export type {
+  Hex,
+  Address,
+  Span,
+  PolicyData,
+  Constraint,
+  Issue,
+  IssueSeverity,
+  IssueCategory,
+  Context,
+  EnforceResult,
+  Violation,
+  ViolationCode,
+} from "./types";
+
+///////////////////////////////////////////////////////////////////////////
+// Errors
+///////////////////////////////////////////////////////////////////////////
+
+export { CallciumError, PolicyViolationError } from "./errors";
+export type { CallciumErrorCode } from "./errors";

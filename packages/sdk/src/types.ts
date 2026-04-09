@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////////
-//                              Primitives
+// Primitives
 ///////////////////////////////////////////////////////////////////////////
 
 /** Hex-encoded byte string, 0x-prefixed. */
@@ -8,17 +8,11 @@ export type Hex = `0x${string}`;
 /** Ethereum address, 0x-prefixed. */
 export type Address = `0x${string}`;
 
-/** Generic result type for operations that can fail with a violation code. */
-export type Result<T> = ({ ok: true } & T) | { ok: false; code: ViolationCode };
-
 /** Byte range in a source blob. */
 export type Span = { start: number; end: number };
 
-/** A decoded value with its byte position in the source blob. */
-export type Field<T> = { value: T; span: Span };
-
 ///////////////////////////////////////////////////////////////////////////
-//           Descriptor AST (internal — not exported from index.ts)
+// Descriptor AST (internal — not exported from index.ts)
 ///////////////////////////////////////////////////////////////////////////
 
 /** Shared properties for all descriptor node variants. */
@@ -57,49 +51,7 @@ export type DynamicArrayNode = DescNodeBase & {
 export type DescNode = ElementaryNode | TupleNode | StaticArrayNode | DynamicArrayNode;
 
 ///////////////////////////////////////////////////////////////////////////
-//                          Decoded structures
-///////////////////////////////////////////////////////////////////////////
-
-export type DecodedParam = {
-  index: number;
-  typeCode: number;
-  isDynamic: boolean;
-  staticSize: number;
-  /** Parameter index encoded as a big-endian uint16 hex string. */
-  path: Hex;
-  span: Span;
-};
-
-export type DecodedDescriptor = {
-  version: number;
-  params: DecodedParam[];
-};
-
-export type DecodedRule = {
-  scope: Field<number>;
-  path: Field<Hex>;
-  opCode: Field<number>;
-  data: Field<Hex>;
-  span: Span;
-};
-
-export type DecodedGroup = {
-  rules: DecodedRule[];
-  span: Span;
-};
-
-export type DecodedPolicy = {
-  header: Field<number>;
-  selector: Field<Hex>;
-  descriptor: { raw: Hex; params: DecodedParam[]; span: Span };
-  groups: DecodedGroup[];
-  span: Span;
-  version: number;
-  isSelectorless: boolean;
-};
-
-///////////////////////////////////////////////////////////////////////////
-//                               Enforce
+// Enforce
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -141,4 +93,47 @@ export type Violation = {
   path?: Hex;
   /** The actual value found in calldata or context, for diagnostic display. */
   resolvedValue?: Hex;
+};
+
+///////////////////////////////////////////////////////////////////////////
+// Canonical policy types
+///////////////////////////////////////////////////////////////////////////
+
+/** Canonical structured representation of a policy. */
+export type PolicyData = {
+  isSelectorless: boolean;
+  selector: Hex;
+  descriptor: Hex;
+  groups: Constraint[][];
+  span?: Span;
+};
+
+/** A collection of operators targeting a specific value. */
+export type Constraint = {
+  scope: number;
+  path: Hex;
+  operators: Hex[];
+  span?: Span;
+};
+
+///////////////////////////////////////////////////////////////////////////
+// Validation issues
+///////////////////////////////////////////////////////////////////////////
+
+/** Severity of a validation issue. */
+export type IssueSeverity = "info" | "warning" | "error";
+
+/** Category of a validation issue. */
+export type IssueCategory = "typeMismatch" | "contradiction" | "redundancy" | "vacuity";
+
+/** A single validation issue found during policy analysis. */
+export type Issue = {
+  severity: IssueSeverity;
+  category: IssueCategory;
+  groupIndex: number;
+  constraintIndex: number;
+  code: string;
+  value1: Hex;
+  value2: Hex;
+  message: string;
 };

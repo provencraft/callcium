@@ -1,7 +1,7 @@
 import { CallciumError } from "./errors";
 
 ///////////////////////////////////////////////////////////////////////////
-//                        Descriptor format
+// Descriptor format
 ///////////////////////////////////////////////////////////////////////////
 
 /** Binary layout constants for the Callcium descriptor format. */
@@ -23,7 +23,7 @@ export const DescriptorFormat = {
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////
-//                          Policy format
+// Policy format
 ///////////////////////////////////////////////////////////////////////////
 
 /** Binary layout constants for the Callcium policy format. */
@@ -54,7 +54,7 @@ export const PolicyFormat = {
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////
-//                        Table-derived helpers
+// Table-derived helpers
 ///////////////////////////////////////////////////////////////////////////
 
 /** Extract a `{ KEY: code }` map from a table with `key` and `code` fields. */
@@ -69,7 +69,7 @@ function buildCodeMap<T extends readonly { readonly key: string; readonly code: 
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                               Scope codes
+// Scope codes
 ///////////////////////////////////////////////////////////////////////////
 
 const SCOPE_TABLE = [
@@ -98,7 +98,7 @@ export function lookupScope(code: number): ScopeInfo {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                        Context property IDs
+// Context property IDs
 ///////////////////////////////////////////////////////////////////////////
 
 const CTX_PROP_TABLE = [
@@ -136,7 +136,7 @@ export function lookupContextProperty(code: number): ContextPropertyInfo {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                          Protocol limits
+// Protocol limits
 ///////////////////////////////////////////////////////////////////////////
 
 /** Protocol-imposed safety limits for path depth and quantifier array size. */
@@ -146,7 +146,7 @@ export const Limits = {
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////
-//                           Operator codes
+// Operator codes
 ///////////////////////////////////////////////////////////////////////////
 
 /** Operand count category for operator data validation. */
@@ -193,8 +193,6 @@ export function lookupOp(code: number): OpInfo {
   return info;
 }
 
-const operandsByCode = new Map<number, Operands>(OP_TABLE.map((e) => [e.code, e.operands]));
-
 /**
  * Check whether an operator's data payload has the correct length.
  * @param opBase - Base operator code with the NOT flag stripped.
@@ -202,7 +200,7 @@ const operandsByCode = new Map<number, Operands>(OP_TABLE.map((e) => [e.code, e.
  * @returns True if the data length is valid for the given operator.
  */
 export function isValidOperatorData(opBase: number, dataLength: number): boolean {
-  const operands = operandsByCode.get(opBase);
+  const operands = opByCode.get(opBase)?.operands;
   if (operands === "single") return dataLength === 32;
   if (operands === "range") return dataLength === 64;
   if (operands === "variadic") return dataLength > 0 && dataLength % 32 === 0;
@@ -210,7 +208,7 @@ export function isValidOperatorData(opBase: number, dataLength: number): boolean
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                          Quantifier steps
+// Quantifier steps
 ///////////////////////////////////////////////////////////////////////////
 
 const QUANTIFIER_TABLE = [
@@ -227,6 +225,11 @@ export type QuantifierInfo = { label: string };
 
 const quantifierByCode = new Map<number, QuantifierInfo>(QUANTIFIER_TABLE.map((e) => [e.code, { label: e.label }]));
 
+/** Check whether a path step is a quantifier (ALL_OR_EMPTY, ALL, or ANY). */
+export function isQuantifier(step: number): boolean {
+  return step >= Quantifier.ANY;
+}
+
 /**
  * Map a quantifier path step to its display label.
  * @param code - Quantifier step value.
@@ -240,7 +243,7 @@ export function lookupQuantifier(code: number): QuantifierInfo {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                          Type code ranges
+// Type code ranges
 ///////////////////////////////////////////////////////////////////////////
 
 /** ABI type code ranges and sentinel values for the descriptor format. */

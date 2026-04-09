@@ -36,7 +36,7 @@ function parseContext(ctx: VectorContext): Context {
   return result;
 }
 
-const vectors = Object.values(vectorMap) as Vector[];
+const vectors: Vector[] = Object.values(vectorMap);
 
 describe("enforcement conformance vectors", () => {
   for (const vector of vectors) {

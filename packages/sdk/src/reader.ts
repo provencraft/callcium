@@ -1,10 +1,15 @@
-import { Quantifier } from "./constants";
+import { isQuantifier } from "./constants";
+import { CallciumError } from "./errors";
+import { readU16 } from "./hex";
 
-import type { DescNode, DynamicArrayNode, Result, StaticArrayNode, TupleNode, ViolationCode } from "./types";
+import type { DescNode, DynamicArrayNode, StaticArrayNode, TupleNode, ViolationCode } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
-//                            RESULT TYPES
+// Result Types
 ///////////////////////////////////////////////////////////////////////////
+
+/** Generic result type for operations that can fail with a violation code. */
+export type Result<T> = ({ ok: true } & T) | { ok: false; code: ViolationCode };
 
 /** Result of a calldata read: success with data, or failure with a violation code. */
 export type ReadResult<T> = T | { code: ViolationCode };
@@ -55,7 +60,7 @@ export type LoadResult = Result<{ value: Uint8Array }>;
 export type SliceResult = Result<{ dataOffset: number; length: number }>;
 
 ///////////////////////////////////////////////////////////////////////////
-//                    CALLDATA READING PRIMITIVES
+// Calldata Reading Primitives
 ///////////////////////////////////////////////////////////////////////////
 
 /** Read 32 bytes at offset, bounds-checked. */
@@ -82,7 +87,7 @@ export function readPointer(callData: Uint8Array, head: number): ReadResult<numb
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                          INTERNAL HELPERS
+// Internal Helpers
 ///////////////////////////////////////////////////////////////////////////
 
 /** Return the number of bytes this node occupies in the head region. */
@@ -90,18 +95,13 @@ function headContribution(node: DescNode): number {
   return node.isDynamic ? 32 : node.staticSize;
 }
 
-/** Check whether a path step is a quantifier (ALL_OR_EMPTY, ALL, or ANY). */
-function isQuantifier(step: number): boolean {
-  return step === Quantifier.ALL_OR_EMPTY || step === Quantifier.ALL || step === Quantifier.ANY;
-}
-
 /** Read a single BE16 path step at the given step index. */
 function readStep(pathBytes: Uint8Array, stepIndex: number): number {
-  return (pathBytes[stepIndex * 2]! << 8) | pathBytes[stepIndex * 2 + 1]!;
+  return readU16(pathBytes, stepIndex * 2);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                         SINGLE-STEP DESCENT
+// SINGLE-STEP Descent
 ///////////////////////////////////////////////////////////////////////////
 
 type DescendResult =
@@ -231,7 +231,7 @@ function _descendStaticArray(
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                           COMPOSABLE API
+// Composable API
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -273,6 +273,12 @@ export function locate(
     // Quantifier step: return the array location and remaining path.
     if (isQuantifier(step)) {
       const remaining = pathBytes.subarray((s + 1) * 2);
+      // Defence-in-depth: reject nested quantifiers in hand-crafted blobs.
+      for (let r = 0; r < remaining.length / 2; r++) {
+        if (isQuantifier(readStep(remaining, r))) {
+          throw new CallciumError("INVALID_QUANTIFIER", "Nested quantifiers are not supported.");
+        }
+      }
       return {
         ok: true,
         type: "quantifier",

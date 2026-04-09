@@ -1,4 +1,4 @@
-import { type Hex, decodePolicy } from "@callcium/sdk";
+import { type Hex, PolicyCoder } from "@callcium/sdk";
 import type { Abi } from "viem";
 import { explainPolicy } from "./index";
 
@@ -25,8 +25,8 @@ if (args[1]) {
 }
 
 try {
-  const decoded = decodePolicy(hex as Hex);
-  const explained = explainPolicy(decoded, abi ? { abi } : undefined);
+  const policyData = PolicyCoder.decode(hex as Hex);
+  const explained = explainPolicy(policyData, abi ? { abi } : undefined);
   console.log(JSON.stringify(explained, null, 2));
 } catch (e) {
   console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);

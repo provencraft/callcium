@@ -21,7 +21,24 @@ export type CallciumErrorCode =
   | "GROUP_OVERFLOW"
   | "RULE_OVERFLOW"
   | "TRAILING_BYTES"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  | "INVALID_SIGNATURE"
+  | "INVALID_TYPE_STRING"
+  | "UNKNOWN_TYPE"
+  | "DESCRIPTOR_TOO_LARGE"
+  | "INVALID_PATH"
+  | "DUPLICATE_PATH"
+  | "INVALID_CONSTRAINT"
+  | "INVALID_OPERATOR_DATA"
+  | "EMPTY_SET"
+  | "SET_TOO_LARGE"
+  | "INVALID_RANGE"
+  | "GROUP_COUNT_OVERFLOW"
+  | "RULE_COUNT_OVERFLOW"
+  | "RULE_SIZE_OVERFLOW"
+  | "DESC_LENGTH_OVERFLOW"
+  | "INVALID_HEX"
+  | "VALIDATION_ERROR";
 
 /**
  * Thrown when a policy or descriptor blob is structurally malformed.
