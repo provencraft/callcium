@@ -506,7 +506,7 @@ library PolicyValidator {
             if (domain.hasEq && domain.hasLower) {
                 bool contradiction = domain.lowerInclusive
                     ? _isLt(domain.eq, domain.lower, domain.isSigned)
-                    : _isLe(domain.eq, domain.lower, domain.isSigned);
+                    : _isLte(domain.eq, domain.lower, domain.isSigned);
                 if (contradiction) {
                     issues[issueCount++] = _issueBoundsExcludeEquality(
                         isLength, groupIndex, constraintIndex, domain.eq, domain.lower
@@ -526,7 +526,7 @@ library PolicyValidator {
             if (domain.hasEq && domain.hasUpper) {
                 bool contradiction = domain.upperInclusive
                     ? _isGt(domain.eq, domain.upper, domain.isSigned)
-                    : _isGe(domain.eq, domain.upper, domain.isSigned);
+                    : _isGte(domain.eq, domain.upper, domain.isSigned);
                 if (contradiction) {
                     issues[issueCount++] = _issueBoundsExcludeEquality(
                         isLength, groupIndex, constraintIndex, domain.eq, domain.upper
@@ -1070,7 +1070,7 @@ library PolicyValidator {
     }
 
     /// @dev Signed-aware greater-than-or-equal comparison.
-    function _isGe(uint256 a, uint256 b, bool isSigned) private pure returns (bool) {
+    function _isGte(uint256 a, uint256 b, bool isSigned) private pure returns (bool) {
         // forge-lint: disable-next-line(unsafe-typecast) intentional uint256->int256 reinterpret.
         return isSigned ? int256(a) >= int256(b) : a >= b;
     }
@@ -1082,7 +1082,7 @@ library PolicyValidator {
     }
 
     /// @dev Signed-aware less-than-or-equal comparison.
-    function _isLe(uint256 a, uint256 b, bool isSigned) private pure returns (bool) {
+    function _isLte(uint256 a, uint256 b, bool isSigned) private pure returns (bool) {
         // forge-lint: disable-next-line(unsafe-typecast) intentional uint256->int256 reinterpret.
         return isSigned ? int256(a) <= int256(b) : a <= b;
     }
