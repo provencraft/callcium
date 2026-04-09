@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
 
 import { PolicyBuilder, arg, msgSender, msgValue, Op, Scope } from "../src";
+import { bytesToHex } from "../src/bytes";
 import { DescriptorBuilder } from "../src/descriptor-builder";
-import { bytesToHex } from "../src/hex";
 import { PolicyValidator } from "../src/policy-validator";
 import { op, rangeOp, inOp } from "./helpers";
 

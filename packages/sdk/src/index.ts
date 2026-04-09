@@ -3,7 +3,7 @@
 ///////////////////////////////////////////////////////////////////////////
 
 export { PolicyBuilder } from "./policy-builder";
-export { PolicyCoder } from "./policy-coder";
+export { PolicyCoder, parsePathSteps } from "./policy-coder";
 export { PolicyValidator } from "./policy-validator";
 export { arg, msgSender, msgValue, blockTimestamp, blockNumber, chainId, txOrigin } from "./constraint";
 export type { ConstraintBuilder, ScalarValue } from "./constraint";
@@ -12,13 +12,15 @@ export type { ConstraintBuilder, ScalarValue } from "./constraint";
 // Enforcement
 ///////////////////////////////////////////////////////////////////////////
 
-export { check, enforce } from "./policy-enforcer";
+export { PolicyEnforcer } from "./policy-enforcer";
 
 ///////////////////////////////////////////////////////////////////////////
 // Utilities
 ///////////////////////////////////////////////////////////////////////////
 
-export { toAddress, hexToBytes, bytesToHex } from "./hex";
+export { toAddress, hexToBytes, bytesToHex } from "./bytes";
+export { Descriptor } from "./descriptor";
+export type { TypeInfo } from "./descriptor";
 
 ///////////////////////////////////////////////////////////////////////////
 // Constants

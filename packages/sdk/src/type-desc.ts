@@ -1,6 +1,6 @@
+import { readU24, writeBE16, writeBE24 } from "./bytes";
 import { DescriptorFormat as DF, TypeCode } from "./constants";
 import { CallciumError } from "./errors";
-import { readU24, writeBE16, writeBE24 } from "./hex";
 
 ///////////////////////////////////////////////////////////////////////////
 // Internal helpers
@@ -14,7 +14,7 @@ import { readU24, writeBE16, writeBE24 } from "./hex";
  * reads the 24-bit meta field at offset 1 and shifts right by
  * META_STATIC_WORDS_SHIFT.
  */
-function _extractStaticWords(desc: Uint8Array): number {
+function extractStaticWords(desc: Uint8Array): number {
   const typeCode = desc[0]!;
   if (typeCode < TypeCode.STATIC_ARRAY) {
     return typeCode === TypeCode.BYTES || typeCode === TypeCode.STRING ? 0 : 1;
@@ -156,7 +156,7 @@ export function array(elemDesc: Uint8Array, length?: number): Uint8Array {
       `Static array node length ${nodeLength} exceeds maximum ${DF.MAX_NODE_LENGTH}.`,
     );
   }
-  const elemStaticWords = _extractStaticWords(elemDesc);
+  const elemStaticWords = extractStaticWords(elemDesc);
   const staticWords = elemStaticWords === 0 ? 0 : length * elemStaticWords;
   if (staticWords > DF.META_NODE_LENGTH_MASK) {
     throw new CallciumError(
@@ -200,7 +200,7 @@ export function tuple(fieldDescs: Uint8Array[]): Uint8Array {
   let anyDynamic = false;
   let staticWordsSum = 0;
   for (const field of fieldDescs) {
-    const staticWords = _extractStaticWords(field);
+    const staticWords = extractStaticWords(field);
     if (staticWords === 0) {
       anyDynamic = true;
     }

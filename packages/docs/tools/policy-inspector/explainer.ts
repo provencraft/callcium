@@ -1,4 +1,5 @@
 import {
+  Descriptor,
   DescriptorFormat as DF,
   Op,
   Scope,
@@ -12,10 +13,6 @@ import {
 } from "@callcium/sdk";
 import { type Abi, type AbiFunction, type AbiParameter, getAddress, toFunctionSelector } from "viem";
 import type { Constraint, Hex, PolicyData, Span } from "@callcium/sdk";
-
-function readU24(data: Uint8Array, offset: number): number {
-  return (data[offset] << 16) | (data[offset + 1] << 8) | data[offset + 2];
-}
 
 ///////////////////////////////////////////////////////////////////////////
 //                                TYPES
@@ -64,35 +61,7 @@ export type ExplainOptions = {
 //                         DESCRIPTOR NAVIGATION
 ///////////////////////////////////////////////////////////////////////////
 
-type ParsedParam = {
-  index: number;
-  typeCode: number;
-  isDynamic: boolean;
-};
-
-function parseDescriptorParams(descBytes: Uint8Array): ParsedParam[] {
-  const params: ParsedParam[] = [];
-  let offset: number = DF.HEADER_SIZE;
-  while (offset < descBytes.length) {
-    const typeCode = descBytes[offset];
-    const info = lookupTypeCode(typeCode);
-    const isDynamic =
-      info.typeClass === "elementary"
-        ? info.isDynamic
-        : readU24(descBytes, offset + DF.TYPECODE_SIZE) >> DF.META_STATIC_WORDS_SHIFT === 0;
-    params.push({ index: params.length, typeCode, isDynamic });
-    offset = skipNode(descBytes, offset);
-  }
-  return params;
-}
-
-function skipNode(data: Uint8Array, offset: number): number {
-  return lookupTypeCode(data[offset]).typeClass === "elementary"
-    ? offset + DF.TYPECODE_SIZE
-    : offset + (readU24(data, offset + DF.TYPECODE_SIZE) & DF.META_NODE_LENGTH_MASK);
-}
-
-// Resolve a calldata-scope path against the descriptor and optional ABI.
+/** Resolve a calldata-scope path against the descriptor and optional ABI. */
 function resolveCalldataPath(
   descBytes: Uint8Array,
   steps: number[],
@@ -100,41 +69,29 @@ function resolveCalldataPath(
 ): { pathLabel: string; targetType: string; leafTypeCode: number } {
   const paramIndex = steps[0];
   let abiParam: AbiParameter | undefined = abiInputs?.[paramIndex];
-
-  // Skip to param N in the descriptor.
-  let offset: number = DF.HEADER_SIZE;
-  for (let i = 0; i < paramIndex; i++) {
-    offset = skipNode(descBytes, offset);
-  }
-
   let label = abiParam?.name ?? `arg(${paramIndex})`;
 
-  // Navigate remaining steps into composite types.
+  // Navigate remaining steps, building a human-readable label.
+  let offset = Descriptor.paramOffset(descBytes, paramIndex);
   for (let step = 1; step < steps.length; step++) {
     const info = lookupTypeCode(descBytes[offset]);
 
     if (info.typeClass === "tuple") {
       const fieldIndex = steps[step];
-      let child: number = offset + DF.TUPLE_HEADER_SIZE;
-      for (let i = 0; i < fieldIndex; i++) {
-        child = skipNode(descBytes, child);
-      }
-      offset = child;
+      offset = Descriptor.tupleFieldOffset(descBytes, offset, fieldIndex);
       const childAbi = (abiParam as { components?: AbiParameter[] })?.components?.[fieldIndex];
       label += `.${childAbi?.name ?? `field(${fieldIndex})`}`;
       abiParam = childAbi;
     } else if (info.typeClass === "staticArray" || info.typeClass === "dynamicArray") {
       offset += DF.ARRAY_HEADER_SIZE;
       label += "[]";
-      // ABI components for arrays describe the element's tuple fields.
     } else {
       break;
     }
   }
 
-  const leafTypeCode = descBytes[offset];
-  const leafInfo = lookupTypeCode(leafTypeCode);
-  return { pathLabel: label, targetType: leafInfo.label, leafTypeCode };
+  const leafInfo = Descriptor.inspect(descBytes, offset);
+  return { pathLabel: label, targetType: lookupTypeCode(leafInfo.typeCode).label, leafTypeCode: leafInfo.typeCode };
 }
 
 // Resolve a context-scope path to its property label.
@@ -241,13 +198,18 @@ export function explainPolicy(policy: PolicyData, opts?: ExplainOptions): Explai
     }
   }
 
-  const parsedParams = parseDescriptorParams(descBytes);
-  const params: ExplainedParam[] = parsedParams.map((param) => ({
-    index: param.index,
-    name: abiInputs?.[param.index]?.name ?? null,
-    type: lookupTypeCode(param.typeCode).label,
-    isDynamic: param.isDynamic,
-  }));
+  const paramCount = Descriptor.paramCount(descBytes);
+  const params: ExplainedParam[] = [];
+  for (let i = 0; i < paramCount; i++) {
+    const offset = Descriptor.paramOffset(descBytes, i);
+    const info = Descriptor.inspect(descBytes, offset);
+    params.push({
+      index: i,
+      name: abiInputs?.[i]?.name ?? null,
+      type: lookupTypeCode(info.typeCode).label,
+      isDynamic: info.isDynamic,
+    });
+  }
 
   const groups: ExplainedGroup[] = policy.groups.map((constraints) => ({
     constraints: constraints.map((constraint) => explainConstraint(constraint, descBytes, abiInputs)),

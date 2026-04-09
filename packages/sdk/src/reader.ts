@@ -1,6 +1,6 @@
+import { readU16 } from "./bytes";
 import { isQuantifier } from "./constants";
 import { CallciumError } from "./errors";
-import { readU16 } from "./hex";
 
 import type { DescNode, DynamicArrayNode, StaticArrayNode, TupleNode, ViolationCode } from "./types";
 
@@ -109,21 +109,21 @@ type DescendResult =
   | { type: "violation"; code: ViolationCode };
 
 /** Navigate one path step through a node (tuple field, array element, or quantifier). */
-function _descend(node: DescNode, callData: Uint8Array, head: number, base: number, childIndex: number): DescendResult {
+function descend(node: DescNode, callData: Uint8Array, head: number, base: number, childIndex: number): DescendResult {
   if (node.type === "tuple") {
-    return _descendTuple(node, callData, head, base, childIndex);
+    return descendTuple(node, callData, head, base, childIndex);
   }
   if (node.type === "dynamicArray") {
-    return _descendDynamicArray(node, callData, head, base, childIndex);
+    return descendDynamicArray(node, callData, head, base, childIndex);
   }
   if (node.type === "staticArray") {
-    return _descendStaticArray(node, callData, head, base, childIndex);
+    return descendStaticArray(node, callData, head, base, childIndex);
   }
   return { type: "violation", code: "OFFSET_OUT_OF_BOUNDS" };
 }
 
 /** Descend into a tuple field by index. */
-function _descendTuple(
+function descendTuple(
   node: TupleNode,
   callData: Uint8Array,
   head: number,
@@ -160,7 +160,7 @@ function _descendTuple(
 }
 
 /** Descend into a dynamic array element by index. */
-function _descendDynamicArray(
+function descendDynamicArray(
   node: DynamicArrayNode,
   callData: Uint8Array,
   head: number,
@@ -198,7 +198,7 @@ function _descendDynamicArray(
 }
 
 /** Descend into a static array element by index. */
-function _descendStaticArray(
+function descendStaticArray(
   node: StaticArrayNode,
   callData: Uint8Array,
   head: number,
@@ -290,7 +290,7 @@ export function locate(
       };
     }
 
-    const result = _descend(node, callData, head, base, step);
+    const result = descend(node, callData, head, base, step);
     if (result.type === "violation") return { ok: false, code: result.code };
     head = result.head;
     base = result.base;
@@ -435,7 +435,7 @@ export function descendPath(callData: Uint8Array, location: Location, pathBytes:
 
   for (let s = 0; s < stepCount; s++) {
     const step = readStep(pathBytes, s);
-    const result = _descend(node, callData, head, base, step);
+    const result = descend(node, callData, head, base, step);
     if (result.type === "violation") return { ok: false, code: result.code };
     head = result.head;
     base = result.base;

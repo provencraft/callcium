@@ -11,7 +11,7 @@ export const ZERO: Hex = `0x${"0".repeat(64)}`;
 ///////////////////////////////////////////////////////////////////////////
 
 /** Construct a fully populated Issue. */
-function _issue(
+function makeIssue(
   severity: IssueSeverity,
   category: IssueCategory,
   groupIndex: number,
@@ -36,7 +36,7 @@ export function fromOpRule(
   constraintIndex: number,
   opCode: Hex,
 ): Issue {
-  return _issue("error", "typeMismatch", groupIndex, constraintIndex, code, opCode, ZERO, message);
+  return makeIssue("error", "typeMismatch", groupIndex, constraintIndex, code, opCode, ZERO, message);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -45,7 +45,7 @@ export function fromOpRule(
 
 /** eq(v) and neq(v) on same path. */
 export function eqNeqContradiction(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -59,7 +59,7 @@ export function eqNeqContradiction(groupIndex: number, constraintIndex: number, 
 
 /** Multiple eq() operators with different values. */
 export function conflictingEquality(groupIndex: number, constraintIndex: number, existing: Hex, newValue: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -73,7 +73,7 @@ export function conflictingEquality(groupIndex: number, constraintIndex: number,
 
 /** Value is outside the physical range of the type. */
 export function outOfPhysicalBounds(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -87,7 +87,7 @@ export function outOfPhysicalBounds(groupIndex: number, constraintIndex: number,
 
 /** gt() on type maximum is impossible. */
 export function impossibleGt(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -101,7 +101,7 @@ export function impossibleGt(groupIndex: number, constraintIndex: number, value:
 
 /** lt() on type minimum is impossible. */
 export function impossibleLt(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -115,7 +115,7 @@ export function impossibleLt(groupIndex: number, constraintIndex: number, value:
 
 /** eq() value is excluded by bound. */
 export function boundsExcludeEquality(groupIndex: number, constraintIndex: number, eq: Hex, bound: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -129,7 +129,7 @@ export function boundsExcludeEquality(groupIndex: number, constraintIndex: numbe
 
 /** Lower bound exceeds upper bound. */
 export function impossibleRange(groupIndex: number, constraintIndex: number, lower: Hex, upper: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -143,7 +143,7 @@ export function impossibleRange(groupIndex: number, constraintIndex: number, low
 
 /** Set operation excludes existing eq() value. */
 export function setExcludesEquality(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -157,7 +157,7 @@ export function setExcludesEquality(groupIndex: number, constraintIndex: number,
 
 /** Multiple isIn() sets have no intersection. */
 export function emptySetIntersection(groupIndex: number, constraintIndex: number): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -171,7 +171,7 @@ export function emptySetIntersection(groupIndex: number, constraintIndex: number
 
 /** All values in isIn() set are excluded by neq/notIn. */
 export function setFullyExcluded(groupIndex: number, constraintIndex: number): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -185,7 +185,7 @@ export function setFullyExcluded(groupIndex: number, constraintIndex: number): I
 
 /** lengthEq(v) and lengthNeq(v) on same path. */
 export function lengthEqNeqContradiction(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -199,7 +199,7 @@ export function lengthEqNeqContradiction(groupIndex: number, constraintIndex: nu
 
 /** Multiple lengthEq() operators with different values. */
 export function conflictingLength(groupIndex: number, constraintIndex: number, existing: Hex, newValue: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -213,7 +213,7 @@ export function conflictingLength(groupIndex: number, constraintIndex: number, e
 
 /** lengthEq() value is excluded by bound. */
 export function boundsExcludeLength(groupIndex: number, constraintIndex: number, eq: Hex, bound: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -227,7 +227,7 @@ export function boundsExcludeLength(groupIndex: number, constraintIndex: number,
 
 /** Lower length bound exceeds upper bound. */
 export function impossibleLengthRange(groupIndex: number, constraintIndex: number, lower: Hex, upper: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -241,7 +241,7 @@ export function impossibleLengthRange(groupIndex: number, constraintIndex: numbe
 
 /** Length value is outside the physical range. */
 export function outOfPhysicalLengthBounds(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -255,7 +255,7 @@ export function outOfPhysicalLengthBounds(groupIndex: number, constraintIndex: n
 
 /** lengthGt() on maximum length is impossible. */
 export function impossibleLengthGt(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -269,7 +269,7 @@ export function impossibleLengthGt(groupIndex: number, constraintIndex: number, 
 
 /** lengthLt() on minimum length is impossible. */
 export function impossibleLengthLt(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -283,7 +283,7 @@ export function impossibleLengthLt(groupIndex: number, constraintIndex: number, 
 
 /** Bitmask operators conflict. */
 export function bitmaskContradiction(groupIndex: number, constraintIndex: number, mask: Hex, conflicting: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -297,7 +297,7 @@ export function bitmaskContradiction(groupIndex: number, constraintIndex: number
 
 /** bitmaskAny is impossible because all bits are forbidden. */
 export function bitmaskAnyImpossible(groupIndex: number, constraintIndex: number, mask: Hex, mustBeZero: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -311,7 +311,7 @@ export function bitmaskAnyImpossible(groupIndex: number, constraintIndex: number
 
 /** isIn/notIn set is not strictly sorted and deduplicated. */
 export function unsortedInSet(groupIndex: number, constraintIndex: number): Issue {
-  return _issue(
+  return makeIssue(
     "error",
     "contradiction",
     groupIndex,
@@ -325,7 +325,7 @@ export function unsortedInSet(groupIndex: number, constraintIndex: number): Issu
 
 /** Group contains zero constraints. */
 export function emptyGroup(groupIndex: number): Issue {
-  return _issue("error", "vacuity", groupIndex, 0, "EMPTY_GROUP", ZERO, ZERO, "Group contains zero constraints.");
+  return makeIssue("error", "vacuity", groupIndex, 0, "EMPTY_GROUP", ZERO, ZERO, "Group contains zero constraints.");
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -334,7 +334,7 @@ export function emptyGroup(groupIndex: number): Issue {
 
 /** Numeric bound is dominated by a stricter bound. */
 export function dominatedBound(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "warning",
     "redundancy",
     groupIndex,
@@ -348,7 +348,7 @@ export function dominatedBound(groupIndex: number, constraintIndex: number, valu
 
 /** Bound is redundant because eq() is set. */
 export function redundantBound(groupIndex: number, constraintIndex: number, bound: Hex, eq: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "warning",
     "redundancy",
     groupIndex,
@@ -362,7 +362,7 @@ export function redundantBound(groupIndex: number, constraintIndex: number, boun
 
 /** notIn() value was present in isIn() set. */
 export function setReduction(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "warning",
     "redundancy",
     groupIndex,
@@ -376,7 +376,7 @@ export function setReduction(groupIndex: number, constraintIndex: number, value:
 
 /** isIn() sets partially overlap. */
 export function setRedundancy(groupIndex: number, constraintIndex: number, intersectionCount: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "warning",
     "redundancy",
     groupIndex,
@@ -390,7 +390,7 @@ export function setRedundancy(groupIndex: number, constraintIndex: number, inter
 
 /** Some values in isIn() set are excluded by neq/notIn. */
 export function setPartiallyExcluded(groupIndex: number, constraintIndex: number, excludedCount: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "warning",
     "redundancy",
     groupIndex,
@@ -404,7 +404,7 @@ export function setPartiallyExcluded(groupIndex: number, constraintIndex: number
 
 /** Length bound is dominated by a stricter bound. */
 export function dominatedLengthBound(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "warning",
     "redundancy",
     groupIndex,
@@ -418,7 +418,7 @@ export function dominatedLengthBound(groupIndex: number, constraintIndex: number
 
 /** Length bound is redundant because lengthEq() is set. */
 export function redundantLengthBound(groupIndex: number, constraintIndex: number, bound: Hex, eq: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "warning",
     "redundancy",
     groupIndex,
@@ -432,7 +432,7 @@ export function redundantLengthBound(groupIndex: number, constraintIndex: number
 
 /** Bitmask operation is redundant. */
 export function redundantBitmask(groupIndex: number, constraintIndex: number, mask: Hex, existing: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "warning",
     "redundancy",
     groupIndex,
@@ -446,7 +446,7 @@ export function redundantBitmask(groupIndex: number, constraintIndex: number, ma
 
 /** Duplicate operator in constraint. */
 export function duplicateConstraint(groupIndex: number, constraintIndex: number): Issue {
-  return _issue(
+  return makeIssue(
     "warning",
     "redundancy",
     groupIndex,
@@ -464,7 +464,7 @@ export function duplicateConstraint(groupIndex: number, constraintIndex: number)
 
 /** gte() bound equals type minimum (always true). */
 export function vacuousGte(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "info",
     "vacuity",
     groupIndex,
@@ -478,7 +478,7 @@ export function vacuousGte(groupIndex: number, constraintIndex: number, value: H
 
 /** lte() bound equals type maximum (always true). */
 export function vacuousLte(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "info",
     "vacuity",
     groupIndex,
@@ -492,7 +492,7 @@ export function vacuousLte(groupIndex: number, constraintIndex: number, value: H
 
 /** lengthGte(0) is always true. */
 export function vacuousLengthGte(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "info",
     "vacuity",
     groupIndex,
@@ -506,7 +506,7 @@ export function vacuousLengthGte(groupIndex: number, constraintIndex: number, va
 
 /** lengthLte() bound equals maximum (always true). */
 export function vacuousLengthLte(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return _issue(
+  return makeIssue(
     "info",
     "vacuity",
     groupIndex,

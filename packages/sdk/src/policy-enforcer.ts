@@ -1,3 +1,4 @@
+import { hexToBytes, bytesToHex, readU16, bigintToHex } from "./bytes";
 import {
   PolicyFormat as PF,
   Scope,
@@ -8,9 +9,8 @@ import {
   TypeCode,
 } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
-import { hexToBytes, bytesToHex, readU16, bigintToHex } from "./hex";
 import { applyOperator, toBigInt, isLengthOp } from "./operators";
-import { _decodePolicyFromBytes } from "./policy-coder";
+import { decodePolicyFromBytes } from "./policy-coder";
 import { locate, arrayShape, arrayElementAt, loadScalar, loadSlice, descendPath } from "./reader";
 
 import type { Location } from "./reader";
@@ -53,8 +53,8 @@ const CTX_PROPERTY_KEYS: Record<number, keyof Context> = {
  * @returns Pass with matched group index, or fail with one violation per failed group.
  * @throws {CallciumError} If the policy blob is structurally malformed.
  */
-export function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
-  const { policy: decoded, tree } = _decodePolicyFromBytes(hexToBytes(policy));
+function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
+  const { policy: decoded, tree } = decodePolicyFromBytes(hexToBytes(policy));
   const callDataBytes = hexToBytes(callData);
 
   // Selector check.
@@ -121,7 +121,7 @@ export function check(policy: Hex, callData: Hex, context?: Context): EnforceRes
  * @throws {PolicyViolationError} If the policy rejects the call data.
  * @throws {CallciumError} If the policy blob is structurally malformed.
  */
-export function enforce(policy: Hex, callData: Hex, context?: Context): void {
+function enforce(policy: Hex, callData: Hex, context?: Context): void {
   const result = check(policy, callData, context);
   if (!result.ok) {
     throw new PolicyViolationError(result.violations);
@@ -497,3 +497,6 @@ function evaluateLeafValue(
   if ("error" in result) return false;
   return result.passed;
 }
+
+/** Check and enforce policies against ABI-encoded call data. */
+export const PolicyEnforcer = { check, enforce };

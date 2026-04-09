@@ -1,9 +1,9 @@
+import { bytesToHex, hexToBytes, readU16 } from "./bytes";
 import { Scope, TypeCode, isQuantifier, MAX_CONTEXT_PROPERTY_ID, DescriptorFormat as DF } from "./constants";
 import { ConstraintBuilder } from "./constraint";
 import { Descriptor } from "./descriptor";
 import { DescriptorBuilder } from "./descriptor-builder";
 import { CallciumError } from "./errors";
-import { bytesToHex, hexToBytes, readU16 } from "./hex";
 import { PolicyCoder, parsePathSteps } from "./policy-coder";
 import { PolicyValidator } from "./policy-validator";
 import { SignatureParser } from "./signature";
@@ -27,7 +27,7 @@ type PolicyDraft = {
 ///////////////////////////////////////////////////////////////////////////
 
 /** Validate a context-scope path. */
-function _validateContextPath(pathBytes: Uint8Array): void {
+function validateContextPath(pathBytes: Uint8Array): void {
   if (pathBytes.length !== 2) {
     throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope path must be exactly one step (2 bytes).");
   }
@@ -41,7 +41,7 @@ function _validateContextPath(pathBytes: Uint8Array): void {
 }
 
 /** Validate a calldata-scope path against the descriptor. */
-function _validateCalldataPath(path: Hex, desc: Uint8Array): void {
+function validateCalldataPath(path: Hex, desc: Uint8Array): void {
   const steps = parsePathSteps(path);
   if (steps.length === 0) {
     throw new CallciumError("INVALID_PATH", "Calldata path must have at least one step.");
@@ -103,10 +103,10 @@ function _validateCalldataPath(path: Hex, desc: Uint8Array): void {
 
 /** Fluent builder for constructing Callcium policies. */
 export class PolicyBuilder {
-  private _draft: PolicyDraft;
+  private draft: PolicyDraft;
 
   private constructor(draft: PolicyDraft) {
-    this._draft = draft;
+    this.draft = draft;
   }
 
   /**
@@ -156,32 +156,32 @@ export class PolicyBuilder {
     }
 
     if (c.scope === Scope.CONTEXT) {
-      _validateContextPath(hexToBytes(c.path));
+      validateContextPath(hexToBytes(c.path));
     } else if (c.scope === Scope.CALLDATA) {
-      _validateCalldataPath(c.path, this._draft.descriptor);
+      validateCalldataPath(c.path, this.draft.descriptor);
     } else {
       throw new CallciumError("INVALID_SCOPE", `Unknown scope value ${c.scope}.`);
     }
 
     const key = `${c.scope}:${c.path.toLowerCase()}`;
-    const currentHashes = this._draft.pathHashes[this._draft.pathHashes.length - 1]!;
+    const currentHashes = this.draft.pathHashes[this.draft.pathHashes.length - 1]!;
     if (currentHashes.has(key)) {
       throw new CallciumError("DUPLICATE_PATH", `Duplicate path ${c.path} in the same group.`);
     }
 
     currentHashes.add(key);
-    this._draft.groups[this._draft.groups.length - 1]!.push(c);
+    this.draft.groups[this.draft.groups.length - 1]!.push(c);
     return this;
   }
 
   /** Start a new constraint group (OR branch). */
   or(): this {
-    const lastGroup = this._draft.groups[this._draft.groups.length - 1]!;
+    const lastGroup = this.draft.groups[this.draft.groups.length - 1]!;
     if (lastGroup.length === 0) {
       throw new CallciumError("EMPTY_GROUP", "Cannot start a new group when the current group is empty.");
     }
-    this._draft.groups.push([]);
-    this._draft.pathHashes.push(new Set());
+    this.draft.groups.push([]);
+    this.draft.pathHashes.push(new Set());
     return this;
   }
 
@@ -191,8 +191,8 @@ export class PolicyBuilder {
    * @throws {CallciumError} If any group is empty or validation finds errors.
    */
   build(): Hex {
-    this._checkGroups();
-    const policyData = this._toPolicyData();
+    this.checkGroups();
+    const policyData = this.toPolicyData();
     const issues = PolicyValidator.validate(policyData);
     const firstError = issues.find((issue) => issue.severity === "error");
     if (firstError) {
@@ -206,27 +206,27 @@ export class PolicyBuilder {
    * @returns All validation issues found.
    */
   validate(): Issue[] {
-    this._checkGroups();
-    const policyData = this._toPolicyData();
+    this.checkGroups();
+    const policyData = this.toPolicyData();
     return PolicyValidator.validate(policyData);
   }
 
   /** Throw if any group is empty. */
-  private _checkGroups(): void {
-    for (let i = 0; i < this._draft.groups.length; i++) {
-      if (this._draft.groups[i]!.length === 0) {
+  private checkGroups(): void {
+    for (let i = 0; i < this.draft.groups.length; i++) {
+      if (this.draft.groups[i]!.length === 0) {
         throw new CallciumError("EMPTY_GROUP", `Group ${i} is empty.`);
       }
     }
   }
 
   /** Convert the draft to a PolicyData structure. */
-  private _toPolicyData(): PolicyData {
+  private toPolicyData(): PolicyData {
     return {
-      isSelectorless: this._draft.isSelectorless,
-      selector: this._draft.selector,
-      descriptor: bytesToHex(this._draft.descriptor),
-      groups: this._draft.groups,
+      isSelectorless: this.draft.isSelectorless,
+      selector: this.draft.selector,
+      descriptor: bytesToHex(this.draft.descriptor),
+      groups: this.draft.groups,
     };
   }
 }

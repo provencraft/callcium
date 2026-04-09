@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import vectorMap from "../../contracts/test/vectors/enforcement.json";
-import { check, toAddress } from "../src";
+import { PolicyEnforcer, toAddress } from "../src";
 import { hex } from "./helpers";
 
 import type { Context } from "../src";
@@ -43,7 +43,7 @@ describe("enforcement conformance vectors", () => {
     test(`${vector.id}: ${vector.description}`, () => {
       const context = vector.context ? parseContext(vector.context) : undefined;
 
-      const result = check(hex(vector.policy), hex(vector.callData), context);
+      const result = PolicyEnforcer.check(hex(vector.policy), hex(vector.callData), context);
 
       if (vector.expected) {
         expect(result.ok, `Expected pass but got fail: ${!result.ok ? JSON.stringify(result.violations) : ""}`).toBe(

@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { DescriptorFormat as DF, TypeCode } from "../src/constants";
 import { DescriptorBuilder } from "../src/descriptor-builder";
-import { _decodeDescriptorFromBytes } from "../src/policy-coder";
+import { decodeDescriptorFromBytes } from "../src/policy-coder";
 import { expectErrorCode } from "./helpers";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -11,7 +11,7 @@ import { expectErrorCode } from "./helpers";
 
 /** Verify that encoded bytes decode without error and return the decoded param count. */
 function decodeParamCount(bytes: Uint8Array): number {
-  const { descriptor } = _decodeDescriptorFromBytes(bytes);
+  const { descriptor } = decodeDescriptorFromBytes(bytes);
   return descriptor.params.length;
 }
 

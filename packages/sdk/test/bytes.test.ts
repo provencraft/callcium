@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { bytesToHex, hexToBytes, toAddress } from "../src/hex";
+import { bytesToHex, hexToBytes, toAddress } from "../src/bytes";
 
 describe("hexToBytes", () => {
   test("converts 0x-prefixed hex", () => {

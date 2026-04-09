@@ -1,6 +1,6 @@
+import { bigintToHex, hexToBytes } from "./bytes";
 import { lookupContextProperty, Op, Scope, TypeCode } from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
-import { bigintToHex, hexToBytes } from "./hex";
 import { isSigned, isLengthOp, isLengthValidType } from "./operators";
 import { parsePathSteps } from "./policy-coder";
 import * as Issues from "./validation-issue";
@@ -78,40 +78,46 @@ const INT256_SIGN_BIT = 1n << 255n;
 ///////////////////////////////////////////////////////////////////////////
 
 /** Reinterpret a uint256 bigint as a signed int256. */
-function _toSigned(v: bigint): bigint {
+function toSigned(v: bigint): bigint {
   return v >= INT256_SIGN_BIT ? v - (1n << 256n) : v;
 }
 
-function _isGt(a: bigint, b: bigint, signed: boolean): boolean {
-  return signed ? _toSigned(a) > _toSigned(b) : a > b;
+/** a > b. */
+function isGt(a: bigint, b: bigint, signed: boolean): boolean {
+  return signed ? toSigned(a) > toSigned(b) : a > b;
 }
 
-function _isGte(a: bigint, b: bigint, signed: boolean): boolean {
-  return signed ? _toSigned(a) >= _toSigned(b) : a >= b;
+/** a >= b. */
+function isGte(a: bigint, b: bigint, signed: boolean): boolean {
+  return signed ? toSigned(a) >= toSigned(b) : a >= b;
 }
 
-function _isLt(a: bigint, b: bigint, signed: boolean): boolean {
-  return signed ? _toSigned(a) < _toSigned(b) : a < b;
+/** a < b. */
+function isLt(a: bigint, b: bigint, signed: boolean): boolean {
+  return signed ? toSigned(a) < toSigned(b) : a < b;
 }
 
-function _isLte(a: bigint, b: bigint, signed: boolean): boolean {
-  return signed ? _toSigned(a) <= _toSigned(b) : a <= b;
+/** a <= b. */
+function isLte(a: bigint, b: bigint, signed: boolean): boolean {
+  return signed ? toSigned(a) <= toSigned(b) : a <= b;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Type classification
 ///////////////////////////////////////////////////////////////////////////
 
-function _isNumericType(typeCode: number): boolean {
+/** True for uint and int type codes. */
+function isNumericType(typeCode: number): boolean {
   return typeCode <= TypeCode.UINT_MAX || (typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX);
 }
 
-function _isBitmaskCompatible(typeCode: number): boolean {
+/** True for uint and bytes32 type codes. */
+function isBitmaskCompatible(typeCode: number): boolean {
   return typeCode <= TypeCode.UINT_MAX || typeCode === TypeCode.FIXED_BYTES_MIN + 31;
 }
 
 /** Physical domain limits for a type code (returned as raw uint256 bigints). */
-function _getDomainLimits(typeCode: number): { min: bigint; max: bigint } {
+function getDomainLimits(typeCode: number): { min: bigint; max: bigint } {
   if (typeCode <= TypeCode.UINT_MAX) {
     const bits = BigInt(typeCode - TypeCode.UINT_MIN + 1) * 8n;
     return { min: 0n, max: bits === 256n ? UINT256_MAX : (1n << bits) - 1n };
@@ -137,15 +143,18 @@ function _getDomainLimits(typeCode: number): { min: bigint; max: bigint } {
 // Operator classification
 ///////////////////////////////////////////////////////////////////////////
 
-function _isValueOp(opBase: number): boolean {
+/** True for EQ, GT, LT, GTE, LTE, BETWEEN, IN, BITMASK_*. */
+function isValueOp(opBase: number): boolean {
   return opBase <= Op.BITMASK_NONE;
 }
 
-function _isComparisonOp(opBase: number): boolean {
+/** True for GT, LT, GTE, LTE, BETWEEN. */
+function isComparisonOp(opBase: number): boolean {
   return opBase >= Op.GT && opBase <= Op.BETWEEN;
 }
 
-function _isBitmaskOp(opBase: number): boolean {
+/** True for BITMASK_ALL, BITMASK_ANY, BITMASK_NONE. */
+function isBitmaskOp(opBase: number): boolean {
   return opBase >= Op.BITMASK_ALL && opBase <= Op.BITMASK_NONE;
 }
 
@@ -153,24 +162,25 @@ function _isBitmaskOp(opBase: number): boolean {
 // Type compatibility check
 ///////////////////////////////////////////////////////////////////////////
 
-function _checkCompatibility(
+/** Check operator–type compatibility and return an issue descriptor on mismatch. */
+function checkCompatibility(
   opBase: number,
   typeCode: number,
   isDynamic: boolean,
   staticSize: number,
 ): { compatible: boolean; code: string; message: string } {
-  if (_isValueOp(opBase)) {
+  if (isValueOp(opBase)) {
     if (isDynamic || staticSize !== 32) {
       return { compatible: false, code: "VALUE_OP_ON_DYNAMIC", message: "Value operator used on dynamic type" };
     }
-    if (_isComparisonOp(opBase) && !_isNumericType(typeCode)) {
+    if (isComparisonOp(opBase) && !isNumericType(typeCode)) {
       return {
         compatible: false,
         code: "NUMERIC_OP_ON_NON_NUMERIC",
         message: "Comparison operator used on non-numeric type",
       };
     }
-    if (_isBitmaskOp(opBase) && !_isBitmaskCompatible(typeCode)) {
+    if (isBitmaskOp(opBase) && !isBitmaskCompatible(typeCode)) {
       return {
         compatible: false,
         code: "BITMASK_ON_INVALID",
@@ -193,12 +203,12 @@ function _checkCompatibility(
 ///////////////////////////////////////////////////////////////////////////
 
 /** Read a single uint256 from operator hex (bytes after the opcode byte). */
-function _readValue(opHex: Hex): bigint {
+function readValue(opHex: Hex): bigint {
   return BigInt(`0x${opHex.slice(4)}`);
 }
 
 /** Read a pair of uint256 values from a BETWEEN operator. */
-function _readPair(opHex: Hex): { low: bigint; high: bigint } {
+function readPair(opHex: Hex): { low: bigint; high: bigint } {
   const body = opHex.slice(4);
   return {
     low: BigInt(`0x${body.slice(0, 64)}`),
@@ -207,7 +217,7 @@ function _readPair(opHex: Hex): { low: bigint; high: bigint } {
 }
 
 /** Unpack an IN operator's payload into an array of bigint values. */
-function _unpackSet(opHex: Hex): bigint[] {
+function unpackSet(opHex: Hex): bigint[] {
   const body = opHex.slice(4);
   const count = body.length / 64;
   const values: bigint[] = [];
@@ -217,7 +227,8 @@ function _unpackSet(opHex: Hex): bigint[] {
   return values;
 }
 
-function _isStrictlyAscending(values: bigint[]): boolean {
+/** True if every element is strictly greater than the previous. */
+function isStrictlyAscending(values: bigint[]): boolean {
   for (let i = 1; i < values.length; i++) {
     if (values[i]! <= values[i - 1]!) return false;
   }
@@ -229,7 +240,7 @@ function _isStrictlyAscending(values: bigint[]): boolean {
 ///////////////////////////////////////////////////////////////////////////
 
 /** Convert LENGTH_* opcode to its core comparison equivalent. */
-function _normalizeLengthOp(base: number): number {
+function normalizeLengthOp(base: number): number {
   if (base === Op.LENGTH_EQ) return Op.EQ;
   if (base === Op.LENGTH_GT) return Op.GT;
   if (base === Op.LENGTH_LT) return Op.LT;
@@ -239,7 +250,7 @@ function _normalizeLengthOp(base: number): number {
 }
 
 /** Convert a negated bound opcode to its positive equivalent. */
-function _negateBoundOp(base: number): number {
+function negateBoundOp(base: number): number {
   if (base === Op.GT) return Op.LTE;
   if (base === Op.GTE) return Op.LT;
   if (base === Op.LT) return Op.GTE;
@@ -251,8 +262,9 @@ function _negateBoundOp(base: number): number {
 // Context initialization
 ///////////////////////////////////////////////////////////////////////////
 
-function _initContext(scope: number, path: Hex, typeInfo: TypeInfo): ConstraintContext {
-  const { min, max } = _getDomainLimits(typeInfo.typeCode);
+/** Create a fresh constraint context with domain limits from the type. */
+function initContext(scope: number, path: Hex, typeInfo: TypeInfo): ConstraintContext {
+  const { min, max } = getDomainLimits(typeInfo.typeCode);
   return {
     scope,
     path,
@@ -298,7 +310,8 @@ function _initContext(scope: number, path: Hex, typeInfo: TypeInfo): ConstraintC
 // Bound domain update
 ///////////////////////////////////////////////////////////////////////////
 
-function _updateBound(
+/** Narrow the numeric bound domain with an operator and emit issues on contradiction or redundancy. */
+function updateBound(
   domain: BoundDomain,
   base: number,
   isNegated: boolean,
@@ -329,7 +342,7 @@ function _updateBound(
         domain.holes.push(value);
       }
     } else {
-      _updateBound(domain, _negateBoundOp(base), false, value, emit, groupIndex, constraintIndex, issues);
+      updateBound(domain, negateBoundOp(base), false, value, emit, groupIndex, constraintIndex, issues);
     }
     return;
   }
@@ -342,7 +355,7 @@ function _updateBound(
   }
 
   // Physical bounds and impossibility.
-  if (_isLt(value, domain.min, domain.isSigned) || _isGt(value, domain.max, domain.isSigned)) {
+  if (isLt(value, domain.min, domain.isSigned) || isGt(value, domain.max, domain.isSigned)) {
     issues.push(emit.outOfPhysicalBounds(groupIndex, constraintIndex, bigintToHex(value)));
   } else if (base === Op.GT && value === domain.max) {
     issues.push(emit.impossibleGt(groupIndex, constraintIndex, bigintToHex(value)));
@@ -371,7 +384,7 @@ function _updateBound(
       let redundant = false;
       let strictlyBetter = false;
 
-      if (_isLt(value, domain.lower, domain.isSigned)) {
+      if (isLt(value, domain.lower, domain.isSigned)) {
         redundant = true;
       } else if (value === domain.lower) {
         if (domain.lowerInclusive) {
@@ -405,7 +418,7 @@ function _updateBound(
       let redundant = false;
       let strictlyBetter = false;
 
-      if (_isGt(value, domain.upper, domain.isSigned)) {
+      if (isGt(value, domain.upper, domain.isSigned)) {
         redundant = true;
       } else if (value === domain.upper) {
         if (domain.upperInclusive) {
@@ -439,8 +452,8 @@ function _updateBound(
   if (changedEq || changedLower) {
     if (domain.hasEq && domain.hasLower) {
       const contradiction = domain.lowerInclusive
-        ? _isLt(domain.eq, domain.lower, domain.isSigned)
-        : _isLte(domain.eq, domain.lower, domain.isSigned);
+        ? isLt(domain.eq, domain.lower, domain.isSigned)
+        : isLte(domain.eq, domain.lower, domain.isSigned);
       if (contradiction) {
         issues.push(
           emit.boundsExcludeEquality(groupIndex, constraintIndex, bigintToHex(domain.eq), bigintToHex(domain.lower)),
@@ -455,8 +468,8 @@ function _updateBound(
   if (changedEq || changedUpper) {
     if (domain.hasEq && domain.hasUpper) {
       const contradiction = domain.upperInclusive
-        ? _isGt(domain.eq, domain.upper, domain.isSigned)
-        : _isGte(domain.eq, domain.upper, domain.isSigned);
+        ? isGt(domain.eq, domain.upper, domain.isSigned)
+        : isGte(domain.eq, domain.upper, domain.isSigned);
       if (contradiction) {
         issues.push(
           emit.boundsExcludeEquality(groupIndex, constraintIndex, bigintToHex(domain.eq), bigintToHex(domain.upper)),
@@ -471,7 +484,7 @@ function _updateBound(
   if (changedLower || changedUpper) {
     if (domain.hasLower && domain.hasUpper) {
       const impossible =
-        _isGt(domain.lower, domain.upper, domain.isSigned) ||
+        isGt(domain.lower, domain.upper, domain.isSigned) ||
         (domain.lower === domain.upper && (!domain.lowerInclusive || !domain.upperInclusive));
       if (impossible) {
         issues.push(
@@ -486,7 +499,8 @@ function _updateBound(
 // Bitmask domain update
 ///////////////////////////////////////////////////////////////////////////
 
-function _updateBitmask(
+/** Update the bitmask domain and emit issues on contradiction or redundancy. */
+function updateBitmask(
   ctx: ConstraintContext,
   base: number,
   isNegated: boolean,
@@ -549,7 +563,8 @@ function _updateBitmask(
 // Set domain update
 ///////////////////////////////////////////////////////////////////////////
 
-function _checkSetEmpty(ctx: ConstraintContext, groupIndex: number, constraintIndex: number, issues: Issue[]): void {
+/** Emit an issue if the IN set has been fully excluded by NOT_IN or NEQ holes. */
+function checkSetEmpty(ctx: ConstraintContext, groupIndex: number, constraintIndex: number, issues: Issue[]): void {
   if (!ctx.set.hasIn) return;
 
   let possibleCount = 0;
@@ -581,7 +596,8 @@ function _checkSetEmpty(ctx: ConstraintContext, groupIndex: number, constraintIn
   }
 }
 
-function _updateSet(
+/** Update the set domain with IN or NOT_IN values and emit issues on contradiction or redundancy. */
+function updateSet(
   ctx: ConstraintContext,
   isNegated: boolean,
   values: bigint[],
@@ -610,7 +626,7 @@ function _updateSet(
         ctx.set.notInValues.push(val);
       }
     }
-    _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
+    checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
   } else {
     if (ctx.numeric.hasEq) {
       let found = false;
@@ -647,7 +663,7 @@ function _updateSet(
       ctx.set.inValues = values;
     }
 
-    _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
+    checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
   }
 }
 
@@ -655,7 +671,8 @@ function _updateSet(
 // Duplicate detection
 ///////////////////////////////////////////////////////////////////////////
 
-function _checkDuplicates(issues: Issue[], operators: Hex[], groupIndex: number, constraintIndex: number): void {
+/** Emit a warning for each pair of identical operators on the same constraint. */
+function checkDuplicates(issues: Issue[], operators: Hex[], groupIndex: number, constraintIndex: number): void {
   const normalized = operators.map((op) => op.toLowerCase());
   for (let i = 0; i < normalized.length; i++) {
     for (let j = i + 1; j < normalized.length; j++) {
@@ -670,7 +687,8 @@ function _checkDuplicates(issues: Issue[], operators: Hex[], groupIndex: number,
 // Constraint validation
 ///////////////////////////////////////////////////////////////////////////
 
-function _validateConstraint(
+/** Validate all operators on a single constraint against its domain context. */
+function validateConstraint(
   ctx: ConstraintContext,
   constraint: Constraint,
   groupIndex: number,
@@ -684,7 +702,7 @@ function _validateConstraint(
     const base = opCode & ~Op.NOT;
     const isNegated = (opCode & Op.NOT) !== 0;
 
-    const compat = _checkCompatibility(base, ctx.typeInfo.typeCode, ctx.typeInfo.isDynamic, ctx.typeInfo.staticSize);
+    const compat = checkCompatibility(base, ctx.typeInfo.typeCode, ctx.typeInfo.isDynamic, ctx.typeInfo.staticSize);
     if (!compat.compatible) {
       issues.push(
         Issues.fromOpRule(compat.code, compat.message, groupIndex, constraintIndex, bigintToHex(BigInt(opCode))),
@@ -692,41 +710,41 @@ function _validateConstraint(
       continue;
     }
 
-    if (_isValueOp(base)) {
+    if (isValueOp(base)) {
       if (base >= Op.EQ && base <= Op.BETWEEN) {
         if (base === Op.BETWEEN) {
-          const { low, high } = _readPair(opHex);
-          _updateBound(ctx.numeric, Op.GTE, isNegated, low, boundIssues(false), groupIndex, constraintIndex, issues);
-          _updateBound(ctx.numeric, Op.LTE, isNegated, high, boundIssues(false), groupIndex, constraintIndex, issues);
+          const { low, high } = readPair(opHex);
+          updateBound(ctx.numeric, Op.GTE, isNegated, low, boundIssues(false), groupIndex, constraintIndex, issues);
+          updateBound(ctx.numeric, Op.LTE, isNegated, high, boundIssues(false), groupIndex, constraintIndex, issues);
         } else {
-          const value = _readValue(opHex);
+          const value = readValue(opHex);
           const holesBefore = ctx.numeric.holes.length;
-          _updateBound(ctx.numeric, base, isNegated, value, boundIssues(false), groupIndex, constraintIndex, issues);
+          updateBound(ctx.numeric, base, isNegated, value, boundIssues(false), groupIndex, constraintIndex, issues);
           if (ctx.numeric.holes.length > holesBefore) {
-            _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
+            checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
           }
         }
-      } else if (_isBitmaskOp(base)) {
-        const mask = _readValue(opHex);
-        _updateBitmask(ctx, base, isNegated, mask, groupIndex, constraintIndex, issues);
+      } else if (isBitmaskOp(base)) {
+        const mask = readValue(opHex);
+        updateBitmask(ctx, base, isNegated, mask, groupIndex, constraintIndex, issues);
       } else if (base === Op.IN) {
-        const values = _unpackSet(opHex);
-        if (!_isStrictlyAscending(values)) {
+        const values = unpackSet(opHex);
+        if (!isStrictlyAscending(values)) {
           issues.push(Issues.unsortedInSet(groupIndex, constraintIndex));
         } else {
-          _updateSet(ctx, isNegated, values, groupIndex, constraintIndex, issues);
+          updateSet(ctx, isNegated, values, groupIndex, constraintIndex, issues);
         }
       }
     } else if (isLengthOp(base)) {
       if (base === Op.LENGTH_BETWEEN) {
-        const { low, high } = _readPair(opHex);
-        _updateBound(ctx.length, Op.GTE, isNegated, low, boundIssues(true), groupIndex, constraintIndex, issues);
-        _updateBound(ctx.length, Op.LTE, isNegated, high, boundIssues(true), groupIndex, constraintIndex, issues);
+        const { low, high } = readPair(opHex);
+        updateBound(ctx.length, Op.GTE, isNegated, low, boundIssues(true), groupIndex, constraintIndex, issues);
+        updateBound(ctx.length, Op.LTE, isNegated, high, boundIssues(true), groupIndex, constraintIndex, issues);
       } else {
-        const value = _readValue(opHex);
-        _updateBound(
+        const value = readValue(opHex);
+        updateBound(
           ctx.length,
-          _normalizeLengthOp(base),
+          normalizeLengthOp(base),
           isNegated,
           value,
           boundIssues(true),
@@ -738,14 +756,15 @@ function _validateConstraint(
     }
   }
 
-  _checkDuplicates(issues, operators, groupIndex, constraintIndex);
+  checkDuplicates(issues, operators, groupIndex, constraintIndex);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Group validation
 ///////////////////////////////////////////////////////////////////////////
 
-function _validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: number, issues: Issue[]): void {
+/** Validate all constraints in a group, building per-path contexts for cross-constraint analysis. */
+function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: number, issues: Issue[]): void {
   const constraints = data.groups[groupIndex]!;
   const contexts: ConstraintContext[] = [];
 
@@ -773,11 +792,11 @@ function _validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: num
         const typeCode = lookupContextProperty(ctxId).typeCode;
         typeInfo = { typeCode, isDynamic: false, staticSize: 32 };
       }
-      ctx = _initContext(constraint.scope, normalizedPath, typeInfo);
+      ctx = initContext(constraint.scope, normalizedPath, typeInfo);
       contexts.push(ctx);
     }
 
-    _validateConstraint(ctx, constraint, groupIndex, constraintIndex, issues);
+    validateConstraint(ctx, constraint, groupIndex, constraintIndex, issues);
   }
 }
 
@@ -785,25 +804,25 @@ function _validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: num
 // Public API
 ///////////////////////////////////////////////////////////////////////////
 
-/** Semantic validation for policies. */
-export const PolicyValidator = {
-  /**
-   * Validate a policy for type mismatches, contradictions, redundancies, and vacuities.
-   * @param data - The canonical policy data to validate.
-   * @returns All validation issues found, ordered by group and constraint index.
-   */
-  validate(data: PolicyData): Issue[] {
-    const issues: Issue[] = [];
-    const descBytes = hexToBytes(data.descriptor);
+/**
+ * Validate a policy for type mismatches, contradictions, redundancies, and vacuities.
+ * @param data - The canonical policy data to validate.
+ * @returns All validation issues found, ordered by group and constraint index.
+ */
+function validate(data: PolicyData): Issue[] {
+  const issues: Issue[] = [];
+  const descBytes = hexToBytes(data.descriptor);
 
-    for (let groupIndex = 0; groupIndex < data.groups.length; groupIndex++) {
-      if (data.groups[groupIndex]!.length === 0) {
-        issues.push(Issues.emptyGroup(groupIndex));
-        continue;
-      }
-      _validateGroup(data, descBytes, groupIndex, issues);
+  for (let groupIndex = 0; groupIndex < data.groups.length; groupIndex++) {
+    if (data.groups[groupIndex]!.length === 0) {
+      issues.push(Issues.emptyGroup(groupIndex));
+      continue;
     }
+    validateGroup(data, descBytes, groupIndex, issues);
+  }
 
-    return issues;
-  },
-};
+  return issues;
+}
+
+/** Semantic validation for policies. */
+export const PolicyValidator = { validate };

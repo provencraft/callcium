@@ -1,6 +1,6 @@
+import { bytesToHex, writeBE16 } from "./bytes";
 import { Op, Scope, ContextProperty } from "./constants";
 import { CallciumError } from "./errors";
-import { bytesToHex, writeBE16 } from "./hex";
 
 import type { Hex, Constraint } from "./types";
 
@@ -12,7 +12,7 @@ import type { Hex, Constraint } from "./types";
 export type ScalarValue = bigint | number | boolean | string;
 
 /** Convert a scalar value to a 32-byte big-endian word. */
-function _encodeWord(value: ScalarValue): Uint8Array {
+function encodeWord(value: ScalarValue): Uint8Array {
   const word = new Uint8Array(32);
 
   if (typeof value === "boolean") {
@@ -49,27 +49,27 @@ function _encodeWord(value: ScalarValue): Uint8Array {
 }
 
 /** Pack a scalar value as a hex operator payload (opCode byte + 32-byte word). */
-function _singleOp(opCode: number, value: ScalarValue): Hex {
+function singleOp(opCode: number, value: ScalarValue): Hex {
   const buf = new Uint8Array(33);
   buf[0] = opCode;
-  buf.set(_encodeWord(value), 1);
+  buf.set(encodeWord(value), 1);
   return bytesToHex(buf);
 }
 
 /** Pack a range operator (opCode byte + min word + max word). */
-function _rangeOp(opCode: number, min: bigint, max: bigint): Hex {
+function rangeOp(opCode: number, min: bigint, max: bigint): Hex {
   if (min > max) {
     throw new CallciumError("INVALID_RANGE", `Range min (${min}) must not exceed max (${max})`);
   }
   const buf = new Uint8Array(65);
   buf[0] = opCode;
-  buf.set(_encodeWord(min), 1);
-  buf.set(_encodeWord(max), 33);
+  buf.set(encodeWord(min), 1);
+  buf.set(encodeWord(max), 33);
   return bytesToHex(buf);
 }
 
 /** Convert values to bigint, sort ascending (unsigned), deduplicate, and pack as set payload. */
-function _setOp(opCode: number, values: readonly ScalarValue[]): Hex {
+function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   const bigs = values.map((v) => {
     if (typeof v === "bigint") return v;
     if (typeof v === "number") return BigInt(v);
@@ -95,7 +95,7 @@ function _setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   const buf = new Uint8Array(1 + deduped.length * 32);
   buf[0] = opCode;
   for (let i = 0; i < deduped.length; i++) {
-    buf.set(_encodeWord(deduped[i]!), 1 + i * 32);
+    buf.set(encodeWord(deduped[i]!), 1 + i * 32);
   }
   return bytesToHex(buf);
 }
@@ -105,7 +105,7 @@ function _setOp(opCode: number, values: readonly ScalarValue[]): Hex {
 ///////////////////////////////////////////////////////////////////////////
 
 /** Encode a sequence of uint16 path steps as a big-endian hex string. */
-function _encodePath(steps: readonly number[]): Hex {
+function encodePath(steps: readonly number[]): Hex {
   const buf = new Uint8Array(steps.length * 2);
   for (let i = 0; i < steps.length; i++) {
     writeBE16(buf, i * 2, steps[i]!);
@@ -134,7 +134,7 @@ export class ConstraintBuilder implements Constraint {
   }
 
   /** Push a pre-encoded operator hex string and return this for chaining. */
-  private _push(opHex: Hex): this {
+  private push(opHex: Hex): this {
     this.operators.push(opHex);
     return this;
   }
@@ -145,32 +145,32 @@ export class ConstraintBuilder implements Constraint {
 
   /** Assert the value equals `value`. */
   eq(value: ScalarValue): this {
-    return this._push(_singleOp(Op.EQ, value));
+    return this.push(singleOp(Op.EQ, value));
   }
 
   /** Assert the value does not equal `value`. */
   neq(value: ScalarValue): this {
-    return this._push(_singleOp(Op.EQ | Op.NOT, value));
+    return this.push(singleOp(Op.EQ | Op.NOT, value));
   }
 
   /** Assert the value is greater than `bound`. */
   gt(bound: bigint | number): this {
-    return this._push(_singleOp(Op.GT, bound));
+    return this.push(singleOp(Op.GT, bound));
   }
 
   /** Assert the value is less than `bound`. */
   lt(bound: bigint | number): this {
-    return this._push(_singleOp(Op.LT, bound));
+    return this.push(singleOp(Op.LT, bound));
   }
 
   /** Assert the value is greater than or equal to `bound`. */
   gte(bound: bigint | number): this {
-    return this._push(_singleOp(Op.GTE, bound));
+    return this.push(singleOp(Op.GTE, bound));
   }
 
   /** Assert the value is less than or equal to `bound`. */
   lte(bound: bigint | number): this {
-    return this._push(_singleOp(Op.LTE, bound));
+    return this.push(singleOp(Op.LTE, bound));
   }
 
   /**
@@ -178,7 +178,7 @@ export class ConstraintBuilder implements Constraint {
    * @throws {CallciumError} If min > max.
    */
   between(min: bigint | number, max: bigint | number): this {
-    return this._push(_rangeOp(Op.BETWEEN, BigInt(min), BigInt(max)));
+    return this.push(rangeOp(Op.BETWEEN, BigInt(min), BigInt(max)));
   }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -191,7 +191,7 @@ export class ConstraintBuilder implements Constraint {
    * @throws {CallciumError} If the set is empty after deduplication.
    */
   isIn(values: readonly ScalarValue[]): this {
-    return this._push(_setOp(Op.IN, values));
+    return this.push(setOp(Op.IN, values));
   }
 
   /**
@@ -199,7 +199,7 @@ export class ConstraintBuilder implements Constraint {
    * @throws {CallciumError} If the set is empty after deduplication.
    */
   notIn(values: readonly ScalarValue[]): this {
-    return this._push(_setOp(Op.IN | Op.NOT, values));
+    return this.push(setOp(Op.IN | Op.NOT, values));
   }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -208,17 +208,17 @@ export class ConstraintBuilder implements Constraint {
 
   /** Assert all bits in `mask` are set. */
   bitmaskAll(mask: bigint): this {
-    return this._push(_singleOp(Op.BITMASK_ALL, mask));
+    return this.push(singleOp(Op.BITMASK_ALL, mask));
   }
 
   /** Assert at least one bit in `mask` is set. */
   bitmaskAny(mask: bigint): this {
-    return this._push(_singleOp(Op.BITMASK_ANY, mask));
+    return this.push(singleOp(Op.BITMASK_ANY, mask));
   }
 
   /** Assert no bit in `mask` is set. */
   bitmaskNone(mask: bigint): this {
-    return this._push(_singleOp(Op.BITMASK_NONE, mask));
+    return this.push(singleOp(Op.BITMASK_NONE, mask));
   }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -227,27 +227,27 @@ export class ConstraintBuilder implements Constraint {
 
   /** Assert the runtime length equals `n`. */
   lengthEq(n: bigint | number): this {
-    return this._push(_singleOp(Op.LENGTH_EQ, n));
+    return this.push(singleOp(Op.LENGTH_EQ, n));
   }
 
   /** Assert the runtime length is greater than `n`. */
   lengthGt(n: bigint | number): this {
-    return this._push(_singleOp(Op.LENGTH_GT, n));
+    return this.push(singleOp(Op.LENGTH_GT, n));
   }
 
   /** Assert the runtime length is less than `n`. */
   lengthLt(n: bigint | number): this {
-    return this._push(_singleOp(Op.LENGTH_LT, n));
+    return this.push(singleOp(Op.LENGTH_LT, n));
   }
 
   /** Assert the runtime length is greater than or equal to `n`. */
   lengthGte(n: bigint | number): this {
-    return this._push(_singleOp(Op.LENGTH_GTE, n));
+    return this.push(singleOp(Op.LENGTH_GTE, n));
   }
 
   /** Assert the runtime length is less than or equal to `n`. */
   lengthLte(n: bigint | number): this {
-    return this._push(_singleOp(Op.LENGTH_LTE, n));
+    return this.push(singleOp(Op.LENGTH_LTE, n));
   }
 
   /**
@@ -255,7 +255,7 @@ export class ConstraintBuilder implements Constraint {
    * @throws {CallciumError} If min > max.
    */
   lengthBetween(min: bigint | number, max: bigint | number): this {
-    return this._push(_rangeOp(Op.LENGTH_BETWEEN, BigInt(min), BigInt(max)));
+    return this.push(rangeOp(Op.LENGTH_BETWEEN, BigInt(min), BigInt(max)));
   }
 }
 
@@ -272,35 +272,35 @@ export function arg(p0: number, p1: number): ConstraintBuilder;
 export function arg(p0: number, p1: number, p2: number): ConstraintBuilder;
 export function arg(p0: number, p1: number, p2: number, p3: number): ConstraintBuilder;
 export function arg(...steps: number[]): ConstraintBuilder {
-  return new ConstraintBuilder(Scope.CALLDATA, _encodePath(steps));
+  return new ConstraintBuilder(Scope.CALLDATA, encodePath(steps));
 }
 
 /** Target the `msg.sender` context property. */
 export function msgSender(): ConstraintBuilder {
-  return new ConstraintBuilder(Scope.CONTEXT, _encodePath([ContextProperty.MSG_SENDER]));
+  return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.MSG_SENDER]));
 }
 
 /** Target the `msg.value` context property. */
 export function msgValue(): ConstraintBuilder {
-  return new ConstraintBuilder(Scope.CONTEXT, _encodePath([ContextProperty.MSG_VALUE]));
+  return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.MSG_VALUE]));
 }
 
 /** Target the `block.timestamp` context property. */
 export function blockTimestamp(): ConstraintBuilder {
-  return new ConstraintBuilder(Scope.CONTEXT, _encodePath([ContextProperty.BLOCK_TIMESTAMP]));
+  return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.BLOCK_TIMESTAMP]));
 }
 
 /** Target the `block.number` context property. */
 export function blockNumber(): ConstraintBuilder {
-  return new ConstraintBuilder(Scope.CONTEXT, _encodePath([ContextProperty.BLOCK_NUMBER]));
+  return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.BLOCK_NUMBER]));
 }
 
 /** Target the `block.chainid` context property. */
 export function chainId(): ConstraintBuilder {
-  return new ConstraintBuilder(Scope.CONTEXT, _encodePath([ContextProperty.CHAIN_ID]));
+  return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.CHAIN_ID]));
 }
 
 /** Target the `tx.origin` context property. */
 export function txOrigin(): ConstraintBuilder {
-  return new ConstraintBuilder(Scope.CONTEXT, _encodePath([ContextProperty.TX_ORIGIN]));
+  return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.TX_ORIGIN]));
 }
