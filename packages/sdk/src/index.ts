@@ -20,6 +20,7 @@ export { PolicyEnforcer } from "./policy-enforcer";
 
 export { toAddress, hexToBytes, bytesToHex } from "./bytes";
 export { Descriptor } from "./descriptor";
+export { DescriptorBuilder } from "./descriptor-builder";
 export type { TypeInfo } from "./descriptor";
 
 ///////////////////////////////////////////////////////////////////////////
