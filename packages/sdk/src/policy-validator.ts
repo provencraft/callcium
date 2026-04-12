@@ -162,6 +162,30 @@ function isBitmaskOp(opBase: number): boolean {
 // Type compatibility check
 ///////////////////////////////////////////////////////////////////////////
 
+/** Return the incompatibility reason, or null if the operator is allowed. */
+function getIncompat(opBase: number, typeInfo: TypeInfo): { code: string; message: string } | null {
+  const { typeCode, isDynamic, staticSize } = typeInfo;
+  if (isValueOp(opBase)) {
+    if (isDynamic || staticSize !== 32) {
+      return { code: "VALUE_OP_ON_DYNAMIC", message: "Value operator used on dynamic type" };
+    }
+    if (isComparisonOp(opBase) && !isNumericType(typeCode)) {
+      return { code: "NUMERIC_OP_ON_NON_NUMERIC", message: "Comparison operator used on non-numeric type" };
+    }
+    if (isBitmaskOp(opBase) && !isBitmaskCompatible(typeCode)) {
+      return { code: "BITMASK_ON_INVALID", message: "Bitmask operator used on incompatible type" };
+    }
+    return null;
+  }
+  if (isLengthOp(opBase)) {
+    if (!isLengthValidType(typeCode)) {
+      return { code: "LENGTH_ON_STATIC", message: "Length operator used on non-dynamic type" };
+    }
+    return null;
+  }
+  return { code: "UNKNOWN_OPERATOR", message: "Unknown operator code" };
+}
+
 /** Check operator–type compatibility and return an issue descriptor on mismatch. */
 function checkCompatibility(
   opBase: number,
@@ -169,33 +193,16 @@ function checkCompatibility(
   isDynamic: boolean,
   staticSize: number,
 ): { compatible: boolean; code: string; message: string } {
-  if (isValueOp(opBase)) {
-    if (isDynamic || staticSize !== 32) {
-      return { compatible: false, code: "VALUE_OP_ON_DYNAMIC", message: "Value operator used on dynamic type" };
-    }
-    if (isComparisonOp(opBase) && !isNumericType(typeCode)) {
-      return {
-        compatible: false,
-        code: "NUMERIC_OP_ON_NON_NUMERIC",
-        message: "Comparison operator used on non-numeric type",
-      };
-    }
-    if (isBitmaskOp(opBase) && !isBitmaskCompatible(typeCode)) {
-      return {
-        compatible: false,
-        code: "BITMASK_ON_INVALID",
-        message: "Bitmask operator used on incompatible type",
-      };
-    }
-    return { compatible: true, code: "", message: "" };
-  }
-  if (isLengthOp(opBase)) {
-    if (!isLengthValidType(typeCode)) {
-      return { compatible: false, code: "LENGTH_ON_STATIC", message: "Length operator used on non-dynamic type" };
-    }
-    return { compatible: true, code: "", message: "" };
-  }
-  return { compatible: false, code: "UNKNOWN_OPERATOR", message: "Unknown operator code" };
+  const incompat = getIncompat(opBase, { typeCode, isDynamic, staticSize });
+  return incompat ? { compatible: false, ...incompat } : { compatible: true, code: "", message: "" };
+}
+
+/**
+ * True if operator `opCode` is allowed on a target with the given type info.
+ * Tolerates the NOT flag on `opCode`.
+ */
+export function isOpAllowed(opCode: number, typeInfo: TypeInfo): boolean {
+  return getIncompat(opCode & ~Op.NOT, typeInfo) === null;
 }
 
 ///////////////////////////////////////////////////////////////////////////
