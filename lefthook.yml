@@ -1,10 +1,28 @@
 pre-commit:
   commands:
+    # Contracts
     forge-fmt:
       root: "packages/contracts/"
       glob: "packages/contracts/{src,test}/**/*.sol"
       run: forge fmt --check {staged_files}
 
+    # SDK
+    sdk-fmt:
+      root: "packages/sdk/"
+      glob: "packages/sdk/**/*.{ts,json,md}"
+      run: bunx oxfmt --check {staged_files}
+
+    sdk-lint:
+      root: "packages/sdk/"
+      glob: "packages/sdk/**/*.ts"
+      run: bunx oxlint {staged_files}
+
+    sdk-typecheck:
+      root: "packages/sdk/"
+      glob: "packages/sdk/**/*.ts"
+      run: bun run typecheck
+
+    # Docs
     docs-fmt:
       root: "packages/docs/"
       glob: "packages/docs/**/*.{ts,tsx,mjs,css,json,md,mdx}"
@@ -15,12 +33,7 @@ pre-commit:
       glob: "packages/docs/**/*.{ts,tsx}"
       run: bunx oxlint {staged_files}
 
-    sdk-fmt:
-      root: "packages/sdk/"
-      glob: "packages/sdk/**/*.{ts,json,md}"
-      run: bunx oxfmt --check {staged_files}
-
-    sdk-lint:
-      root: "packages/sdk/"
-      glob: "packages/sdk/**/*.ts"
-      run: bunx oxlint {staged_files}
+    docs-typecheck:
+      root: "packages/docs/"
+      glob: "packages/docs/**/*.{ts,tsx}"
+      run: bun run types:check
