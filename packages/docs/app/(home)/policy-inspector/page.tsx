@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Inspector } from "@/components/policy-inspector/inspector";
 
@@ -14,7 +15,9 @@ export default function PolicyInspectorPage() {
       <p className="text-fd-muted-foreground mb-8">
         Paste a hex-encoded policy blob to decode and inspect its structure.
       </p>
-      <Inspector />
+      <Suspense>
+        <Inspector />
+      </Suspense>
     </main>
   );
 }

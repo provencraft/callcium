@@ -25,8 +25,8 @@ if (args[1]) {
 }
 
 try {
-  const policyData = PolicyCoder.decode(hex as Hex);
-  const explained = explainPolicy(policyData, abi ? { abi } : undefined);
+  const decoded = PolicyCoder.inspect(hex as Hex);
+  const explained = explainPolicy(decoded, abi ? { abi } : undefined);
   console.log(JSON.stringify(explained, null, 2));
 } catch (e) {
   console.error(`Error: ${e instanceof Error ? e.message : String(e)}`);

@@ -1,17 +1,17 @@
 import { PolicyCoder } from "@callcium/sdk";
 import { describe, expect, it } from "vitest";
-import type { Hex, Span } from "@callcium/sdk";
+import type { Hex } from "@callcium/sdk";
 import type { Abi } from "viem";
 import policyVectors from "../../../../contracts/test/vectors/policies.json";
 import { explainPolicy } from "../explainer";
 import B from "./explainer-blobs.json";
 
 ///////////////////////////////////////////////////////////////////////////
-//                            TEST HELPERS
+// Test helpers
 ///////////////////////////////////////////////////////////////////////////
 
 function _explain(blob: string) {
-  return explainPolicy(PolicyCoder.decode(blob as Hex));
+  return explainPolicy(PolicyCoder.inspect(blob as Hex));
 }
 
 function _firstConstraint(blob: string) {
@@ -37,7 +37,7 @@ const approveAbi: Abi = [
 ];
 
 ///////////////////////////////////////////////////////////////////////////
-//                        OPERAND DECODING
+// Operand decoding
 ///////////////////////////////////////////////////////////////////////////
 
 describe("operand decoding", () => {
@@ -71,7 +71,7 @@ describe("operand decoding", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                          OPERATOR TYPES
+// Operator types
 ///////////////////////////////////////////////////////////////////////////
 
 describe("operator types", () => {
@@ -108,7 +108,7 @@ describe("operator types", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                          SCOPE AND PATH
+// Scope and path
 ///////////////////////////////////////////////////////////////////////////
 
 describe("scope and path resolution", () => {
@@ -150,13 +150,13 @@ describe("scope and path resolution", () => {
 
   it("resolves dynamic array element path", () => {
     const constraint = _firstConstraint(B.DYNAMIC_ARRAY_ELEM);
-    expect(constraint.pathLabel).toBe("arg(0)[]");
+    expect(constraint.pathLabel).toBe("arg(0)[0]");
     expect(constraint.targetType).toBe("uint256");
   });
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                        STRUCTURE AND GROUPS
+// Structure and groups
 ///////////////////////////////////////////////////////////////////////////
 
 describe("structure", () => {
@@ -193,7 +193,7 @@ describe("structure", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                          SELECTORLESS
+// Selectorless
 ///////////////////////////////////////////////////////////////////////////
 
 describe("selectorless", () => {
@@ -205,75 +205,58 @@ describe("selectorless", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                          SPANS PASSTHROUGH
+// Spans
 ///////////////////////////////////////////////////////////////////////////
 
-describe("spans passthrough", () => {
-  it("preserves spans from policy data", () => {
-    const policySpan: Span = { start: 0, end: 100 };
-    const constraintSpan: Span = { start: 30, end: 70 };
+describe("spans", () => {
+  it("preserves spans from decoded policy", () => {
+    const decoded = PolicyCoder.inspect(B.EQ_UINT256 as Hex);
+    const explained = explainPolicy(decoded);
 
-    const explained = explainPolicy({
-      isSelectorless: false,
-      selector: "0x12345678",
-      descriptor: "0x01011f",
-      groups: [
-        [
-          {
-            scope: 0x01,
-            path: "0x0000" as Hex,
-            operators: ["0x010000000000000000000000000000000000000000000000000000000000000001" as Hex],
-            span: constraintSpan,
-          },
-        ],
-      ],
-      span: policySpan,
-    });
-
-    expect(explained.span).toEqual(policySpan);
-    expect(explained.groups[0].constraints[0].span).toEqual(constraintSpan);
+    expect(explained.span).toEqual(decoded.span);
+    expect(explained.groups[0].constraints[0].span).toEqual(decoded.groups[0].rules[0].span);
   });
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                          ABI ENRICHMENT
+// ABI enrichment
 ///////////////////////////////////////////////////////////////////////////
 
 describe("ABI enrichment", () => {
   const opts = { abi: approveAbi };
 
   it("resolves function name from ABI", () => {
-    const explained = explainPolicy(PolicyCoder.decode(B.APPROVE_ARG0 as Hex), opts);
+    const explained = explainPolicy(PolicyCoder.inspect(B.APPROVE_ARG0 as Hex), opts);
     expect(explained.functionName).toBe("approve");
   });
 
   it("resolves param names from ABI", () => {
-    const { params } = explainPolicy(PolicyCoder.decode(B.APPROVE_ARG0 as Hex), opts);
+    const { params } = explainPolicy(PolicyCoder.inspect(B.APPROVE_ARG0 as Hex), opts);
     expect(params[0].name).toBe("spender");
     expect(params[1].name).toBe("amount");
   });
 
   it("uses ABI param names in path labels", () => {
-    const explained = explainPolicy(PolicyCoder.decode(B.APPROVE_ARG1 as Hex), opts);
+    const explained = explainPolicy(PolicyCoder.inspect(B.APPROVE_ARG1 as Hex), opts);
     expect(explained.groups[0].constraints[0].pathLabel).toBe("amount");
   });
 
   it("falls back to positional labels when ABI does not match", () => {
-    const explained = explainPolicy(PolicyCoder.decode(B.EQ_UINT256 as Hex), opts);
+    const explained = explainPolicy(PolicyCoder.inspect(B.EQ_UINT256 as Hex), opts);
     expect(explained.functionName).toBeNull();
     expect(explained.params[0].name).toBeNull();
     expect(explained.groups[0].constraints[0].pathLabel).toBe("arg(0)");
   });
 
   it("ignores ABI for selectorless policies", () => {
-    const explained = explainPolicy(PolicyCoder.decode(B.SELECTORLESS as Hex), opts);
+    const explained = explainPolicy(PolicyCoder.inspect(B.SELECTORLESS as Hex), opts);
     expect(explained.functionName).toBeNull();
     expect(explained.params[0].name).toBeNull();
   });
 });
 
 ///////////////////////////////////////////////////////////////////////////
-//                          SMOKE TEST
+// Smoke test
 ///////////////////////////////////////////////////////////////////////////
 
 describe("smoke", () => {
@@ -281,7 +264,7 @@ describe("smoke", () => {
     (policyVectors as { blob: string; error: string }[])
       .filter((vec) => vec.error === "")
       .forEach((vec) => {
-        expect(() => explainPolicy(PolicyCoder.decode(vec.blob as Hex))).not.toThrow();
+        expect(() => explainPolicy(PolicyCoder.inspect(vec.blob as Hex))).not.toThrow();
       });
   });
 });

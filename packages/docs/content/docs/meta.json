@@ -13,6 +13,8 @@
     "---Reference---",
     "...reference",
     "---Tools---",
-    "[SearchCode][Policy Inspector](/policy-inspector)"
+    "[Blocks][Policy Builder](/policy-builder)",
+    "[SearchCode][Policy Inspector](/policy-inspector)",
+    "[ShieldCheck][Policy Enforcer](/policy-enforcer)"
   ]
 }

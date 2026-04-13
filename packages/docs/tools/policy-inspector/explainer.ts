@@ -1,8 +1,11 @@
 import {
+  type DecodedPolicy,
+  type DecodedRule,
   Descriptor,
-  DescriptorFormat as DF,
+  type Hex,
   Op,
   Scope,
+  type Span,
   TypeCode,
   hexToBytes,
   lookupContextProperty,
@@ -12,10 +15,11 @@ import {
   parsePathSteps,
 } from "@callcium/sdk";
 import { type Abi, type AbiFunction, type AbiParameter, getAddress, toFunctionSelector } from "viem";
-import type { Constraint, Hex, PolicyData, Span } from "@callcium/sdk";
+import { formatCalldataPath, formatOpLabel } from "../../lib/format-path";
+import { type ParamNode, parseDescriptor, toNameTree } from "../policy-builder/builder-engine";
 
 ///////////////////////////////////////////////////////////////////////////
-//                                TYPES
+// Types
 ///////////////////////////////////////////////////////////////////////////
 
 export type ExplainedPolicy = {
@@ -53,48 +57,24 @@ export type ExplainedRule = {
   operands: string[];
 };
 
+export type ExplainedFlatRule = {
+  constraint: ExplainedConstraint;
+  rule: ExplainedRule;
+};
+
 export type ExplainOptions = {
   abi?: Abi;
 };
 
-///////////////////////////////////////////////////////////////////////////
-//                         DESCRIPTOR NAVIGATION
-///////////////////////////////////////////////////////////////////////////
-
-/** Resolve a calldata-scope path against the descriptor and optional ABI. */
-function resolveCalldataPath(
-  descBytes: Uint8Array,
-  steps: number[],
-  abiInputs?: readonly AbiParameter[],
-): { pathLabel: string; targetType: string; leafTypeCode: number } {
-  const paramIndex = steps[0];
-  let abiParam: AbiParameter | undefined = abiInputs?.[paramIndex];
-  let label = abiParam?.name ?? `arg(${paramIndex})`;
-
-  // Navigate remaining steps, building a human-readable label.
-  let offset = Descriptor.paramOffset(descBytes, paramIndex);
-  for (let step = 1; step < steps.length; step++) {
-    const info = lookupTypeCode(descBytes[offset]);
-
-    if (info.typeClass === "tuple") {
-      const fieldIndex = steps[step];
-      offset = Descriptor.tupleFieldOffset(descBytes, offset, fieldIndex);
-      const childAbi = (abiParam as { components?: AbiParameter[] })?.components?.[fieldIndex];
-      label += `.${childAbi?.name ?? `field(${fieldIndex})`}`;
-      abiParam = childAbi;
-    } else if (info.typeClass === "staticArray" || info.typeClass === "dynamicArray") {
-      offset += DF.ARRAY_HEADER_SIZE;
-      label += "[]";
-    } else {
-      break;
-    }
-  }
-
-  const leafInfo = Descriptor.inspect(descBytes, offset);
-  return { pathLabel: label, targetType: lookupTypeCode(leafInfo.typeCode).label, leafTypeCode: leafInfo.typeCode };
+/** Flatten a group's constraints into a wire-order list of (constraint, rule) pairs. */
+export function flattenGroup(group: ExplainedGroup): ExplainedFlatRule[] {
+  return group.constraints.flatMap((c) => c.rules.map((r) => ({ constraint: c, rule: r })));
 }
 
-// Resolve a context-scope path to its property label.
+///////////////////////////////////////////////////////////////////////////
+// Path resolution
+///////////////////////////////////////////////////////////////////////////
+
 function resolveContextPath(steps: number[]): {
   pathLabel: string;
   targetType: string;
@@ -114,7 +94,7 @@ function resolveContextPath(steps: number[]): {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                          OPERAND DECODING
+// Operand decoding
 ///////////////////////////////////////////////////////////////////////////
 
 const TWO_POW_256 = 2n ** 256n;
@@ -148,7 +128,7 @@ function decodeOperand(hex32: string, typeCode: number): string {
   return `0x${hex32}`;
 }
 
-function decodeOperandsFromFields(dataHex: Hex, typeCode: number, opBase: number): string[] {
+function decodeOperandsFromData(dataHex: Hex, typeCode: number, opBase: number): string[] {
   const hex = dataHex.slice(2);
   const { operands } = lookupOp(opBase);
 
@@ -168,7 +148,7 @@ function decodeOperandsFromFields(dataHex: Hex, typeCode: number, opBase: number
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                            ABI MATCHING
+// ABI matching
 ///////////////////////////////////////////////////////////////////////////
 
 function findAbiFunction(abi: Abi, selector: Hex): AbiFunction | null {
@@ -181,42 +161,57 @@ function findAbiFunction(abi: Abi, selector: Hex): AbiFunction | null {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                              EXPLAINER
+// Explainer
 ///////////////////////////////////////////////////////////////////////////
 
-export function explainPolicy(policy: PolicyData, opts?: ExplainOptions): ExplainedPolicy {
-  const descBytes = hexToBytes(policy.descriptor);
+export function explainPolicy(policy: DecodedPolicy, opts?: ExplainOptions): ExplainedPolicy {
+  const descBytes = hexToBytes(policy.descriptor.raw);
 
   let functionName: string | null = null;
   let abiInputs: readonly AbiParameter[] | undefined;
 
   if (opts?.abi && !policy.isSelectorless) {
-    const matched = findAbiFunction(opts.abi, policy.selector);
+    const matched = findAbiFunction(opts.abi, policy.selector.value);
     if (matched) {
       functionName = matched.name;
       abiInputs = matched.inputs;
     }
   }
 
-  const paramCount = Descriptor.paramCount(descBytes);
-  const params: ExplainedParam[] = [];
-  for (let i = 0; i < paramCount; i++) {
-    const offset = Descriptor.paramOffset(descBytes, i);
-    const info = Descriptor.inspect(descBytes, offset);
-    params.push({
-      index: i,
-      name: abiInputs?.[i]?.name ?? null,
-      type: lookupTypeCode(info.typeCode).label,
-      isDynamic: info.isDynamic,
-    });
-  }
+  // Parse descriptor once for both param info and path resolution.
+  const nameTrees = abiInputs?.map(toNameTree) ?? [];
+  const paramNodes = parseDescriptor(descBytes, nameTrees);
 
-  const groups: ExplainedGroup[] = policy.groups.map((constraints) => ({
-    constraints: constraints.map((constraint) => explainConstraint(constraint, descBytes, abiInputs)),
+  const params: ExplainedParam[] = paramNodes.map((pn, i) => ({
+    index: i,
+    name: pn.name,
+    type: pn.type,
+    isDynamic: pn.typeInfo.isDynamic,
   }));
 
+  const groups: ExplainedGroup[] = policy.groups.map((group) => {
+    // Group flat rules by (scope, path) into constraints.
+    const constraintMap = new Map<string, DecodedRule[]>();
+    const constraintOrder: string[] = [];
+
+    for (const rule of group.rules) {
+      const key = `${rule.scope.value}:${rule.path.value}`;
+      const existing = constraintMap.get(key);
+      if (existing) {
+        existing.push(rule);
+      } else {
+        constraintMap.set(key, [rule]);
+        constraintOrder.push(key);
+      }
+    }
+
+    return {
+      constraints: constraintOrder.map((key) => explainConstraint(constraintMap.get(key)!, descBytes, paramNodes)),
+    };
+  });
+
   return {
-    selector: policy.selector,
+    selector: policy.selector.value,
     functionName,
     isSelectorless: policy.isSelectorless,
     params,
@@ -225,42 +220,46 @@ export function explainPolicy(policy: PolicyData, opts?: ExplainOptions): Explai
   };
 }
 
-function explainConstraint(
-  constraint: Constraint,
-  descBytes: Uint8Array,
-  abiInputs?: readonly AbiParameter[],
-): ExplainedConstraint {
-  const steps = parsePathSteps(constraint.path);
-  const scopeLabel = lookupScope(constraint.scope).label;
-  const isContext = constraint.scope === Scope.CONTEXT;
-  const { pathLabel, targetType, leafTypeCode } = isContext
-    ? resolveContextPath(steps)
-    : resolveCalldataPath(descBytes, steps, abiInputs);
+function explainConstraint(rules: DecodedRule[], descBytes: Uint8Array, paramNodes: ParamNode[]): ExplainedConstraint {
+  const first = rules[0];
+  const scope = first.scope.value;
+  const path: Hex = first.path.value;
+  const steps = parsePathSteps(path);
+  const scopeLabel = lookupScope(scope).label;
+  const isContext = scope === Scope.CONTEXT;
+  let pathLabel: string;
+  let targetType: string;
+  let leafTypeCode: number;
 
-  const rules: ExplainedRule[] = constraint.operators.map((op) => {
-    const opCode = parseInt(op.slice(2, 4), 16);
-    const dataHex: Hex = `0x${op.slice(4)}`;
+  if (isContext) {
+    ({ pathLabel, targetType, leafTypeCode } = resolveContextPath(steps));
+  } else {
+    pathLabel = formatCalldataPath(steps, undefined, paramNodes);
+    const leaf = Descriptor.typeAt(descBytes, steps);
+    targetType = lookupTypeCode(leaf.typeCode).label;
+    leafTypeCode = leaf.typeCode;
+  }
 
+  const explainedRules: ExplainedRule[] = rules.map((rule) => {
+    const opCode = rule.opCode.value;
     const negated = (opCode & Op.NOT) !== 0;
     const opBase = opCode & ~Op.NOT;
-    const baseLabel = lookupOp(opBase).label;
-    const operator = negated && baseLabel === "==" ? "!=" : negated ? `not ${baseLabel}` : baseLabel;
-
+    const operator = formatOpLabel(opBase, negated);
     const decodeTypeCode = opBase >= Op.LENGTH_EQ && opBase <= Op.LENGTH_BETWEEN ? TypeCode.UINT_MAX : leafTypeCode;
 
     return {
       operator,
       negated,
-      operands: decodeOperandsFromFields(dataHex, decodeTypeCode, opBase),
+      operands: decodeOperandsFromData(rule.data.value, decodeTypeCode, opBase),
     };
   });
 
   return {
     scope: scopeLabel,
-    path: constraint.path,
+    path,
     pathLabel,
     targetType,
-    rules,
-    span: constraint.span,
+    rules: explainedRules,
+    span: first.span,
   };
 }

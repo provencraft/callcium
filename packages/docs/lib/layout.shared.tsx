@@ -34,8 +34,25 @@ export function baseOptions(): BaseLayoutProps {
         active: "nested-url",
       },
       {
-        text: "Policy Inspector",
-        url: "/policy-inspector",
+        type: "menu",
+        text: "Tools",
+        items: [
+          {
+            text: "Policy Builder",
+            url: "/policy-builder",
+            description: "Visually construct a policy.",
+          },
+          {
+            text: "Policy Inspector",
+            url: "/policy-inspector",
+            description: "Decode and explain a policy blob.",
+          },
+          {
+            text: "Policy Enforcer",
+            url: "/policy-enforcer",
+            description: "Test calldata against a policy.",
+          },
+        ],
       },
     ],
     githubUrl: `https://github.com/${gitConfig.user}/${gitConfig.repo}`,

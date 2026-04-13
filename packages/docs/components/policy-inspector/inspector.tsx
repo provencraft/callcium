@@ -1,40 +1,29 @@
 "use client";
 
-import {
-  CallciumError,
-  DescriptorFormat as DF,
-  type Hex,
-  lookupTypeCode,
-  parsePathSteps,
-  type PolicyData,
-  PolicyCoder,
-  PolicyFormat as PF,
-  type Span,
-} from "@callcium/sdk";
+import { type DecodedPolicy, type Hex, lookupScope, parsePathSteps, PolicyCoder, type Span } from "@callcium/sdk";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { Abi } from "viem";
-import { EXAMPLES, type PolicyExample } from "./examples";
-import { useDebounce } from "./use-debounce";
+import { PillToggle } from "@/components/ui/pill-toggle";
+import { lookup4byte, parseAbiJson } from "@/lib/abi";
+import { formatError } from "@/lib/format-error";
+import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
-import {
-  type ExplainedConstraint,
-  type ExplainedPolicy,
-  type ExplainedRule,
-  explainPolicy,
-} from "@/tools/policy-inspector";
+import { type ExplainedPolicy, type ExplainedRule, explainPolicy, flattenGroup } from "@/tools/policy-inspector";
 
-const s = (n: number) => (n === 1 ? "" : "s");
+const plural = (n: number) => (n === 1 ? "" : "s");
 
 ///////////////////////////////////////////////////////////////////////////
-//                           DECODE LOGIC
+// Decode logic
 ///////////////////////////////////////////////////////////////////////////
 
 type DecodeResult =
   | {
       ok: true;
-      policy: PolicyData;
+      decoded: DecodedPolicy;
       explained: ExplainedPolicy;
       hex: string;
     }
@@ -50,66 +39,37 @@ function tryDecode(hex: string, abi: Abi | undefined): DecodeResult | null {
   }
 
   try {
-    const policy = PolicyCoder.decode(normalized as Hex);
-    const explained = explainPolicy(policy, abi ? { abi } : undefined);
-    return { ok: true, policy, explained, hex: normalized };
+    const decoded = PolicyCoder.inspect(normalized as Hex);
+    const explained = explainPolicy(decoded, abi ? { abi } : undefined);
+    return { ok: true, decoded, explained, hex: normalized };
   } catch (e) {
-    if (e instanceof CallciumError) {
-      return { ok: false, error: `${e.code}: ${e.message}` };
-    }
-    return {
-      ok: false,
-      error: e instanceof Error ? e.message : "Unknown error.",
-    };
-  }
-}
-
-function parseAbi(json: string): Abi | undefined {
-  if (!json.trim()) return undefined;
-  try {
-    const parsed = JSON.parse(json);
-    if (!Array.isArray(parsed)) return undefined;
-    return parsed as Abi;
-  } catch {
-    return undefined;
-  }
-}
-
-async function lookup4byte(selector: string, signal?: AbortSignal): Promise<string | null> {
-  try {
-    const res = await fetch(`https://api.4byte.sourcify.dev/signature-database/v1/lookup?function=${selector}`, {
-      signal,
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const results = data?.result?.function?.[selector];
-    if (!Array.isArray(results) || results.length === 0) return null;
-    const sig = results[0].name;
-    if (typeof sig !== "string") return null;
-    const parenIndex = sig.indexOf("(");
-    return parenIndex > 0 ? sig.slice(0, parenIndex) : sig;
-  } catch {
-    return null;
+    return { ok: false, error: formatError(e) };
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                           MAIN COMPONENT
+// Main component
 ///////////////////////////////////////////////////////////////////////////
 
 export function Inspector() {
+  const searchParams = useSearchParams();
   const [hexInput, setHexInput] = useState("");
   const [abiInput, setAbiInput] = useState("");
   const [abiOpen, setAbiOpen] = useState(false);
   const [lookedUpName, setLookedUpName] = useState<string | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
   const [inspectMode, setInspectMode] = useState(false);
-  const [activeExample, setActiveExample] = useState<PolicyExample | null>(null);
-  const [exampleDropdownOpen, setExampleDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const policyHex = searchParams.get("policy");
+    if (policyHex) setHexInput(policyHex);
+  }, [searchParams]);
 
   const debouncedHex = useDebounce(hexInput, 300);
-  const abi = useMemo(() => (activeExample?.abi ? activeExample.abi : parseAbi(abiInput)), [activeExample, abiInput]);
+  const abi = useMemo(() => {
+    const parsed = parseAbiJson(abiInput);
+    return parsed instanceof Error ? undefined : parsed;
+  }, [abiInput]);
 
   const result = useMemo(() => tryDecode(debouncedHex, abi), [debouncedHex, abi]);
 
@@ -143,38 +103,6 @@ export function Inspector() {
     }
   }, []);
 
-  const selectExample = useCallback((example: PolicyExample) => {
-    setActiveExample(example);
-    setHexInput(example.blob);
-    if (example.abi) {
-      setAbiInput(JSON.stringify(example.abi, null, 2));
-      setAbiOpen(true);
-    } else {
-      setAbiInput("");
-      setAbiOpen(false);
-    }
-    setExampleDropdownOpen(false);
-  }, []);
-
-  const clearExample = useCallback(() => {
-    setActiveExample(null);
-    setHexInput("");
-    setAbiInput("");
-    setAbiOpen(false);
-  }, []);
-
-  // Close dropdown on outside click.
-  useEffect(() => {
-    if (!exampleDropdownOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setExampleDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [exampleDropdownOpen]);
-
   return (
     <div className="space-y-4">
       {/* Policy blob input */}
@@ -183,54 +111,15 @@ export function Inspector() {
           <label htmlFor="policy-hex" className="text-sm font-medium text-fd-foreground">
             Policy Blob
           </label>
-          {/* Examples dropdown */}
-          <div ref={dropdownRef} className="relative">
-            <button
-              type="button"
-              className="flex items-center gap-1 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-              onClick={() => setExampleDropdownOpen(!exampleDropdownOpen)}
+          {result?.ok && (
+            <Link
+              href={`/policy-enforcer?policy=${encodeURIComponent(debouncedHex)}`}
+              className="text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
             >
-              Examples
-              <ChevronDown className={cn("size-3.5 transition-transform", exampleDropdownOpen && "rotate-180")} />
-            </button>
-            {exampleDropdownOpen && (
-              <div className="absolute right-0 z-10 mt-1 w-48 rounded-lg border border-fd-border bg-fd-popover py-1 shadow-md">
-                {EXAMPLES.map((example) => (
-                  <button
-                    key={example.name}
-                    type="button"
-                    className={cn(
-                      "w-full px-3 py-1.5 text-left text-sm transition-colors",
-                      "hover:bg-fd-accent hover:text-fd-accent-foreground",
-                      activeExample?.name === example.name ? "text-fd-primary font-medium" : "text-fd-muted-foreground",
-                    )}
-                    onClick={() => selectExample(example)}
-                  >
-                    {example.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+              Enforcer <ArrowRight className="inline size-3" />
+            </Link>
+          )}
         </div>
-
-        {/* Example banner */}
-        {activeExample && (
-          <div className="mb-1.5 flex items-center justify-between rounded-lg bg-fd-info px-3 py-2 text-sm text-fd-info-foreground ring-1 ring-fd-info-foreground/30">
-            <span>
-              <span className="font-semibold">Example:</span>{" "}
-              <span className="text-fd-foreground">{activeExample.name}</span>
-            </span>
-            <button
-              type="button"
-              className="font-semibold transition-colors hover:text-fd-foreground"
-              onClick={clearExample}
-            >
-              Clear
-            </button>
-          </div>
-        )}
-
         <textarea
           id="policy-hex"
           className={cn(
@@ -238,7 +127,6 @@ export function Inspector() {
             "placeholder:text-fd-muted-foreground/50",
             "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
             "resize-y",
-            activeExample && "cursor-default opacity-70",
             result && !result.ok ? "border-red-500/50" : "border-fd-border",
           )}
           rows={3}
@@ -246,21 +134,14 @@ export function Inspector() {
           value={hexInput}
           onChange={(e) => setHexInput(e.target.value)}
           onPaste={handlePaste}
-          readOnly={!!activeExample}
           spellCheck={false}
           autoComplete="off"
         />
       </div>
 
       {/* ABI input (collapsible) */}
-      <Collapsible open={abiOpen} onOpenChange={activeExample ? undefined : setAbiOpen}>
-        <CollapsibleTrigger
-          className={cn(
-            "flex items-center gap-1.5 text-sm text-fd-muted-foreground transition-colors",
-            activeExample ? "cursor-default" : "hover:text-fd-foreground",
-          )}
-          disabled={!!activeExample}
-        >
+      <Collapsible open={abiOpen} onOpenChange={setAbiOpen}>
+        <CollapsibleTrigger className="flex items-center gap-1.5 text-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground">
           <ChevronDown className={cn("size-4 transition-transform", abiOpen && "rotate-180")} />
           ABI (optional)
         </CollapsibleTrigger>
@@ -271,13 +152,11 @@ export function Inspector() {
               "placeholder:text-fd-muted-foreground/50",
               "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
               "resize-y",
-              activeExample && "cursor-default opacity-70",
             )}
             rows={4}
             placeholder='[{"type":"function","name":"approve",...}]'
             value={abiInput}
             onChange={(e) => setAbiInput(e.target.value)}
-            readOnly={!!activeExample}
             spellCheck={false}
           />
         </CollapsibleContent>
@@ -296,28 +175,18 @@ export function Inspector() {
       {/* Output */}
       {result?.ok && (
         <div>
-          <div className="mb-3 flex items-center gap-2">
-            {(["Summary", "Inspect"] as const).map((label) => {
-              const active = label === "Inspect" ? inspectMode : !inspectMode;
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  className={cn(
-                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                    active
-                      ? "bg-fd-primary text-fd-primary-foreground"
-                      : "text-fd-muted-foreground hover:text-fd-foreground",
-                  )}
-                  onClick={() => setInspectMode(label === "Inspect")}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          <PillToggle
+            className="mb-3"
+            value={inspectMode ? "inspect" : "summary"}
+            options={[
+              { value: "summary", label: "Summary" },
+              { value: "inspect", label: "Inspect" },
+            ]}
+            onChange={(v) => setInspectMode(v === "inspect")}
+          />
+
           {inspectMode ? (
-            <InspectView policy={result.policy} explained={result.explained} hex={result.hex} />
+            <InspectView decoded={result.decoded} explained={result.explained} hex={result.hex} />
           ) : (
             <SummaryView policy={result.explained} functionName={resolvedName} />
           )}
@@ -328,7 +197,7 @@ export function Inspector() {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                          SUMMARY VIEW
+// Summary view
 ///////////////////////////////////////////////////////////////////////////
 
 function formatOperands(rule: ExplainedRule): string {
@@ -339,15 +208,10 @@ function formatOperands(rule: ExplainedRule): string {
 }
 
 function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functionName: string | null }) {
-  const fnName = functionName ?? policy.functionName ?? policy.selector;
+  const displayName = functionName ?? policy.functionName ?? policy.selector;
   const params = policy.params.map((p) => (p.name ? `${p.type} ${p.name}` : p.type)).join(", ");
 
-  const groupClauses: {
-    constraint: ExplainedConstraint;
-    rule: ExplainedRule;
-  }[][] = policy.groups.map((group) =>
-    group.constraints.flatMap((constraint) => constraint.rules.map((rule) => ({ constraint, rule }))),
-  );
+  const groupClauses = policy.groups.map(flattenGroup);
 
   return (
     <div className="space-y-3">
@@ -358,7 +222,7 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
         ) : (
           <>
             <code className="font-semibold text-fd-foreground">
-              {fnName}({params})
+              {displayName}({params})
             </code>
             {(functionName || policy.functionName) && (
               <code className="ml-3 text-fd-muted-foreground">{policy.selector}</code>
@@ -388,8 +252,8 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
               {gi > 0 && (
                 <>
                   <div className="relative flex h-5 items-center">
-                    <div className="absolute inset-y-0 left-[1px] w-px bg-fd-muted-foreground/40" />
-                    <span className="relative z-10 -translate-x-[calc(50%-1px)] bg-fd-background px-1 text-[10px] font-semibold text-fd-info-foreground">
+                    <div className="absolute inset-y-0 left-px w-px bg-fd-muted-foreground/40" />
+                    <span className="relative z-10 -translate-x-[calc(50%-1px)] bg-fd-background px-1 text-xs font-semibold text-fd-info-foreground">
                       OR
                     </span>
                   </div>
@@ -400,7 +264,7 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
               <div className="relative flex items-center">
                 <div
                   className={cn(
-                    "absolute left-[1px] w-px bg-fd-muted-foreground/40",
+                    "absolute left-px w-px bg-fd-muted-foreground/40",
                     gi === 0 && "top-1/2 bottom-0",
                     gi === groupClauses.length - 1 && "top-0 bottom-1/2",
                     gi > 0 && gi < groupClauses.length - 1 && "inset-y-0",
@@ -429,7 +293,7 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//                          INSPECT VIEW
+// Inspect view
 ///////////////////////////////////////////////////////////////////////////
 
 type TreeNode = {
@@ -440,259 +304,110 @@ type TreeNode = {
   children?: TreeNode[];
 };
 
-function readU16(hex: string, byteOffset: number): number {
-  return parseInt(hex.slice(byteOffset * 2, byteOffset * 2 + 4), 16);
-}
-
-function readU32(hex: string, byteOffset: number): number {
-  return parseInt(hex.slice(byteOffset * 2, byteOffset * 2 + 8), 16);
-}
-
-function buildTree(policy: PolicyData, explained: ExplainedPolicy, rawHex: string): TreeNode[] {
+function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: string): TreeNode[] {
   const cleanHex = rawHex.startsWith("0x") ? rawHex.slice(2) : rawHex;
   const sliceHex = (span: Span) => {
     const raw = cleanHex.slice(span.start * 2, span.end * 2);
     return raw.match(/.{2}/g)?.join(" ") ?? "";
   };
-
-  const nodes: TreeNode[] = [];
-  const headerByte = parseInt(cleanHex.slice(0, 2), 16);
-  const version = headerByte & PF.VERSION_MASK;
+  const node = (label: string, value: string, span: Span, children?: TreeNode[]): TreeNode => ({
+    label,
+    value,
+    hex: sliceHex(span),
+    span,
+    children,
+  });
 
   // Header.
-  const headerSpan: Span = { start: 0, end: PF.HEADER_SIZE };
-  const headerBits: string[] = [`v${version}`];
-  if (policy.isSelectorless) headerBits.push("selectorless");
-  nodes.push({
-    label: "Header",
-    value: headerBits.join(", "),
-    hex: sliceHex(headerSpan),
-    span: headerSpan,
-  });
+  const headerBits: string[] = [`v${decoded.version}`];
+  if (decoded.isSelectorless) headerBits.push("selectorless");
 
   // Selector.
-  const selectorSpan: Span = { start: PF.SELECTOR_OFFSET, end: PF.SELECTOR_OFFSET + PF.SELECTOR_SIZE };
-  const selectorLabel = policy.isSelectorless ? "zeroed" : policy.selector;
-  const fnName = explained.functionName;
-  nodes.push({
-    label: "Selector",
-    value: fnName ? `${selectorLabel} (${fnName})` : selectorLabel,
-    hex: sliceHex(selectorSpan),
-    span: selectorSpan,
-  });
-
-  // Descriptor length.
-  const descLengthSpan: Span = { start: PF.DESC_LENGTH_OFFSET, end: PF.DESC_LENGTH_OFFSET + PF.DESC_LENGTH_SIZE };
-  const descLength = readU16(cleanHex, PF.DESC_LENGTH_OFFSET);
-  nodes.push({
-    label: "Desc Length",
-    value: String(descLength),
-    hex: sliceHex(descLengthSpan),
-    span: descLengthSpan,
-  });
+  const selectorLabel = decoded.isSelectorless ? "zeroed" : decoded.selector.value;
 
   // Descriptor.
-  const descStart = PF.DESC_OFFSET;
-  const descEnd = descStart + descLength;
-  const descSpan: Span = { start: descStart, end: descEnd };
-  // Descriptor header is the first 2 bytes (version + paramCount).
-  const descHeaderEnd = descStart + 2;
-  const descHeaderSpan: Span = { start: descStart, end: descHeaderEnd };
+  const desc = decoded.descriptor;
   const paramCount = explained.params.length;
-
   const descChildren: TreeNode[] = [
-    {
-      label: "Desc Header",
-      value: `v${version}, ${paramCount} param${s(paramCount)}`,
-      hex: sliceHex(descHeaderSpan),
-      span: descHeaderSpan,
-    },
+    node("Desc Header", `v${desc.header.value.version}, ${paramCount} param${plural(paramCount)}`, desc.header.span),
   ];
-
-  // Walk descriptor param nodes to derive individual param spans.
-  let paramOffset = descHeaderEnd;
-  for (let i = 0; i < paramCount; i++) {
+  for (let i = 0; i < desc.params.length; i++) {
+    const dp = desc.params[i];
     const ep = explained.params[i];
-    const paramNodeEnd = skipDescNode(cleanHex, paramOffset);
-    const paramSpan: Span = { start: paramOffset, end: paramNodeEnd };
     const typeLabel = ep?.type ?? `param(${i})`;
     const nameLabel = ep?.name ? ` ${ep.name}` : "";
-    descChildren.push({
-      label: `Param [${i}]`,
-      value: `${typeLabel}${nameLabel}`,
-      hex: sliceHex(paramSpan),
-      span: paramSpan,
-    });
-    paramOffset = paramNodeEnd;
+    descChildren.push(node(`Param [${i}]`, `${typeLabel}${nameLabel}`, dp.span));
   }
 
-  nodes.push({
-    label: "Descriptor",
-    value: `${paramCount} param${s(paramCount)}`,
-    hex: sliceHex(descSpan),
-    span: descSpan,
-    children: descChildren,
-  });
+  const nodes: TreeNode[] = [
+    node("Header", headerBits.join(", "), decoded.header.span),
+    node(
+      "Selector",
+      explained.functionName ? `${selectorLabel} (${explained.functionName})` : selectorLabel,
+      decoded.selector.span,
+    ),
+    node("Desc Length", String(decoded.descLength.value), decoded.descLength.span),
+    node("Descriptor", `${paramCount} param${plural(paramCount)}`, desc.span, descChildren),
+    node("Group Count", String(decoded.groupCount.value), decoded.groupCount.span),
+  ];
 
-  // Group count.
-  const groupCountStart = descEnd;
-  const groupCountSpan: Span = { start: groupCountStart, end: groupCountStart + PF.GROUP_COUNT_SIZE };
-  const groupCount = parseInt(cleanHex.slice(groupCountStart * 2, groupCountStart * 2 + 2), 16);
-  nodes.push({
-    label: "Group Count",
-    value: String(groupCount),
-    hex: sliceHex(groupCountSpan),
-    span: groupCountSpan,
-  });
+  // Groups.
+  // Flatten explained constraints+rules for display alignment with decoded rules.
+  for (let gi = 0; gi < decoded.groups.length; gi++) {
+    const decodedGroup = decoded.groups[gi];
+    const explainedGroup = explained.groups[gi];
 
-  // Groups — walk the raw bytes to derive rule-level spans.
-  let groupOffset = groupCountStart + PF.GROUP_COUNT_SIZE;
-  for (let gi = 0; gi < groupCount; gi++) {
-    const ruleCount = readU16(cleanHex, groupOffset);
-    const groupBodySize = readU32(cleanHex, groupOffset + PF.GROUP_RULECOUNT_SIZE);
-    const groupBodyStart = groupOffset + PF.GROUP_HEADER_SIZE;
-    const groupEnd = groupBodyStart + groupBodySize;
-    const groupSpan: Span = { start: groupOffset, end: groupEnd };
-
-    const ruleCountSpan: Span = { start: groupOffset, end: groupOffset + PF.GROUP_RULECOUNT_SIZE };
-    const groupSizeSpan: Span = {
-      start: groupOffset + PF.GROUP_RULECOUNT_SIZE,
-      end: groupOffset + PF.GROUP_HEADER_SIZE,
-    };
-
-    // Build explained rule summaries for display.
-    const eg = explained.groups[gi];
     let explainedRuleIndex = 0;
-    const explainedRules: { constraint: ExplainedConstraint; rule: ExplainedRule }[] = [];
-    if (eg) {
-      for (const c of eg.constraints) {
-        for (const r of c.rules) {
-          explainedRules.push({ constraint: c, rule: r });
-        }
-      }
-    }
+    const explainedRules = explainedGroup ? flattenGroup(explainedGroup) : [];
 
     const ruleNodes: TreeNode[] = [];
-    let ruleOffset = groupBodyStart;
-    for (let ri = 0; ri < ruleCount; ri++) {
-      const ruleSize = readU16(cleanHex, ruleOffset);
-      const ruleEnd = ruleOffset + ruleSize;
-      const ruleSpan: Span = { start: ruleOffset, end: ruleEnd };
-
-      const scopeOffset = ruleOffset + PF.RULE_SCOPE_OFFSET;
-      const scopeValue = parseInt(cleanHex.slice(scopeOffset * 2, scopeOffset * 2 + 2), 16);
-      const depthOffset = ruleOffset + PF.RULE_DEPTH_OFFSET;
-      const depthValue = parseInt(cleanHex.slice(depthOffset * 2, depthOffset * 2 + 2), 16);
-      const pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
-      const pathLength = depthValue * PF.PATH_STEP_SIZE;
-      const pathEnd = pathStart + pathLength;
-      const pathHex: Hex = `0x${cleanHex.slice(pathStart * 2, pathEnd * 2)}`;
-      const opCodeOffset = pathEnd;
-      const opCodeValue = parseInt(cleanHex.slice(opCodeOffset * 2, opCodeOffset * 2 + 2), 16);
-      const dataLengthOffset = opCodeOffset + PF.RULE_OPCODE_SIZE;
-      const dataStart = dataLengthOffset + PF.RULE_DATALENGTH_SIZE;
-      const dataLength = readU16(cleanHex, dataLengthOffset);
-
+    for (let ri = 0; ri < decodedGroup.rules.length; ri++) {
+      const decodedRule = decodedGroup.rules[ri];
       const info = explainedRules[explainedRuleIndex];
       explainedRuleIndex++;
+
       const summary = info
         ? `${info.constraint.pathLabel} ${info.rule.operator} ${formatOperands(info.rule)} : ${info.constraint.targetType}`
         : "";
-      const opDisplay = info?.rule.operator ?? `0x${opCodeValue.toString(16).padStart(2, "0")}`;
-      const dataValue = info
-        ? `${formatOperands(info.rule)} : ${info.constraint.targetType}`
-        : `0x${cleanHex.slice(dataStart * 2, (dataStart + dataLength) * 2)}`;
+      const opDisplay = info?.rule.operator ?? `0x${decodedRule.opCode.value.toString(16).padStart(2, "0")}`;
+      const dataValue = info ? `${formatOperands(info.rule)} : ${info.constraint.targetType}` : decodedRule.data.value;
 
       ruleNodes.push({
-        label: `Rule ${ri + 1}`,
-        value: summary,
+        ...node(`Rule ${ri + 1}`, summary, decodedRule.span, [
+          node("Rule Size", String(decodedRule.ruleSize.value), decodedRule.ruleSize.span),
+          node("Scope", lookupScope(decodedRule.scope.value).label, decodedRule.scope.span),
+          node("Path Depth", String(decodedRule.pathDepth.value), decodedRule.pathDepth.span),
+          node("Path", `[${parsePathSteps(decodedRule.path.value).join(", ")}]`, decodedRule.path.span),
+          node("OpCode", opDisplay, decodedRule.opCode.span),
+          node("Data Length", String(decodedRule.dataLength.value), decodedRule.dataLength.span),
+          node("Data", dataValue, decodedRule.data.span),
+        ]),
         hex: "",
-        span: ruleSpan,
-        children: [
-          {
-            label: "Rule Size",
-            value: String(ruleSize),
-            hex: sliceHex({ start: ruleOffset, end: ruleOffset + PF.RULE_SIZE_SIZE }),
-            span: { start: ruleOffset, end: ruleOffset + PF.RULE_SIZE_SIZE },
-          },
-          {
-            label: "Scope",
-            value: scopeValue === 0 ? "context" : "calldata",
-            hex: sliceHex({ start: scopeOffset, end: scopeOffset + 1 }),
-            span: { start: scopeOffset, end: scopeOffset + 1 },
-          },
-          {
-            label: "Path Depth",
-            value: String(depthValue),
-            hex: sliceHex({ start: depthOffset, end: depthOffset + 1 }),
-            span: { start: depthOffset, end: depthOffset + 1 },
-          },
-          {
-            label: "Path",
-            value: `[${parsePathSteps(pathHex).join(", ")}]`,
-            hex: sliceHex({ start: pathStart, end: pathEnd }),
-            span: { start: pathStart, end: pathEnd },
-          },
-          {
-            label: "OpCode",
-            value: opDisplay,
-            hex: sliceHex({ start: opCodeOffset, end: opCodeOffset + PF.RULE_OPCODE_SIZE }),
-            span: { start: opCodeOffset, end: opCodeOffset + PF.RULE_OPCODE_SIZE },
-          },
-          {
-            label: "Data Length",
-            value: String(dataLength),
-            hex: sliceHex({ start: dataLengthOffset, end: dataLengthOffset + PF.RULE_DATALENGTH_SIZE }),
-            span: { start: dataLengthOffset, end: dataLengthOffset + PF.RULE_DATALENGTH_SIZE },
-          },
-          {
-            label: "Data",
-            value: dataValue,
-            hex: sliceHex({ start: dataStart, end: dataStart + dataLength }),
-            span: { start: dataStart, end: dataStart + dataLength },
-          },
-        ],
       });
-
-      ruleOffset = ruleEnd;
     }
 
-    nodes.push({
-      label: `Group ${gi + 1}`,
-      value: `${ruleCount} rule${s(ruleCount)}, ${groupBodySize} byte${s(groupBodySize)}`,
-      hex: sliceHex({ start: ruleCountSpan.start, end: groupSizeSpan.end }),
-      span: groupSpan,
-      children: [
-        {
-          label: "Rule Count",
-          value: String(ruleCount),
-          hex: sliceHex(ruleCountSpan),
-          span: ruleCountSpan,
-        },
-        {
-          label: "Group Size",
-          value: String(groupBodySize),
-          hex: sliceHex(groupSizeSpan),
-          span: groupSizeSpan,
-        },
-        ...ruleNodes,
-      ],
-    });
+    // Group header spans (ruleCount + groupSize) for the parent hex display.
+    const groupHeaderSpan: Span = {
+      start: decodedGroup.ruleCount.span.start,
+      end: decodedGroup.groupSize.span.end,
+    };
 
-    groupOffset = groupEnd;
+    nodes.push({
+      ...node(
+        `Group ${gi + 1}`,
+        `${decodedGroup.ruleCount.value} rule${plural(decodedGroup.ruleCount.value)}, ${decodedGroup.groupSize.value} byte${plural(decodedGroup.groupSize.value)}`,
+        decodedGroup.span,
+        [
+          node("Rule Count", String(decodedGroup.ruleCount.value), decodedGroup.ruleCount.span),
+          node("Group Size", String(decodedGroup.groupSize.value), decodedGroup.groupSize.span),
+          ...ruleNodes,
+        ],
+      ),
+      hex: sliceHex(groupHeaderSpan),
+    });
   }
 
   return nodes;
-}
-
-function skipDescNode(hex: string, byteOffset: number): number {
-  const typeCode = parseInt(hex.slice(byteOffset * 2, byteOffset * 2 + 2), 16);
-  if (lookupTypeCode(typeCode).typeClass === "elementary") return byteOffset + DF.TYPECODE_SIZE;
-  const meta = parseInt(
-    hex.slice((byteOffset + DF.TYPECODE_SIZE) * 2, (byteOffset + DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE) * 2),
-    16,
-  );
-  return byteOffset + (meta & DF.META_NODE_LENGTH_MASK);
 }
 
 // Map each byte index to its deepest owning span for hover interaction.
@@ -775,8 +490,8 @@ function HexDump({
   );
 }
 
-function InspectView({ policy, explained, hex }: { policy: PolicyData; explained: ExplainedPolicy; hex: string }) {
-  const tree = useMemo(() => buildTree(policy, explained, hex), [policy, explained, hex]);
+function InspectView({ decoded, explained, hex }: { decoded: DecodedPolicy; explained: ExplainedPolicy; hex: string }) {
+  const tree = useMemo(() => buildTree(decoded, explained, hex), [decoded, explained, hex]);
   const [hovered, setHovered] = useState<Span | null>(null);
 
   return (

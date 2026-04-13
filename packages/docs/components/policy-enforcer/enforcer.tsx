@@ -1,0 +1,291 @@
+"use client";
+
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui/components/ui/collapsible";
+import { ChevronDown, ArrowRight, ShieldCheck, ShieldX, ShieldQuestion } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import type { Context, Hex } from "@callcium/sdk";
+import { useDebounce } from "@/lib/use-debounce";
+import { cn } from "@/lib/utils";
+import { checkPolicy, type EnforceOutput } from "@/tools/policy-enforcer";
+
+function tryParseBigInt(value: string): bigint | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  try {
+    return BigInt(trimmed);
+  } catch {
+    return undefined;
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Main component
+///////////////////////////////////////////////////////////////////////////
+
+export function Enforcer() {
+  const searchParams = useSearchParams();
+  const [policyInput, setPolicyInput] = useState("");
+  const [calldataInput, setCalldataInput] = useState("");
+  const [contextOpen, setContextOpen] = useState(false);
+  const [ctxMsgSender, setCtxMsgSender] = useState("");
+  const [ctxMsgValue, setCtxMsgValue] = useState("");
+  const [ctxBlockTimestamp, setCtxBlockTimestamp] = useState("");
+  const [ctxBlockNumber, setCtxBlockNumber] = useState("");
+  const [ctxChainId, setCtxChainId] = useState("");
+  const [ctxTxOrigin, setCtxTxOrigin] = useState("");
+
+  useEffect(() => {
+    const policyHex = searchParams.get("policy");
+    if (policyHex) setPolicyInput(policyHex);
+  }, [searchParams]);
+
+  const debouncedPolicy = useDebounce(policyInput, 300);
+  const debouncedCalldata = useDebounce(calldataInput, 300);
+
+  const context = useMemo((): Context | undefined => {
+    const ctx: Context = {};
+    if (ctxMsgSender.trim()) ctx.msgSender = ctxMsgSender.trim() as `0x${string}`;
+    const msgValue = tryParseBigInt(ctxMsgValue);
+    if (msgValue !== undefined) ctx.msgValue = msgValue;
+    const blockTs = tryParseBigInt(ctxBlockTimestamp);
+    if (blockTs !== undefined) ctx.blockTimestamp = blockTs;
+    const blockNum = tryParseBigInt(ctxBlockNumber);
+    if (blockNum !== undefined) ctx.blockNumber = blockNum;
+    const chain = tryParseBigInt(ctxChainId);
+    if (chain !== undefined) ctx.chainId = chain;
+    if (ctxTxOrigin.trim()) ctx.txOrigin = ctxTxOrigin.trim() as `0x${string}`;
+    return Object.keys(ctx).length > 0 ? ctx : undefined;
+  }, [ctxMsgSender, ctxMsgValue, ctxBlockTimestamp, ctxBlockNumber, ctxChainId, ctxTxOrigin]);
+
+  const result = useMemo((): EnforceOutput | null => {
+    const policy = debouncedPolicy.trim();
+    const calldata = debouncedCalldata.trim();
+    if (!policy || !calldata) return null;
+    return checkPolicy(policy as Hex, calldata as Hex, context);
+  }, [debouncedPolicy, debouncedCalldata, context]);
+
+  return (
+    <div className="space-y-4">
+      {/* Policy input */}
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label htmlFor="enforcer-policy-hex" className="text-sm font-medium text-fd-foreground">
+            Policy Blob
+          </label>
+          {policyInput.trim() && (
+            <Link
+              href={`/policy-inspector?policy=${encodeURIComponent(policyInput.trim())}`}
+              className="text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
+            >
+              Inspector <ArrowRight className="inline size-3" />
+            </Link>
+          )}
+        </div>
+        <textarea
+          id="enforcer-policy-hex"
+          className={cn(
+            "w-full rounded-lg border border-fd-border bg-fd-card px-3 py-2 font-mono text-sm",
+            "placeholder:text-fd-muted-foreground/50",
+            "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
+            "resize-y",
+          )}
+          rows={3}
+          placeholder="0x01095ea7b3..."
+          value={policyInput}
+          onChange={(e) => setPolicyInput(e.target.value)}
+          spellCheck={false}
+        />
+      </div>
+
+      {/* Calldata input */}
+      <div>
+        <label htmlFor="enforcer-calldata-hex" className="mb-1.5 block text-sm font-medium text-fd-foreground">
+          Calldata
+        </label>
+        <textarea
+          id="enforcer-calldata-hex"
+          className={cn(
+            "w-full rounded-lg border border-fd-border bg-fd-card px-3 py-2 font-mono text-sm",
+            "placeholder:text-fd-muted-foreground/50",
+            "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
+            "resize-y",
+          )}
+          rows={3}
+          placeholder="0x095ea7b3..."
+          value={calldataInput}
+          onChange={(e) => setCalldataInput(e.target.value)}
+          spellCheck={false}
+        />
+      </div>
+
+      {/* Context (collapsible) */}
+      <Collapsible open={contextOpen} onOpenChange={setContextOpen}>
+        <CollapsibleTrigger className="flex items-center gap-1.5 text-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground">
+          <ChevronDown className={cn("size-4 transition-transform", contextOpen && "rotate-180")} />
+          Context (optional)
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            <ContextField label="msg.sender" placeholder="0x..." value={ctxMsgSender} onChange={setCtxMsgSender} />
+            <ContextField label="msg.value" placeholder="wei amount" value={ctxMsgValue} onChange={setCtxMsgValue} />
+            <ContextField
+              label="block.timestamp"
+              placeholder="unix timestamp"
+              value={ctxBlockTimestamp}
+              onChange={setCtxBlockTimestamp}
+              action={{
+                label: "Now",
+                onClick: () => setCtxBlockTimestamp(String(Math.floor(Date.now() / 1000))),
+              }}
+            />
+            <ContextField
+              label="block.number"
+              placeholder="block number"
+              value={ctxBlockNumber}
+              onChange={setCtxBlockNumber}
+            />
+            <ContextField label="chain.id" placeholder="chain ID" value={ctxChainId} onChange={setCtxChainId} />
+            <ContextField label="tx.origin" placeholder="0x..." value={ctxTxOrigin} onChange={setCtxTxOrigin} />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Result */}
+      {result && <ResultDisplay result={result} />}
+    </div>
+  );
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Context field
+///////////////////////////////////////////////////////////////////////////
+
+function ContextField({
+  label,
+  placeholder,
+  value,
+  onChange,
+  action,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (v: string) => void;
+  action?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <label className="text-xs font-medium text-fd-muted-foreground">{label}</label>
+        {action && (
+          <button
+            type="button"
+            className="text-xs text-fd-muted-foreground hover:text-fd-foreground transition-colors"
+            onClick={action.onClick}
+          >
+            {action.label}
+          </button>
+        )}
+      </div>
+      <input
+        type="text"
+        className="w-full rounded-lg border border-fd-border bg-fd-card px-3 py-1.5 font-mono text-sm placeholder:text-fd-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        spellCheck={false}
+      />
+    </div>
+  );
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Result display
+///////////////////////////////////////////////////////////////////////////
+
+function ResultDisplay({ result }: { result: EnforceOutput }) {
+  if (result.status === "error") {
+    return (
+      <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+        {result.errorMessage}
+      </div>
+    );
+  }
+
+  const statusConfig = {
+    pass: {
+      icon: ShieldCheck,
+      label: "Pass",
+      className: "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300",
+      iconClass: "text-green-600 dark:text-green-400",
+    },
+    fail: {
+      icon: ShieldX,
+      label: "Fail",
+      className: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
+      iconClass: "text-red-600 dark:text-red-400",
+    },
+    inconclusive: {
+      icon: ShieldQuestion,
+      label: "Inconclusive",
+      className: "bg-fd-info text-fd-info-foreground ring-1 ring-fd-info-foreground/30",
+      iconClass: "text-fd-info-foreground",
+    },
+  }[result.status];
+
+  if (!statusConfig) return null;
+
+  const Icon = statusConfig.icon;
+
+  return (
+    <div className="space-y-3">
+      {/* Status badge */}
+      <div className={cn("flex items-center gap-2 rounded-lg px-4 py-3", statusConfig.className)}>
+        <Icon className={cn("size-5", statusConfig.iconClass)} />
+        <span className="font-semibold">{statusConfig.label}</span>
+        {result.matchedGroup !== undefined && (
+          <span className="text-sm opacity-70">(matched group {result.matchedGroup + 1})</span>
+        )}
+      </div>
+
+      {/* Violations */}
+      {result.violations.length > 0 && (
+        <div className="space-y-1">
+          <span className="text-sm font-medium text-fd-foreground">Violations</span>
+          {result.violations.map((v, i) => (
+            <div
+              // oxlint-disable-next-line react/no-array-index-key
+              key={i}
+              className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-700 dark:text-red-300"
+            >
+              <div className="font-mono">
+                {v.path && <span className="font-semibold">{v.path} </span>}
+                <span>{v.code}</span>
+              </div>
+              <div className="mt-0.5 text-xs opacity-80">{v.message}</div>
+              {v.resolvedValue && <div className="mt-0.5 font-mono text-xs opacity-60">actual: {v.resolvedValue}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Skipped constraints */}
+      {result.skipped.length > 0 && (
+        <div className="space-y-1">
+          <span className="text-sm font-medium text-fd-foreground">Skipped (missing context)</span>
+          {result.skipped.map((v, i) => (
+            <div
+              // oxlint-disable-next-line react/no-array-index-key
+              key={i}
+              className="rounded-lg bg-fd-info px-4 py-2 text-sm text-fd-info-foreground ring-1 ring-fd-info-foreground/30"
+            >
+              {v.message}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
