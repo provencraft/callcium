@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { PolicyBuilder, arg, msgSender, msgValue, Op, Scope } from "../src";
 import { bytesToHex } from "../src/bytes";
-import { DescriptorBuilder } from "../src/descriptor-builder";
+import { DescriptorCoder } from "../src/descriptor-coder";
 import { PolicyValidator } from "../src/policy-validator";
 import { op, rangeOp, inOp } from "./helpers";
 
@@ -21,7 +21,7 @@ function rawPolicy(typesCsv: string, scope: number, path: Hex, operators: Hex[])
   return {
     isSelectorless: true,
     selector: "0x00000000",
-    descriptor: bytesToHex(DescriptorBuilder.fromTypes(typesCsv)),
+    descriptor: bytesToHex(DescriptorCoder.fromTypes(typesCsv)),
     groups: [[{ scope, path, operators }]],
   };
 }
@@ -34,7 +34,7 @@ function multiConstraintPolicy(
   return {
     isSelectorless: true,
     selector: "0x00000000",
-    descriptor: bytesToHex(DescriptorBuilder.fromTypes(typesCsv)),
+    descriptor: bytesToHex(DescriptorCoder.fromTypes(typesCsv)),
     groups: [constraints],
   };
 }
@@ -375,7 +375,7 @@ describe("PolicyValidator - empty group", () => {
     const data: PolicyData = {
       isSelectorless: true,
       selector: "0x00000000",
-      descriptor: bytesToHex(DescriptorBuilder.fromTypes("uint256")),
+      descriptor: bytesToHex(DescriptorCoder.fromTypes("uint256")),
       groups: [[]],
     };
     expect(findIssue(PolicyValidator.validate(data), "EMPTY_GROUP")).toBeDefined();

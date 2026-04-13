@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 
 import rawVectors from "../../contracts/test/vectors/descriptors.json";
-import { decodeDescriptor } from "../src/policy-coder";
+import { hexToBytes } from "../src/bytes";
+import { decodeDescriptorFromBytes } from "../src/policy-coder";
 import { expectErrorCode, hex } from "./helpers";
 
 import type { CallciumErrorCode } from "../src";
@@ -47,7 +48,7 @@ describe("descriptor conformance vectors", () => {
     test(`${vector.id}: ${vector.description}`, () => {
       if (vector.error === "") {
         // Valid vector — decode and verify all param fields.
-        const result = decodeDescriptor(hex(vector.blob));
+        const result = decodeDescriptorFromBytes(hexToBytes(hex(vector.blob))).descriptor;
         expect(result.version).toBe(vector.version);
         expect(result.params).toHaveLength(vector.params.length);
 
@@ -65,7 +66,7 @@ describe("descriptor conformance vectors", () => {
         const expectedCode = ERROR_MAP[vector.error];
         expect(expectedCode).toBeDefined();
 
-        expectErrorCode(() => decodeDescriptor(hex(vector.blob)), expectedCode);
+        expectErrorCode(() => decodeDescriptorFromBytes(hexToBytes(hex(vector.blob))), expectedCode);
       }
     });
   }

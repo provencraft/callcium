@@ -12,50 +12,25 @@ import {
 } from "./constants";
 import { CallciumError } from "./errors";
 
-import type { Constraint, DescNode, Hex, PolicyData, Span } from "./types";
+import type {
+  Constraint,
+  DescNode,
+  Field,
+  Hex,
+  DecodedGroup,
+  DecodedParam,
+  DecodedPolicy,
+  DecodedRule,
+  PolicyData,
+} from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Internal types
 ///////////////////////////////////////////////////////////////////////////
 
-/** A decoded value with its byte position in the source blob. */
-type Field<T> = { value: T; span: Span };
-
-type DecodedParam = {
-  index: number;
-  typeCode: number;
-  isDynamic: boolean;
-  staticSize: number;
-  path: Hex;
-  span: Span;
-};
-
 type DecodedDescriptor = {
   version: number;
   params: DecodedParam[];
-};
-
-type DecodedRule = {
-  scope: Field<number>;
-  path: Field<Hex>;
-  opCode: Field<number>;
-  data: Field<Hex>;
-  span: Span;
-};
-
-type DecodedGroup = {
-  rules: DecodedRule[];
-  span: Span;
-};
-
-type DecodedPolicy = {
-  header: Field<number>;
-  selector: Field<Hex>;
-  descriptor: { raw: Hex; params: DecodedParam[]; span: Span };
-  groups: DecodedGroup[];
-  span: Span;
-  version: number;
-  isSelectorless: boolean;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -277,22 +252,12 @@ export function decodeDescriptorFromBytes(data: Uint8Array): {
   };
 }
 
-/**
- * Decode a binary descriptor blob into its public representation.
- * @param blob - Binary descriptor as 0x-prefixed hex string.
- * @returns The decoded descriptor with param metadata and byte spans.
- * @throws {CallciumError} If the blob is structurally malformed.
- */
-export function decodeDescriptor(blob: Hex): DecodedDescriptor {
-  return decodeDescriptorFromBytes(hexToBytes(blob)).descriptor;
-}
-
 ///////////////////////////////////////////////////////////////////////////
 // Policy field helper
 ///////////////////////////////////////////////////////////////////////////
 
 /** Wrap a value with its byte span for positional tracking. */
-function field<T>(value: T, start: number, end: number): { value: T; span: { start: number; end: number } } {
+function field<T>(value: T, start: number, end: number): Field<T> {
   return { value, span: { start, end } };
 }
 
@@ -300,12 +265,12 @@ function field<T>(value: T, start: number, end: number): { value: T; span: { sta
 // Policy Decoder
 ///////////////////////////////////////////////////////////////////////////
 
-/** Decode a binary policy blob, returning both the public structure and internal AST. */
-export function decodePolicyFromBytes(data: Uint8Array): {
+/** Decode a policy blob, returning the structural representation and descriptor AST. */
+export function decodePolicy(blob: Hex): {
   policy: DecodedPolicy;
   tree: DescNode[];
 } {
-  // Minimum header: header(1) + selector(4) + descLength(2) = 7 bytes, plus groupCount(1).
+  const data = hexToBytes(blob);
   if (data.length < PF.DESC_OFFSET + 1) {
     throw new CallciumError("MALFORMED_HEADER", "Policy blob is too short");
   }
@@ -455,9 +420,12 @@ export function decodePolicyFromBytes(data: Uint8Array): {
       }
 
       rules.push({
+        ruleSize: field(ruleSizeValue, ruleOffset, ruleOffset + PF.RULE_SIZE_SIZE),
         scope: field(scopeValue, scopeOffset, scopeOffset + 1),
+        pathDepth: field(depthValue, depthOffset, depthOffset + 1),
         path: field(pathHex, pathStart, pathStart + pathLength),
         opCode: field(opCodeValue, opCodeOffset, opCodeOffset + PF.RULE_OPCODE_SIZE),
+        dataLength: field(dataLengthValue, dataLengthOffset, dataLengthOffset + PF.RULE_DATALENGTH_SIZE),
         data: field(toHex(data, dataStart, dataStart + dataLengthValue), dataStart, dataStart + dataLengthValue),
         span: { start: ruleOffset, end: ruleOffset + ruleSizeValue },
       });
@@ -470,6 +438,8 @@ export function decodePolicyFromBytes(data: Uint8Array): {
     }
 
     groups.push({
+      ruleCount: field(ruleCountValue, ruleCountStart, ruleCountStart + PF.GROUP_RULECOUNT_SIZE),
+      groupSize: field(groupSizeValue, groupSizeStart, groupSizeStart + PF.GROUP_SIZE_SIZE),
       rules,
       span: { start: offset, end: groupEnd },
     });
@@ -484,11 +454,13 @@ export function decodePolicyFromBytes(data: Uint8Array): {
   const policy: DecodedPolicy = {
     header: field(headerByte, 0, PF.HEADER_SIZE),
     selector: field(selectorHex, selectorStart, selectorEnd),
+    descLength: field(descLengthValue, descLengthStart, descLengthStart + PF.DESC_LENGTH_SIZE),
     descriptor: {
       raw: descriptorRaw,
       params,
       span: { start: descStart, end: descEnd },
     },
+    groupCount: field(groupCountValue, groupCountStart, groupCountEnd),
     groups,
     span: { start: 0, end: data.length },
     version,
@@ -496,16 +468,6 @@ export function decodePolicyFromBytes(data: Uint8Array): {
   };
 
   return { policy, tree };
-}
-
-/**
- * Decode a binary policy blob into its public representation.
- * @param blob - Binary policy as 0x-prefixed hex string.
- * @returns The decoded policy with groups, rules, and byte spans.
- * @throws {CallciumError} If the blob is structurally malformed.
- */
-export function decodePolicy(blob: Hex): DecodedPolicy {
-  return decodePolicyFromBytes(hexToBytes(blob)).policy;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -709,7 +671,7 @@ function encode(data: PolicyData): Hex {
  * @throws {CallciumError} If the blob is structurally malformed.
  */
 function decode(blob: Hex): PolicyData {
-  const { policy } = decodePolicyFromBytes(hexToBytes(blob));
+  const { policy } = decodePolicy(blob);
 
   const groups: Constraint[][] = policy.groups.map((group) => {
     const constraintMap = new Map<string, Constraint>();
@@ -746,5 +708,15 @@ function decode(blob: Hex): PolicyData {
   };
 }
 
-/** Encode and decode policies in the canonical binary format. */
-export const PolicyCoder = { encode, decode };
+/**
+ * Inspect a binary policy blob, returning the structural representation with full byte-level spans.
+ * @param blob - Binary policy as 0x-prefixed hex string.
+ * @returns The inspected policy with per-field spans for every structural element.
+ * @throws {CallciumError} If the blob is structurally malformed.
+ */
+function inspect(blob: Hex): DecodedPolicy {
+  return decodePolicy(blob).policy;
+}
+
+/** Encode, decode, and inspect policies in the canonical binary format. */
+export const PolicyCoder = { encode, decode, inspect };

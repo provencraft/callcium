@@ -32,7 +32,7 @@ function nodeLength(desc: Uint8Array, offset: number): number {
  * Return the byte offset of the `fieldIndex`-th field inside a tuple node.
  * Starts at the first field and skips `fieldIndex` nodes using `nodeLength`.
  */
-function tupleFieldOffsetAt(desc: Uint8Array, tupleOffset: number, fieldIndex: number): number {
+function tupleFieldOffset(desc: Uint8Array, tupleOffset: number, fieldIndex: number): number {
   let cursor = tupleOffset + DF.TUPLE_HEADER_SIZE;
   for (let i = 0; i < fieldIndex; i++) {
     cursor += nodeLength(desc, cursor);
@@ -114,7 +114,7 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
       if (step >= fields) {
         throw new CallciumError("INVALID_PATH", `Tuple field index ${step} out of range (tuple has ${fields} fields).`);
       }
-      cursor = tupleFieldOffsetAt(desc, cursor, step);
+      cursor = tupleFieldOffset(desc, cursor, step);
     } else if (typeCode === TypeCode.STATIC_ARRAY || typeCode === TypeCode.DYNAMIC_ARRAY) {
       cursor = cursor + DF.ARRAY_HEADER_SIZE;
     } else {
@@ -123,16 +123,6 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
   }
 
   return inspect(desc, cursor);
-}
-
-/**
- * Return the byte offset of the `fieldIndex`-th field inside a tuple node.
- * @param desc - Raw descriptor bytes.
- * @param tupleOffset - Byte position of the tuple node.
- * @param fieldIndex - Field index (0-based).
- */
-function tupleFieldOffset(desc: Uint8Array, tupleOffset: number, fieldIndex: number): number {
-  return tupleFieldOffsetAt(desc, tupleOffset, fieldIndex);
 }
 
 /**
@@ -155,6 +145,15 @@ function staticArrayLength(desc: Uint8Array, offset: number): number {
   return readU16(desc, lengthOffset);
 }
 
+/**
+ * Return the byte offset of the array element descriptor.
+ * @param desc - Raw descriptor bytes.
+ * @param offset - Byte position of the array node (static or dynamic).
+ */
+function arrayElementOffset(desc: Uint8Array, offset: number): number {
+  return offset + DF.ARRAY_HEADER_SIZE;
+}
+
 /** Inspect and navigate raw descriptor bytes. */
 export const Descriptor = {
   paramCount,
@@ -164,4 +163,6 @@ export const Descriptor = {
   tupleFieldOffset,
   tupleFieldCount,
   staticArrayLength,
+  nodeLength,
+  arrayElementOffset,
 };

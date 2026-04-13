@@ -20,7 +20,7 @@ import {
   bytesToHex,
 } from "../src";
 import { bigintToHex } from "../src/bytes";
-import { DescriptorBuilder } from "../src/descriptor-builder";
+import { DescriptorCoder } from "../src/descriptor-coder";
 import { applyOperator } from "../src/operators";
 import { op } from "./helpers";
 
@@ -376,7 +376,7 @@ describe("enforce - LENGTH_* on static type", () => {
     const data: PolicyData = {
       isSelectorless: true,
       selector: "0x00000000",
-      descriptor: bytesToHex(DescriptorBuilder.fromTypes("uint256")),
+      descriptor: bytesToHex(DescriptorCoder.fromTypes("uint256")),
       groups: [[{ scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.LENGTH_EQ, 32n)] }]],
     };
     const policyHex = PolicyCoder.encode(data);
@@ -388,7 +388,7 @@ describe("enforce - LENGTH_* on static type", () => {
     const data: PolicyData = {
       isSelectorless: true,
       selector: "0x00000000",
-      descriptor: bytesToHex(DescriptorBuilder.fromTypes("uint256")),
+      descriptor: bytesToHex(DescriptorCoder.fromTypes("uint256")),
       groups: [[{ scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.LENGTH_EQ, 31n)] }]],
     };
     const policyHex = PolicyCoder.encode(data);

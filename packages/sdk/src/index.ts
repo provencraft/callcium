@@ -20,7 +20,7 @@ export { PolicyEnforcer } from "./policy-enforcer";
 
 export { toAddress, hexToBytes, bytesToHex } from "./bytes";
 export { Descriptor } from "./descriptor";
-export { DescriptorBuilder } from "./descriptor-builder";
+export { DescriptorCoder } from "./descriptor-coder";
 export type { TypeInfo } from "./descriptor";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -31,8 +31,6 @@ export {
   Op,
   TypeCode,
   Quantifier,
-  PolicyFormat,
-  DescriptorFormat,
   Scope,
   ContextProperty,
   Limits,
@@ -41,6 +39,7 @@ export {
   lookupContextProperty,
   lookupQuantifier,
   lookupTypeCode,
+  isQuantifier,
 } from "./constants";
 export type {
   Operands,
@@ -61,8 +60,13 @@ export type {
   Hex,
   Address,
   Span,
+  Field,
   PolicyData,
   Constraint,
+  DecodedPolicy,
+  DecodedGroup,
+  DecodedRule,
+  DecodedParam,
   Issue,
   IssueSeverity,
   IssueCategory,

@@ -2,7 +2,7 @@ import { bytesToHex, hexToBytes, readU16 } from "./bytes";
 import { Scope, TypeCode, isQuantifier, MAX_CONTEXT_PROPERTY_ID, DescriptorFormat as DF } from "./constants";
 import { ConstraintBuilder } from "./constraint";
 import { Descriptor } from "./descriptor";
-import { DescriptorBuilder } from "./descriptor-builder";
+import { DescriptorCoder } from "./descriptor-coder";
 import { CallciumError } from "./errors";
 import { PolicyCoder, parsePathSteps } from "./policy-coder";
 import { PolicyValidator } from "./policy-validator";
@@ -115,7 +115,7 @@ export class PolicyBuilder {
    */
   static create(signature: string): PolicyBuilder {
     const parsed = SignatureParser.parse(signature);
-    const descriptor = DescriptorBuilder.fromTypes(parsed.types);
+    const descriptor = DescriptorCoder.fromTypes(parsed.types);
     return new PolicyBuilder({
       isSelectorless: false,
       selector: parsed.selector,
@@ -130,7 +130,7 @@ export class PolicyBuilder {
    * @param typesCsv - Comma-separated ABI type strings, e.g. `"address,uint256"`.
    */
   static createRaw(typesCsv: string): PolicyBuilder {
-    const descriptor = DescriptorBuilder.fromTypes(typesCsv);
+    const descriptor = DescriptorCoder.fromTypes(typesCsv);
     return new PolicyBuilder({
       isSelectorless: true,
       selector: "0x00000000",

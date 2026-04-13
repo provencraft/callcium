@@ -10,7 +10,7 @@ import {
 } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
 import { applyOperator, toBigInt, isLengthOp } from "./operators";
-import { decodePolicyFromBytes } from "./policy-coder";
+import { decodePolicy } from "./policy-coder";
 import { locate, arrayShape, arrayElementAt, loadScalar, loadSlice, descendPath } from "./reader";
 
 import type { Location } from "./reader";
@@ -54,7 +54,7 @@ const CTX_PROPERTY_KEYS: Record<number, keyof Context> = {
  * @throws {CallciumError} If the policy blob is structurally malformed.
  */
 function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
-  const { policy: decoded, tree } = decodePolicyFromBytes(hexToBytes(policy));
+  const { policy: decoded, tree } = decodePolicy(policy);
   const callDataBytes = hexToBytes(callData);
 
   // Selector check.

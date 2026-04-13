@@ -117,6 +117,56 @@ export type Constraint = {
 };
 
 ///////////////////////////////////////////////////////////////////////////
+// Structural inspection types
+///////////////////////////////////////////////////////////////////////////
+
+/** A decoded value with its byte position in the source blob. */
+export type Field<T> = { value: T; span: Span };
+
+/** Structural representation of a decoded parameter within the descriptor. */
+export type DecodedParam = {
+  index: number;
+  typeCode: number;
+  isDynamic: boolean;
+  staticSize: number;
+  path: Hex;
+  span: Span;
+};
+
+/** Structural representation of a decoded rule with per-field spans. */
+export type DecodedRule = {
+  ruleSize: Field<number>;
+  scope: Field<number>;
+  pathDepth: Field<number>;
+  path: Field<Hex>;
+  opCode: Field<number>;
+  dataLength: Field<number>;
+  data: Field<Hex>;
+  span: Span;
+};
+
+/** Structural representation of a decoded group with metadata spans. */
+export type DecodedGroup = {
+  ruleCount: Field<number>;
+  groupSize: Field<number>;
+  rules: DecodedRule[];
+  span: Span;
+};
+
+/** Structural representation of a decoded policy with full byte-level spans. */
+export type DecodedPolicy = {
+  header: Field<number>;
+  selector: Field<Hex>;
+  descLength: Field<number>;
+  descriptor: { raw: Hex; params: DecodedParam[]; span: Span };
+  groupCount: Field<number>;
+  groups: DecodedGroup[];
+  span: Span;
+  version: number;
+  isSelectorless: boolean;
+};
+
+///////////////////////////////////////////////////////////////////////////
 // Validation issues
 ///////////////////////////////////////////////////////////////////////////
 

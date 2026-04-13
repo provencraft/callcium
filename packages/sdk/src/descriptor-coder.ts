@@ -1,4 +1,5 @@
-import { DescriptorFormat as DF } from "./constants";
+import { DescriptorFormat as DF, TypeCode, lookupTypeCode } from "./constants";
+import { Descriptor } from "./descriptor";
 import { CallciumError } from "./errors";
 import { address, array, bool, bytes, bytesN, function_, intN, string_, tuple, uint256, uintN } from "./type-desc";
 
@@ -246,5 +247,58 @@ function fromTypes(typesCsv: string): Uint8Array {
   return result;
 }
 
-/** Build binary descriptor bytes from an ABI-style comma-separated type string. */
-export const DescriptorBuilder = { fromTypes };
+///////////////////////////////////////////////////////////////////////////
+// Inverse: descriptor bytes → type string
+///////////////////////////////////////////////////////////////////////////
+
+/** Reconstruct a Solidity type string from a descriptor node at the given offset. */
+function nodeToTypeString(desc: Uint8Array, offset: number): string {
+  const typeCode = desc[offset]!;
+
+  if (typeCode === TypeCode.TUPLE) {
+    const fieldCount = Descriptor.tupleFieldCount(desc, offset);
+    const fieldTypes: string[] = [];
+    let fieldOffset = offset + DF.TUPLE_HEADER_SIZE;
+    for (let i = 0; i < fieldCount; i++) {
+      fieldTypes.push(nodeToTypeString(desc, fieldOffset));
+      fieldOffset += Descriptor.nodeLength(desc, fieldOffset);
+    }
+    return `(${fieldTypes.join(",")})`;
+  }
+
+  if (typeCode === TypeCode.STATIC_ARRAY) {
+    const length = Descriptor.staticArrayLength(desc, offset);
+    const elemType = nodeToTypeString(desc, Descriptor.arrayElementOffset(desc, offset));
+    return `${elemType}[${length}]`;
+  }
+
+  if (typeCode === TypeCode.DYNAMIC_ARRAY) {
+    const elemType = nodeToTypeString(desc, Descriptor.arrayElementOffset(desc, offset));
+    return `${elemType}[]`;
+  }
+
+  return lookupTypeCode(typeCode).label;
+}
+
+/**
+ * Reconstruct a comma-separated list of ABI type strings from a binary descriptor.
+ *
+ * Inverse of `fromTypes`: `toTypes(fromTypes(s))` returns `s` for any valid input.
+ *
+ * @param desc - Binary descriptor bytes (with version+paramCount header).
+ * @returns Comma-separated ABI type strings, e.g. `"address,uint256,(bool,bytes32)[]"`.
+ * @throws {CallciumError} If the descriptor is malformed.
+ */
+function toTypes(desc: Uint8Array): string {
+  const count = Descriptor.paramCount(desc);
+  const types: string[] = [];
+  let offset = DF.HEADER_SIZE;
+  for (let i = 0; i < count; i++) {
+    types.push(nodeToTypeString(desc, offset));
+    offset += Descriptor.nodeLength(desc, offset);
+  }
+  return types.join(",");
+}
+
+/** Encode and decode descriptors. */
+export const DescriptorCoder = { fromTypes, toTypes };

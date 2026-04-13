@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import rawVectors from "../../contracts/test/vectors/policies.json";
-import { PolicyCoder, decodePolicy } from "../src/policy-coder";
+import { PolicyCoder } from "../src/policy-coder";
 import { expectErrorCode, hex } from "./helpers";
 
 import type { CallciumErrorCode, Constraint, PolicyData } from "../src";
@@ -84,7 +84,7 @@ describe("policy conformance - decoding", () => {
   for (const vector of vectors) {
     test(`${vector.id}: ${vector.description}`, () => {
       if (vector.error === "") {
-        const result = decodePolicy(hex(vector.blob));
+        const result = PolicyCoder.inspect(hex(vector.blob));
         const decoded = vector.spec?.decoded;
         if (decoded !== undefined) {
           expect(result.isSelectorless).toBe(decoded.isSelectorless);
@@ -95,7 +95,7 @@ describe("policy conformance - decoding", () => {
       } else {
         const expectedCode = ERROR_MAP[vector.error];
         expect(expectedCode, `No error code mapping for "${vector.error}"`).toBeDefined();
-        expectErrorCode(() => decodePolicy(hex(vector.blob)), expectedCode);
+        expectErrorCode(() => PolicyCoder.inspect(hex(vector.blob)), expectedCode);
       }
     });
   }
