@@ -678,15 +678,16 @@ function updateSet(
 // Duplicate detection
 ///////////////////////////////////////////////////////////////////////////
 
-/** Emit a warning for each pair of identical operators on the same constraint. */
+/** Emit a warning if the constraint contains any identical operators. */
 function checkDuplicates(issues: Issue[], operators: Hex[], groupIndex: number, constraintIndex: number): void {
-  const normalized = operators.map((op) => op.toLowerCase());
-  for (let i = 0; i < normalized.length; i++) {
-    for (let j = i + 1; j < normalized.length; j++) {
-      if (normalized[i] === normalized[j]) {
-        issues.push(Issues.duplicateConstraint(groupIndex, constraintIndex));
-      }
+  const seen = new Set<string>();
+  for (const op of operators) {
+    const key = op.toLowerCase();
+    if (seen.has(key)) {
+      issues.push(Issues.duplicateConstraint(groupIndex, constraintIndex));
+      return;
     }
+    seen.add(key);
   }
 }
 
