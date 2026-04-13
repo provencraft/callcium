@@ -1,5 +1,5 @@
 import { bytesToHex, hexToBytes, readU16 } from "./bytes";
-import { Scope, TypeCode, isQuantifier, MAX_CONTEXT_PROPERTY_ID, DescriptorFormat as DF } from "./constants";
+import { Scope, TypeCode, isQuantifier, MAX_CONTEXT_PROPERTY_ID } from "./constants";
 import { ConstraintBuilder } from "./constraint";
 import { Descriptor } from "./descriptor";
 import { DescriptorCoder } from "./descriptor-coder";
@@ -90,7 +90,7 @@ function validateCalldataPath(path: Hex, desc: Uint8Array): void {
           );
         }
       }
-      offset = offset + DF.ARRAY_HEADER_SIZE;
+      offset = Descriptor.arrayElementOffset(offset);
     } else {
       throw new CallciumError("INVALID_PATH", "Cannot descend into an elementary type.");
     }

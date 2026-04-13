@@ -116,7 +116,7 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
       }
       cursor = tupleFieldOffset(desc, cursor, step);
     } else if (typeCode === TypeCode.STATIC_ARRAY || typeCode === TypeCode.DYNAMIC_ARRAY) {
-      cursor = cursor + DF.ARRAY_HEADER_SIZE;
+      cursor = arrayElementOffset(cursor);
     } else {
       throw new CallciumError("INVALID_PATH", `Cannot descend into elementary type at offset ${cursor}.`);
     }
@@ -140,17 +140,17 @@ function tupleFieldCount(desc: Uint8Array, offset: number): number {
  * @param offset - Byte position of the static array node.
  */
 function staticArrayLength(desc: Uint8Array, offset: number): number {
-  const elemLen = nodeLength(desc, offset + DF.ARRAY_HEADER_SIZE);
-  const lengthOffset = offset + DF.ARRAY_HEADER_SIZE + elemLen;
+  const elemOffset = arrayElementOffset(offset);
+  const elemLen = nodeLength(desc, elemOffset);
+  const lengthOffset = elemOffset + elemLen;
   return readU16(desc, lengthOffset);
 }
 
 /**
  * Return the byte offset of the array element descriptor.
- * @param desc - Raw descriptor bytes.
  * @param offset - Byte position of the array node (static or dynamic).
  */
-function arrayElementOffset(desc: Uint8Array, offset: number): number {
+function arrayElementOffset(offset: number): number {
   return offset + DF.ARRAY_HEADER_SIZE;
 }
 

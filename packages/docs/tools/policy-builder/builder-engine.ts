@@ -189,7 +189,7 @@ function walkDescNode(desc: Uint8Array, offset: number, index: number, nameTree:
     const elementNameTree: NameTree | null = nameTree?.components
       ? { name: null, components: nameTree.components }
       : null;
-    const element = walkDescNode(desc, Descriptor.arrayElementOffset(desc, offset), 0, elementNameTree);
+    const element = walkDescNode(desc, Descriptor.arrayElementOffset(offset), 0, elementNameTree);
     return {
       index,
       type: `${element.type}[${length}]`,
@@ -204,7 +204,7 @@ function walkDescNode(desc: Uint8Array, offset: number, index: number, nameTree:
     const dynElementNameTree: NameTree | null = nameTree?.components
       ? { name: null, components: nameTree.components }
       : null;
-    const element = walkDescNode(desc, Descriptor.arrayElementOffset(desc, offset), 0, dynElementNameTree);
+    const element = walkDescNode(desc, Descriptor.arrayElementOffset(offset), 0, dynElementNameTree);
     return {
       index,
       type: `${element.type}[]`,

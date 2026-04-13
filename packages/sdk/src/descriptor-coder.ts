@@ -271,12 +271,12 @@ function nodeToTypeString(desc: Uint8Array, offset: number): string {
 
   if (typeCode === TypeCode.STATIC_ARRAY) {
     const length = Descriptor.staticArrayLength(desc, offset);
-    const elemType = nodeToTypeString(desc, Descriptor.arrayElementOffset(desc, offset));
+    const elemType = nodeToTypeString(desc, Descriptor.arrayElementOffset(offset));
     return `${elemType}[${length}]`;
   }
 
   if (typeCode === TypeCode.DYNAMIC_ARRAY) {
-    const elemType = nodeToTypeString(desc, Descriptor.arrayElementOffset(desc, offset));
+    const elemType = nodeToTypeString(desc, Descriptor.arrayElementOffset(offset));
     return `${elemType}[]`;
   }
 
@@ -392,7 +392,7 @@ function parseNode(data: Uint8Array, offset: number): ParseResult {
   }
 
   if (info.typeClass === "staticArray") {
-    const elemResult = parseNode(data, offset + DF.ARRAY_HEADER_SIZE);
+    const elemResult = parseNode(data, Descriptor.arrayElementOffset(offset));
     const lengthOffset = elemResult.next;
     if (lengthOffset + DF.ARRAY_LENGTH_SIZE > data.length) {
       throw new CallciumError("UNEXPECTED_END", "Missing static array length suffix", offset);
@@ -421,7 +421,7 @@ function parseNode(data: Uint8Array, offset: number): ParseResult {
     return { node, next: nodeEnd };
   }
 
-  const elemResult = parseNode(data, offset + DF.ARRAY_HEADER_SIZE);
+  const elemResult = parseNode(data, Descriptor.arrayElementOffset(offset));
   const node: DescNode = {
     type: "dynamicArray",
     typeCode: code,
