@@ -1,7 +1,10 @@
-import { DescriptorFormat as DF, TypeCode, lookupTypeCode } from "./constants";
+import { readU16, readU24 } from "./bytes";
+import { DescriptorFormat as DF, TypeCode, lookupTypeCode, classifyTypeCode } from "./constants";
 import { Descriptor } from "./descriptor";
 import { CallciumError } from "./errors";
 import { address, array, bool, bytes, bytesN, function_, intN, string_, tuple, uint256, uintN } from "./type-desc";
+
+import type { DecodedParam, DescNode, Hex } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Splitting helpers
@@ -298,6 +301,205 @@ function toTypes(desc: Uint8Array): string {
     offset += Descriptor.nodeLength(desc, offset);
   }
   return types.join(",");
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Descriptor binary decoder
+///////////////////////////////////////////////////////////////////////////
+
+type ParseResult = { node: DescNode; next: number };
+
+/** Recursively parse a single descriptor node starting at offset. */
+function parseNode(data: Uint8Array, offset: number): ParseResult {
+  if (offset >= data.length) {
+    throw new CallciumError("UNEXPECTED_END", "Unexpected end of descriptor", offset);
+  }
+
+  const code = data[offset]!;
+  const info = classifyTypeCode(code);
+  const metaOffset = offset + DF.TYPECODE_SIZE;
+
+  if (info.typeClass === "elementary") {
+    const node: DescNode = {
+      type: "elementary",
+      typeCode: code,
+      isDynamic: info.isDynamic,
+      staticSize: info.isDynamic ? 0 : 32,
+      span: { start: offset, end: metaOffset },
+    };
+    return { node, next: metaOffset };
+  }
+
+  const metaEnd = metaOffset + DF.COMPOSITE_META_SIZE;
+  if (metaEnd > data.length) {
+    throw new CallciumError("UNEXPECTED_END", "Incomplete composite metadata", offset);
+  }
+
+  const meta = readU24(data, metaOffset);
+  const staticWords = meta >> DF.META_STATIC_WORDS_SHIFT;
+  const nodeLength = meta & DF.META_NODE_LENGTH_MASK;
+
+  const minHeader = info.typeClass === "tuple" ? DF.TUPLE_HEADER_SIZE : DF.ARRAY_HEADER_SIZE;
+  if (nodeLength < minHeader) {
+    throw new CallciumError(
+      "MALFORMED_HEADER",
+      `Composite node length ${nodeLength} is smaller than minimum header ${minHeader}`,
+      offset,
+    );
+  }
+  if (offset + nodeLength > data.length) {
+    throw new CallciumError("NODE_OVERFLOW", "Composite node extends beyond descriptor", offset);
+  }
+
+  const isDynamic = staticWords === 0;
+  const staticSize = isDynamic ? 0 : staticWords * 32;
+  const nodeEnd = offset + nodeLength;
+
+  if (info.typeClass === "tuple") {
+    const fieldCountOffset = metaEnd;
+    if (fieldCountOffset + 2 > data.length) {
+      throw new CallciumError("UNEXPECTED_END", "Incomplete tuple header", offset);
+    }
+    const fieldCount = readU16(data, fieldCountOffset);
+    if (fieldCount === 0) {
+      throw new CallciumError("INVALID_TUPLE_FIELD_COUNT", "Tuple must have at least one field", offset);
+    }
+    if (fieldCount > DF.MAX_TUPLE_FIELDS) {
+      throw new CallciumError(
+        "INVALID_TUPLE_FIELD_COUNT",
+        `Tuple field count ${fieldCount} exceeds maximum ${DF.MAX_TUPLE_FIELDS}`,
+        offset,
+      );
+    }
+
+    const fields: DescNode[] = [];
+    let cursor = offset + DF.TUPLE_HEADER_SIZE;
+    for (let i = 0; i < fieldCount; i++) {
+      const result = parseNode(data, cursor);
+      fields.push(result.node);
+      cursor = result.next;
+    }
+
+    const node: DescNode = {
+      type: "tuple",
+      typeCode: code,
+      isDynamic,
+      staticSize,
+      fields,
+      span: { start: offset, end: nodeEnd },
+    };
+    return { node, next: nodeEnd };
+  }
+
+  if (info.typeClass === "staticArray") {
+    const elemResult = parseNode(data, offset + DF.ARRAY_HEADER_SIZE);
+    const lengthOffset = elemResult.next;
+    if (lengthOffset + DF.ARRAY_LENGTH_SIZE > data.length) {
+      throw new CallciumError("UNEXPECTED_END", "Missing static array length suffix", offset);
+    }
+    const length = readU16(data, lengthOffset);
+    if (length === 0) {
+      throw new CallciumError("INVALID_ARRAY_LENGTH", "Static array length must be greater than zero", offset);
+    }
+    if (length > DF.MAX_STATIC_ARRAY_LENGTH) {
+      throw new CallciumError(
+        "INVALID_ARRAY_LENGTH",
+        `Static array length ${length} exceeds maximum ${DF.MAX_STATIC_ARRAY_LENGTH}`,
+        offset,
+      );
+    }
+
+    const node: DescNode = {
+      type: "staticArray",
+      typeCode: code,
+      isDynamic,
+      staticSize,
+      element: elemResult.node,
+      length,
+      span: { start: offset, end: nodeEnd },
+    };
+    return { node, next: nodeEnd };
+  }
+
+  const elemResult = parseNode(data, offset + DF.ARRAY_HEADER_SIZE);
+  const node: DescNode = {
+    type: "dynamicArray",
+    typeCode: code,
+    isDynamic: true,
+    staticSize: 0,
+    element: elemResult.node,
+    span: { start: offset, end: nodeEnd },
+  };
+  return { node, next: nodeEnd };
+}
+
+/** Convert a zero-based param index to a BE16 hex path step. */
+function indexToPath(index: number): Hex {
+  return `0x${index.toString(16).padStart(4, "0")}`;
+}
+
+type DecodedDescriptor = {
+  version: number;
+  params: DecodedParam[];
+};
+
+/** Decode a binary descriptor blob, returning the structural representation and AST. */
+export function decodeDescriptor(data: Uint8Array): {
+  descriptor: DecodedDescriptor;
+  tree: DescNode[];
+} {
+  if (data.length < 1) {
+    throw new CallciumError("MALFORMED_HEADER", "Descriptor is empty");
+  }
+
+  const version = data[0]!;
+  if (version !== DF.VERSION) {
+    throw new CallciumError("UNSUPPORTED_VERSION", `Version ${version} is not supported (expected ${DF.VERSION})`);
+  }
+
+  if (data.length < DF.HEADER_SIZE) {
+    throw new CallciumError("MALFORMED_HEADER", "Descriptor too short for header");
+  }
+
+  const declaredCount = data[1]!;
+  const params: DecodedParam[] = [];
+  const tree: DescNode[] = [];
+  let cursor: number = DF.HEADER_SIZE;
+
+  while (cursor < data.length) {
+    if (params.length >= DF.MAX_PARAMS) {
+      throw new CallciumError(
+        "PARAM_COUNT_MISMATCH",
+        `Descriptor exceeds the maximum of ${DF.MAX_PARAMS} top-level params`,
+      );
+    }
+
+    const { node, next } = parseNode(data, cursor);
+    tree.push(node);
+
+    params.push({
+      index: params.length,
+      typeCode: node.typeCode,
+      isDynamic: node.isDynamic,
+      staticSize: node.staticSize,
+      path: indexToPath(params.length),
+      span: { start: cursor, end: next },
+    });
+
+    cursor = next;
+  }
+
+  if (params.length !== declaredCount) {
+    throw new CallciumError(
+      "PARAM_COUNT_MISMATCH",
+      `Header declares ${declaredCount} params but ${params.length} were parsed`,
+    );
+  }
+
+  return {
+    descriptor: { version, params },
+    tree,
+  };
 }
 
 /** Encode and decode descriptors. */

@@ -158,7 +158,7 @@ export type DecodedPolicy = {
   header: Field<number>;
   selector: Field<Hex>;
   descLength: Field<number>;
-  descriptor: { raw: Hex; params: DecodedParam[]; span: Span };
+  descriptor: { raw: Hex; header: Field<{ version: number; paramCount: number }>; params: DecodedParam[]; span: Span };
   groupCount: Field<number>;
   groups: DecodedGroup[];
   span: Span;
