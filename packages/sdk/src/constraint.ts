@@ -50,10 +50,10 @@ function encodeWord(value: ScalarValue): Uint8Array {
 
 /** Pack a scalar value as a hex operator payload (opCode byte + 32-byte word). */
 function singleOp(opCode: number, value: ScalarValue): Hex {
-  const buf = new Uint8Array(33);
-  buf[0] = opCode;
-  buf.set(encodeWord(value), 1);
-  return bytesToHex(buf);
+  const buffer = new Uint8Array(33);
+  buffer[0] = opCode;
+  buffer.set(encodeWord(value), 1);
+  return bytesToHex(buffer);
 }
 
 /** Pack a range operator (opCode byte + min word + max word). */
@@ -61,11 +61,11 @@ function rangeOp(opCode: number, min: bigint, max: bigint): Hex {
   if (min > max) {
     throw new CallciumError("INVALID_RANGE", `Range min (${min}) must not exceed max (${max})`);
   }
-  const buf = new Uint8Array(65);
-  buf[0] = opCode;
-  buf.set(encodeWord(min), 1);
-  buf.set(encodeWord(max), 33);
-  return bytesToHex(buf);
+  const buffer = new Uint8Array(65);
+  buffer[0] = opCode;
+  buffer.set(encodeWord(min), 1);
+  buffer.set(encodeWord(max), 33);
+  return bytesToHex(buffer);
 }
 
 /** Convert values to bigint, sort ascending (unsigned), deduplicate, and pack as set payload. */
@@ -82,9 +82,9 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   bigs.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   const deduped: bigint[] = [];
-  for (const val of bigs) {
-    if (deduped.length === 0 || deduped[deduped.length - 1] !== val) {
-      deduped.push(val);
+  for (const value of bigs) {
+    if (deduped.length === 0 || deduped[deduped.length - 1] !== value) {
+      deduped.push(value);
     }
   }
 
@@ -92,12 +92,12 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
     throw new CallciumError("EMPTY_SET", "Set must contain at least one value");
   }
 
-  const buf = new Uint8Array(1 + deduped.length * 32);
-  buf[0] = opCode;
+  const buffer = new Uint8Array(1 + deduped.length * 32);
+  buffer[0] = opCode;
   for (let i = 0; i < deduped.length; i++) {
-    buf.set(encodeWord(deduped[i]!), 1 + i * 32);
+    buffer.set(encodeWord(deduped[i]!), 1 + i * 32);
   }
-  return bytesToHex(buf);
+  return bytesToHex(buffer);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -106,11 +106,11 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
 
 /** Encode a sequence of uint16 path steps as a big-endian hex string. */
 function encodePath(steps: readonly number[]): Hex {
-  const buf = new Uint8Array(steps.length * 2);
+  const buffer = new Uint8Array(steps.length * 2);
   for (let i = 0; i < steps.length; i++) {
-    writeBE16(buf, i * 2, steps[i]!);
+    writeBE16(buffer, i * 2, steps[i]!);
   }
-  return bytesToHex(buf);
+  return bytesToHex(buffer);
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -5,7 +5,7 @@ import { CallciumError } from "./errors";
 import type { DescNode, DynamicArrayNode, StaticArrayNode, TupleNode, ViolationCode } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
-// Result Types
+// Result types
 ///////////////////////////////////////////////////////////////////////////
 
 /** Generic result type for operations that can fail with a violation code. */
@@ -60,7 +60,7 @@ export type LoadResult = Result<{ value: Uint8Array }>;
 export type SliceResult = Result<{ dataOffset: number; length: number }>;
 
 ///////////////////////////////////////////////////////////////////////////
-// Calldata Reading Primitives
+// Calldata reading primitives
 ///////////////////////////////////////////////////////////////////////////
 
 /** Read 32 bytes at offset, bounds-checked. */
@@ -87,7 +87,7 @@ export function readPointer(callData: Uint8Array, head: number): ReadResult<numb
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Internal Helpers
+// Internal helpers
 ///////////////////////////////////////////////////////////////////////////
 
 /** Return the number of bytes this node occupies in the head region. */
@@ -101,7 +101,7 @@ function readStep(pathBytes: Uint8Array, stepIndex: number): number {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// SINGLE-STEP Descent
+// Single-step descent
 ///////////////////////////////////////////////////////////////////////////
 
 type DescendResult =

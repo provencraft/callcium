@@ -153,14 +153,14 @@ describe("enforce", () => {
     });
 
     test("fails on selector mismatch", () => {
-      const callData = "0xdeadbeef000000000000000000000000000000000000000000000000000000000000002a";
+      const callData = "0x11111111000000000000000000000000000000000000000000000000000000000000002a";
       const result = PolicyEnforcer.check(POLICY_EQ_UINT256, callData);
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.violations[0].code).toBe("SELECTOR_MISMATCH");
         expect(result.violations[0].group).toBeUndefined();
         expect(result.violations[0].rule).toBeUndefined();
-        expect(result.violations[0].resolvedValue).toBe("0xdeadbeef");
+        expect(result.violations[0].resolvedValue).toBe("0x11111111");
       }
     });
   });

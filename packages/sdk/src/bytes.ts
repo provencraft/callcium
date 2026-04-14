@@ -52,16 +52,16 @@ export function readU32(data: Uint8Array, offset: number): number {
 }
 
 /** Write a 16-bit big-endian value into a Uint8Array at offset. */
-export function writeBE16(buf: Uint8Array, offset: number, value: number): void {
-  buf[offset] = (value >>> 8) & 0xff;
-  buf[offset + 1] = value & 0xff;
+export function writeBE16(buffer: Uint8Array, offset: number, value: number): void {
+  buffer[offset] = (value >>> 8) & 0xff;
+  buffer[offset + 1] = value & 0xff;
 }
 
 /** Write a 24-bit big-endian value into a Uint8Array at offset. */
-export function writeBE24(buf: Uint8Array, offset: number, value: number): void {
-  buf[offset] = (value >>> 16) & 0xff;
-  buf[offset + 1] = (value >>> 8) & 0xff;
-  buf[offset + 2] = value & 0xff;
+export function writeBE24(buffer: Uint8Array, offset: number, value: number): void {
+  buffer[offset] = (value >>> 16) & 0xff;
+  buffer[offset + 1] = (value >>> 8) & 0xff;
+  buffer[offset + 2] = value & 0xff;
 }
 
 /** Format a bigint as a zero-padded 32-byte hex string. */

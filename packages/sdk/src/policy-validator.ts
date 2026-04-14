@@ -577,17 +577,17 @@ function checkSetEmpty(ctx: ConstraintContext, groupIndex: number, constraintInd
   let possibleCount = 0;
   const inCount = ctx.set.inValues.length;
   for (let i = 0; i < inCount; i++) {
-    const val = ctx.set.inValues[i]!;
+    const value = ctx.set.inValues[i]!;
     let forbidden = false;
     for (let k = 0; k < ctx.numeric.holes.length; k++) {
-      if (ctx.numeric.holes[k] === val) {
+      if (ctx.numeric.holes[k] === value) {
         forbidden = true;
         break;
       }
     }
     if (!forbidden) {
       for (let k = 0; k < ctx.set.notInValues.length; k++) {
-        if (ctx.set.notInValues[k] === val) {
+        if (ctx.set.notInValues[k] === value) {
           forbidden = true;
           break;
         }
@@ -613,32 +613,32 @@ function updateSet(
   issues: Issue[],
 ): void {
   if (isNegated) {
-    for (const val of values) {
-      if (ctx.numeric.hasEq && ctx.numeric.eq === val) {
-        issues.push(Issues.setExcludesEquality(groupIndex, constraintIndex, bigintToHex(val)));
+    for (const value of values) {
+      if (ctx.numeric.hasEq && ctx.numeric.eq === value) {
+        issues.push(Issues.setExcludesEquality(groupIndex, constraintIndex, bigintToHex(value)));
       }
       if (ctx.set.hasIn) {
         let inSet = false;
-        for (const iv of ctx.set.inValues) {
-          if (iv === val) {
+        for (const existing of ctx.set.inValues) {
+          if (existing === value) {
             inSet = true;
             break;
           }
         }
         if (inSet) {
-          issues.push(Issues.setReduction(groupIndex, constraintIndex, bigintToHex(val)));
+          issues.push(Issues.setReduction(groupIndex, constraintIndex, bigintToHex(value)));
         }
       }
       if (ctx.set.notInValues.length < MAX_NOT_IN) {
-        ctx.set.notInValues.push(val);
+        ctx.set.notInValues.push(value);
       }
     }
     checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
   } else {
     if (ctx.numeric.hasEq) {
       let found = false;
-      for (const v of values) {
-        if (v === ctx.numeric.eq) {
+      for (const candidate of values) {
+        if (candidate === ctx.numeric.eq) {
           found = true;
           break;
         }
@@ -651,8 +651,8 @@ function updateSet(
     if (ctx.set.hasIn) {
       const intersection: bigint[] = [];
       for (const existing of ctx.set.inValues) {
-        for (const v of values) {
-          if (existing === v) {
+        for (const candidate of values) {
+          if (existing === candidate) {
             intersection.push(existing);
             break;
           }

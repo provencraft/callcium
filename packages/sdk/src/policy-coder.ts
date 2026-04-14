@@ -45,7 +45,7 @@ function field<T>(value: T, start: number, end: number): Field<T> {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Policy Decoder
+// Policy decoder
 ///////////////////////////////////////////////////////////////////////////
 
 /** Decode a policy blob, returning the structural representation and descriptor AST. */
@@ -255,7 +255,7 @@ export function decodePolicy(blob: Hex): {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Encoder Internals
+// Encoder internals
 ///////////////////////////////////////////////////////////////////////////
 
 type Rule = { scope: number; path: Uint8Array; operator: Uint8Array };
@@ -272,8 +272,8 @@ function flattenConstraint(constraint: Constraint): Rule[] {
 
 /** Compare two byte arrays lexicographically. */
 function compareBytes(a: Uint8Array, b: Uint8Array): number {
-  const len = Math.min(a.length, b.length);
-  for (let i = 0; i < len; i++) {
+  const length = Math.min(a.length, b.length);
+  for (let i = 0; i < length; i++) {
     if (a[i]! !== b[i]!) return a[i]! - b[i]!;
   }
   return a.length - b.length;

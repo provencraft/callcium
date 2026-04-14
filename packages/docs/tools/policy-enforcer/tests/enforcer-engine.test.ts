@@ -63,7 +63,7 @@ describe("checkPolicy", () => {
   });
 
   it("returns error for invalid policy hex", () => {
-    const result = checkPolicy("0xdeadbeef" as Hex, "0x00000000" as Hex);
+    const result = checkPolicy("0x11111111" as Hex, "0x00000000" as Hex);
     expect(result.status).toBe("error");
     expect(result.errorMessage).toBeDefined();
   });

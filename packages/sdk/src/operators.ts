@@ -146,10 +146,10 @@ export function applyOperator(
       break;
 
     case Op.LENGTH_BETWEEN: {
-      const len = BigInt(valueLength);
+      const length = BigInt(valueLength);
       const min = toBigInt(operandData, 0);
       const max = toBigInt(operandData, 32);
-      result = len >= min && len <= max;
+      result = length >= min && length <= max;
       break;
     }
 
