@@ -84,6 +84,6 @@ bytes memory policy = PolicyBuilder
 ## Limits
 
 <Callout type="warn">
-  A single quantified traversal evaluates at most 256 elements — enforcement reverts with `ArrayTooLargeForQuantifier`
-  when exceeded. Only one quantifier is allowed per path; `add()` rejects paths that contain more than one.
+  A single quantified traversal evaluates at most 256 elements — enforcement reverts with `QuantifierLimitExceeded` when
+  exceeded. Only one quantifier is allowed per path; `add()` rejects paths that contain more than one.
 </Callout>

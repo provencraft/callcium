@@ -167,23 +167,23 @@ contract LoadSliceTest is CalldataReaderTest {
         harness.loadSlice(loc, callData);
     }
 
-    function test_RevertWhen_CalldataBounds_LengthOverflows() public {
+    function test_RevertWhen_CalldataOutOfBounds_LengthOverflows() public {
         bytes memory desc = DescriptorBuilder.fromTypes("bytes");
         bytes memory callData = abi.encodePacked(SELECTOR, uint256(0x20), type(uint256).max);
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0), cfg);
 
-        vm.expectRevert(CalldataReader.CalldataBounds.selector);
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
         harness.loadSlice(loc, callData);
     }
 
-    function test_RevertWhen_CalldataBounds_OffsetPastEnd() public {
+    function test_RevertWhen_CalldataOutOfBounds_OffsetPastEnd() public {
         bytes memory desc = DescriptorBuilder.fromTypes("bytes");
         bytes memory callData = abi.encodePacked(SELECTOR, uint256(0xFFFF));
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0), cfg);
 
-        vm.expectRevert(CalldataReader.CalldataBounds.selector);
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
         harness.loadSlice(loc, callData);
     }
 

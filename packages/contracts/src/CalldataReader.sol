@@ -92,7 +92,7 @@ library CalldataReader {
     error NotComposite(uint8 typeCode);
 
     /// @notice Thrown on generic bounds failures.
-    error CalldataBounds();
+    error CalldataOutOfBounds();
 
     /*/////////////////////////////////////////////////////////////////////////
                                      FUNCTIONS
@@ -283,7 +283,7 @@ library CalldataReader {
         uint256 dataOffset = payloadBase + 32;
         uint256 callDataLength = callData.length;
 
-        require(dataOffset <= callDataLength && length <= callDataLength - dataOffset, CalldataBounds());
+        require(dataOffset <= callDataLength && length <= callDataLength - dataOffset, CalldataOutOfBounds());
 
         return DynamicSlice({ dataOffset: dataOffset, length: length });
     }
@@ -316,7 +316,7 @@ library CalldataReader {
             }
         }
 
-        require(head + 32 <= callData.length, CalldataBounds());
+        require(head + 32 <= callData.length, CalldataOutOfBounds());
 
         return Location({
             head: head,
@@ -370,7 +370,7 @@ library CalldataReader {
 
     /// @dev Loads 32 bytes from calldata with bounds check.
     function _calldataload(bytes calldata data, uint256 offset) private pure returns (bytes32 word) {
-        require(offset + 32 <= data.length, CalldataBounds());
+        require(offset + 32 <= data.length, CalldataOutOfBounds());
         word = LibBytes.loadCalldata(data, offset);
     }
 

@@ -111,10 +111,10 @@ Thrown when nested quantifiers are used (unsupported).
 error NestedQuantifiersUnsupported();
 ```
 
-### ArrayTooLargeForQuantifier
+### QuantifierLimitExceeded
 
 Thrown when array exceeds max length for quantified iteration.
 
 ```solidity
-error ArrayTooLargeForQuantifier(uint256 length, uint256 maxLength);
+error QuantifierLimitExceeded(uint256 length, uint256 maxLength);
 ```

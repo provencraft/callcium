@@ -75,11 +75,12 @@ export type EnforceResult = { ok: true; matchedGroup: number } | { ok: false; vi
 export type ViolationCode =
   | "VALUE_MISMATCH"
   | "SELECTOR_MISMATCH"
+  | "MISSING_SELECTOR"
+  | "CALLDATA_OUT_OF_BOUNDS"
+  | "ARRAY_INDEX_OUT_OF_BOUNDS"
   | "MISSING_CONTEXT"
-  | "CALLDATA_TOO_SHORT"
-  | "OFFSET_OUT_OF_BOUNDS"
-  | "QUANTIFIER_EMPTY_ARRAY"
-  | "QUANTIFIER_LIMIT_EXCEEDED";
+  | "QUANTIFIER_LIMIT_EXCEEDED"
+  | "QUANTIFIER_EMPTY_ARRAY";
 
 /** Details of a single rule failure during enforcement. */
 export type Violation = {

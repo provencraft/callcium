@@ -980,13 +980,13 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
-    function test_RevertWhen_ArrayTooLargeForQuantifier() public {
+    function test_RevertWhen_QuantifierLimitExceeded() public {
         uint256[] memory arr = _uintArray(257);
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
             .add(arg(0, Path.ALL).lte(uint256(257)))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
-        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.ArrayTooLargeForQuantifier.selector, 257, 256));
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.QuantifierLimitExceeded.selector, 257, 256));
         harness.enforce(policy, callData);
     }
 

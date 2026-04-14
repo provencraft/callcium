@@ -297,7 +297,7 @@ describe("enforce", () => {
       const result = PolicyEnforcer.check(POLICY_EQ_UINT256, "0x2fbebd38");
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.violations[0].code).toBe("CALLDATA_TOO_SHORT");
+        expect(result.violations[0].code).toBe("CALLDATA_OUT_OF_BOUNDS");
       }
     });
 
@@ -305,7 +305,7 @@ describe("enforce", () => {
       const result = PolicyEnforcer.check(POLICY_SELECTORLESS, "0x");
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.violations[0].code).toBe("CALLDATA_TOO_SHORT");
+        expect(result.violations[0].code).toBe("CALLDATA_OUT_OF_BOUNDS");
       }
     });
 
@@ -313,7 +313,7 @@ describe("enforce", () => {
       const result = PolicyEnforcer.check(POLICY_EQ_UINT256, "0x2fbe");
       expect(result.ok).toBe(false);
       if (!result.ok) {
-        expect(result.violations[0].code).toBe("CALLDATA_TOO_SHORT");
+        expect(result.violations[0].code).toBe("MISSING_SELECTOR");
       }
     });
   });
@@ -585,7 +585,7 @@ describe("enforce - quantifier element resolution failures", () => {
     const result = PolicyEnforcer.check(policy, callData);
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.violations[0].code).toBe("CALLDATA_TOO_SHORT");
+      expect(result.violations[0].code).toBe("CALLDATA_OUT_OF_BOUNDS");
       expect(result.violations[0].message).toContain("Quantifier element");
     }
   });

@@ -541,7 +541,36 @@ Descriptor format limits are defined normatively in the Callcium Descriptor Spec
 
 ***
 
-## 10. References
+## 10. Enforcement Outcome Semantics
+
+### 10.1 Enforcement Violations
+
+Violations are calldata-dependent failures: different calldata could change the outcome. Conformant implementations SHOULD use these canonical codes when exposing machine-readable enforcement outcomes. Implementations MAY map them to reverts, return values, exceptions, or other diagnostics as appropriate for the execution environment.
+
+| Code                        | Description                                                                                |
+| :-------------------------- | :----------------------------------------------------------------------------------------- |
+| `VALUE_MISMATCH`            | Logical operator not satisfied on the resolved value.                                      |
+| `SELECTOR_MISMATCH`         | Calldata selector does not match the policy header.                                        |
+| `MISSING_SELECTOR`          | Calldata too short to contain a 4-byte selector.                                           |
+| `CALLDATA_OUT_OF_BOUNDS`    | Runtime calldata read failure: calldata truncated or offset points beyond available bytes. |
+| `ARRAY_INDEX_OUT_OF_BOUNDS` | Dynamic array in calldata is shorter than the index required by the rule.                  |
+| `MISSING_CONTEXT`           | Recognized context property not provided at runtime.                                       |
+| `QUANTIFIER_LIMIT_EXCEEDED` | Array length exceeds the enforcer iteration limit.                                         |
+| `QUANTIFIER_EMPTY_ARRAY`    | `ANY` or `ALL` quantifier evaluated over an empty array.                                   |
+
+### 10.2 Integrity Errors
+
+Integrity errors are descriptor-fixed or policy-fixed failures: no calldata can resolve them. They indicate a structurally invalid policy (e.g., a path targeting a non-existent tuple field). Conformant validators MUST reject these at build time. Enforcers MAY retain them as defense-in-depth checks. Names and granularity are implementation-specific.
+
+### 10.3 Control Flow
+
+Implementations share violation vocabulary and classification but MAY differ in control flow. A fail-fast enforcer that reverts on the first calldata-relative failure and a collect-all enforcer that evaluates all groups are both conformant.
+
+These strategies are **not behaviorally equivalent**. A fail-fast enforcer may reject calldata that a collect-all enforcer would accept, because the fail-fast enforcer aborts before reaching a passing group. Violation classification (Section 10.1) does not mandate identical evaluation strategy across runtimes.
+
+***
+
+## 11. References
 
 - [ABI Specification](https://docs.soliditylang.org/en/latest/abi-spec.html) (Solidity documentation, applicable to all EVM languages).
 - [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) — Key words for use in RFCs to Indicate Requirement Levels.

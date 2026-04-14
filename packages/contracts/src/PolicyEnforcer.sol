@@ -102,7 +102,7 @@ library PolicyEnforcer {
     error NestedQuantifiersUnsupported();
 
     /// @notice Thrown when array exceeds max length for quantified iteration.
-    error ArrayTooLargeForQuantifier(uint256 length, uint256 maxLength);
+    error QuantifierLimitExceeded(uint256 length, uint256 maxLength);
 
     /*/////////////////////////////////////////////////////////////////////////
                                       FUNCTIONS
@@ -371,7 +371,7 @@ library PolicyEnforcer {
 
         require(
             shape.length <= MAX_QUANTIFIED_ARRAY_LENGTH,
-            ArrayTooLargeForQuantifier(shape.length, MAX_QUANTIFIED_ARRAY_LENGTH)
+            QuantifierLimitExceeded(shape.length, MAX_QUANTIFIED_ARRAY_LENGTH)
         );
 
         // Empty array semantics: ALL_OR_EMPTY (vacuous truth) vs ANY/ALL (false).

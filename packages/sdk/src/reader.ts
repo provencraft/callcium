@@ -66,7 +66,7 @@ export type SliceResult = Result<{ dataOffset: number; length: number }>;
 /** Read 32 bytes at offset, bounds-checked. */
 export function load32(callData: Uint8Array, offset: number): ReadResult<Uint8Array> {
   if (offset < 0 || offset + 32 > callData.length) {
-    return { code: "CALLDATA_TOO_SHORT" };
+    return { code: "CALLDATA_OUT_OF_BOUNDS" };
   }
   return callData.subarray(offset, offset + 32);
 }
@@ -79,11 +79,11 @@ export function readPointer(callData: Uint8Array, head: number): ReadResult<numb
   const word = load32(callData, head);
   if (word instanceof Uint8Array) {
     for (let i = 0; i < 28; i++) {
-      if (word[i] !== 0) return { code: "OFFSET_OUT_OF_BOUNDS" };
+      if (word[i] !== 0) return { code: "CALLDATA_OUT_OF_BOUNDS" };
     }
     return ((word[28]! << 24) | (word[29]! << 16) | (word[30]! << 8) | word[31]!) >>> 0;
   }
-  return word; // propagate CALLDATA_TOO_SHORT
+  return word; // propagate CALLDATA_OUT_OF_BOUNDS
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -119,7 +119,7 @@ function descend(node: DescNode, callData: Uint8Array, head: number, base: numbe
   if (node.type === "staticArray") {
     return descendStaticArray(node, callData, head, base, childIndex);
   }
-  return { type: "violation", code: "OFFSET_OUT_OF_BOUNDS" };
+  throw new CallciumError("INVALID_PATH", `Cannot descend into elementary type (${node.type}).`);
 }
 
 /** Descend into a tuple field by index. */
@@ -131,7 +131,10 @@ function descendTuple(
   childIndex: number,
 ): DescendResult {
   if (childIndex >= node.fields.length) {
-    return { type: "violation", code: "OFFSET_OUT_OF_BOUNDS" };
+    throw new CallciumError(
+      "INVALID_PATH",
+      `Tuple field index ${childIndex} out of range (${node.fields.length} fields).`,
+    );
   }
 
   let tupleBase: number;
@@ -175,7 +178,7 @@ function descendDynamicArray(
   if (typeof lengthResult !== "number") return { type: "violation", code: lengthResult.code };
 
   if (childIndex >= lengthResult) {
-    return { type: "violation", code: "OFFSET_OUT_OF_BOUNDS" };
+    return { type: "violation", code: "ARRAY_INDEX_OUT_OF_BOUNDS" };
   }
 
   const headsBase = arrayBase + 32;
@@ -206,7 +209,7 @@ function descendStaticArray(
   childIndex: number,
 ): DescendResult {
   if (childIndex >= node.length) {
-    return { type: "violation", code: "OFFSET_OUT_OF_BOUNDS" };
+    throw new CallciumError("INVALID_PATH", `Static array index ${childIndex} out of range (length ${node.length}).`);
   }
 
   const elem = node.element;
@@ -250,13 +253,13 @@ export function locate(
 ): LocateResult {
   const stepCount = pathBytes.length / 2;
   if (stepCount === 0) {
-    return { ok: false, code: "CALLDATA_TOO_SHORT" };
+    throw new CallciumError("INVALID_PATH", "Path is empty.");
   }
 
   // Step 0: resolve the target parameter.
   const paramIndex = readStep(pathBytes, 0);
   if (paramIndex >= tree.length) {
-    return { ok: false, code: "OFFSET_OUT_OF_BOUNDS" };
+    throw new CallciumError("INVALID_PATH", `Param index ${paramIndex} out of range (${tree.length} params).`);
   }
 
   let head = baseOffset;
@@ -377,13 +380,13 @@ export function arrayShape(callData: Uint8Array, location: Location): ArrayShape
     };
   }
 
-  return { ok: false, code: "OFFSET_OUT_OF_BOUNDS" };
+  throw new CallciumError("INVALID_PATH", `Cannot compute array shape for non-array node (${node.type}).`);
 }
 
 /** Compute the location for element N within a precomputed array shape. */
 export function arrayElementAt(shape: ArrayShape, index: number, callData: Uint8Array): LocationResult {
   if (index >= shape.length) {
-    return { ok: false, code: "OFFSET_OUT_OF_BOUNDS" };
+    return { ok: false, code: "ARRAY_INDEX_OUT_OF_BOUNDS" };
   }
 
   let head: number;
@@ -398,7 +401,7 @@ export function arrayElementAt(shape: ArrayShape, index: number, callData: Uint8
   }
 
   if (head + 32 > callData.length) {
-    return { ok: false, code: "CALLDATA_TOO_SHORT" };
+    return { ok: false, code: "CALLDATA_OUT_OF_BOUNDS" };
   }
 
   return {

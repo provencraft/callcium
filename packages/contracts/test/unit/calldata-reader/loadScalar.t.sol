@@ -196,7 +196,7 @@ contract LoadScalarTest is CalldataReaderTest {
         harness.loadScalar(loc, callData);
     }
 
-    function test_RevertWhen_CalldataBounds() public {
+    function test_RevertWhen_CalldataOutOfBounds() public {
         CalldataReader.Location memory loc;
         loc.head = 4;
         loc.base = 4;
@@ -206,7 +206,7 @@ contract LoadScalarTest is CalldataReaderTest {
 
         bytes memory callData = abi.encodeWithSelector(SELECTOR);
 
-        vm.expectRevert(CalldataReader.CalldataBounds.selector);
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
         harness.loadScalar(loc, callData);
     }
 

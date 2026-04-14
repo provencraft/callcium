@@ -145,20 +145,20 @@ describe("load32", () => {
     }
   });
 
-  test("returns CALLDATA_TOO_SHORT when offset exceeds bounds", () => {
+  test("returns CALLDATA_OUT_OF_BOUNDS when offset exceeds bounds", () => {
     const callData = word(1);
     const result = load32(callData, 1);
-    expect(result).toEqual({ code: "CALLDATA_TOO_SHORT" });
+    expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
-  test("returns CALLDATA_TOO_SHORT for empty callData", () => {
+  test("returns CALLDATA_OUT_OF_BOUNDS for empty callData", () => {
     const result = load32(new Uint8Array(0), 0);
-    expect(result).toEqual({ code: "CALLDATA_TOO_SHORT" });
+    expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
-  test("returns CALLDATA_TOO_SHORT for negative offset", () => {
+  test("returns CALLDATA_OUT_OF_BOUNDS for negative offset", () => {
     const result = load32(word(1), -1);
-    expect(result).toEqual({ code: "CALLDATA_TOO_SHORT" });
+    expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
   test("succeeds at exact boundary (offset + 32 == length)", () => {
@@ -195,19 +195,19 @@ describe("readPointer", () => {
     const buf = new Uint8Array(32);
     buf[0] = 1; // High byte nonzero
     const result = readPointer(buf, 0);
-    expect(result).toEqual({ code: "OFFSET_OUT_OF_BOUNDS" });
+    expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
   test("rejects value with byte 27 nonzero", () => {
     const buf = new Uint8Array(32);
     buf[27] = 1;
     const result = readPointer(buf, 0);
-    expect(result).toEqual({ code: "OFFSET_OUT_OF_BOUNDS" });
+    expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
-  test("propagates CALLDATA_TOO_SHORT", () => {
+  test("propagates CALLDATA_OUT_OF_BOUNDS", () => {
     const result = readPointer(new Uint8Array(16), 0);
-    expect(result).toEqual({ code: "CALLDATA_TOO_SHORT" });
+    expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 });
 
@@ -243,17 +243,15 @@ describe("locate - top-level param access", () => {
     expect(result.location).toEqual({ head: 4, base: 4, node: tree[0] });
   });
 
-  test("param index out of bounds returns violation", () => {
+  test("param index out of bounds throws integrity error", () => {
     const tree: DescNode[] = [UINT256];
     const callData = word(42);
-    const result = locate(tree, callData, path(1), 0);
-    expect(result).toEqual({ ok: false, code: "OFFSET_OUT_OF_BOUNDS" });
+    expect(() => locate(tree, callData, path(1), 0)).toThrow("Param index 1 out of range");
   });
 
-  test("empty path returns violation", () => {
+  test("empty path throws integrity error", () => {
     const tree: DescNode[] = [UINT256];
-    const result = locate(tree, word(42), new Uint8Array(0), 0);
-    expect(result).toEqual({ ok: false, code: "CALLDATA_TOO_SHORT" });
+    expect(() => locate(tree, word(42), new Uint8Array(0), 0)).toThrow("Path is empty");
   });
 });
 
@@ -345,13 +343,12 @@ describe("locate - static array with static elements", () => {
     expect(result.location).toEqual({ head: 0, base: 0, node: UINT256 });
   });
 
-  test("out of bounds index returns violation", () => {
+  test("out of bounds index throws integrity error", () => {
     const arrNode = staticArrayNode(UINT256, 2);
     const tree: DescNode[] = [arrNode];
     const callData = concat(word(11), word(22));
 
-    const result = locate(tree, callData, path(0, 2), 0);
-    expect(result).toEqual({ ok: false, code: "OFFSET_OUT_OF_BOUNDS" });
+    expect(() => locate(tree, callData, path(0, 2), 0)).toThrow("Static array index 2 out of range");
   });
 });
 
@@ -396,7 +393,7 @@ describe("locate - dynamic array with static elements", () => {
     const callData = concat(word(32), word(1), word(42));
 
     const result = locate(tree, callData, path(0, 1), 0);
-    expect(result).toEqual({ ok: false, code: "OFFSET_OUT_OF_BOUNDS" });
+    expect(result).toEqual({ ok: false, code: "ARRAY_INDEX_OUT_OF_BOUNDS" });
   });
 });
 
@@ -527,13 +524,12 @@ describe("locate - quantifier", () => {
     expect(shapeResult.shape.length).toBe(2);
   });
 
-  test("quantifier on non-array returns violation from arrayShape", () => {
+  test("quantifier on non-array throws integrity error from arrayShape", () => {
     const tree: DescNode[] = [UINT256];
     const callData = word(42);
     const result = locate(tree, callData, path(0, Quantifier.ALL), 0);
     assertQuantifier(result);
-    const shapeResult = arrayShape(callData, result.quantifier.location);
-    expect(shapeResult.ok).toBe(false);
+    expect(() => arrayShape(callData, result.quantifier.location)).toThrow("non-array node");
   });
 
   test("quantifier on static array with dynamic elements dereferences pointer", () => {
@@ -566,7 +562,7 @@ describe("locate - bounds violations", () => {
     const arrNode = dynamicArrayNode(UINT256);
     const tree: DescNode[] = [arrNode];
     const result = locate(tree, new Uint8Array(16), path(0, 0), 0);
-    expect(result).toEqual({ ok: false, code: "CALLDATA_TOO_SHORT" });
+    expect(result).toEqual({ ok: false, code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
   test("truncated callData for dynamic array length", () => {
@@ -575,7 +571,7 @@ describe("locate - bounds violations", () => {
     // Offset says data is at 32, but callData is only 48 bytes.
     const callData = concat(word(32), new Uint8Array(16));
     const result = locate(tree, callData, path(0, 0), 0);
-    expect(result).toEqual({ ok: false, code: "CALLDATA_TOO_SHORT" });
+    expect(result).toEqual({ ok: false, code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
   test("offset overflow (pointer value too large)", () => {
@@ -583,14 +579,14 @@ describe("locate - bounds violations", () => {
     const tree: DescNode[] = [arrNode];
     const callData = concat(word(9999), word(0));
     const result = locate(tree, callData, path(0, 0), 0);
-    expect(result).toEqual({ ok: false, code: "CALLDATA_TOO_SHORT" });
+    expect(result).toEqual({ ok: false, code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
   test("dynamic tuple with truncated callData", () => {
     const tupleNode = dynamicTupleNode([UINT256]);
     const tree: DescNode[] = [tupleNode];
     const result = locate(tree, new Uint8Array(16), path(0, 0), 0);
-    expect(result).toEqual({ ok: false, code: "CALLDATA_TOO_SHORT" });
+    expect(result).toEqual({ ok: false, code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 });
 
@@ -704,16 +700,14 @@ describe("locate", () => {
     expect(result.quantifier.remainingPath).toEqual(path(1));
   });
 
-  test("returns error for out-of-bounds param index", () => {
+  test("throws for out-of-bounds param index", () => {
     const tree: DescNode[] = [UINT256];
-    const result = locate(tree, word(42), path(1), 0);
-    expect(result).toEqual({ ok: false, code: "OFFSET_OUT_OF_BOUNDS" });
+    expect(() => locate(tree, word(42), path(1), 0)).toThrow("Param index 1 out of range");
   });
 
-  test("returns error for empty path", () => {
+  test("throws for empty path", () => {
     const tree: DescNode[] = [UINT256];
-    const result = locate(tree, word(42), new Uint8Array(0), 0);
-    expect(result.ok).toBe(false);
+    expect(() => locate(tree, word(42), new Uint8Array(0), 0)).toThrow("Path is empty");
   });
 });
 
@@ -775,10 +769,9 @@ describe("arrayShape", () => {
     expect(result.shape.compositeBase).toBe(32);
   });
 
-  test("returns error for non-array node", () => {
+  test("throws integrity error for non-array node", () => {
     const loc: Location = { head: 0, base: 0, node: UINT256 };
-    const result = arrayShape(word(42), loc);
-    expect(result.ok).toBe(false);
+    expect(() => arrayShape(word(42), loc)).toThrow("non-array node");
   });
 });
 
@@ -909,9 +902,8 @@ describe("descendPath", () => {
     expect(result.location).toEqual(loc);
   });
 
-  test("returns error for non-composite descent", () => {
+  test("throws integrity error for non-composite descent", () => {
     const loc: Location = { head: 0, base: 0, node: UINT256 };
-    const result = descendPath(word(42), loc, path(0));
-    expect(result.ok).toBe(false);
+    expect(() => descendPath(word(42), loc, path(0))).toThrow("elementary type");
   });
 });

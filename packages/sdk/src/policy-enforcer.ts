@@ -64,7 +64,7 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
         ok: false,
         violations: [
           {
-            code: "CALLDATA_TOO_SHORT",
+            code: "MISSING_SELECTOR",
             message: "Calldata too short to contain a selector",
           },
         ],

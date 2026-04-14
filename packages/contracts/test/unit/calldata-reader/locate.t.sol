@@ -396,11 +396,11 @@ contract LocateTest is CalldataReaderTest {
         harness.locate(desc, callData, _path(0, 2), cfg);
     }
 
-    function test_RevertWhen_CalldataBounds() public {
+    function test_RevertWhen_CalldataOutOfBounds() public {
         bytes memory desc = DescriptorBuilder.fromTypes("uint256[]");
         bytes memory callData = abi.encodeWithSelector(SELECTOR);
 
-        vm.expectRevert(CalldataReader.CalldataBounds.selector);
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
         harness.locate(desc, callData, _path(0, 0), cfg);
     }
 
