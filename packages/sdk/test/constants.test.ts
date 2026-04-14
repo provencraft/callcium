@@ -120,6 +120,7 @@ describe("lookupContextProperty", () => {
   test("MSG_SENDER", () => {
     expect(lookupContextProperty(ContextProperty.MSG_SENDER)).toEqual({
       label: "msg.sender",
+      contextKey: "msgSender",
       typeCode: 0x40,
     });
   });
@@ -127,6 +128,7 @@ describe("lookupContextProperty", () => {
   test("MSG_VALUE", () => {
     expect(lookupContextProperty(ContextProperty.MSG_VALUE)).toEqual({
       label: "msg.value",
+      contextKey: "msgValue",
       typeCode: 0x1f,
     });
   });
@@ -134,6 +136,7 @@ describe("lookupContextProperty", () => {
   test("BLOCK_TIMESTAMP", () => {
     expect(lookupContextProperty(ContextProperty.BLOCK_TIMESTAMP)).toEqual({
       label: "block.timestamp",
+      contextKey: "blockTimestamp",
       typeCode: 0x1f,
     });
   });
@@ -141,6 +144,7 @@ describe("lookupContextProperty", () => {
   test("BLOCK_NUMBER", () => {
     expect(lookupContextProperty(ContextProperty.BLOCK_NUMBER)).toEqual({
       label: "block.number",
+      contextKey: "blockNumber",
       typeCode: 0x1f,
     });
   });
@@ -148,6 +152,7 @@ describe("lookupContextProperty", () => {
   test("CHAIN_ID", () => {
     expect(lookupContextProperty(ContextProperty.CHAIN_ID)).toEqual({
       label: "block.chainid",
+      contextKey: "chainId",
       typeCode: 0x1f,
     });
   });
@@ -155,6 +160,7 @@ describe("lookupContextProperty", () => {
   test("TX_ORIGIN", () => {
     expect(lookupContextProperty(ContextProperty.TX_ORIGIN)).toEqual({
       label: "tx.origin",
+      contextKey: "txOrigin",
       typeCode: 0x40,
     });
   });

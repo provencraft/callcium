@@ -480,7 +480,7 @@ describe("enforce - quantifier edge cases", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.violations[0].code).toBe("VALUE_MISMATCH");
-      expect(result.violations[0].message).toContain("ANY");
+      expect(result.violations[0].message).toContain("violated by all elements");
     }
   });
 });
@@ -624,7 +624,7 @@ describe("enforce - quantifier element resolution failures", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.violations[0].code).toBe("VALUE_MISMATCH");
-      expect(result.violations[0].message).toContain("ANY");
+      expect(result.violations[0].message).toContain("violated by all elements");
     }
   });
 });

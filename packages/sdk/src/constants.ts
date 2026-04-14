@@ -117,10 +117,18 @@ export const ContextProperty = buildCodeMap(CTX_PROP_TABLE);
 export const MAX_CONTEXT_PROPERTY_ID = Math.max(...CTX_PROP_TABLE.map((e) => e.code));
 
 /** Display metadata for a context property code. */
-export type ContextPropertyInfo = { label: string; typeCode: number };
+export type ContextPropertyInfo = { label: string; contextKey: keyof import("./types").Context; typeCode: number };
+
+/** Derive a camelCase string from a SCREAMING_SNAKE key. */
+function toCamelCase(key: string): string {
+  return key.toLowerCase().replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+}
 
 const ctxPropByCode = new Map<number, ContextPropertyInfo>(
-  CTX_PROP_TABLE.map((e) => [e.code, { label: e.label, typeCode: e.typeCode }]),
+  CTX_PROP_TABLE.map((e) => [
+    e.code,
+    { label: e.label, contextKey: toCamelCase(e.key) as keyof import("./types").Context, typeCode: e.typeCode },
+  ]),
 );
 
 /**

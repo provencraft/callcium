@@ -2,11 +2,13 @@ import { hexToBytes, bytesToHex, readU16, bigintToHex } from "./bytes";
 import {
   PolicyFormat as PF,
   Scope,
-  ContextProperty,
   MAX_CONTEXT_PROPERTY_ID,
   Limits,
   Quantifier,
   TypeCode,
+  Op,
+  lookupOp,
+  lookupContextProperty,
 } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
 import { applyOperator, toBigInt, isLengthOp } from "./operators";
@@ -28,18 +30,48 @@ function addressToBigInt(hex: string): bigint {
   return toBigInt(padded, 0);
 }
 
-///////////////////////////////////////////////////////////////////////////
-// Context property map
-///////////////////////////////////////////////////////////////////////////
+/** Format a bigint as a compact hex string without leading-zero padding. */
+function compactHex(value: bigint): string {
+  if (value === 0n) return "0x0";
+  return `0x${value.toString(16)}`;
+}
 
-const CTX_PROPERTY_KEYS: Record<number, keyof Context> = {
-  [ContextProperty.MSG_SENDER]: "msgSender",
-  [ContextProperty.MSG_VALUE]: "msgValue",
-  [ContextProperty.BLOCK_TIMESTAMP]: "blockTimestamp",
-  [ContextProperty.BLOCK_NUMBER]: "blockNumber",
-  [ContextProperty.CHAIN_ID]: "chainId",
-  [ContextProperty.TX_ORIGIN]: "txOrigin",
-};
+/** Truncate a hex string to at most maxChars characters, adding ellipsis if needed. */
+function truncateHexForMessage(hex: string, maxChars = 66): string {
+  if (hex.length <= maxChars) return hex;
+  return `${hex.slice(0, maxChars - 1)}…`;
+}
+
+/** Format a decoded operand as decimal for length ops, otherwise compact hex. */
+function formatOperandValue(value: bigint, opCode: number): string {
+  return isLengthOp(opCode) ? value.toString(10) : compactHex(value);
+}
+
+/** Format the constraint (operator + operands) from a single lookupOp call. */
+function formatConstraint(opCode: number, operandData: Uint8Array): string {
+  const negated = (opCode & Op.NOT) !== 0;
+  const { label, operands } = lookupOp(opCode);
+  const op = negated ? `not ${label}` : label;
+
+  let formattedOperands: string;
+  if (operands === "variadic") {
+    formattedOperands = `(${operandData.length / 32} values)`;
+  } else if (operands === "range") {
+    const min = toBigInt(operandData, 0);
+    const max = toBigInt(operandData, 32);
+    formattedOperands = `[${formatOperandValue(min, opCode)}, ${formatOperandValue(max, opCode)}]`;
+  } else {
+    formattedOperands = formatOperandValue(toBigInt(operandData, 0), opCode);
+  }
+
+  return `${op} ${formattedOperands}`;
+}
+
+/** Build a self-contained VALUE_MISMATCH message for a scalar or length comparison. */
+function mismatchMessage(opCode: number, actual: bigint | number, operandData: Uint8Array): string {
+  const display = typeof actual === "number" ? String(actual) : truncateHexForMessage(compactHex(actual));
+  return `constraint ${formatConstraint(opCode, operandData)} violated by ${display}`;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // Public API
@@ -216,15 +248,15 @@ function evaluateContextRule(
     );
   }
 
-  const key = CTX_PROPERTY_KEYS[propertyId]!;
-  const contextValue = context?.[key];
+  const propInfo = lookupContextProperty(propertyId);
+  const contextValue = context?.[propInfo.contextKey];
 
   if (contextValue === undefined) {
     return {
       group: groupIndex,
       rule: ruleIndex,
       code: "MISSING_CONTEXT",
-      message: `Context property "${key}" not provided`,
+      message: `Context property ${propInfo.label} not provided`,
       path: pathHex,
     };
   }
@@ -243,7 +275,7 @@ function evaluateContextRule(
       group: groupIndex,
       rule: ruleIndex,
       code: "VALUE_MISMATCH",
-      message: "Context value does not satisfy operator",
+      message: mismatchMessage(opCode, value, operandData),
       path: pathHex,
       resolvedValue: bigintToHex(value),
     };
@@ -323,16 +355,14 @@ function evaluateLeaf(
   }
 
   if (!result.passed) {
-    const resolvedValue =
-      result.value !== undefined ? bigintToHex(result.value) : bigintToHex(BigInt(result.length ?? 0));
-    const message = isLengthOp(opCode) ? "Length does not satisfy operator" : "Value does not satisfy operator";
+    const actual: bigint | number = result.value !== undefined ? result.value : (result.length ?? 0);
     return {
       group: groupIndex,
       rule: ruleIndex,
       code: "VALUE_MISMATCH",
-      message,
+      message: mismatchMessage(opCode, actual, operandData),
       path: pathHex,
-      resolvedValue,
+      resolvedValue: bigintToHex(typeof actual === "number" ? BigInt(actual) : actual),
     };
   }
 
@@ -461,7 +491,7 @@ function evaluateQuantifier(
         group: groupIndex,
         rule: ruleIndex,
         code: "VALUE_MISMATCH",
-        message: `Quantifier: element ${elemIndex} failed`,
+        message: `constraint ${formatConstraint(opCode, operandData)} violated at element ${elemIndex}`,
         path: pathHex,
       };
     }
@@ -477,7 +507,7 @@ function evaluateQuantifier(
     group: groupIndex,
     rule: ruleIndex,
     code: "VALUE_MISMATCH",
-    message: "Quantifier ANY: no element satisfied the operator",
+    message: `constraint ${formatConstraint(opCode, operandData)} violated by all elements`,
     path: pathHex,
   };
 }

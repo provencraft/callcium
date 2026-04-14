@@ -205,6 +205,30 @@ function ContextField({
 // Result display
 ///////////////////////////////////////////////////////////////////////////
 
+const STATUS_CONFIG = {
+  pass: {
+    icon: ShieldCheck,
+    label: "Pass",
+    className: "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300",
+    iconClass: "text-green-600 dark:text-green-400",
+    divider: "divide-green-500/20",
+  },
+  fail: {
+    icon: ShieldX,
+    label: "Fail",
+    className: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
+    iconClass: "text-red-600 dark:text-red-400",
+    divider: "divide-red-500/20",
+  },
+  inconclusive: {
+    icon: ShieldQuestion,
+    label: "Inconclusive",
+    className: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    iconClass: "text-amber-600 dark:text-amber-400",
+    divider: "divide-amber-500/20",
+  },
+} as const;
+
 function ResultDisplay({ result }: { result: EnforceOutput }) {
   if (result.status === "error") {
     return (
@@ -214,78 +238,37 @@ function ResultDisplay({ result }: { result: EnforceOutput }) {
     );
   }
 
-  const statusConfig = {
-    pass: {
-      icon: ShieldCheck,
-      label: "Pass",
-      className: "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-300",
-      iconClass: "text-green-600 dark:text-green-400",
-    },
-    fail: {
-      icon: ShieldX,
-      label: "Fail",
-      className: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
-      iconClass: "text-red-600 dark:text-red-400",
-    },
-    inconclusive: {
-      icon: ShieldQuestion,
-      label: "Inconclusive",
-      className: "bg-fd-info text-fd-info-foreground ring-1 ring-fd-info-foreground/30",
-      iconClass: "text-fd-info-foreground",
-    },
-  }[result.status];
+  const config = STATUS_CONFIG[result.status];
+  const Icon = config.icon;
+  const items = result.status === "inconclusive" ? result.skipped : result.violations;
+  const isMultiGroup = items.length > 1 && items.every((v) => v.group !== undefined);
 
-  if (!statusConfig) return null;
-
-  const Icon = statusConfig.icon;
+  if (items.length <= 1) {
+    return (
+      <div className={cn("flex items-center gap-2 rounded-lg border px-4 py-3 text-sm", config.className)}>
+        <Icon className={cn("size-5 shrink-0", config.iconClass)} />
+        <span className="font-semibold">{config.label}</span>
+        {result.matchedGroup !== undefined && <span>Matched group {result.matchedGroup + 1}</span>}
+        {items[0] && <span>{items[0].message}</span>}
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-3">
-      {/* Status badge */}
-      <div className={cn("flex items-center gap-2 rounded-lg px-4 py-3", statusConfig.className)}>
-        <Icon className={cn("size-5", statusConfig.iconClass)} />
-        <span className="font-semibold">{statusConfig.label}</span>
-        {result.matchedGroup !== undefined && (
-          <span className="text-sm opacity-70">(matched group {result.matchedGroup + 1})</span>
-        )}
+    <div className={cn("rounded-lg border px-4 py-3 text-sm", config.className)}>
+      <div className="flex items-center gap-2">
+        <Icon className={cn("size-5", config.iconClass)} />
+        <span className="font-semibold">{config.label}</span>
       </div>
-
-      {/* Violations */}
-      {result.violations.length > 0 && (
-        <div className="space-y-1">
-          <span className="text-sm font-medium text-fd-foreground">Violations</span>
-          {result.violations.map((v, i) => (
-            <div
-              // oxlint-disable-next-line react/no-array-index-key
-              key={i}
-              className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-700 dark:text-red-300"
-            >
-              <div className="font-mono">
-                {v.path && <span className="font-semibold">{v.path} </span>}
-                <span>{v.code}</span>
-              </div>
-              <div className="mt-0.5 text-xs opacity-80">{v.message}</div>
-              {v.resolvedValue && <div className="mt-0.5 font-mono text-xs opacity-60">actual: {v.resolvedValue}</div>}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Skipped constraints */}
-      {result.skipped.length > 0 && (
-        <div className="space-y-1">
-          <span className="text-sm font-medium text-fd-foreground">Skipped (missing context)</span>
-          {result.skipped.map((v, i) => (
-            <div
-              // oxlint-disable-next-line react/no-array-index-key
-              key={i}
-              className="rounded-lg bg-fd-info px-4 py-2 text-sm text-fd-info-foreground ring-1 ring-fd-info-foreground/30"
-            >
-              {v.message}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className={cn("mt-2 divide-y", config.divider)}>
+        {items.map((v, i) => (
+          // oxlint-disable-next-line react/no-array-index-key
+          <div key={i} className="py-1.5">
+            {isMultiGroup && <span className="mr-2 font-semibold">Group {(v.group ?? 0) + 1}</span>}
+            <span>{v.message}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
