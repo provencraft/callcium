@@ -7,11 +7,13 @@ export function PillToggle<T extends string>({
   options,
   onChange,
   className,
+  disabled,
 }: {
   value: T;
   options: readonly PillOption<T>[];
   onChange: (value: T) => void;
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <div className={cn("flex items-center gap-2", className)}>
@@ -21,11 +23,13 @@ export function PillToggle<T extends string>({
           <button
             key={option.value}
             type="button"
+            disabled={disabled}
             className={cn(
               "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
               active
                 ? "bg-fd-primary text-fd-primary-foreground"
                 : "text-fd-muted-foreground hover:text-fd-foreground",
+              disabled && "cursor-not-allowed opacity-50",
             )}
             onClick={() => onChange(option.value)}
           >

@@ -6,6 +6,7 @@ export type {
   BuilderSession,
   OpOption,
   NameTree,
+  OperatorRule,
 } from "./builder-engine";
 export {
   createSession,

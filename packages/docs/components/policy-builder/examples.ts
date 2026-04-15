@@ -17,8 +17,7 @@ export const EXAMPLES: BuilderExample[] = [
         config: {
           scope: "calldata",
           path: [0],
-          operator: "eq",
-          values: ["0x1111111254eeb25477b68fb85ed929f73a960582"],
+          rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
         },
       },
     ],
@@ -32,8 +31,7 @@ export const EXAMPLES: BuilderExample[] = [
         config: {
           scope: "calldata",
           path: [0],
-          operator: "eq",
-          values: ["0x1111111254eeb25477b68fb85ed929f73a960582"],
+          rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
         },
       },
       {
@@ -41,8 +39,7 @@ export const EXAMPLES: BuilderExample[] = [
         config: {
           scope: "calldata",
           path: [1],
-          operator: "lte",
-          values: [1000000000000n],
+          rules: [{ operator: "lte", values: [1000000000000n] }],
         },
       },
     ],
@@ -56,8 +53,7 @@ export const EXAMPLES: BuilderExample[] = [
         config: {
           scope: "context",
           contextProperty: "msgSender",
-          operator: "eq",
-          values: ["0xd8da6bf26964af9d7eed9e03e53415d37aa96045"],
+          rules: [{ operator: "eq", values: ["0xd8da6bf26964af9d7eed9e03e53415d37aa96045"] }],
         },
       },
       {
@@ -65,8 +61,7 @@ export const EXAMPLES: BuilderExample[] = [
         config: {
           scope: "calldata",
           path: [1],
-          operator: "lte",
-          values: [5000000000000000000n],
+          rules: [{ operator: "lte", values: [5000000000000000000n] }],
         },
       },
     ],
@@ -80,8 +75,7 @@ export const EXAMPLES: BuilderExample[] = [
         config: {
           scope: "calldata",
           path: [0],
-          operator: "eq",
-          values: ["0x1111111254eeb25477b68fb85ed929f73a960582"],
+          rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
         },
       },
       {
@@ -89,8 +83,7 @@ export const EXAMPLES: BuilderExample[] = [
         config: {
           scope: "calldata",
           path: [1],
-          operator: "lte",
-          values: [1000000000000000000n],
+          rules: [{ operator: "lte", values: [1000000000000000000n] }],
         },
       },
       {
@@ -98,8 +91,7 @@ export const EXAMPLES: BuilderExample[] = [
         config: {
           scope: "calldata",
           path: [0],
-          operator: "eq",
-          values: ["0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45"],
+          rules: [{ operator: "eq", values: ["0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45"] }],
         },
       },
       {
@@ -107,8 +99,32 @@ export const EXAMPLES: BuilderExample[] = [
         config: {
           scope: "calldata",
           path: [1],
-          operator: "lte",
-          values: [100000000000000000n],
+          rules: [{ operator: "lte", values: [100000000000000000n] }],
+        },
+      },
+    ],
+  },
+  {
+    name: "Capped approval",
+    signature: "approve(address,uint256)",
+    constraints: [
+      {
+        groupIndex: 0,
+        config: {
+          scope: "calldata",
+          path: [0],
+          rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
+        },
+      },
+      {
+        groupIndex: 0,
+        config: {
+          scope: "calldata",
+          path: [1],
+          rules: [
+            { operator: "gte", values: [1000000n] },
+            { operator: "lte", values: [1000000000000n] },
+          ],
         },
       },
     ],

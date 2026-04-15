@@ -69,8 +69,7 @@ describe("addConstraint", () => {
     const constraint: ConstraintInput = {
       scope: "calldata",
       path: [0],
-      operator: "eq",
-      values: ["0x1111111254eeb25477b68fb85ed929f73a960582"],
+      rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
     };
     const s2 = addConstraint(s1, 0, constraint);
     expect(s2.groups[0].constraints).toHaveLength(1);
@@ -84,8 +83,7 @@ describe("addConstraint", () => {
     const constraint: ConstraintInput = {
       scope: "context",
       contextProperty: "msgSender",
-      operator: "eq",
-      values: ["0xd8da6bf26964af9d7eed9e03e53415d37aa96045"],
+      rules: [{ operator: "eq", values: ["0xd8da6bf26964af9d7eed9e03e53415d37aa96045"] }],
     };
     const s2 = addConstraint(s1, 0, constraint);
     expect(s2.groups[0].constraints).toHaveLength(1);
@@ -97,14 +95,12 @@ describe("addConstraint", () => {
     s = addConstraint(s, 0, {
       scope: "calldata",
       path: [1],
-      operator: "eq",
-      values: [100n],
+      rules: [{ operator: "eq", values: [100n] }],
     });
     const s2 = addConstraint(s, 0, {
       scope: "calldata",
       path: [1],
-      operator: "eq",
-      values: [200n],
+      rules: [{ operator: "eq", values: [200n] }],
     });
     expect(s2.errors.length).toBeGreaterThan(0);
     expect(s2.errors[0]).toMatch(/DUPLICATE_PATH/);
@@ -115,8 +111,7 @@ describe("addConstraint", () => {
     const s = addConstraint(createSession("approve(address,uint256)"), 0, {
       scope: "calldata",
       path: [1],
-      operator: "gte",
-      values: [0n],
+      rules: [{ operator: "gte", values: [0n] }],
     });
     const vacuous = s.issues.find((i) => i.severity === "info");
     expect(vacuous).toBeDefined();
@@ -130,8 +125,7 @@ describe("addConstraint", () => {
     const constraint: ConstraintInput = {
       scope: "calldata",
       path: [5],
-      operator: "eq",
-      values: [1n],
+      rules: [{ operator: "eq", values: [1n] }],
     };
     const s2 = addConstraint(s1, 0, constraint);
     expect(s2.errors).toHaveLength(1);
@@ -143,8 +137,7 @@ describe("addConstraint", () => {
     const s2 = addConstraint(s1, 0, {
       scope: "calldata",
       path: [0, 1],
-      operator: "eq",
-      values: [42n],
+      rules: [{ operator: "eq", values: [42n] }],
     });
     expect(s2.hex).not.toBeNull();
     expect(s2.errors).toEqual([]);
@@ -155,14 +148,12 @@ describe("addConstraint", () => {
     s = addConstraint(s, 0, {
       scope: "calldata",
       path: [0, 0],
-      operator: "eq",
-      values: [10n],
+      rules: [{ operator: "eq", values: [10n] }],
     });
     const s2 = addConstraint(s, 0, {
       scope: "calldata",
       path: [0, 1],
-      operator: "eq",
-      values: [20n],
+      rules: [{ operator: "eq", values: [20n] }],
     });
     expect(s2.hex).not.toBeNull();
     expect(s2.errors).toEqual([]);
@@ -174,12 +165,59 @@ describe("addConstraint", () => {
     const s2 = addConstraint(s1, 0, {
       scope: "calldata",
       path: [0, 0],
-      operator: "eq",
-      values: ["0x1111111254eeb25477b68fb85ed929f73a960582"],
+      rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
       quantifier: Quantifier.ALL,
     });
     expect(s2.hex).not.toBeNull();
     expect(s2.errors).toEqual([]);
+  });
+
+  it("adds a multi-operator constraint (gte + lte) and produces hex", () => {
+    const s1 = createSession("approve(address,uint256)");
+    const s2 = addConstraint(s1, 0, {
+      scope: "calldata",
+      path: [1],
+      rules: [
+        { operator: "gte", values: [100n] },
+        { operator: "lte", values: [1000n] },
+      ],
+    });
+    expect(s2.groups[0].constraints).toHaveLength(1);
+    expect(s2.groups[0].constraints[0].rules).toHaveLength(2);
+    expect(s2.hex).not.toBeNull();
+    expect(s2.errors).toEqual([]);
+  });
+
+  it("rejects a constraint with empty rules", () => {
+    const s1 = createSession("approve(address,uint256)");
+    const s2 = addConstraint(s1, 0, {
+      scope: "calldata",
+      path: [0],
+      rules: [],
+    });
+    expect(s2.errors).toHaveLength(1);
+    expect(s2.errors[0]).toMatch(/at least one operator rule/);
+    expect(s2.hex).toBeNull();
+  });
+
+  it("adds two multi-operator constraints on different paths", () => {
+    let s = createSession("approve(address,uint256)");
+    s = addConstraint(s, 0, {
+      scope: "calldata",
+      path: [0],
+      rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
+    });
+    s = addConstraint(s, 0, {
+      scope: "calldata",
+      path: [1],
+      rules: [
+        { operator: "gte", values: [100n] },
+        { operator: "lte", values: [1000000n] },
+      ],
+    });
+    expect(s.groups[0].constraints).toHaveLength(2);
+    expect(s.hex).not.toBeNull();
+    expect(s.errors).toEqual([]);
   });
 });
 
@@ -189,8 +227,7 @@ describe("removeConstraint", () => {
     const constraint: ConstraintInput = {
       scope: "calldata",
       path: [0],
-      operator: "eq",
-      values: ["0x1111111254eeb25477b68fb85ed929f73a960582"],
+      rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
     };
     const s2 = addConstraint(s1, 0, constraint);
     expect(s2.groups[0].constraints).toHaveLength(1);
@@ -219,8 +256,7 @@ describe("group management", () => {
     const constraint: ConstraintInput = {
       scope: "calldata",
       path: [0],
-      operator: "eq",
-      values: ["0x1111111254eeb25477b68fb85ed929f73a960582"],
+      rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
     };
     const s2 = addConstraint(s1, 0, constraint);
     const s3 = addGroup(s2);

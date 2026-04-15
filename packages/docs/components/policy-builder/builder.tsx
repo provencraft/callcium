@@ -9,11 +9,14 @@ import { formatAbiItem } from "viem/utils";
 import type { Hex, Issue, ScalarValue, TypeInfo } from "@callcium/sdk";
 import type { AbiFunction } from "viem";
 import { EXAMPLES, type BuilderExample } from "./examples";
+import { ErrorBox } from "@/components/ui/error-box";
+import { MonoInput } from "@/components/ui/mono-input";
+import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { PillToggle } from "@/components/ui/pill-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { lookup4byte, descriptorToTypes } from "@/lib/abi";
 import { parseAbiJson } from "@/lib/abi";
-import { formatPath } from "@/lib/format-path";
+import { CONTEXT_PROPERTY_COUNT, contextPropertyType, formatPath } from "@/lib/format-path";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
 import {
@@ -27,10 +30,11 @@ import {
   type BuilderSession,
   type ConstraintConfig,
   type ConstraintInput,
+  type OperatorRule,
   type ParamNode,
 } from "@/tools/policy-builder";
 
-// Context property type info (all are 32-byte elementary types).
+// Both context properties are 32-byte elementary types despite address being 20 bytes on-chain.
 const CTX_ADDRESS: TypeInfo = { typeCode: TypeCode.ADDRESS, isDynamic: false, staticSize: 32 };
 const CTX_UINT256: TypeInfo = { typeCode: TypeCode.UINT_MAX, isDynamic: false, staticSize: 32 };
 
@@ -73,7 +77,6 @@ export function Builder() {
   const [abiInput, setAbiInput] = useState("");
   const [selectedFnSig, setSelectedFnSig] = useState("");
 
-  // Parse ABI JSON: Error on failure, AbiFunction[] otherwise.
   const abiFunctions = useMemo<AbiFunction[] | Error>(() => {
     if (!abiInput.trim()) return [];
     const parsed = parseAbiJson(abiInput);
@@ -83,7 +86,6 @@ export function Builder() {
 
   const debouncedSignature = useDebounce(signatureInput, 300);
 
-  // Auto-parse signature on debounce.
   useEffect(() => {
     const sig = debouncedSignature.trim();
     if (!sig || activeExample) return;
@@ -121,7 +123,6 @@ export function Builder() {
     }
   }, [searchParams]);
 
-  // Close dropdown on outside click.
   useEffect(() => {
     if (!exampleDropdownOpen) return;
     function handleClick(e: MouseEvent) {
@@ -266,32 +267,22 @@ export function Builder() {
               Selectorless
             </label>
 
-            <input
+            <MonoInput
               id="signature-input"
-              type="text"
-              className={cn(
-                "w-full rounded-lg border border-fd-border bg-fd-card px-3 py-2 font-mono text-sm",
-                "placeholder:text-fd-muted-foreground/50",
-                "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
-                activeExample && "cursor-default opacity-70",
-                session?.error && "border-red-500/50",
-              )}
+              className={cn(activeExample && "cursor-default opacity-70", session?.error && "border-red-500/50")}
               placeholder={isSelectorless ? "address,uint256" : "transfer(address to, uint256 amount)"}
               value={signatureInput}
               onChange={(e) => setSignatureInput(e.target.value)}
               readOnly={!!activeExample}
-              spellCheck={false}
             />
           </div>
         ) : (
           <div className="space-y-2">
-            <textarea
-              className="w-full rounded-lg border border-fd-border bg-fd-card px-3 py-2 font-mono text-sm placeholder:text-fd-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring resize-y"
+            <MonoTextarea
               rows={4}
               placeholder='[{"type":"function","name":"approve","inputs":[...]}]'
               value={abiInput}
               onChange={(e) => setAbiInput(e.target.value)}
-              spellCheck={false}
             />
 
             {Array.isArray(abiFunctions) && abiFunctions.length > 0 && (
@@ -322,26 +313,16 @@ export function Builder() {
 
             {abiInput.trim() && (
               <>
-                {abiFunctions instanceof Error && (
-                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-                    Invalid ABI: {abiFunctions.message}
-                  </div>
-                )}
+                {abiFunctions instanceof Error && <ErrorBox>Invalid ABI: {abiFunctions.message}</ErrorBox>}
                 {Array.isArray(abiFunctions) && abiFunctions.length === 0 && (
-                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-                    No functions found in ABI.
-                  </div>
+                  <ErrorBox>No functions found in ABI.</ErrorBox>
                 )}
               </>
             )}
           </div>
         )}
 
-        {session?.error && (
-          <div className="mt-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-            {session.error}
-          </div>
-        )}
+        {session?.error && <ErrorBox className="mt-1.5">{session.error}</ErrorBox>}
       </div>
 
       {/* Parameter tree + constraint management */}
@@ -415,13 +396,8 @@ export function Builder() {
           {session.errors.length > 0 && (
             <div className="space-y-1">
               {session.errors.map((error, i) => (
-                <div
-                  // oxlint-disable-next-line react/no-array-index-key
-                  key={i}
-                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300"
-                >
-                  {error}
-                </div>
+                // oxlint-disable-next-line react/no-array-index-key
+                <ErrorBox key={i}>{error}</ErrorBox>
               ))}
             </div>
           )}
@@ -447,12 +423,7 @@ export function Builder() {
                 </div>
               </div>
               <div className="relative">
-                <textarea
-                  className="w-full rounded-lg border border-fd-border bg-fd-card py-2 pl-3 pr-9 font-mono text-sm resize-none"
-                  rows={3}
-                  value={session.hex}
-                  readOnly
-                />
+                <MonoTextarea className="resize-none pr-9" rows={3} value={session.hex} readOnly />
                 <button
                   type="button"
                   className="absolute top-2 right-3 rounded-md p-1 text-fd-muted-foreground hover:text-fd-foreground transition-colors"
@@ -467,6 +438,29 @@ export function Builder() {
       )}
     </div>
   );
+}
+
+function pathKey(path: number[]): string {
+  return JSON.stringify(path);
+}
+
+function isLeafNode(node: ParamNode): boolean {
+  return !node.children && !node.element;
+}
+
+/** Resolve the Solidity type string for a constraint's target. */
+function resolveTargetType(config: ConstraintConfig, params: ParamNode[]): string | null {
+  if (config.scope === "context") {
+    return config.contextProperty ? contextPropertyType(config.contextProperty) : null;
+  }
+  if (!config.path || config.path.length === 0) return null;
+  let node: ParamNode | undefined = params[config.path[0]];
+  for (let i = 1; i < config.path.length && node; i++) {
+    if (node.children) node = node.children[config.path[i]];
+    else if (node.element) node = node.element;
+    else return null;
+  }
+  return node?.type ?? null;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -492,13 +486,25 @@ function ConstraintRow({
     params,
   });
 
+  const targetType = resolveTargetType(config, params);
+  const isSingleRule = config.rules.length === 1;
+
   return (
     <div className="border-b border-fd-border/30 px-3 py-2">
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-baseline gap-1.5 font-mono">
           <span className="text-fd-foreground">{label}</span>
-          <span className="text-fd-muted-foreground">{getOperatorLabel(config.operator)}</span>
-          <span className="text-fd-foreground break-all">{config.values.map((v) => String(v)).join(", ")}</span>
+          {isSingleRule ? (
+            <>
+              <span className="text-fd-muted-foreground">{getOperatorLabel(config.rules[0].operator)}</span>
+              <span className="text-fd-foreground break-all">
+                {config.rules[0].values.map((v) => String(v)).join(", ")}
+              </span>
+              {targetType && <span className="text-fd-muted-foreground">: {targetType}</span>}
+            </>
+          ) : (
+            targetType && <span className="text-fd-muted-foreground">: {targetType}</span>
+          )}
         </div>
         <button
           type="button"
@@ -508,6 +514,17 @@ function ConstraintRow({
           <Trash2 className="size-3.5" />
         </button>
       </div>
+      {!isSingleRule &&
+        config.rules.map((rule, ri) => (
+          <div
+            // oxlint-disable-next-line react/no-array-index-key
+            key={ri}
+            className="ml-4 flex items-baseline gap-1.5 font-mono text-sm"
+          >
+            <span className="min-w-[2ch] text-fd-muted-foreground">{getOperatorLabel(rule.operator)}</span>
+            <span className="text-fd-foreground break-all">{rule.values.map((v) => String(v)).join(", ")}</span>
+          </div>
+        ))}
       {issues.map((issue, i) => (
         <div
           // oxlint-disable-next-line react/no-array-index-key
@@ -581,6 +598,30 @@ function parseConstraintValues(operator: string, valueInput: string, typeInfo: T
   }
 }
 
+/** Return a placeholder string for the value input based on operator and type. */
+function valuePlaceholder(operator: string, typeInfo: TypeInfo | null): string | undefined {
+  if (operator === "isIn" || operator === "notIn") return "value1,value2,...";
+  if (operator === "between" || operator === "lengthBetween") return "min,max";
+  if (typeInfo?.typeCode === TypeCode.ADDRESS) return "0x...";
+  if (typeInfo?.typeCode === TypeCode.BOOL) return "true / false";
+  return undefined;
+}
+
+/** Assemble the full rules list from committed rules plus the in-progress draft (if valid). */
+function resolveRules(
+  rules: OperatorRule[],
+  operator: string,
+  valueInput: string,
+  typeInfo: TypeInfo | null,
+): OperatorRule[] {
+  const result = [...rules];
+  if (operator) {
+    const values = parseConstraintValues(operator, valueInput, typeInfo);
+    if (values) result.push({ operator, values });
+  }
+  return result;
+}
+
 function AddConstraintForm({
   session,
   groupIndex,
@@ -601,6 +642,7 @@ function AddConstraintForm({
   const [arrayIndex, setArrayIndex] = useState("");
   const [postArrayField, setPostArrayField] = useState<number[]>([]);
   const [expanded, setExpanded] = useState(false);
+  const [rules, setRules] = useState<OperatorRule[]>([]);
 
   const group = session.groups[groupIndex];
 
@@ -611,6 +653,30 @@ function AddConstraintForm({
     }
     return used;
   }, [group]);
+
+  const usedCalldataPaths = useMemo(() => {
+    const used = new Set<string>();
+    for (const c of group.constraints) {
+      if (c.scope === "calldata" && c.path) used.add(pathKey(c.path));
+    }
+    return used;
+  }, [group]);
+
+  const hasAvailableContext = usedContextProps.size < CONTEXT_PROPERTY_COUNT;
+  const hasAvailableCalldata = useMemo(() => {
+    function hasUnusedLeaf(nodes: ParamNode[], prefix: number[], used: Set<string>): boolean {
+      for (const node of nodes) {
+        const path = [...prefix, node.index];
+        if (node.children) {
+          if (hasUnusedLeaf(node.children, path, used)) return true;
+        } else if (!used.has(pathKey(path))) {
+          return true;
+        }
+      }
+      return false;
+    }
+    return hasUnusedLeaf(session.params, [], usedCalldataPaths);
+  }, [session.params, usedCalldataPaths]);
 
   const arrayNode = useMemo(() => {
     if (scope !== "calldata" || selectedParam === null) return null;
@@ -632,7 +698,6 @@ function AddConstraintForm({
     return arrayNode.element;
   }, [arrayNode, arrayMode, quantifier, arrayIndex]);
 
-  // Resolve the target type info for operator filtering.
   const targetTypeInfo = useMemo<TypeInfo | null>(() => {
     if (scope === "context") {
       if (!contextProperty) return null;
@@ -682,7 +747,12 @@ function AddConstraintForm({
     session.params,
   ]);
 
-  const operatorOptions = useMemo(() => (targetTypeInfo ? getOperatorOptions(targetTypeInfo) : []), [targetTypeInfo]);
+  const operatorOptions = useMemo(() => {
+    if (!targetTypeInfo) return [];
+    const all = getOperatorOptions(targetTypeInfo);
+    const usedOps = new Set(rules.map((r) => r.operator));
+    return all.filter((op) => !usedOps.has(op.value));
+  }, [targetTypeInfo, rules]);
 
   const debouncedValue = useDebounce(valueInput, 300);
   const validIndex = /^\d+$/.test(arrayIndex);
@@ -703,16 +773,14 @@ function AddConstraintForm({
   }, [selectedParam, selectedField, arrayNode, arrayMode, validIndex, arrayIndex, postArrayField]);
 
   const previewResult = useMemo<{ errors: string[]; issues: Issue[] } | null>(() => {
-    if (!operator) return null;
-    const values = parseConstraintValues(operator, debouncedValue, targetTypeInfo);
-    if (!values) return null;
+    const candidateRules = resolveRules(rules, operator, debouncedValue, targetTypeInfo);
+    if (candidateRules.length === 0) return null;
 
     const path = constraintPath;
     const config: ConstraintInput = {
       scope,
       ...(scope === "calldata" ? { path } : contextProperty ? { contextProperty } : {}),
-      operator,
-      values,
+      rules: candidateRules,
       ...(arrayMode === "quantified" && quantifier !== undefined ? { quantifier } : {}),
     };
 
@@ -731,31 +799,42 @@ function AddConstraintForm({
     quantifier,
     arrayMode,
     targetTypeInfo,
+    rules,
     session,
     groupIndex,
   ]);
 
+  const hasValidDraft = operator !== "" && parseConstraintValues(operator, valueInput, targetTypeInfo) !== null;
   const canAdd =
     indexValid &&
+    (rules.length > 0 || hasValidDraft) &&
     previewResult !== null &&
     previewResult.errors.length === 0 &&
     !previewResult.issues.some((i) => i.severity === "error");
 
-  const handleSubmit = useCallback(() => {
-    if (!operator || !canAdd) return;
+  const handleAddOperator = useCallback(() => {
     const values = parseConstraintValues(operator, valueInput, targetTypeInfo);
-    if (!values) return;
+    if (!values || !operator) return;
+    setRules((prev) => [...prev, { operator, values }]);
+    setOperator("");
+    setValueInput("");
+  }, [operator, valueInput, targetTypeInfo]);
+
+  const handleSubmit = useCallback(() => {
+    if (!canAdd) return;
+    const finalRules = resolveRules(rules, operator, valueInput, targetTypeInfo);
+    if (finalRules.length === 0) return;
 
     const path = constraintPath;
     const config: ConstraintInput = {
       scope,
       ...(scope === "calldata" ? { path } : contextProperty ? { contextProperty } : {}),
-      operator,
-      values,
+      rules: finalRules,
       ...(arrayMode === "quantified" && quantifier !== undefined ? { quantifier } : {}),
     };
 
     onAdd(config);
+    setRules([]);
     setOperator("");
     setValueInput("");
     setExpanded(false);
@@ -768,16 +847,22 @@ function AddConstraintForm({
     quantifier,
     arrayMode,
     targetTypeInfo,
+    rules,
     canAdd,
     onAdd,
   ]);
 
   if (!expanded) {
+    if (!hasAvailableCalldata && !hasAvailableContext) return null;
     return (
       <button
         type="button"
         className="flex w-full items-center gap-1.5 px-3 py-2 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-        onClick={() => setExpanded(true)}
+        onClick={() => {
+          if (hasAvailableCalldata) setScope("calldata");
+          else setScope("context");
+          setExpanded(true);
+        }}
       >
         <Plus className="size-3.5" />
         Add constraint
@@ -786,10 +871,10 @@ function AddConstraintForm({
   }
 
   return (
-    <div className="border-t border-fd-border/30 px-3 py-3 space-y-2">
-      {/* Single constraint row: target → path → operator → value → Add */}
+    <div className="border-t border-fd-border/30 px-3 py-2 space-y-2">
+      {/* First row: path controls + first operator/value inline. */}
       <div className="flex flex-wrap items-end gap-2">
-        {/* Target — scope toggle stacked above selector */}
+        {/* Path controls */}
         <div className="flex flex-col items-start gap-1">
           <PillToggle
             value={scope}
@@ -798,6 +883,7 @@ function AddConstraintForm({
               { value: "context", label: "context" },
             ]}
             onChange={setScope}
+            disabled={rules.length > 0 || !hasAvailableCalldata || !hasAvailableContext}
           />
           {scope === "calldata" ? (
             <Select
@@ -810,17 +896,21 @@ function AddConstraintForm({
                 setQuantifier(undefined);
                 setPostArrayField([]);
               }}
+              disabled={rules.length > 0}
             >
               <SelectTrigger className="w-64 shrink-0">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {session.params.map((p, i) => (
-                  // oxlint-disable-next-line react/no-array-index-key
-                  <SelectItem key={i} value={String(i)}>
-                    {p.name ? `${p.name}: ${p.type}` : `arg(${i}): ${p.type}`}
-                  </SelectItem>
-                ))}
+                {session.params.map((p, i) => {
+                  if (isLeafNode(p) && usedCalldataPaths.has(pathKey([i]))) return null;
+                  return (
+                    // oxlint-disable-next-line react/no-array-index-key
+                    <SelectItem key={i} value={String(i)}>
+                      {p.name ? `${p.name}: ${p.type}` : `arg(${i}): ${p.type}`}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           ) : (
@@ -830,6 +920,7 @@ function AddConstraintForm({
                 setContextProperty(v as ConstraintConfig["contextProperty"]);
                 setOperator("");
               }}
+              disabled={rules.length > 0}
             >
               <SelectTrigger className="w-64 shrink-0">
                 <SelectValue />
@@ -848,14 +939,20 @@ function AddConstraintForm({
           )}
         </div>
 
-        {/* Tuple field selection (inline) */}
-        {scope === "calldata" && selectedParam !== null && session.params[selectedParam]?.children && !arrayNode && (
-          <FieldSelector
-            node={session.params[selectedParam]}
-            selectedPath={selectedField}
-            onSelect={setSelectedField}
-          />
-        )}
+        {/* Tuple field selection (inline) — hidden when path is locked. */}
+        {scope === "calldata" &&
+          selectedParam !== null &&
+          session.params[selectedParam]?.children &&
+          !arrayNode &&
+          rules.length === 0 && (
+            <FieldSelector
+              node={session.params[selectedParam]}
+              selectedPath={selectedField}
+              onSelect={setSelectedField}
+              usedPaths={usedCalldataPaths}
+              pathPrefix={[selectedParam]}
+            />
+          )}
 
         {/* Array access — toggle stacked above its input */}
         {scope === "calldata" && arrayNode && (
@@ -870,11 +967,13 @@ function AddConstraintForm({
                 setArrayMode(mode);
                 setPostArrayField([]);
               }}
+              disabled={rules.length > 0}
             />
             {arrayMode === "quantified" ? (
               <Select
                 value={quantifier !== undefined ? String(quantifier) : ""}
                 onValueChange={(v) => setQuantifier(v ? Number(v) : undefined)}
+                disabled={rules.length > 0}
               >
                 <SelectTrigger className="w-42">
                   <SelectValue />
@@ -888,66 +987,95 @@ function AddConstraintForm({
                 </SelectContent>
               </Select>
             ) : (
-              <input
-                type="text"
+              <MonoInput
                 inputMode="numeric"
-                className="h-9 w-32 rounded-lg border border-fd-border bg-fd-card px-2 py-1.5 font-mono text-sm placeholder:text-fd-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring"
+                className="w-32"
                 placeholder={staticArrayLength !== null ? `0\u2013${staticArrayLength - 1}` : undefined}
                 value={arrayIndex}
                 onChange={(e) => setArrayIndex(e.target.value)}
+                disabled={rules.length > 0}
               />
             )}
           </div>
         )}
 
-        {/* Post-array tuple field (inline) */}
-        {resolvedElement?.children && (
-          <FieldSelector node={resolvedElement} selectedPath={postArrayField} onSelect={setPostArrayField} />
+        {/* Post-array tuple field (inline) — hidden when path is locked. */}
+        {resolvedElement?.children && rules.length === 0 && (
+          <FieldSelector
+            node={resolvedElement}
+            selectedPath={postArrayField}
+            onSelect={setPostArrayField}
+            usedPaths={usedCalldataPaths}
+            pathPrefix={
+              selectedParam !== null
+                ? [
+                    selectedParam,
+                    ...selectedField,
+                    ...(arrayMode === "index" && validIndex ? [Number(arrayIndex)] : []),
+                  ]
+                : []
+            }
+          />
         )}
 
-        {/* Operator */}
+        {/* Operator, value, and buttons — all visible once target is selected. */}
         {targetTypeInfo && (
-          <div className="flex flex-col items-start gap-1">
-            <span className="text-xs text-fd-muted-foreground">operator</span>
-            <Select value={operator} onValueChange={setOperator}>
-              <SelectTrigger className="w-40 shrink-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {operatorOptions.map((op) => (
-                  <SelectItem key={op.value} value={op.value}>
-                    {op.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Value + Add */}
-        {operator && (
           <>
-            <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-              <span className="text-xs text-fd-muted-foreground">value</span>
-              <input
-                type="text"
-                className="h-9 w-full rounded-lg border border-fd-border bg-fd-card px-2 py-1.5 font-mono text-sm placeholder:text-fd-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring"
-                placeholder={
-                  operator === "isIn" || operator === "notIn"
-                    ? "value1,value2,..."
-                    : operator === "between" || operator === "lengthBetween"
-                      ? "min,max"
-                      : targetTypeInfo?.typeCode === TypeCode.ADDRESS
-                        ? "0x..."
-                        : targetTypeInfo?.typeCode === TypeCode.BOOL
-                          ? "true / false"
-                          : undefined
-                }
+            <div className="flex flex-col items-start gap-1">
+              {rules.length === 0 && <span className="text-xs text-fd-muted-foreground">operator</span>}
+              <Select value={operator} onValueChange={setOperator}>
+                <SelectTrigger className="w-40 shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {operatorOptions.map((op) => (
+                    <SelectItem key={op.value} value={op.value}>
+                      {op.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex min-w-30 flex-1 flex-col items-start gap-1">
+              {rules.length === 0 && (
+                <label htmlFor="constraint-value" className="text-xs text-fd-muted-foreground">
+                  value
+                </label>
+              )}
+              <MonoInput
+                id="constraint-value"
+                placeholder={valuePlaceholder(operator, targetTypeInfo)}
                 value={valueInput}
                 onChange={(e) => setValueInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && canAdd && handleSubmit()}
               />
             </div>
+            <button
+              type="button"
+              disabled={!hasValidDraft}
+              className={cn(
+                "flex h-9 items-center gap-1 text-sm transition-colors",
+                hasValidDraft
+                  ? "text-fd-muted-foreground hover:text-fd-foreground"
+                  : "text-fd-muted-foreground/40 cursor-not-allowed",
+              )}
+              onClick={handleAddOperator}
+            >
+              <Plus className="size-3.5" />
+              Operator
+            </button>
+            <button
+              type="button"
+              className="h-9 shrink-0 rounded-lg border border-fd-border px-3 py-1.5 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
+              onClick={() => {
+                setRules([]);
+                setOperator("");
+                setValueInput("");
+                setExpanded(false);
+              }}
+            >
+              Cancel
+            </button>
             <button
               type="button"
               className={cn(
@@ -964,6 +1092,29 @@ function AddConstraintForm({
           </>
         )}
       </div>
+
+      {/* Committed rules — appended below the input row. */}
+      {rules.length > 0 && (
+        <div className="space-y-1">
+          {rules.map((rule, ri) => (
+            <div
+              // oxlint-disable-next-line react/no-array-index-key
+              key={ri}
+              className="flex items-center gap-1.5 text-sm font-mono"
+            >
+              <span className="min-w-[2ch] text-fd-muted-foreground">{getOperatorLabel(rule.operator)}</span>
+              <span className="text-fd-foreground">{rule.values.map((v) => String(v)).join(", ")}</span>
+              <button
+                type="button"
+                className="text-fd-muted-foreground hover:text-red-500 transition-colors"
+                onClick={() => setRules((prev) => prev.filter((_, i) => i !== ri))}
+              >
+                <Trash2 className="size-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Validation messages (below the row) */}
       {scope === "calldata" && arrayNode && arrayMode === "index" && (
@@ -1035,13 +1186,18 @@ function FieldSelector({
   node,
   selectedPath,
   onSelect,
+  usedPaths,
+  pathPrefix,
 }: {
   node: ParamNode;
   selectedPath: number[];
   onSelect: (path: number[]) => void;
+  usedPaths?: Set<string>;
+  pathPrefix?: number[];
 }) {
   if (!node.children) return null;
 
+  const prefix = pathPrefix ?? [];
   const currentIndex = selectedPath[0];
   const currentChild = currentIndex !== undefined ? node.children[currentIndex] : null;
 
@@ -1063,12 +1219,15 @@ function FieldSelector({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {node.children.map((child, i) => (
-              // oxlint-disable-next-line react/no-array-index-key
-              <SelectItem key={i} value={String(i)}>
-                [{i}]{child.name ? ` ${child.name}` : ""}: {child.type}
-              </SelectItem>
-            ))}
+            {node.children.map((child, i) => {
+              if (isLeafNode(child) && usedPaths?.has(pathKey([...prefix, i]))) return null;
+              return (
+                // oxlint-disable-next-line react/no-array-index-key
+                <SelectItem key={i} value={String(i)}>
+                  [{i}]{child.name ? ` ${child.name}` : ""}: {child.type}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -1079,6 +1238,8 @@ function FieldSelector({
           node={currentChild}
           selectedPath={selectedPath.slice(1)}
           onSelect={(subPath) => onSelect([currentIndex, ...subPath])}
+          usedPaths={usedPaths}
+          pathPrefix={[...prefix, currentIndex]}
         />
       )}
     </div>

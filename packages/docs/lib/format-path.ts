@@ -1,5 +1,32 @@
-import { ContextProperty, isQuantifier, lookupContextProperty, lookupOp, lookupQuantifier } from "@callcium/sdk";
+import {
+  ContextProperty,
+  isQuantifier,
+  lookupContextProperty,
+  lookupOp,
+  lookupQuantifier,
+  lookupTypeCode,
+} from "@callcium/sdk";
 import type { ParamNode } from "@/tools/policy-builder";
+
+/** Map from camelCase context property keys to SDK property codes. */
+export const CONTEXT_IDS: Record<string, number> = {
+  msgSender: ContextProperty.MSG_SENDER,
+  msgValue: ContextProperty.MSG_VALUE,
+  blockTimestamp: ContextProperty.BLOCK_TIMESTAMP,
+  blockNumber: ContextProperty.BLOCK_NUMBER,
+  chainId: ContextProperty.CHAIN_ID,
+  txOrigin: ContextProperty.TX_ORIGIN,
+};
+
+/** Total number of context properties (derived from SDK). */
+export const CONTEXT_PROPERTY_COUNT = Object.keys(ContextProperty).length;
+
+/** Resolve the Solidity type label for a context property key (e.g. "msgSender" → "address"). */
+export function contextPropertyType(key: string): string | null {
+  const code = CONTEXT_IDS[key];
+  if (code === undefined) return null;
+  return lookupTypeCode(lookupContextProperty(code).typeCode).label;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // Operator formatting
@@ -97,15 +124,6 @@ export function formatContextPath(contextProperty: string | number): string {
       return `context(${contextProperty})`;
     }
   }
-
-  const CONTEXT_IDS: Record<string, number> = {
-    msgSender: ContextProperty.MSG_SENDER,
-    msgValue: ContextProperty.MSG_VALUE,
-    blockTimestamp: ContextProperty.BLOCK_TIMESTAMP,
-    blockNumber: ContextProperty.BLOCK_NUMBER,
-    chainId: ContextProperty.CHAIN_ID,
-    txOrigin: ContextProperty.TX_ORIGIN,
-  };
 
   const id = CONTEXT_IDS[contextProperty];
   if (id !== undefined) {

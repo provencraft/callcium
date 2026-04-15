@@ -6,6 +6,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { Context, Hex } from "@callcium/sdk";
+import { ErrorBox } from "@/components/ui/error-box";
+import { MonoInput } from "@/components/ui/mono-input";
+import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
 import { checkPolicy, type EnforceOutput } from "@/tools/policy-enforcer";
@@ -83,19 +86,12 @@ export function Enforcer() {
             </Link>
           )}
         </div>
-        <textarea
+        <MonoTextarea
           id="enforcer-policy-hex"
-          className={cn(
-            "w-full rounded-lg border border-fd-border bg-fd-card px-3 py-2 font-mono text-sm",
-            "placeholder:text-fd-muted-foreground/50",
-            "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
-            "resize-y",
-          )}
           rows={3}
           placeholder="0x01095ea7b3..."
           value={policyInput}
           onChange={(e) => setPolicyInput(e.target.value)}
-          spellCheck={false}
         />
       </div>
 
@@ -104,19 +100,12 @@ export function Enforcer() {
         <label htmlFor="enforcer-calldata-hex" className="mb-1.5 block text-sm font-medium text-fd-foreground">
           Calldata
         </label>
-        <textarea
+        <MonoTextarea
           id="enforcer-calldata-hex"
-          className={cn(
-            "w-full rounded-lg border border-fd-border bg-fd-card px-3 py-2 font-mono text-sm",
-            "placeholder:text-fd-muted-foreground/50",
-            "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
-            "resize-y",
-          )}
           rows={3}
           placeholder="0x095ea7b3..."
           value={calldataInput}
           onChange={(e) => setCalldataInput(e.target.value)}
-          spellCheck={false}
         />
       </div>
 
@@ -189,14 +178,7 @@ function ContextField({
           </button>
         )}
       </div>
-      <input
-        type="text"
-        className="w-full rounded-lg border border-fd-border bg-fd-card px-3 py-1.5 font-mono text-sm placeholder:text-fd-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring"
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        spellCheck={false}
-      />
+      <MonoInput placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -231,11 +213,7 @@ const STATUS_CONFIG = {
 
 function ResultDisplay({ result }: { result: EnforceOutput }) {
   if (result.status === "error") {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-        {result.errorMessage}
-      </div>
-    );
+    return <ErrorBox>{result.errorMessage}</ErrorBox>;
   }
 
   const config = STATUS_CONFIG[result.status];

@@ -43,6 +43,12 @@ export type ParamNode = {
   element: ParamNode | null;
 };
 
+/** A single operator + operand(s) within a constraint. */
+export type OperatorRule = {
+  operator: string;
+  values: ScalarValue[];
+};
+
 /** User-configured constraint, ready to be translated to SDK calls. */
 export type ConstraintConfig = {
   /** Stable identity for React keying. Assigned by the engine on creation. */
@@ -52,10 +58,8 @@ export type ConstraintConfig = {
   path?: number[];
   /** Context property name for context scope. */
   contextProperty?: keyof typeof CONTEXT_FACTORIES;
-  /** Operator name. */
-  operator: string;
-  /** Operand values. */
-  values: ScalarValue[];
+  /** Operator rules. At least one required. */
+  rules: OperatorRule[];
   /** Quantifier for array paths (optional). */
   quantifier?: number;
 };
@@ -241,44 +245,9 @@ export function parseDescriptor(desc: Uint8Array, nameTrees: NameTree[] = []): P
 // Constraint translation
 ///////////////////////////////////////////////////////////////////////////
 
-/** Build an SDK ConstraintBuilder from a ConstraintConfig. */
-function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
-  let builder: SDKConstraintBuilder;
-
-  if (config.scope === "context") {
-    if (!config.contextProperty || !(config.contextProperty in CONTEXT_FACTORIES)) {
-      throw new Error("No context property selected");
-    }
-    const factory = CONTEXT_FACTORIES[config.contextProperty];
-    builder = factory();
-  } else {
-    const steps = [...config.path!];
-    if (config.quantifier !== undefined) {
-      // Quantifier goes after the base arg index (position 1), before post-array field steps.
-      // SDK expects: arg(argIndex, Quantifier, fieldIndex, ...).
-      steps.splice(1, 0, config.quantifier);
-    }
-    // arg() has fixed overloads (1-4 params), dispatch by length.
-    switch (steps.length) {
-      case 1:
-        builder = arg(steps[0]);
-        break;
-      case 2:
-        builder = arg(steps[0], steps[1]);
-        break;
-      case 3:
-        builder = arg(steps[0], steps[1], steps[2]);
-        break;
-      case 4:
-        builder = arg(steps[0], steps[1], steps[2], steps[3]);
-        break;
-      default:
-        throw new Error(`Path too deep: ${steps.length} steps (max 4).`);
-    }
-  }
-
-  const values = config.values;
-  switch (config.operator) {
+/** Apply a single operator rule to a constraint builder. */
+function dispatchOperator(builder: SDKConstraintBuilder, operator: string, values: ScalarValue[]): void {
+  switch (operator) {
     case "eq":
       builder.eq(values[0]);
       break;
@@ -334,7 +303,52 @@ function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
       builder.lengthBetween(values[0] as bigint | number, values[1] as bigint | number);
       break;
     default:
-      throw new Error(`Unknown operator: ${config.operator}`);
+      throw new Error(`Unknown operator: ${operator}`);
+  }
+}
+
+/** Build an SDK ConstraintBuilder from a ConstraintConfig. */
+function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
+  if (config.rules.length === 0) {
+    throw new Error("Constraint must have at least one operator rule.");
+  }
+
+  let builder: SDKConstraintBuilder;
+
+  if (config.scope === "context") {
+    if (!config.contextProperty || !(config.contextProperty in CONTEXT_FACTORIES)) {
+      throw new Error("No context property selected");
+    }
+    const factory = CONTEXT_FACTORIES[config.contextProperty];
+    builder = factory();
+  } else {
+    const steps = [...config.path!];
+    if (config.quantifier !== undefined) {
+      // Quantifier goes after the base arg index (position 1), before post-array field steps.
+      // SDK expects: arg(argIndex, Quantifier, fieldIndex, ...).
+      steps.splice(1, 0, config.quantifier);
+    }
+    // arg() has fixed overloads (1-4 params), dispatch by length.
+    switch (steps.length) {
+      case 1:
+        builder = arg(steps[0]);
+        break;
+      case 2:
+        builder = arg(steps[0], steps[1]);
+        break;
+      case 3:
+        builder = arg(steps[0], steps[1], steps[2]);
+        break;
+      case 4:
+        builder = arg(steps[0], steps[1], steps[2], steps[3]);
+        break;
+      default:
+        throw new Error(`Path too deep: ${steps.length} steps (max 4).`);
+    }
+  }
+
+  for (const rule of config.rules) {
+    dispatchOperator(builder, rule.operator, rule.values);
   }
 
   return builder;

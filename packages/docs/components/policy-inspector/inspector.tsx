@@ -7,6 +7,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { Abi } from "viem";
+import { ErrorBox } from "@/components/ui/error-box";
+import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { PillToggle } from "@/components/ui/pill-toggle";
 import { lookup4byte, parseAbiJson } from "@/lib/abi";
 import { formatError } from "@/lib/format-error";
@@ -120,22 +122,14 @@ export function Inspector() {
             </Link>
           )}
         </div>
-        <textarea
+        <MonoTextarea
           id="policy-hex"
-          className={cn(
-            "w-full rounded-lg border bg-fd-card px-3 py-2 font-mono text-sm",
-            "placeholder:text-fd-muted-foreground/50",
-            "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
-            "resize-y",
-            result && !result.ok ? "border-red-500/50" : "border-fd-border",
-          )}
+          className={cn(result && !result.ok && "border-red-500/50")}
           rows={3}
           placeholder="0x01095ea7b3..."
           value={hexInput}
           onChange={(e) => setHexInput(e.target.value)}
           onPaste={handlePaste}
-          spellCheck={false}
-          autoComplete="off"
         />
       </div>
 
@@ -146,28 +140,18 @@ export function Inspector() {
           ABI (optional)
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <textarea
-            className={cn(
-              "mt-2 w-full rounded-lg border border-fd-border bg-fd-card px-3 py-2 font-mono text-sm",
-              "placeholder:text-fd-muted-foreground/50",
-              "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
-              "resize-y",
-            )}
+          <MonoTextarea
+            className="mt-2"
             rows={4}
             placeholder='[{"type":"function","name":"approve",...}]'
             value={abiInput}
             onChange={(e) => setAbiInput(e.target.value)}
-            spellCheck={false}
           />
         </CollapsibleContent>
       </Collapsible>
 
       {/* Error */}
-      {result && !result.ok && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-          {result.error}
-        </div>
-      )}
+      {result && !result.ok && <ErrorBox>{result.error}</ErrorBox>}
 
       {/* Loading indicator for 4byte lookup */}
       {lookingUp && <div className="text-xs text-fd-muted-foreground">Looking up function name…</div>}
