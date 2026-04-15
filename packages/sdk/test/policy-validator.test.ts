@@ -302,6 +302,16 @@ describe("PolicyValidator - length domain", () => {
     expect(findIssue(issues, "DOMINATED_LENGTH_BOUND")).toBeDefined();
   });
 
+  test("reports DOMINATED_LENGTH_BOUND for lengthGte(5) superseded by lengthGte(10)", () => {
+    const issues = validate("bytes", (b) => b.add(arg(0).lengthGte(5n).lengthGte(10n)));
+    expect(findIssue(issues, "DOMINATED_LENGTH_BOUND")).toBeDefined();
+  });
+
+  test("reports DOMINATED_LENGTH_BOUND for lengthLte(100) superseded by lengthLte(50)", () => {
+    const issues = validate("bytes", (b) => b.add(arg(0).lengthLte(100n).lengthLte(50n)));
+    expect(findIssue(issues, "DOMINATED_LENGTH_BOUND")).toBeDefined();
+  });
+
   test("reports REDUNDANT_LENGTH_BOUND for lengthEq(5) + lengthGte(3)", () => {
     const issues = validate("bytes", (b) => b.add(arg(0).lengthEq(5n).lengthGte(3n)));
     expect(findIssue(issues, "REDUNDANT_LENGTH_BOUND")).toBeDefined();
@@ -538,9 +548,9 @@ describe("PolicyValidator - upper bound domain updates", () => {
     expect(findIssue(issues, "DOMINATED_BOUND")).toBeDefined();
   });
 
-  test("tightens upper bound when lt(50) follows lte(100)", () => {
+  test("reports DOMINATED_BOUND when lt(50) supersedes lte(100)", () => {
     const issues = validate("uint256", (b) => b.add(arg(0).lte(100n).lt(50n)));
-    expect(findIssue(issues, "DOMINATED_BOUND")).toBeUndefined();
+    expect(findIssue(issues, "DOMINATED_BOUND")).toBeDefined();
   });
 
   test("reports DOMINATED_BOUND for lte(50) + lte(50) (same inclusive)", () => {
@@ -548,9 +558,9 @@ describe("PolicyValidator - upper bound domain updates", () => {
     expect(findIssue(issues, "DOMINATED_BOUND")).toBeDefined();
   });
 
-  test("lt replaces lte at same value (strictly better upper bound)", () => {
+  test("reports DOMINATED_BOUND when lt(50) supersedes lte(50)", () => {
     const issues = validate("uint256", (b) => b.add(arg(0).lte(50n).lt(50n)));
-    expect(findIssue(issues, "DOMINATED_BOUND")).toBeUndefined();
+    expect(findIssue(issues, "DOMINATED_BOUND")).toBeDefined();
   });
 
   test("reports REDUNDANT_BOUND for eq(5) + lte(10)", () => {
@@ -566,6 +576,18 @@ describe("PolicyValidator - upper bound domain updates", () => {
   test("reports BOUNDS_EXCLUDE_EQUALITY for eq(50) + lt(50) (exclusive upper)", () => {
     const issues = validate("uint256", (b) => b.add(arg(0).eq(50n).lt(50n)));
     expect(findIssue(issues, "BOUNDS_EXCLUDE_EQUALITY")).toBeDefined();
+  });
+
+  test("reports DOMINATED_BOUND for lte(100) superseded by lt(50)", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).lte(100n).lt(50n)));
+    const issue = findIssue(issues, "DOMINATED_BOUND");
+    expect(issue).toBeDefined();
+    expect(issue!.value1).toBe("0x0000000000000000000000000000000000000000000000000000000000000064");
+  });
+
+  test("reports DOMINATED_BOUND for lt(200) superseded by lte(100)", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).lt(200n).lte(100n)));
+    expect(findIssue(issues, "DOMINATED_BOUND")).toBeDefined();
   });
 });
 
@@ -592,6 +614,11 @@ describe("PolicyValidator - signed domain cross-checks", () => {
   test("reports REDUNDANT_BOUND for eq(50) + lte(100) on int256", () => {
     const issues = validate("int256", (b) => b.add(arg(0).eq(50n).lte(100n)));
     expect(findIssue(issues, "REDUNDANT_BOUND")).toBeDefined();
+  });
+
+  test("reports DOMINATED_BOUND for gte(-10) superseded by gte(5) on int256", () => {
+    const issues = validate("int256", (b) => b.add(arg(0).gte(-10n).gte(5n)));
+    expect(findIssue(issues, "DOMINATED_BOUND")).toBeDefined();
   });
 });
 
@@ -663,6 +690,26 @@ describe("PolicyValidator - lower bound edge cases", () => {
   test("reports IMPOSSIBLE_RANGE for gte(50) + lt(50)", () => {
     const issues = validate("uint256", (b) => b.add(arg(0).gte(50n).lt(50n)));
     expect(findIssue(issues, "IMPOSSIBLE_RANGE")).toBeDefined();
+  });
+
+  test("reports DOMINATED_BOUND for gt(0) superseded by gte(3)", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).gt(0n).gte(3n)));
+    const issue = findIssue(issues, "DOMINATED_BOUND");
+    expect(issue).toBeDefined();
+    // value1 is the superseded bound value (0), padded to 32-byte hex.
+    expect(issue!.value1).toBe("0x0000000000000000000000000000000000000000000000000000000000000000");
+  });
+
+  test("reports DOMINATED_BOUND for gte(5) superseded by gt(10)", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).gte(5n).gt(10n)));
+    const issue = findIssue(issues, "DOMINATED_BOUND");
+    expect(issue).toBeDefined();
+    expect(issue!.value1).toBe("0x0000000000000000000000000000000000000000000000000000000000000005");
+  });
+
+  test("reports DOMINATED_BOUND for gte(5) superseded by gt(5) (same value, stricter)", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).gte(5n).gt(5n)));
+    expect(findIssue(issues, "DOMINATED_BOUND")).toBeDefined();
   });
 });
 

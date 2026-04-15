@@ -439,12 +439,14 @@ library PolicyValidator {
                     strictlyBetter = true;
                 }
 
-                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - bound weaker than existing.
+                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - new bound weaker than existing.
                 if (redundant) {
                     issues[issueCount++] = _issueDominatedBound(isLength, groupIndex, constraintIndex, value);
                 }
 
+                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - existing bound superseded by stricter new bound.
                 if (strictlyBetter) {
+                    issues[issueCount++] = _issueDominatedBound(isLength, groupIndex, constraintIndex, domain.lower);
                     domain.lower = value;
                     domain.lowerInclusive = inclusive;
                     changedLower = true;
@@ -478,12 +480,14 @@ library PolicyValidator {
                     strictlyBetter = true;
                 }
 
-                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - bound weaker than existing.
+                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - new bound weaker than existing.
                 if (redundant) {
                     issues[issueCount++] = _issueDominatedBound(isLength, groupIndex, constraintIndex, value);
                 }
 
+                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - existing bound superseded by stricter new bound.
                 if (strictlyBetter) {
+                    issues[issueCount++] = _issueDominatedBound(isLength, groupIndex, constraintIndex, domain.upper);
                     domain.upper = value;
                     domain.upperInclusive = inclusive;
                     changedUpper = true;

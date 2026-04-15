@@ -450,6 +450,105 @@ contract DominatedBoundTest is PolicyValidatorTest {
 
         _assertNoIssue(issues, IssueCode.DOMINATED_BOUND);
     }
+
+    function test_GtSupersededByGte_ReportsWarning() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // gt(0).gte(3) - gt(0) becomes dominated when gte(3) replaces it.
+        Constraint memory c = arg(0).gt(uint256(0)).gte(uint256(3));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        Issue memory issue = _findIssue(issues, IssueCode.DOMINATED_BOUND);
+        assertEq(uint256(issue.value1), 0);
+    }
+
+    function test_GteSupersededByGt_ReportsWarning() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // gte(5).gt(10) - gte(5) becomes dominated when gt(10) replaces it.
+        Constraint memory c = arg(0).gte(uint256(5)).gt(uint256(10));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        Issue memory issue = _findIssue(issues, IssueCode.DOMINATED_BOUND);
+        assertEq(uint256(issue.value1), 5);
+    }
+
+    function test_LteSupersededByLt_ReportsWarning() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // lte(100).lt(50) - lte(100) becomes dominated when lt(50) replaces it.
+        Constraint memory c = arg(0).lte(uint256(100)).lt(uint256(50));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        Issue memory issue = _findIssue(issues, IssueCode.DOMINATED_BOUND);
+        assertEq(uint256(issue.value1), 100);
+    }
+
+    function test_LtSupersededByLte_ReportsWarning() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // lt(200).lte(100) - lt(200) becomes dominated when lte(100) replaces it.
+        Constraint memory c = arg(0).lt(uint256(200)).lte(uint256(100));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.DOMINATED_BOUND);
+    }
+
+    function test_GteSupersededByGtSameValue_ReportsWarning() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // gte(5).gt(5) - gt(5) is stricter, so gte(5) becomes dominated.
+        Constraint memory c = arg(0).gte(uint256(5)).gt(uint256(5));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.DOMINATED_BOUND);
+    }
+
+    function test_LteSupersededByLtSameValue_ReportsWarning() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // lte(50).lt(50) - lt(50) is stricter, so lte(50) becomes dominated.
+        Constraint memory c = arg(0).lte(uint256(50)).lt(uint256(50));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.DOMINATED_BOUND);
+    }
+
+    function test_LengthGteSuperseded_ReportsWarning() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytes_()).build();
+
+        // lengthGte(5).lengthGte(10) - lengthGte(5) becomes dominated.
+        Constraint memory c = arg(0).lengthGte(uint256(5)).lengthGte(uint256(10));
+
+        PolicyData memory data = _createPolicyData("foo(bytes)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.DOMINATED_LENGTH_BOUND);
+    }
+
+    function test_LengthLteSuperseded_ReportsWarning() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytes_()).build();
+
+        // lengthLte(100).lengthLte(50) - lengthLte(100) becomes dominated.
+        Constraint memory c = arg(0).lengthLte(uint256(100)).lengthLte(uint256(50));
+
+        PolicyData memory data = _createPolicyData("foo(bytes)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.DOMINATED_LENGTH_BOUND);
+    }
 }
 
 contract DuplicateConstraintTest is PolicyValidatorTest {

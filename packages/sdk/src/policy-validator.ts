@@ -409,6 +409,7 @@ function updateBound(
       }
 
       if (strictlyBetter) {
+        issues.push(emit.dominated(groupIndex, constraintIndex, bigintToHex(domain.lower)));
         domain.lower = value;
         domain.lowerInclusive = inclusive;
         changedLower = true;
@@ -443,6 +444,7 @@ function updateBound(
       }
 
       if (strictlyBetter) {
+        issues.push(emit.dominated(groupIndex, constraintIndex, bigintToHex(domain.upper)));
         domain.upper = value;
         domain.upperInclusive = inclusive;
         changedUpper = true;
