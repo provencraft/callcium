@@ -246,7 +246,10 @@ function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
   let builder: SDKConstraintBuilder;
 
   if (config.scope === "context") {
-    const factory = CONTEXT_FACTORIES[config.contextProperty!];
+    if (!config.contextProperty || !(config.contextProperty in CONTEXT_FACTORIES)) {
+      throw new Error("No context property selected");
+    }
+    const factory = CONTEXT_FACTORIES[config.contextProperty];
     builder = factory();
   } else {
     const steps = [...config.path!];
