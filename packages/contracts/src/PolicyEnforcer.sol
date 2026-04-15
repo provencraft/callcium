@@ -402,9 +402,8 @@ library PolicyEnforcer {
 
             if (params.hasSuffix) {
                 // Descend through suffix path.
-                (loop.value, loop.valueLength, loop.typeCode) = _descendAndLoad(
-                    state, callData, rule.pathStart, elemLoc, quantifierIndex + 1, rule.depth, params.opBase
-                );
+                (loop.value, loop.valueLength, loop.typeCode) =
+                    _descendAndLoad(state, callData, rule.pathStart, elemLoc, quantifierIndex + 1, rule.depth);
             } else {
                 // Element is the target.
                 loop.typeCode = elemTypeInfo.code;
@@ -449,8 +448,7 @@ library PolicyEnforcer {
         uint256 pathStart,
         CalldataReader.Location memory startLoc,
         uint8 startStep,
-        uint8 endDepth,
-        uint8 opBase
+        uint8 endDepth
     )
         private
         pure
