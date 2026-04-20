@@ -1,0 +1,44 @@
+name: Publish SDK
+
+on:
+  push:
+    tags:
+      - 'sdk/v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: packages/sdk
+        run: bun install
+
+      - name: Type check
+        working-directory: packages/sdk
+        run: bun run typecheck
+
+      - name: Test
+        working-directory: packages/sdk
+        run: bun run test
+
+      - name: Build
+        working-directory: packages/sdk
+        run: bun run build
+
+      - name: Publish
+        working-directory: packages/sdk
+        run: npm publish --access public --provenance

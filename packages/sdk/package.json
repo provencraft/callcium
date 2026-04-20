@@ -2,8 +2,20 @@
   "name": "@callcium/sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for the Callcium on-chain policy engine",
+  "keywords": [
+    "abi",
+    "callcium",
+    "ethereum",
+    "evm",
+    "policy",
+    "smart-contracts",
+    "typescript",
+    "web3"
+  ],
   "homepage": "https://callcium.dev",
+  "bugs": "https://github.com/provencraft/callcium/issues",
   "license": "MIT",
+  "author": "Seva Mihailov",
   "repository": {
     "type": "git",
     "url": "https://github.com/provencraft/callcium.git",
@@ -13,22 +25,26 @@
     "dist"
   ],
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
     "build": "tsdown",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit",
+    "release:patch": "npm version patch --tag-version-prefix=sdk/v",
+    "release:minor": "npm version minor --tag-version-prefix=sdk/v",
+    "release:major": "npm version major --tag-version-prefix=sdk/v",
+    "fmt": "oxfmt --write .",
+    "fmt:check": "oxfmt --check .",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "fmt": "oxfmt --write .",
-    "fmt:check": "oxfmt --check ."
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0"
