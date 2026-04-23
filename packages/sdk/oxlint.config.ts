@@ -13,5 +13,6 @@ export default defineConfig({
   rules: {
     "no-useless-concat": "off",
     "no-inline-comments": "off",
+    "typescript/consistent-return": "off",
   },
 });

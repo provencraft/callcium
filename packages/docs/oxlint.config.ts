@@ -33,5 +33,6 @@ export default defineConfig({
     "react/no-array-index-key": "error",
     "react/react-in-jsx-scope": "off",
     "typescript/no-unsafe-type-assertion": "off",
+    "typescript/consistent-return": "off",
   },
 });
