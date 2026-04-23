@@ -3,6 +3,8 @@ title: "Path"
 description: "Encodes and inspects descriptor paths as big-endian uint16 sequences."
 ---
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L11)
+
 Paths represent navigation through ABI-encoded calldata:
 
 - path\[0] is the top-level argument index
@@ -16,6 +18,8 @@ Universal quantifier for array paths (∀). Rule must pass for ALL elements.
 
 Only valid immediately after an array node. Empty arrays yield true (vacuous truth).
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L14)
+
 ```solidity
 uint16 internal constant ALL_OR_EMPTY = 0xFFFF
 ```
@@ -25,6 +29,8 @@ uint16 internal constant ALL_OR_EMPTY = 0xFFFF
 Universal quantifier for array paths (∀). Rule must pass for ALL elements and the array MUST NOT be empty.
 
 Only valid immediately after an array node. Empty arrays yield false.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L18)
 
 ```solidity
 uint16 internal constant ALL = 0xFFFE
@@ -36,6 +42,8 @@ Existential quantifier for array paths (∃). Rule must pass for AT LEAST ONE el
 
 Only valid immediately after an array node. Empty arrays yield false.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L22)
+
 ```solidity
 uint16 internal constant ANY = 0xFFFD
 ```
@@ -45,6 +53,8 @@ uint16 internal constant ANY = 0xFFFD
 ### encode
 
 Encodes a single-step path.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L46)
 
 ```solidity
 function encode(uint16 p0) internal pure returns (bytes memory out);
@@ -65,6 +75,8 @@ function encode(uint16 p0) internal pure returns (bytes memory out);
 ### encode
 
 Encodes a two-step path.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L55)
 
 ```solidity
 function encode(uint16 p0, uint16 p1) internal pure returns (bytes memory out);
@@ -87,6 +99,8 @@ function encode(uint16 p0, uint16 p1) internal pure returns (bytes memory out);
 
 Encodes a three-step path.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L66)
+
 ```solidity
 function encode(uint16 p0, uint16 p1, uint16 p2) internal pure returns (bytes memory out);
 ```
@@ -108,6 +122,8 @@ function encode(uint16 p0, uint16 p1, uint16 p2) internal pure returns (bytes me
 ### encode
 
 Encodes a four-step path.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L79)
 
 ```solidity
 function encode(uint16 p0, uint16 p1, uint16 p2, uint16 p3) internal pure returns (bytes memory out);
@@ -132,6 +148,8 @@ function encode(uint16 p0, uint16 p1, uint16 p2, uint16 p3) internal pure return
 
 Encodes a path from a uint16 array.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L90)
+
 ```solidity
 function encode(uint16[] memory path) internal pure returns (bytes memory out);
 ```
@@ -151,6 +169,8 @@ function encode(uint16[] memory path) internal pure returns (bytes memory out);
 ### decode
 
 Decodes a be16-encoded path into a uint16 array.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L102)
 
 ```solidity
 function decode(bytes memory self) internal pure returns (uint16[] memory out);
@@ -172,6 +192,8 @@ function decode(bytes memory self) internal pure returns (uint16[] memory out);
 
 Returns the depth (number of steps) in a path.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L114)
+
 ```solidity
 function depth(bytes memory self) internal pure returns (uint256);
 ```
@@ -191,6 +213,8 @@ function depth(bytes memory self) internal pure returns (uint256);
 ### validate
 
 Validates strict be16 payload: non-empty and even length. Returns depth.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L121)
 
 ```solidity
 function validate(bytes memory self) internal pure returns (uint256);
@@ -212,6 +236,8 @@ function validate(bytes memory self) internal pure returns (uint256);
 
 Returns the step at a given step index in the path.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L131)
+
 ```solidity
 function at(bytes memory self, uint256 stepIndex) internal pure returns (uint16);
 ```
@@ -232,6 +258,8 @@ function at(bytes memory self, uint256 stepIndex) internal pure returns (uint16)
 ### atUnchecked
 
 Returns the step at a given step index without bounds checks. Caller must ensure `stepIndex < depth`.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L141)
 
 ```solidity
 function atUnchecked(bytes memory self, uint256 stepIndex) internal pure returns (uint16);
@@ -256,6 +284,8 @@ function atUnchecked(bytes memory self, uint256 stepIndex) internal pure returns
 
 Thrown when the path is empty.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L29)
+
 ```solidity
 error EmptyPath();
 ```
@@ -263,6 +293,8 @@ error EmptyPath();
 ### IndexOutOfBounds
 
 Thrown when accessing a step position beyond the path depth.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L34)
 
 ```solidity
 error IndexOutOfBounds(uint256 stepIndex, uint256 depth);
@@ -278,6 +310,8 @@ error IndexOutOfBounds(uint256 stepIndex, uint256 depth);
 ### MalformedPath
 
 Thrown when the be16-encoded path is malformed (empty or odd length).
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L37)
 
 ```solidity
 error MalformedPath();

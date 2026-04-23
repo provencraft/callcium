@@ -44,6 +44,7 @@ pre-commit:
         - "packages/contracts/src/**/*.sol"
         - "packages/contracts/foundry.toml"
         - "packages/docs/tools/sync-reference.ts"
+        - "packages/docs/tools/sol-symbol-map.ts"
       run: bun run sync:reference && git add content/docs/solidity/reference
 
     docs-sync-sdk:

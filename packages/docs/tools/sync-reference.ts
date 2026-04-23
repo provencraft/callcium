@@ -4,15 +4,18 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
-import type { Heading, PhrasingContent, Root, RootContent } from "mdast";
+import type { Heading, Paragraph, PhrasingContent, Root, RootContent } from "mdast";
+import { buildSymbolMap, type SymbolMap } from "./sol-symbol-map";
 
 ///////////////////////////////////////////////////////////////////////////
 // Configuration
 ///////////////////////////////////////////////////////////////////////////
 
-const FORGE_DOC_DIR = join(import.meta.dirname, "../../contracts/.forge-doc");
+const CONTRACTS_ROOT = join(import.meta.dirname, "../../contracts");
+const FORGE_DOC_DIR = join(CONTRACTS_ROOT, ".forge-doc");
 const FORGE_DOC_ROOT = join(FORGE_DOC_DIR, "src/src");
 const OUTPUT_ROOT = join(import.meta.dirname, "../content/docs/solidity/reference");
+const GITHUB_BLOB_BASE = "https://github.com/provencraft/callcium/blob/main/packages/contracts/src";
 
 /** Contracts to include, in sidebar order. */
 const INCLUDED_CONTRACTS = [
@@ -298,6 +301,99 @@ function removeInternalStructs(tree: Root, internalNames: string[]): void {
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Source-link injection
+///////////////////////////////////////////////////////////////////////////
+
+type SymbolBucket = "fn" | "struct" | "err" | "event" | "modifier" | "constant";
+
+const SECTION_TO_BUCKET: Record<string, SymbolBucket> = {
+  Functions: "fn",
+  Structs: "struct",
+  Errors: "err",
+  Events: "event",
+  Modifiers: "modifier",
+  "State Variables": "constant",
+};
+
+function gitSourceParagraph(contractDir: string, line: number): Paragraph {
+  return {
+    type: "paragraph",
+    children: [
+      {
+        type: "link",
+        url: `${GITHUB_BLOB_BASE}/${contractDir}#L${line}`,
+        children: [{ type: "text", value: "Git Source" }],
+      },
+    ],
+  };
+}
+
+/**
+ * Walk a file's tree and insert `[Git Source]` paragraphs under each symbol heading,
+ * consuming one line from the matching SymbolMap queue per heading. Handles the
+ * bare-code-block case (e.g. `struct.Foo.md`) by prepending the link before the code.
+ */
+function injectSourceLinks(filename: string, tree: Root, contractDir: string, symbolMap: SymbolMap): void {
+  const auxMatch = filename.match(/^(function|struct)\.(.+)\.md$/);
+  const fallbackBucket: SymbolBucket | null = auxMatch ? (auxMatch[1] === "function" ? "fn" : "struct") : null;
+  let currentBucket: SymbolBucket | null = fallbackBucket;
+
+  const result: RootContent[] = [];
+  const children = tree.children;
+  let i = 0;
+
+  if (auxMatch && children.length > 0 && children[0].type === "code") {
+    const line = (symbolMap[fallbackBucket!][auxMatch[2]] ?? []).shift();
+    if (line !== undefined) result.push(gitSourceParagraph(contractDir, line));
+  }
+
+  while (i < children.length) {
+    const node = children[i];
+
+    if (node.type === "heading") {
+      if (node.depth === 2) {
+        currentBucket = SECTION_TO_BUCKET[headingText(node)] ?? null;
+      } else if (node.depth === 3) {
+        const bucket = currentBucket ?? fallbackBucket;
+        if (bucket) {
+          const name = headingText(node)
+            .replace(/\(.*\)$/, "")
+            .trim();
+          const line = (symbolMap[bucket][name] ?? []).shift();
+          if (line !== undefined) {
+            result.push(node);
+            i++;
+            // Land the link directly above the code block, after any description paragraphs.
+            while (i < children.length && children[i].type === "paragraph") {
+              result.push(children[i]);
+              i++;
+            }
+            result.push(gitSourceParagraph(contractDir, line));
+            continue;
+          }
+        }
+      }
+    }
+
+    result.push(node);
+    i++;
+  }
+
+  tree.children = result;
+}
+
+function warnUnconsumed(contractDir: string, symbolMap: SymbolMap): void {
+  for (const [kind, bucket] of Object.entries(symbolMap)) {
+    if (kind === "contract" || typeof bucket === "number") continue;
+    for (const [name, lines] of Object.entries(bucket as Record<string, number[]>)) {
+      if (lines.length > 0) {
+        console.warn(`sync-reference: ${contractDir} ${kind}:${name} — unconsumed lines [${lines.join(", ")}]`);
+      }
+    }
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
 // MDX escaping
 ///////////////////////////////////////////////////////////////////////////
 
@@ -534,20 +630,28 @@ async function main() {
     // Determine assembly order.
     const ordered = assembleOrder(files, contractDir);
 
+    // Load source-line map from the solc AST artifact; drop internal structs
+    // so they don't linger as unused queue entries after assembly.
+    const symbolMap = await buildSymbolMap(CONTRACTS_ROOT, contractDir);
+    for (const name of INTERNAL_STRUCTS[contractDir] ?? []) delete symbolMap.struct[name];
+
     // Read and parse all files.
     const parsed = new Map<string, ProcessedFile>();
     for (const filename of ordered) {
       parsed.set(filename, await readForgeDoc(srcDir, filename));
     }
 
-    // Process files.
+    // Process files (strip metadata + filter sections + inject source links).
     for (const [filename, file] of parsed) {
       if (isMainFile(filename)) {
         processMainFile(file, contractDir);
       } else {
         processAuxFile(file);
       }
+      injectSourceLinks(filename, file.tree, contractDir, symbolMap);
     }
+
+    warnUnconsumed(contractDir, symbolMap);
 
     // Determine title and description.
     // Use the first main file, or the custom title, or the first file.
@@ -562,6 +666,11 @@ async function main() {
 
     // Assemble the final AST by concatenating all processed trees.
     const assembledChildren: RootContent[] = [];
+    // Contract-level Git Source link sits at the top of the body so it renders
+    // directly under the frontmatter description, matching the SDK layout.
+    if (symbolMap.contract !== undefined) {
+      assembledChildren.push(gitSourceParagraph(contractDir, symbolMap.contract));
+    }
     for (const filename of ordered) {
       // oxlint-disable-next-line typescript/no-non-null-assertion -- filename is a key in parsed by construction.
       const file = parsed.get(filename)!;

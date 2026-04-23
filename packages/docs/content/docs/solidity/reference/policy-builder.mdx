@@ -3,11 +3,15 @@ title: "PolicyBuilder"
 description: "Fluent API for drafting policies from constraints."
 ---
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L29)
+
 ## Functions
 
 ### createRaw
 
 Creates a selectorless draft from a comma-separated type list.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L84)
 
 ```solidity
 function createRaw(string memory typesCsv) internal pure returns (PolicyDraft memory draft);
@@ -29,6 +33,8 @@ function createRaw(string memory typesCsv) internal pure returns (PolicyDraft me
 
 Creates a draft from a function signature.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L97)
+
 ```solidity
 function create(string memory signature) internal pure returns (PolicyDraft memory draft);
 ```
@@ -48,6 +54,8 @@ function create(string memory signature) internal pure returns (PolicyDraft memo
 ### add
 
 Adds a constraint to the active group with validation.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L108)
 
 ```solidity
 function add(PolicyDraft memory draft, Constraint memory constraint) internal pure returns (PolicyDraft memory);
@@ -69,6 +77,8 @@ function add(PolicyDraft memory draft, Constraint memory constraint) internal pu
 ### or
 
 Starts a new constraint group (OR semantics between groups).
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L152)
 
 ```solidity
 function or(PolicyDraft memory draft) internal pure returns (PolicyDraft memory);
@@ -92,6 +102,8 @@ Builds the final policy blob with strict validation.
 
 Validates the policy and reverts on any issue.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L179)
+
 ```solidity
 function build(PolicyDraft memory draft) internal pure returns (bytes memory);
 ```
@@ -113,6 +125,8 @@ function build(PolicyDraft memory draft) internal pure returns (bytes memory);
 Builds the final policy blob without validation.
 
 Skips validation. The resulting policy may be invalid.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L193)
 
 ```solidity
 function buildUnsafe(PolicyDraft memory draft) internal pure returns (bytes memory);
@@ -136,6 +150,8 @@ Validates the policy without building.
 
 Use for inspection, debugging, or custom error handling.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L203)
+
 ```solidity
 function validate(PolicyDraft memory draft) internal pure returns (Issue[] memory);
 ```
@@ -158,6 +174,8 @@ function validate(PolicyDraft memory draft) internal pure returns (Issue[] memor
 
 Thrown when the constraint has no operators.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L37)
+
 ```solidity
 error NoConstraintOperators();
 ```
@@ -165,6 +183,8 @@ error NoConstraintOperators();
 ### DuplicatePathInGroup
 
 Thrown when the same `(scope,path)` appears twice within a group.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L42)
 
 ```solidity
 error DuplicatePathInGroup(uint8 scope, bytes path);
@@ -181,6 +201,8 @@ error DuplicatePathInGroup(uint8 scope, bytes path);
 
 Thrown when an unsupported scope value is provided.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L46)
+
 ```solidity
 error InvalidScope(uint8 scope);
 ```
@@ -194,6 +216,8 @@ error InvalidScope(uint8 scope);
 ### ArgIndexOutOfBounds
 
 Thrown when the first path step exceeds the number of arguments.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L51)
 
 ```solidity
 error ArgIndexOutOfBounds(uint256 argIndex, uint256 paramCount);
@@ -210,6 +234,8 @@ error ArgIndexOutOfBounds(uint256 argIndex, uint256 paramCount);
 
 Thrown when the path cannot be navigated according to scope rules.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L56)
+
 ```solidity
 error InvalidPathNavigation(bytes path, uint256 stepIndex);
 ```
@@ -224,6 +250,8 @@ error InvalidPathNavigation(bytes path, uint256 stepIndex);
 ### TupleFieldOutOfBounds
 
 Thrown when a tuple field index is out of bounds.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L61)
 
 ```solidity
 error TupleFieldOutOfBounds(uint256 fieldIndex, uint256 fieldCount);
@@ -240,6 +268,8 @@ error TupleFieldOutOfBounds(uint256 fieldIndex, uint256 fieldCount);
 
 Thrown when a quantifier is used on a non-array node.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L66)
+
 ```solidity
 error QuantifierOnNonArray(bytes path, uint256 stepIndex);
 ```
@@ -254,6 +284,8 @@ error QuantifierOnNonArray(bytes path, uint256 stepIndex);
 ### NestedQuantifier
 
 Thrown when a path contains more than one quantifier step.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L71)
 
 ```solidity
 error NestedQuantifier(bytes path, uint256 stepIndex);
@@ -270,6 +302,8 @@ error NestedQuantifier(bytes path, uint256 stepIndex);
 
 Thrown when a group is empty.
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L75)
+
 ```solidity
 error EmptyGroup(uint256 groupIndex);
 ```
@@ -279,6 +313,8 @@ error EmptyGroup(uint256 groupIndex);
 | Name         | Type      | Description                   |
 | ------------ | --------- | ----------------------------- |
 | `groupIndex` | `uint256` | The index of the empty group. |
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L18)
 
 ```solidity
 struct PolicyDraft {
