@@ -69,6 +69,7 @@ export async function Hero() {
       rendered: await highlight(tab.code, {
         lang: "solidity" as const,
         themes: shikiThemes,
+        defaultColor: false,
         components: {
           pre: (props) => <Pre {...props} />,
         },
