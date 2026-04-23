@@ -12,7 +12,7 @@ import type { Heading, Root } from "mdast";
 ///////////////////////////////////////////////////////////////////////////
 
 const SPEC_DIR = join(import.meta.dirname, "../../../spec");
-const OUTPUT_DIR = join(import.meta.dirname, "../content/docs/specifications");
+const OUTPUT_DIR = join(import.meta.dirname, "../content/docs/(protocol)/specifications");
 
 type SpecMeta = { title: string; description: string };
 

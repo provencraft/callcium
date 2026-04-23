@@ -1,0 +1,52 @@
+---
+title: "PolicyEnforcer"
+description: "Off-chain policy enforcement against ABI-encoded data."
+---
+
+## PolicyEnforcer
+
+Check and enforce policies against ABI-encoded call data.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-enforcer.ts#L532)
+
+### Methods
+
+### check
+
+Check a policy against ABI-encoded call data without throwing on violations.
+
+```ts
+function check(policy: templateLiteral, callData: templateLiteral, context?: Context): EnforceResult;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `policy` | `templateLiteral` | Binary policy blob as 0x-prefixed hex string. |
+| `callData` | `templateLiteral` | ABI-encoded call data as 0x-prefixed hex string. |
+| `context` | `Context` | Optional execution context for context-scoped rules. |
+
+**Returns**
+
+`EnforceResult` — Pass with matched group index, or fail with one violation per failed group.
+
+### enforce
+
+Enforce a policy against ABI-encoded call data, throwing on violation.
+
+```ts
+function enforce(policy: templateLiteral, callData: templateLiteral, context?: Context): void;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `policy` | `templateLiteral` | Binary policy blob as 0x-prefixed hex string. |
+| `callData` | `templateLiteral` | ABI-encoded call data as 0x-prefixed hex string. |
+| `context` | `Context` | Optional execution context for context-scoped rules. |
+
+**Returns**
+
+`void`

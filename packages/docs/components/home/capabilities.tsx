@@ -13,13 +13,13 @@ const features = [
     title: "Composable",
     description:
       "Layer multiple constraints per argument. Chain groups with OR semantics for flexible permission models.",
-    href: "/docs/reference/policy-builder",
+    href: "/docs/solidity/reference/policy-builder",
   },
   {
     Icon: Eye,
     title: "Auditable",
     description: "Any policy blob decoded and inspected entirely on-chain. Audits are reproducible and trustless.",
-    href: "/docs/reference/policy-validator",
+    href: "/docs/solidity/reference/policy-validator",
   },
 ];
 

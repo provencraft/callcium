@@ -1,0 +1,88 @@
+---
+title: "PolicyCoder"
+description: "Encode and decode binary policies."
+---
+
+## PolicyCoder
+
+Encode, decode, and inspect policies in the canonical binary format.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-coder.ts#L506)
+
+### Methods
+
+### encode
+
+Encode a PolicyData structure into the canonical binary format.
+
+```ts
+function encode(data: PolicyData): templateLiteral;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `data` | `PolicyData` | The policy data to encode. |
+
+**Returns**
+
+`templateLiteral` — The encoded policy as a 0x-prefixed hex string.
+
+### decode
+
+Decode a binary policy blob into a PolicyData structure.
+
+```ts
+function decode(blob: templateLiteral): PolicyData;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `blob` | `templateLiteral` | Binary policy as 0x-prefixed hex string. |
+
+**Returns**
+
+`PolicyData` — The decoded policy data with constraints grouped by scope and path.
+
+### inspect
+
+Inspect a binary policy blob, returning the structural representation with full byte-level spans.
+
+```ts
+function inspect(blob: templateLiteral): DecodedPolicy;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `blob` | `templateLiteral` | Binary policy as 0x-prefixed hex string. |
+
+**Returns**
+
+`DecodedPolicy` — The inspected policy with per-field spans for every structural element.
+
+## Functions
+
+### parsePathSteps
+
+Parse a BE16-encoded hex path into an array of step values.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-coder.ts#L29)
+
+```ts
+function parsePathSteps(path: templateLiteral): number[];
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `path` | `templateLiteral` | 0x-prefixed hex string containing BE16-encoded path steps. |
+
+**Returns**
+
+`number[]` — Array of numeric step values.

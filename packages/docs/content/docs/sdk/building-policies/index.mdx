@@ -1,0 +1,226 @@
+---
+title: Constraints
+description: Define constraints on function arguments and transaction context.
+---
+
+A policy is a set of constraint groups. All constraints in a group must pass for the group to match; the data is valid against the policy if any group matches.
+
+## Targeting arguments
+
+Constraints target values by path. `arg(n)` selects the zero-indexed parameter `n` of the function.\
+`arg(n, field)` descends into a struct, selecting field `field` of the value at position `n`. Paths nest up to four steps deep using the same indexed syntax.
+
+```ts
+import { arg } from "@callcium/sdk";
+
+arg(0); // first parameter
+arg(1); // second parameter
+arg(0, 2); // third field of the first parameter (struct)
+```
+
+Array quantifiers and deeper nested access are covered in [Array Constraints](./building-policies/array-constraints).
+
+## Equality and comparison
+
+`eq` and `neq` test exact equality. Both accept the 32-byte static types: `uint*`, `int*`, `address`, `bytes32`, `bool`. For boolean parameters, `eq(true)` and `eq(false)` are the only operators; there is no dedicated boolean operator.
+
+Address values are passed as `0x`-prefixed strings; numeric values as `bigint` or `number`.
+
+```ts
+import { PolicyBuilder, arg } from "@callcium/sdk";
+
+// function approve(address spender, uint256 amount)
+const policy = PolicyBuilder
+  .create("approve(address,uint256)")
+  .add(arg(0).eq(TREASURY)) // spender
+  .build();
+```
+
+Range operators (`gt`, `lt`, `gte`, `lte`, and `between`) impose ordering constraints. **Type restriction:** Valid for `uint*` and `int*` parameters only. Applying a range operator to a non-numeric parameter throws a validation error from `build()`.
+
+`lte` caps a value at an upper bound. `between` defines a closed inclusive range `[min, max]`:
+
+```ts
+// function approve(address spender, uint256 amount)
+const policy = PolicyBuilder
+  .create("approve(address,uint256)")
+  .add(arg(0).eq(TREASURY))                                  // spender
+  .add(arg(1).between(1n * 10n ** 18n, 1_000n * 10n ** 18n)) // amount
+  .build();
+```
+
+## Set membership
+
+`isIn` requires the value to match one element in a set. `notIn` requires it to match none.
+
+**Type restriction:** accepts arrays of 32-byte static values: addresses, `uint*`/`int*` (as `bigint` or `number`), and `bytes32` (hex strings). The builder sorts and deduplicates the set automatically. The set must have at least one element and no more than 2,047.
+
+Allowlists (`isIn`) are the safer default over denylists (`notIn`). An allowlist is bounded and exhaustive; a denylist can be bypassed by values not yet anticipated.
+
+```ts
+import { PolicyBuilder, arg } from "@callcium/sdk";
+
+const spenders = [TREASURY, MULTISIG];
+
+// function approve(address spender, uint256 amount)
+const policy = PolicyBuilder
+  .create("approve(address,uint256)")
+  .add(arg(0).isIn(spenders))           // spender
+  .add(arg(1).lte(1_000n * 10n ** 18n)) // amount
+  .build();
+```
+
+Narrower types (`bytes4`, `uint16`, and similar) can be passed directly. The SDK handles canonical 32-byte encoding internally; no manual cast helper is required.
+
+```ts
+const allowedSelectors = ["0xa9059cbb", "0x095ea7b3"]; // transfer, approve
+
+// function dispatch(bytes4 selector, bytes payload)
+const policy = PolicyBuilder
+  .create("dispatch(bytes4,bytes)")
+  .add(arg(0).isIn(allowedSelectors)) // selector
+  .build();
+```
+
+## Bitmask operators
+
+`bitmaskAll`, `bitmaskAny`, and `bitmaskNone` check specific bits in an integer value.
+
+**Type restriction:** valid for `uint*` and `bytes32` parameters only.
+
+| Operator            | Semantics                                                 |
+| ------------------- | --------------------------------------------------------- |
+| `bitmaskAll(mask)`  | `(value & mask) == mask` — all bits in `mask` are set     |
+| `bitmaskAny(mask)`  | `(value & mask) != 0` — at least one bit in `mask` is set |
+| `bitmaskNone(mask)` | `(value & mask) == 0` — no bit in `mask` is set           |
+
+A common pattern: require that a `roles` parameter has all required bits set.
+
+```ts
+import { PolicyBuilder, arg } from "@callcium/sdk";
+
+const ROLE_OPERATOR = 1n << 0n;
+const ROLE_GUARDIAN = 1n << 1n;
+
+// function execute(address target, uint256 roles, bytes data)
+const policy = PolicyBuilder
+  .create("execute(address,uint256,bytes)")
+  .add(arg(1).bitmaskAll(ROLE_OPERATOR | ROLE_GUARDIAN)) // roles
+  .build();
+```
+
+## Length constraints
+
+`lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, and `lengthBetween` constrain the byte length of a dynamic value.
+
+**Type restriction:** valid for `bytes`, `string`, and dynamic array parameters only. Not valid for static arrays.
+
+```ts
+import { PolicyBuilder, arg } from "@callcium/sdk";
+
+// function execute(address target, bytes data)
+const policy = PolicyBuilder
+  .create("execute(address,bytes)")
+  .add(arg(1).lengthBetween(4, 256)) // data
+  .build();
+```
+
+`lengthBetween(4, 256)` ensures the payload is at least 4 bytes and imposes a hard upper bound on untrusted input size.
+
+## Transaction context
+
+Six context properties are available as constraint targets:
+
+| Target             | Description                              | Type      |
+| ------------------ | ---------------------------------------- | --------- |
+| `msgSender()`      | Address of the caller being simulated.   | `address` |
+| `msgValue()`       | Native value sent with the call.         | `uint256` |
+| `blockTimestamp()` | Block timestamp observed by the call.    | `uint256` |
+| `blockNumber()`    | Block number observed by the call.       | `uint256` |
+| `chainId()`        | Chain identifier the policy applies to.  | `uint256` |
+| `txOrigin()`       | Address that originated the transaction. | `address` |
+
+Context values are supplied explicitly to the enforcer alongside calldata; they are not inferred from any runtime environment. See [Policy Enforcement](./enforcement) for the exact shape of the context object.
+
+Context targets are imported alongside `arg`:
+
+```ts
+import { arg, msgSender, msgValue, blockTimestamp, chainId, txOrigin } from "@callcium/sdk";
+```
+
+A `msgSender` constraint does not impose any requirement on argument values. Pair it with argument constraints for complete coverage.
+
+```ts
+import { PolicyBuilder, arg, msgSender } from "@callcium/sdk";
+
+const operators = [OPERATOR_A, OPERATOR_B];
+const spenders = [TREASURY, MULTISIG];
+
+// function approve(address spender, uint256 amount)
+const policy = PolicyBuilder
+  .create("approve(address,uint256)")
+  .add(msgSender().isIn(operators))     // caller
+  .add(arg(0).isIn(spenders))           // spender
+  .add(arg(1).lte(1_000n * 10n ** 18n)) // amount
+  .build();
+```
+
+## Array quantifiers
+
+`Quantifier.ALL`, `Quantifier.ANY`, and `Quantifier.ALL_OR_EMPTY` apply a constraint across all elements of an array parameter:
+
+```ts
+import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";
+
+// function batchTransfer(address[] recipients, uint256[] amounts)
+const policy = PolicyBuilder
+  .create("batchTransfer(address[],uint256[])")
+  .add(arg(0, Quantifier.ALL).isIn(allowlist))          // recipients — all must be approved
+  .add(arg(1, Quantifier.ALL).lte(1_000n * 10n ** 18n)) // amounts — all within limit
+  .build();
+```
+
+Full quantifier semantics, empty-array behavior, and nested path patterns are in [Array Constraints](./building-policies/array-constraints).
+
+## OR groups
+
+`.or()` starts a new constraint group. The data is valid against the policy when any group matches.
+
+```ts
+import { PolicyBuilder, arg, msgSender } from "@callcium/sdk";
+
+const spenders = [TREASURY, MULTISIG];
+
+// function approve(address spender, uint256 amount)
+const policy = PolicyBuilder
+  .create("approve(address,uint256)")
+  // Standard operation.
+  .add(arg(0).isIn(spenders))           // spender
+  .add(arg(1).lte(1_000n * 10n ** 18n)) // amount
+  .or()
+  // Admin bypass.
+  .add(msgSender().eq(ADMIN))           // caller
+  .build();
+```
+
+The data is valid where either (spender is in the set and amount is within the cap) or (caller is the admin).
+
+`.or()` requires the current group to have at least one constraint.
+
+## Building safely
+
+`build()` validates the policy's internal logic (type compatibility and structural consistency) and throws `CallciumError("VALIDATION_ERROR")` on the first error-severity issue. It does not check whether any specific data satisfies the policy; that is the enforcer's role.
+
+For all issues without throwing, call `.validate()` instead. It returns an `Issue[]` covering errors, warnings, and suggestions. Issue types and severity levels are covered in [Policy Validation](./policy-validation).
+
+## Operator compatibility
+
+| Operator family | Operators                                                                     | Valid argument types                                                     |
+| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Equality        | `eq`, `neq`                                                                   | All 32-byte static types (`address`, `uint*`, `int*`, `bytes32`, `bool`) |
+| Comparison      | `gt`, `lt`, `gte`, `lte`, `between`                                           | `uint*`, `int*`                                                          |
+| Set membership  | `isIn`, `notIn`                                                               | `address`, `uint*`, `int*`, `bytes32`                                    |
+| Bitmask         | `bitmaskAll`, `bitmaskAny`, `bitmaskNone`                                     | `uint*`, `bytes32`                                                       |
+| Length          | `lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, `lengthBetween` | `bytes`, `string`, dynamic arrays                                        |
+
+`build()` enforces these restrictions and throws `CallciumError("VALIDATION_ERROR")` on the first error-severity issue, carrying only that issue's `message`. For the full list of issues across all severities, call `.validate()` (see [Policy Validation](./policy-validation)).

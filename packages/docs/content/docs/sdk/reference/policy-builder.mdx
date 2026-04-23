@@ -1,0 +1,114 @@
+---
+title: "PolicyBuilder"
+description: "Fluent builder for Callcium policies."
+---
+
+## PolicyBuilder
+
+Fluent builder for constructing Callcium policies.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L105)
+
+### Methods
+
+### create
+
+Create a builder from a function signature.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L116)
+
+```ts
+function create(signature: string): PolicyBuilder;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `signature` | `string` | ABI function signature, e.g. `"transfer(address,uint256)"`. |
+
+**Returns**
+
+`PolicyBuilder`
+
+### createRaw
+
+Create a selectorless builder from a raw type string.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L132)
+
+```ts
+function createRaw(typesCsv: string): PolicyBuilder;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `typesCsv` | `string` | Comma-separated ABI type strings, e.g. `"address,uint256"`. |
+
+**Returns**
+
+`PolicyBuilder`
+
+### add
+
+Add a constraint to the current group.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L147)
+
+```ts
+function add(constraint: Constraint | ConstraintBuilder): this;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `constraint` | `Constraint | ConstraintBuilder` | A `Constraint` object or a `ConstraintBuilder` instance. |
+
+**Returns**
+
+`this`
+
+### or
+
+Start a new constraint group (OR branch).
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L178)
+
+```ts
+function or(): this;
+```
+
+**Returns**
+
+`this`
+
+### build
+
+Build the policy into an encoded binary blob.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L193)
+
+```ts
+function build(): templateLiteral;
+```
+
+**Returns**
+
+`templateLiteral` — The policy as a 0x-prefixed hex string.
+
+### validate
+
+Validate the policy without encoding.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L208)
+
+```ts
+function validate(): Issue[];
+```
+
+**Returns**
+
+`Issue[]` — All validation issues found.

@@ -1,0 +1,85 @@
+---
+title: Policy Validation
+description: Type mismatches, contradictions, redundancies, and vacuities.
+---
+
+The SDK validates policies through semantic analysis. When `PolicyBuilder.build()` is called, the [`PolicyValidator`](/docs/sdk/reference/policy-validator) inspects every constraint for type errors, logical contradictions, redundancies, and vacuous conditions, then throws if any error-severity issue is found.
+
+## Using validation
+
+`PolicyBuilder.build()` validates by default and throws a `CallciumError("VALIDATION_ERROR")` on the first error-severity issue:
+
+```ts
+import { PolicyBuilder, arg } from "@callcium/sdk";
+
+// Throws CallciumError("VALIDATION_ERROR") if issues are found.
+const policy = PolicyBuilder
+  .create("approve(address,uint256)")
+  .add(arg(0).isIn(trustedSpenders))
+  .build();
+```
+
+To inspect issues across all severities without throwing, use `PolicyBuilder.validate()`:
+
+```ts
+const issues = PolicyBuilder
+  .create("approve(address,uint256)")
+  .add(arg(0).isIn(trustedSpenders))
+  .validate();
+
+for (const issue of issues) {
+  // Handle each issue: severity, category, code, value1, value2, message.
+}
+```
+
+`validate()` returns an `Issue[]` covering errors, warnings, and info-level suggestions in a single call. The builder can be inspected multiple times before committing to `build()`.
+
+## Issue structure
+
+Each issue is an `Issue` object with the following fields:
+
+| Field             | Type                                                             | Description                                                                  |
+| ----------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `severity`        | `"info" \| "warning" \| "error"`                                 | Impact level. `error` blocks `build()`.                                      |
+| `category`        | `"typeMismatch" \| "contradiction" \| "redundancy" \| "vacuity"` | Nature of the issue.                                                         |
+| `groupIndex`      | `number`                                                         | Index of the group containing the issue.                                     |
+| `constraintIndex` | `number`                                                         | Index of the constraint within the group.                                    |
+| `code`            | `string`                                                         | Machine-readable identifier.                                                 |
+| `value1`          | `Hex`                                                            | First value involved in the issue (e.g. the lower bound in a contradiction). |
+| `value2`          | `Hex`                                                            | Second value involved in the issue (e.g. the upper bound).                   |
+| `message`         | `string`                                                         | Human-readable description suitable for logs.                                |
+
+`value1` and `value2` surface the conflicting operands behind contradictions and redundancies, which makes validation output rich enough to render diagnostic UI: highlight the two bounds of an impossible `between`, the two values of `eq(x)` and `neq(x)`, or the overlap between two set constraints.
+
+Both values are `Hex` strings in the canonical 32-byte-padded encoding used throughout the wire format. Convert with `BigInt(value1)` for numeric comparisons, or slice as needed for addresses (`0x` + last 40 hex chars) and `bytes32` values.
+
+## Severity levels
+
+- `error`: the policy is structurally or semantically broken (type mismatch, impossible constraint). `build()` throws; the policy will not encode.
+- `warning`: the policy is valid but suspicious (e.g. a redundant constraint that is always implied by another). `build()` succeeds.
+- `info`: an observation that may suggest a clearer formulation. `build()` succeeds.
+
+## Categories
+
+| Category        | Meaning                                                                                  |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| `typeMismatch`  | An operator was applied to an argument type it does not support.                         |
+| `contradiction` | Two constraints in the same group cannot both hold (e.g. `eq(x)` and `neq(x)`).          |
+| `redundancy`    | A constraint is implied by another in the same group and adds no additional check.       |
+| `vacuity`       | A constraint is satisfied by every value (e.g. `between(0, 2**256 - 1)` on a `uint256`). |
+
+## Skipping validation
+
+`PolicyBuilder` does not expose an unsafe build path; every blob it emits has been validated. To construct a policy without running the validator (for tooling that replays opaque blobs or round-trips decoded data), build a `PolicyData` object directly and pass it to `PolicyCoder.encode`. This is an advanced path; prefer `PolicyBuilder` for authored policies.
+
+```ts
+import { PolicyCoder } from "@callcium/sdk";
+import type { PolicyData } from "@callcium/sdk";
+
+const data: PolicyData = {
+  /* ... fully populated canonical structure ... */
+};
+const policy = PolicyCoder.encode(data);
+```
+
+See [Policy Inspection](./inspection) for the shape of `PolicyData`.

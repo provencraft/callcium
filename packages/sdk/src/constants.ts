@@ -57,7 +57,10 @@ export const PolicyFormat = {
 // Table-derived helpers
 ///////////////////////////////////////////////////////////////////////////
 
-/** Extract a `{ KEY: code }` map from a table with `key` and `code` fields. */
+/**
+ * Extract a `{ KEY: code }` map from a table with `key` and `code` fields.
+ * @internal
+ */
 type CodeMap<T extends readonly { readonly key: string; readonly code: number }[]> = {
   readonly [E in T[number] as E["key"]]: E["code"];
 };
@@ -162,6 +165,7 @@ export const Limits = {
 /** Operand count category for operator data validation. */
 export type Operands = "single" | "range" | "variadic";
 
+/** @internal */
 const OP_TABLE = [
   { key: "EQ", code: 0x01, label: "==", operands: "single" },
   { key: "GT", code: 0x02, label: ">", operands: "single" },

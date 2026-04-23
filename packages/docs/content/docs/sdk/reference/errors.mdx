@@ -1,0 +1,29 @@
+---
+title: "Errors"
+description: "Error classes thrown by the SDK."
+---
+
+## CallciumError
+
+Thrown when a policy or descriptor blob is structurally malformed.
+The optional `offset` indicates the byte position in the source blob where the error was detected.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L47)
+
+## PolicyViolationError
+
+Thrown by `PolicyEnforcer.enforce` when calldata fails policy enforcement.
+Distinct from `CallciumError("VALIDATION_ERROR")`, which signals static
+issues in the policy itself.
+Carries the full list of violations (one per failed group).
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L67)
+
+## Types
+
+### CallciumErrorCode
+
+Machine-readable error code for structural decoding and validation failures.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L2)
+<auto-type-table path="../../../../../sdk/src/errors.ts" name="CallciumErrorCode" />

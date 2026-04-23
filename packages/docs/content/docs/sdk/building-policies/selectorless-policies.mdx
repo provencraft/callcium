@@ -1,0 +1,57 @@
+---
+title: Selectorless Policies
+description: Validate raw ABI-encoded data without a function selector.
+---
+
+Policies created with `PolicyBuilder.create(signature)` are bound to a specific function selector: the first 4 bytes of calldata are matched against it before arguments are evaluated. Selectorless policies validate the ABI-encoded payload directly.
+
+## When to use
+
+Selectorless policies are appropriate when the data being validated has no function selector prefix. Examples:
+
+- Signed payloads verified on-chain and passed as parameters to a relayer.
+- Cross-chain messages decoded and forwarded by a bridge contract.
+- Batch entries where each entry is an independently ABI-encoded parameter set.
+
+## Creating a selectorless policy
+
+Use `PolicyBuilder.createRaw()` with a comma-separated list of ABI types instead of a function signature:
+
+```ts
+import { PolicyBuilder, arg } from "@callcium/sdk";
+
+const recipients = [TREASURY, MULTISIG];
+
+// payload: (address recipient, uint256 amount)
+const policy = PolicyBuilder
+  .createRaw("address,uint256")
+  .add(arg(0).isIn(recipients))         // recipient
+  .add(arg(1).lte(1_000n * 10n ** 18n)) // amount
+  .build();
+```
+
+The full constraint API (`arg()`, context targets, `isIn`, `notIn`, bitmask, length operators, `.or()`, `build()`) is identical to function-bound policies.
+
+## Passing data to enforce
+
+`PolicyEnforcer.check` and `PolicyEnforcer.enforce` read selectorless payloads from byte 0, so `arg(0)` resolves to the first byte of the data passed in.
+
+<Callout type="warn" title="Selector prefix">
+  If the raw data happens to include a function selector prefix, strip those 4 bytes before passing it to the enforcer.
+  They are interpreted as the start of the first argument; no error is thrown.
+</Callout>
+
+A 4-byte selector is 8 hex characters plus the `0x` prefix. Slice from character index 10 to drop it:
+
+```ts
+import type { Hex } from "@callcium/sdk";
+
+function stripSelector(data: Hex): Hex {
+  return `0x${data.slice(10)}`;
+}
+
+const payload = stripSelector(callData);
+PolicyEnforcer.enforce(policy, payload);
+```
+
+Function-bound policies are the inverse: the enforcer validates the first 4 bytes against the policy's selector and reads arguments from byte 4. A missing or mismatched selector surfaces as a `MISSING_SELECTOR` or `SELECTOR_MISMATCH` violation.

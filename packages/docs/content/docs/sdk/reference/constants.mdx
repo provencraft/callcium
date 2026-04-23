@@ -1,0 +1,212 @@
+---
+title: "Constants"
+description: "Protocol constants, enums, and lookup helpers."
+---
+
+## Functions
+
+### lookupOp
+
+Map an operator code to its display label. Strips the NOT flag automatically.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L202)
+
+```ts
+function lookupOp(code: number): OpInfo;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `code` | `number` | Operator byte value (may include the NOT flag). |
+
+**Returns**
+
+`OpInfo` — Display metadata for the base operator.
+
+### lookupScope
+
+Map a scope code to its display label.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L97)
+
+```ts
+function lookupScope(code: number): ScopeInfo;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `code` | `number` | Scope byte value. |
+
+**Returns**
+
+`ScopeInfo` — Display metadata for the scope.
+
+### lookupContextProperty
+
+Map a context property code to its display label and ABI type code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L145)
+
+```ts
+function lookupContextProperty(code: number): ContextPropertyInfo;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `code` | `number` | Context property ID. |
+
+**Returns**
+
+`ContextPropertyInfo` — Display metadata including the Solidity type code for the property value.
+
+### lookupQuantifier
+
+Map a quantifier path step to its display label.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L253)
+
+```ts
+function lookupQuantifier(code: number): QuantifierInfo;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `code` | `number` | Quantifier step value. |
+
+**Returns**
+
+`QuantifierInfo` — Display metadata for the quantifier.
+
+### lookupTypeCode
+
+Map a raw type code byte to its Solidity label, structural category, and dynamism.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L347)
+
+```ts
+function lookupTypeCode(code: number): TypeCodeInfo;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `code` | `number` | A single-byte descriptor type code. |
+
+**Returns**
+
+`TypeCodeInfo` — Label, type class, and whether the type is ABI-dynamic.
+
+### isQuantifier
+
+Check whether a path step is a quantifier (ALL_OR_EMPTY, ALL, or ANY).
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L243)
+
+```ts
+function isQuantifier(step: number): boolean;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `step` | `number` | - |
+
+**Returns**
+
+`boolean`
+
+## Types
+
+### Op
+
+Callcium policy operator codes.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L189)
+
+### TypeCode
+
+ABI type code ranges and sentinel values for the descriptor format.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L264)
+
+### Quantifier
+
+Reserved path step values that trigger quantified evaluation over array elements.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L235)
+
+### Scope
+
+Rule scope discriminant: context (EVM environment) vs. calldata (ABI payload).
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L84)
+
+### ContextProperty
+
+Well-known context property IDs for context-scope rules.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L117)
+
+### Limits
+
+Protocol-imposed safety limits for path depth and quantifier array size.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L156)
+
+### Operands
+
+Operand count category for operator data validation.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L166)
+
+### OpInfo
+
+Display metadata for an operator code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L192)
+
+### ScopeInfo
+
+Display metadata for a scope code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L87)
+
+### ContextPropertyInfo
+
+Display metadata for a context property code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L123)
+
+### QuantifierInfo
+
+Display metadata for a quantifier step.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L238)
+
+### TypeCodeInfo
+
+Display metadata for a descriptor type code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L288)
+
+### TypeClassInfo
+
+Structural classification without label — used by the decoder hot path.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L285)
+
+### TypeClass
+
+Structural category for a descriptor type code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L282)

@@ -1,0 +1,21 @@
+{
+  "title": "Solidity",
+  "description": "Onchain enforcement and storage.",
+  "icon": "solidity",
+  "root": true,
+  "pages": [
+    "---Introduction---",
+    "index",
+    "---Guides---",
+    "building-policies",
+    "policy-validation",
+    "enforcement",
+    "storage",
+    "---Reference---",
+    "reference",
+    "---Tools---",
+    "[Blocks][Policy Builder](/policy-builder)",
+    "[SearchCode][Policy Inspector](/policy-inspector)",
+    "[Shield][Policy Enforcer](/policy-enforcer)"
+  ]
+}

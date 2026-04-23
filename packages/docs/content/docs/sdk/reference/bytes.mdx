@@ -1,0 +1,66 @@
+---
+title: "Bytes"
+description: "Byte and hex utilities."
+---
+
+## Functions
+
+### toAddress
+
+Validate and brand a hex string as an address. Throws if the runtime length is not exactly 20 bytes.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L73)
+
+```ts
+function toAddress(hex: string): templateLiteral;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `hex` | `string` | - |
+
+**Returns**
+
+`templateLiteral`
+
+### hexToBytes
+
+Convert a hex string to a byte array, stripping the 0x prefix if present.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L9)
+
+```ts
+function hexToBytes(hex: string): Uint8Array;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `hex` | `string` | - |
+
+**Returns**
+
+`Uint8Array`
+
+### bytesToHex
+
+Convert a byte array to a 0x-prefixed lowercase hex string.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L28)
+
+```ts
+function bytesToHex(bytes: Uint8Array): templateLiteral;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `bytes` | `Uint8Array` | - |
+
+**Returns**
+
+`templateLiteral`

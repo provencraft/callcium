@@ -5,8 +5,9 @@ export default defineConfig({
     "node_modules",
     ".next",
     ".source",
-    "content/docs/reference",
-    "content/docs/specifications",
+    "content/docs/solidity/reference",
+    "content/docs/sdk/reference",
+    "content/docs/(protocol)/specifications",
     "components/ui",
   ],
   options: {

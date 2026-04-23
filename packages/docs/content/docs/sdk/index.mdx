@@ -1,0 +1,83 @@
+---
+title: Getting Started
+description: Install the Callcium TypeScript SDK and build your first policy.
+---
+
+The Callcium TypeScript SDK is an offchain library for building, validating, and simulating Callcium policies. It produces canonical policy bytes, reports semantic validation issues, and evaluates ABI-encoded calldata against a policy. Use it for tooling, tests, preflight checks before submitting a transaction, and policy inspection.
+
+## Install
+
+<Tabs groupId="package-manager" persist items={["bun", "pnpm", "npm", "yarn"]}>
+
+<Tab value="bun">
+
+```bash
+bun add @callcium/sdk
+```
+
+</Tab>
+
+<Tab value="pnpm">
+
+```bash
+pnpm add @callcium/sdk
+```
+
+</Tab>
+
+<Tab value="npm">
+
+```bash
+npm install @callcium/sdk
+```
+
+</Tab>
+
+<Tab value="yarn">
+
+```bash
+yarn add @callcium/sdk
+```
+
+</Tab>
+
+</Tabs>
+
+## Define a policy
+
+A policy targets a function signature and applies constraints to its arguments.
+
+```ts
+import { PolicyBuilder, arg } from "@callcium/sdk";
+
+const allowed = [TREASURY, OPS_MULTISIG];
+
+// function withdraw(address to, uint256 amount)
+const policy = PolicyBuilder
+  .create("withdraw(address,uint256)")
+  .add(arg(0).isIn(allowed))            // to
+  .add(arg(1).lte(1_000n * 10n ** 18n)) // amount
+  .build();
+```
+
+`build()` returns a canonical binary policy as a `0x`-prefixed `Hex` string. Pass that blob to the enforcer, store it, or encode it into a transaction.
+
+## Validate and enforce
+
+[`PolicyBuilder.build()`](/docs/sdk/reference/policy-builder) validates the policy at build time and throws `CallciumError("VALIDATION_ERROR")` on the first error-severity issue. [`PolicyEnforcer`](/docs/sdk/reference/policy-enforcer) evaluates ABI-encoded calldata against a built policy. Use it for simulation, tests, and preflight checks.
+
+```ts
+import { PolicyEnforcer } from "@callcium/sdk";
+
+const result = PolicyEnforcer.check(policy, calldata);
+if (!result.ok) {
+  console.error(result.violations);
+}
+```
+
+## Next steps
+
+- [Constraints](/docs/sdk/building-policies): full operator reference for arguments and transaction context.
+- [Policy Validation](/docs/sdk/policy-validation): inspect validation issues without throwing.
+- [Policy Enforcement](/docs/sdk/enforcement): pass calldata and execution context to the enforcer.
+- [Policy Inspection](/docs/sdk/inspection): decode and introspect a policy blob.

@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: Install Callcium and write your first on-chain policy.
+description: Install Callcium and write your first policy in Solidity.
 ---
 
 ## Install
@@ -16,7 +16,7 @@ forge install provencraft/callcium
 
 ## Define a policy
 
-Policies are designed to be built in Forge scripts and stored on-chain for enforcement. A policy starts with a function signature and a set of constraints. Here's one that restricts vault withdrawals to approved recipients and caps the amount:
+Policies are designed to be built in Forge scripts and stored on-chain for enforcement. A policy starts with a function signature and a set of constraints.
 
 ```solidity
 import { arg } from "callcium/Constraint.sol";
@@ -36,7 +36,7 @@ bytes memory policy = PolicyBuilder
 
 ## Store and enforce
 
-[`PolicyManager`](/docs/reference/policy-manager) provides policy storage. [`PolicyEnforcer`](/docs/reference/policy-enforcer) checks calldata against a stored policy at runtime. Together, they wire Callcium into your contract:
+[`PolicyManager`](/docs/solidity/reference/policy-manager) provides policy storage. [`PolicyEnforcer`](/docs/solidity/reference/policy-enforcer) checks calldata against a stored policy at runtime.
 
 ```solidity
 import { Ownable } from "solady/auth/Ownable.sol";
@@ -62,6 +62,6 @@ contract MyVault is PolicyManager, Ownable {
 
 ## Next steps
 
-- [Building Policies](/docs/building-policies) — all constraint types, OR groups, and context constraints.
-- [Storage](/docs/storage) — managing policy lifecycle on-chain.
-- [Enforcement](/docs/enforcement) — how policies are checked against ABI-encoded data at runtime.
+- [Building Policies](/docs/solidity/building-policies) — all constraint types, OR groups, and context constraints.
+- [Storage](/docs/solidity/storage) — managing policy lifecycle on-chain.
+- [Enforcement](/docs/solidity/enforcement) — how policies are checked against ABI-encoded data at runtime.

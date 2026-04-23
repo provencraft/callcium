@@ -1,0 +1,93 @@
+---
+title: Policy Inspection
+description: Decode and introspect a policy blob.
+---
+
+A policy blob is an opaque byte string at the contract boundary. The SDK provides two entry points on `PolicyCoder` for inspecting one: a high-level canonical form for logical manipulation, and a byte-span-annotated form for tooling that needs to highlight positions in the raw bytes.
+
+## PolicyCoder.decode
+
+`PolicyCoder.decode(blob: Hex) → PolicyData` returns the canonical structured representation of a policy. Use it when the goal is to read, modify, or re-encode the policy itself, not the bytes it occupies.
+
+```ts
+import { PolicyCoder } from "@callcium/sdk";
+
+const data = PolicyCoder.decode(policy);
+
+console.log(data.isSelectorless); // false
+console.log(data.selector); // 0x095ea7b3
+console.log(data.groups.length); // number of OR groups
+for (const group of data.groups) {
+  for (const constraint of group) {
+    console.log(constraint.scope, constraint.path, constraint.operators);
+  }
+}
+```
+
+`PolicyData` has the following shape:
+
+```ts
+type PolicyData = {
+  isSelectorless: boolean;
+  selector: Hex;
+  descriptor: Hex;
+  groups: Constraint[][];
+};
+
+type Constraint = {
+  scope: number;
+  path: Hex;
+  operators: Hex[];
+};
+```
+
+Round-tripping `decode` → `encode` yields the same canonical bytes:
+
+```ts
+import { PolicyCoder } from "@callcium/sdk";
+
+const data = PolicyCoder.decode(policy);
+const reencoded = PolicyCoder.encode(data);
+// reencoded === policy
+```
+
+## PolicyCoder.inspect
+
+`PolicyCoder.inspect(blob: Hex) → DecodedPolicy` returns a structural tree with every leaf wrapped in a `Field<T>` carrying its byte span. Use it when the tool needs to point to byte ranges in the raw blob: hex viewers, diff renderers, audit reports, or debugger UIs.
+
+```ts
+import { PolicyCoder } from "@callcium/sdk";
+
+const decoded = PolicyCoder.inspect(policy);
+
+console.log(decoded.selector.value, decoded.selector.span); // selector hex and its byte range
+console.log(decoded.groupCount.value); // number of groups
+
+for (const group of decoded.groups) {
+  for (const rule of group.rules) {
+    console.log(rule.opCode.value, rule.path.value, rule.data.span);
+  }
+}
+```
+
+Each `Field<T>` is `{ value: T, span: { start, end } }`, where `start` and `end` are byte offsets into the original blob. The tree follows the binary layout:
+
+- `DecodedPolicy`: top-level policy (version, selector, descriptor, groups).
+- `DecodedGroup`: a single OR group with a rule count and list of rules.
+- `DecodedRule`: one constraint (scope, path, opCode, operand data), each as a `Field<T>`.
+- `DecodedParam`: a parameter entry from the descriptor.
+
+## Inspecting rule paths
+
+Rule paths are BE16-packed step sequences. Use `parsePathSteps` to decode one into plain numbers:
+
+```ts
+import { parsePathSteps } from "@callcium/sdk";
+
+parsePathSteps("0x00000002"); // [0, 2] — arg 0, field 2
+parsePathSteps("0xfffe0001"); // [65534, 1] — Quantifier.ALL on arg path, next step 1
+```
+
+Path steps include struct fields, array indices, and quantifier sentinels. See [Constants reference](/docs/sdk/reference/constants) for the `Quantifier` values and their numeric encodings.
+
+Full method signatures and type exports are in the [`PolicyCoder` reference](/docs/sdk/reference/policy-coder).

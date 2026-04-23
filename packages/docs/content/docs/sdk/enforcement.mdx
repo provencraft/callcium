@@ -1,0 +1,143 @@
+---
+title: Policy Enforcement
+description: Evaluate ABI-encoded calldata against a policy.
+---
+
+`PolicyEnforcer` takes a policy blob, ABI-encoded calldata, and an optional execution context, and determines whether the data is valid against the policy.
+
+## check vs enforce
+
+Two functions expose the enforcer:
+
+- `PolicyEnforcer.check(policy, callData, context?)` returns an `EnforceResult`. It never throws on a violation.
+- `PolicyEnforcer.enforce(policy, callData, context?)` throws `PolicyViolationError` when the data is invalid against the policy.
+
+Both throw `CallciumError` if the policy blob itself is structurally malformed. Only `enforce` throws on a violation.
+
+```ts
+import { PolicyEnforcer } from "@callcium/sdk";
+
+// Inspect violations without throwing.
+const result = PolicyEnforcer.check(policy, calldata);
+if (!result.ok) {
+  for (const violation of result.violations) {
+    console.warn(violation.code, violation.message);
+  }
+}
+
+// Abort on violation.
+PolicyEnforcer.enforce(policy, calldata);
+```
+
+## EnforceResult
+
+`EnforceResult` is a discriminated union on the `ok` field:
+
+```ts
+type EnforceResult = { ok: true; matchedGroup: number } | { ok: false; violations: Violation[] };
+```
+
+- On pass, `matchedGroup` is the zero-based index of the constraint group that matched. A policy with a single group matches as group `0`; policies using `.or()` may match any of several groups.
+- On fail, `violations` contains one entry per failed group plus any pre-group failures (selector mismatch, malformed calldata).
+
+## Violation
+
+Each `Violation` describes why a single group rejected the data:
+
+| Field           | Type            | Description                                                                         |
+| --------------- | --------------- | ----------------------------------------------------------------------------------- |
+| `group`         | `number?`       | Group index that failed. Absent for pre-group failures such as `SELECTOR_MISMATCH`. |
+| `rule`          | `number?`       | Rule index within the group. Absent for pre-rule failures.                          |
+| `code`          | `ViolationCode` | Machine-readable reason.                                                            |
+| `message`       | `string`        | Human-readable explanation suitable for logs and UI.                                |
+| `path`          | `Hex?`          | Rule path that was being evaluated when the violation occurred.                     |
+| `resolvedValue` | `Hex?`          | Actual value found in calldata or context, for diagnostic display.                  |
+
+### ViolationCode
+
+| Code                        | Meaning                                                             |
+| --------------------------- | ------------------------------------------------------------------- |
+| `VALUE_MISMATCH`            | A constraint did not hold for the value at its target path.         |
+| `SELECTOR_MISMATCH`         | Calldata selector differs from the one embedded in the policy.      |
+| `MISSING_SELECTOR`          | Calldata is shorter than 4 bytes and the policy is function-bound.  |
+| `CALLDATA_OUT_OF_BOUNDS`    | A rule targeted a byte range outside the calldata.                  |
+| `ARRAY_INDEX_OUT_OF_BOUNDS` | A rule indexed an array element that does not exist.                |
+| `MISSING_CONTEXT`           | The policy references a context property the caller did not supply. |
+| `QUANTIFIER_LIMIT_EXCEEDED` | An array quantifier exceeded the iteration safety limit.            |
+| `QUANTIFIER_EMPTY_ARRAY`    | `Quantifier.ALL` or `Quantifier.ANY` encountered an empty array.    |
+
+`PolicyViolationError`, thrown by `enforce`, carries the same `Violation[]` on its `violations` property.
+
+## Supplying context
+
+The `context` argument is optional. Provide it only when the policy constrains context properties (`msgSender()`, `msgValue()`, `blockTimestamp()`, `blockNumber()`, `chainId()`, `txOrigin()`). Policies that reference no context properties take no third argument:
+
+```ts
+const result = PolicyEnforcer.check(policy, calldata);
+```
+
+When the policy does reference context, supply the properties it uses. Nothing is inferred from a runtime environment:
+
+```ts
+import { PolicyEnforcer } from "@callcium/sdk";
+import type { Context } from "@callcium/sdk";
+
+const ctx: Context = {
+  msgSender: OPERATOR,
+  msgValue: 0n,
+  blockTimestamp: 1_700_000_000n,
+  chainId: 1n,
+};
+
+const result = PolicyEnforcer.check(policy, calldata, ctx);
+```
+
+Every `Context` field is optional. Supply only the properties the policy actually references:
+
+```ts
+type Context = {
+  msgSender?: Address;
+  msgValue?: bigint;
+  blockTimestamp?: bigint;
+  blockNumber?: bigint;
+  chainId?: bigint;
+  txOrigin?: Address;
+};
+```
+
+A property referenced by the policy but missing from `context` surfaces as a `MISSING_CONTEXT` violation.
+
+## Selector handling
+
+For function-bound policies, the enforcer validates the first 4 bytes of calldata before evaluating any constraints:
+
+- Match: the selector equals the policy's embedded selector. Arguments are read from byte 4 onward.
+- Mismatch: a `SELECTOR_MISMATCH` violation is emitted; the group index is absent.
+- Missing: calldata shorter than 4 bytes emits `MISSING_SELECTOR`.
+
+Selector failures are distinct from argument-level `VALUE_MISMATCH` violations: they happen before any group is evaluated.
+
+For selectorless policies (see [Selectorless Policies](./building-policies/selectorless-policies)), the enforcer reads from byte 0. No selector check runs.
+
+## Preflight use
+
+`check` is the common choice for preflight validation: running the enforcer against candidate calldata before submitting a transaction or accepting an incoming payload.
+
+```ts
+import { PolicyEnforcer } from "@callcium/sdk";
+
+function canSubmit(calldata: Hex, ctx: Context): boolean {
+  return PolicyEnforcer.check(policy, calldata, ctx).ok;
+}
+```
+
+For tests, `enforce` integrates cleanly with assertion APIs that expect an exception on failure:
+
+```ts
+import { PolicyEnforcer, PolicyViolationError } from "@callcium/sdk";
+import { expect, test } from "vitest";
+
+test("rejects over-limit amount", () => {
+  expect(() => PolicyEnforcer.enforce(policy, overlimitCalldata)).toThrow(PolicyViolationError);
+});
+```

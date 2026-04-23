@@ -1,0 +1,127 @@
+---
+title: "Types"
+description: "Core TypeScript types exported by the SDK."
+---
+
+## Types
+
+### Hex
+
+Hex-encoded byte string, 0x-prefixed.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L6)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="Hex" />
+
+### Address
+
+Ethereum address, 0x-prefixed.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L9)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="Address" />
+
+### Span
+
+Byte range in a source blob.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L12)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="Span" />
+
+### Field
+
+A decoded value with its byte position in the source blob.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L125)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="Field" />
+
+### PolicyData
+
+Canonical structured representation of a policy.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L104)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="PolicyData" />
+
+### Constraint
+
+A collection of operators targeting a specific value.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L113)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="Constraint" />
+
+### DecodedPolicy
+
+Structural representation of a decoded policy with full byte-level spans.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L158)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedPolicy" />
+
+### DecodedGroup
+
+Structural representation of a decoded group with metadata spans.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L150)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedGroup" />
+
+### DecodedRule
+
+Structural representation of a decoded rule with per-field spans.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L138)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedRule" />
+
+### DecodedParam
+
+Structural representation of a decoded parameter within the descriptor.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L128)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedParam" />
+
+### Issue
+
+A single validation issue found during policy analysis.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L181)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="Issue" />
+
+### IssueSeverity
+
+Severity of a validation issue.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L175)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="IssueSeverity" />
+
+### IssueCategory
+
+Category of a validation issue.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L178)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="IssueCategory" />
+
+### Context
+
+Execution context for context-scoped rules.
+Each property maps to a well-known EVM execution environment value.
+Only the properties referenced by the policy need to be supplied.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L62)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="Context" />
+
+### EnforceResult
+
+Result of enforcing a policy: pass with matched group index, or fail with one violation per failed group.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L72)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="EnforceResult" />
+
+### Violation
+
+Details of a single rule failure during enforcement.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L86)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="Violation" />
+
+### ViolationCode
+
+Machine-readable reason code for an enforcement violation.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L75)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="ViolationCode" />

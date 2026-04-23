@@ -1,0 +1,95 @@
+---
+title: Array Constraints
+description: Constrain elements of array parameters using path quantifiers.
+---
+
+Array parameters are constrained element-by-element using path quantifiers. A quantifier extends the `arg()` path to apply a constraint across every element, or to require that at least one element satisfies it.
+
+## Path indexing
+
+To constrain a specific element, add the element index as the next step after the array argument index:
+
+```ts
+import { arg } from "@callcium/sdk";
+
+arg(0, 0); // first element of the first parameter
+arg(0, 3); // fourth element of the first parameter
+```
+
+This is the same indexing syntax used for struct fields.
+
+## Quantifiers
+
+`Quantifier.ALL`, `Quantifier.ANY`, and `Quantifier.ALL_OR_EMPTY` replace a concrete element index to apply a constraint across the entire array. Import them from `@callcium/sdk`:
+
+```ts
+import { Quantifier } from "@callcium/sdk";
+```
+
+| Quantifier                | Semantics                                                       | Empty array |
+| ------------------------- | --------------------------------------------------------------- | ----------- |
+| `Quantifier.ALL`          | All elements must satisfy the constraint                        | Fails       |
+| `Quantifier.ANY`          | At least one element must satisfy the constraint                | Fails       |
+| `Quantifier.ALL_OR_EMPTY` | All elements must satisfy the constraint, or the array is empty | Passes      |
+
+Use `Quantifier.ALL` as the default when an empty array is an invalid input. Use `Quantifier.ALL_OR_EMPTY` when an empty array is an acceptable no-op.
+
+```ts
+import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";
+
+// function batchTransfer(address[] recipients, uint256[] amounts)
+const policy = PolicyBuilder
+  .create("batchTransfer(address[],uint256[])")
+  .add(arg(0, Quantifier.ALL).isIn(allowlist))          // recipients — all must be approved
+  .add(arg(1, Quantifier.ALL).lte(1_000n * 10n ** 18n)) // amounts — all within limit
+  .build();
+```
+
+## Nested patterns
+
+Quantifiers compose with the rest of the path. To constrain a field inside each element of an array of structs, place the quantifier between the array step and the field step:
+
+```ts
+import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";
+
+// struct Transfer { address to; uint256 amount; }
+// function batchTransfer(Transfer[] transfers)
+const policy = PolicyBuilder
+  .create("batchTransfer((address,uint256)[])")
+  .add(arg(0, Quantifier.ALL, 0).isIn(allowlist))          // transfers[*].to
+  .add(arg(0, Quantifier.ALL, 1).lte(1_000n * 10n ** 18n)) // transfers[*].amount
+  .build();
+```
+
+A struct that contains an array is navigated in the opposite order: reach the array via its field index, then apply the quantifier.
+
+```ts
+import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";
+
+// struct Order { address spender; uint256[] amounts; }
+// function submit(Order order)
+const policy = PolicyBuilder
+  .create("submit((address,uint256[]))")
+  .add(arg(0, 0).eq(TREASURY))                             // order.spender
+  .add(arg(0, 1, Quantifier.ALL).lte(1_000n * 10n ** 18n)) // order.amounts[*]
+  .build();
+```
+
+## Depth limit
+
+Paths nest up to four steps deep: argument index, plus any combination of struct fields, array indices, and quantifiers up to a total depth of four. Deeper navigation is rejected at `build()` time.
+
+## Length constraints
+
+Length constraints are orthogonal to quantifiers: they target the array parameter itself, not its elements. Combine both when an array needs a bounded size and element-level checks:
+
+```ts
+import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";
+
+// function batchTransfer(address[] recipients)
+const policy = PolicyBuilder
+  .create("batchTransfer(address[])")
+  .add(arg(0).lengthBetween(1, 32))            // bounded batch size
+  .add(arg(0, Quantifier.ALL).isIn(allowlist)) // every recipient approved
+  .build();
+```

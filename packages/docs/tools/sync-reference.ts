@@ -12,7 +12,7 @@ import type { Heading, PhrasingContent, Root, RootContent } from "mdast";
 
 const FORGE_DOC_DIR = join(import.meta.dirname, "../../contracts/.forge-doc");
 const FORGE_DOC_ROOT = join(FORGE_DOC_DIR, "src/src");
-const OUTPUT_ROOT = join(import.meta.dirname, "../content/docs/reference");
+const OUTPUT_ROOT = join(import.meta.dirname, "../content/docs/solidity/reference");
 
 /** Contracts to include, in sidebar order. */
 const INCLUDED_CONTRACTS = [
@@ -603,7 +603,7 @@ async function main() {
 
   // Write meta.json.
   const meta = {
-    title: "Reference",
+    title: "API",
     pages: INCLUDED_CONTRACTS.map(contractSlug),
   };
   await writeFile(join(OUTPUT_ROOT, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`);

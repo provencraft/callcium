@@ -1,0 +1,243 @@
+---
+title: "Descriptor"
+description: "ABI descriptor model and coder."
+---
+
+## Descriptor
+
+Inspect and navigate raw descriptor bytes.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L158)
+
+### Methods
+
+### paramCount
+
+Return paramCount from header byte 1.
+
+```ts
+function paramCount(desc: Uint8Array): number;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | - |
+
+**Returns**
+
+`number`
+
+### paramOffset
+
+Return byte offset of the N-th top-level param (0-indexed).
+
+```ts
+function paramOffset(desc: Uint8Array, index: number): number;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | - |
+| `index` | `number` | - |
+
+**Returns**
+
+`number`
+
+### inspect
+
+Inspect the type node at a given byte offset.
+
+```ts
+function inspect(desc: Uint8Array, offset: number): TypeInfo;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | Raw descriptor bytes. |
+| `offset` | `number` | Byte position of the node. |
+
+**Returns**
+
+`TypeInfo` — typeCode, isDynamic, and staticSize in bytes.
+
+### typeAt
+
+Resolve the type at a calldata path (array of step indices).
+
+The first step selects a top-level param. Each subsequent step descends
+into the current node: for tuples it selects a field, for arrays it
+advances to the element descriptor.
+
+```ts
+function typeAt(desc: Uint8Array, steps: number[]): TypeInfo;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | Raw descriptor bytes. |
+| `steps` | `number[]` | Path steps, length >= 1. |
+
+**Returns**
+
+`TypeInfo` — TypeInfo for the node at the resolved path.
+
+### tupleFieldOffset
+
+Return the byte offset of the `fieldIndex`-th field inside a tuple node.
+Starts at the first field and skips `fieldIndex` nodes using `nodeLength`.
+
+```ts
+function tupleFieldOffset(desc: Uint8Array, tupleOffset: number, fieldIndex: number): number;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | - |
+| `tupleOffset` | `number` | - |
+| `fieldIndex` | `number` | - |
+
+**Returns**
+
+`number`
+
+### tupleFieldCount
+
+Return tuple field count at a tuple node offset.
+
+```ts
+function tupleFieldCount(desc: Uint8Array, offset: number): number;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | Raw descriptor bytes. |
+| `offset` | `number` | Byte position of the tuple node. |
+
+**Returns**
+
+`number`
+
+### staticArrayLength
+
+Return static array length at a static array node offset.
+
+```ts
+function staticArrayLength(desc: Uint8Array, offset: number): number;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | Raw descriptor bytes. |
+| `offset` | `number` | Byte position of the static array node. |
+
+**Returns**
+
+`number`
+
+### nodeLength
+
+Return the byte length of the node at `offset`.
+Elementary nodes occupy exactly one byte; composite nodes encode their
+length in the lower 12 bits of the 24-bit meta field.
+
+```ts
+function nodeLength(desc: Uint8Array, offset: number): number;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | - |
+| `offset` | `number` | - |
+
+**Returns**
+
+`number`
+
+### arrayElementOffset
+
+Return the byte offset of the array element descriptor.
+
+```ts
+function arrayElementOffset(offset: number): number;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `offset` | `number` | Byte position of the array node (static or dynamic). |
+
+**Returns**
+
+`number`
+
+## DescriptorCoder
+
+Encode and decode descriptors.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor-coder.ts#L506)
+
+### Methods
+
+### fromTypes
+
+Encode a comma-separated list of ABI type strings into a binary descriptor.
+
+```ts
+function fromTypes(typesCsv: string): Uint8Array;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `typesCsv` | `string` | Comma-separated ABI type strings, e.g. `"address,uint256,(bool,bytes32)[],string"`. |
+
+**Returns**
+
+`Uint8Array` — Binary descriptor bytes starting with the version+paramCount header.
+
+### toTypes
+
+Reconstruct a comma-separated list of ABI type strings from a binary descriptor.
+
+Inverse of `fromTypes`: `toTypes(fromTypes(s))` returns `s` for any valid input.
+
+```ts
+function toTypes(desc: Uint8Array): string;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | Binary descriptor bytes (with version+paramCount header). |
+
+**Returns**
+
+`string` — Comma-separated ABI type strings, e.g. `"address,uint256,(bool,bytes32)[]"`.
+
+## Types
+
+### TypeInfo
+
+Structural type information extracted from a descriptor node.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L10)

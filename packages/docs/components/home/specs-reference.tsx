@@ -21,8 +21,8 @@ export function SpecsReference() {
           <Card
             icon={<Code className="h-5 w-5" />}
             title="Reference"
-            description="Full API documentation for all libraries and contracts."
-            href="/docs/reference"
+            description="Solidity contract API and TypeScript SDK reference."
+            href="/docs/solidity/reference/policy-builder"
           />
         </Cards>
       </div>

@@ -59,7 +59,9 @@ export class CallciumError extends Error {
 }
 
 /**
- * Thrown when policy validation fails.
+ * Thrown by `PolicyEnforcer.enforce` when calldata fails policy enforcement.
+ * Distinct from `CallciumError("VALIDATION_ERROR")`, which signals static
+ * issues in the policy itself.
  * Carries the full list of violations (one per failed group).
  */
 export class PolicyViolationError extends Error {

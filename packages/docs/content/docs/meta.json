@@ -1,20 +1,3 @@
 {
-  "pages": [
-    "---Introduction---",
-    "index",
-    "getting-started",
-    "---Guides---",
-    "building-policies",
-    "policy-validation",
-    "storage",
-    "enforcement",
-    "---Specifications---",
-    "...specifications",
-    "---Reference---",
-    "...reference",
-    "---Tools---",
-    "[Blocks][Policy Builder](/policy-builder)",
-    "[SearchCode][Policy Inspector](/policy-inspector)",
-    "[ShieldCheck][Policy Enforcer](/policy-enforcer)"
-  ]
+  "pages": ["(protocol)", "solidity", "sdk"]
 }

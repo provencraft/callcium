@@ -1,0 +1,21 @@
+{
+  "title": "TypeScript",
+  "description": "Offchain tooling and simulation.",
+  "icon": "typescript",
+  "root": true,
+  "pages": [
+    "---Introduction---",
+    "index",
+    "---Guides---",
+    "building-policies",
+    "policy-validation",
+    "enforcement",
+    "inspection",
+    "---Reference---",
+    "reference",
+    "---Tools---",
+    "[Blocks][Policy Builder](/policy-builder)",
+    "[SearchCode][Policy Inspector](/policy-inspector)",
+    "[Shield][Policy Enforcer](/policy-enforcer)"
+  ]
+}

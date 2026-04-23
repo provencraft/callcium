@@ -1,0 +1,54 @@
+---
+title: "PolicyValidator"
+description: "Static validation of policies against their declared signatures."
+---
+
+## PolicyValidator
+
+Semantic validation for policies.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-validator.ts#L838)
+
+### Methods
+
+### validate
+
+Validate a policy for type mismatches, contradictions, redundancies, and vacuities.
+
+```ts
+function validate(data: PolicyData): Issue[];
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `data` | `PolicyData` | The canonical policy data to validate. |
+
+**Returns**
+
+`Issue[]` — All validation issues found, ordered by group and constraint index.
+
+## Functions
+
+### isOpAllowed
+
+True if operator `opCode` is allowed on a target with the given type info.
+Tolerates the NOT flag on `opCode`.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-validator.ts#L204)
+
+```ts
+function isOpAllowed(opCode: number, typeInfo: TypeInfo): boolean;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `opCode` | `number` | - |
+| `typeInfo` | `TypeInfo` | - |
+
+**Returns**
+
+`boolean`
