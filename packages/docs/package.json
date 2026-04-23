@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun run sync && next build",
+    "build": "next build",
     "dev": "next dev",
     "start": "bunx serve out",
     "types:check": "fumadocs-mdx && next typegen && tsc --noEmit",

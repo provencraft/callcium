@@ -37,3 +37,26 @@ pre-commit:
       root: "packages/docs/"
       glob: "packages/docs/**/*.{ts,tsx}"
       run: bun run types:check
+
+    docs-sync-solidity:
+      root: "packages/docs/"
+      glob:
+        - "packages/contracts/src/**/*.sol"
+        - "packages/contracts/foundry.toml"
+        - "packages/docs/tools/sync-reference.ts"
+      run: bun run sync:reference && git add content/docs/solidity/reference
+
+    docs-sync-sdk:
+      root: "packages/docs/"
+      glob:
+        - "packages/sdk/src/**/*.ts"
+        - "packages/sdk/typedoc.json"
+        - "packages/docs/tools/sync-sdk-reference.ts"
+      run: bun run sync:sdk-reference && git add content/docs/sdk/reference
+
+    docs-sync-specs:
+      root: "packages/docs/"
+      glob:
+        - "spec/**/*.md"
+        - "packages/docs/tools/sync-specs.ts"
+      run: bun run sync:specs && git add "content/docs/(protocol)/specifications"
