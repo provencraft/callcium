@@ -1,5 +1,6 @@
 {
   "name": "@callcium/contracts",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +10,9 @@
     "docs": "forge doc",
     "bench:baseline": "forge test --match-path 'test/benchmark/**' -vv && bun tools/bench-baseline.ts",
     "bench:diff": "forge test --match-path 'test/benchmark/**' && bun tools/bench-compare.ts",
-    "bench:compare": "bun tools/bench-compare.ts"
+    "bench:compare": "bun tools/bench-compare.ts",
+    "release:patch": "npm version patch --tag-version-prefix=contracts/v",
+    "release:minor": "npm version minor --tag-version-prefix=contracts/v",
+    "release:major": "npm version major --tag-version-prefix=contracts/v"
   }
 }

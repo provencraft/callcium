@@ -1,0 +1,17 @@
+# Soldeer publishing — ship src/, README, LICENSE only.
+# Hidden files and directories.
+.*
+
+# Foundry config and lockfiles.
+foundry.toml
+remappings.txt
+soldeer.lock
+
+# Package metadata.
+package.json
+
+# Source directories not needed by consumers.
+test/
+script/
+tools/
+broadcast/
