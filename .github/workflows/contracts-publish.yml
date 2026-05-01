@@ -13,6 +13,7 @@ jobs:
   publish:
     name: Publish to Soldeer
     runs-on: ubuntu-latest
+    environment: soldeer
     defaults:
       run:
         working-directory: packages/contracts
