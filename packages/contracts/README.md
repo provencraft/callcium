@@ -1,6 +1,6 @@
 # @callcium/contracts
 
-Solidity implementation of the Callcium on-chain policy engine.
+Solidity implementation of the Callcium onchain policy engine.
 
 ## Requirements
 
@@ -9,27 +9,20 @@ Solidity implementation of the Callcium on-chain policy engine.
 
 ## Install
 
+```bash
+forge soldeer install callcium~<version>
 ```
+
+Or, for git-submodule consumers:
+
+```bash
 forge install provencraft/callcium
-```
-
-## Development
-
-```bash
-forge soldeer install   # Install Solidity dependencies
-forge build             # Compile contracts
-forge test              # Run tests
-forge fmt               # Format Solidity source
-forge lint              # Lint Solidity source
-```
-
-### Benchmarks
-
-```bash
-bun run bench:baseline  # Record gas snapshot baseline
-bun run bench:compare   # Compare current gas usage against baseline
 ```
 
 ## Documentation
 
-Full documentation at [callcium.dev](https://callcium.dev). See the [root README](../../README.md) for project overview.
+Full documentation at [callcium.dev](https://callcium.dev).
+
+## License
+
+MIT License. See [LICENSE](LICENSE).

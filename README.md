@@ -1,7 +1,7 @@
 <div align="center">
 <img src="logo.svg" width="256" alt="Callcium Logo" />
 <h1>Callcium</h1>
-<p><strong>The On-Chain Policy Engine for ABI-Encoded Data</strong></p>
+<p><strong>The Onchain Policy Engine for ABI-Encoded Data</strong></p>
 
 [Documentation][docs-url]&ensp;&middot;&ensp;[Contributing](./CONTRIBUTING.md)
 
@@ -22,7 +22,7 @@
 - **Context checks** — Enforce `msg.sender`, `msg.value`, `block.timestamp`, `block.chainid`
 - **Rich operators** — Range checks, set membership, bitwise masks, and negation
 - **Flexible logic** — OR/AND groups for complex rule paths
-- **On-chain validation** — Policy inspection and structural validation, no off-chain dependencies
+- **Onchain validation** — Policy inspection and structural validation, no offchain dependencies
 
 ## Packages
 

@@ -23,7 +23,7 @@ const SPECS: Record<string, SpecMeta> = {
   },
   "policy-v1": {
     title: "Policy",
-    description: "Binary encoding format for on-chain calldata policies.",
+    description: "Binary encoding format for onchain calldata policies.",
   },
 };
 

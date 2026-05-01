@@ -1,9 +1,9 @@
 ---
 title: Policy Storage
-description: Store, bind, and resolve policies on-chain.
+description: Store, bind, and resolve policies onchain.
 ---
 
-Enforcing a policy at call time requires the policy blob to be available on-chain. While Callcium's binary format specifies what a policy contains, how that data is stored and retrieved is a separate concern. Different systems have different constraints: some need policies to be updatable, others fix them at deployment, and multi-contract setups may share a single policy across several addresses.
+Enforcing a policy at call time requires the policy blob to be available onchain. While Callcium's binary format specifies what a policy contains, how that data is stored and retrieved is a separate concern. Different systems have different constraints: some need policies to be updatable, others fix them at deployment, and multi-contract setups may share a single policy across several addresses.
 
 `PolicyManager` covers the common case without prescribing how policies are exposed or who can update them. It is designed to work in both upgradable and immutable contracts. For systems with specialized requirements, the underlying `PolicyRegistry` library is available for custom implementations.
 
@@ -53,7 +53,7 @@ For the common case of storing and immediately binding, use `_storeAndBindPolicy
 bytes32 policyHash = _storeAndBindPolicy(address(this), policy);
 ```
 
-Policies are validated on-chain during storage. `_storePolicy` runs a structural integrity check — it rejects malformed blobs that don't conform to the policy binary format. Semantic validation (type mismatches, contradictions, redundancies) is handled earlier by `PolicyBuilder.build()` at build time. The two checks are independent: build-time validation catches logic errors; storage-time validation catches format errors.
+Policies are validated onchain during storage. `_storePolicy` runs a structural integrity check — it rejects malformed blobs that don't conform to the policy binary format. Semantic validation (type mismatches, contradictions, redundancies) is handled earlier by `PolicyBuilder.build()` at build time. The two checks are independent: build-time validation catches logic errors; storage-time validation catches format errors.
 
 The maximum policy size is 24,575 bytes (the SSTORE2 contract code ceiling).
 
@@ -131,7 +131,7 @@ For selectorless policies, the selector is `bytes4(0)` in the internal mapping; 
 | `_policyHashFor(target, selector)` | `bytes32` | Check which policy is active without loading the blob |
 | `_policyExists(policyHash)`        | `bool`    | Verify a hash is stored before binding                |
 | `_loadPolicy(policyHash)`          | `bytes`   | Load by hash directly, bypassing the binding lookup   |
-| `_policyPointerOf(policyHash)`     | `address` | SSTORE2 pointer address, for off-chain inspection     |
+| `_policyPointerOf(policyHash)`     | `address` | SSTORE2 pointer address, for offchain inspection      |
 
 ## Deduplication
 

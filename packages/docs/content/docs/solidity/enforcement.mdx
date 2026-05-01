@@ -138,7 +138,7 @@ If the raw data has a selector prefix, strip it before passing to `enforce`. Tho
 
 For creating selectorless policies, see [Selectorless Policies](/docs/solidity/building-policies/selectorless-policies).
 
-## Off-chain usage
+## Offchain usage
 
 `check` is a `view` function — call it via `eth_call` to validate a payload against a policy without submitting a transaction. Context properties (`msg.sender`, `msg.value`, and others) reflect the `from` and `value` fields of the simulated call; set them explicitly in the `eth_call` parameters to match the intended execution context.
 

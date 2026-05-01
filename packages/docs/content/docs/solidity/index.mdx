@@ -16,7 +16,7 @@ forge install provencraft/callcium
 
 ## Define a policy
 
-Policies are designed to be built in Forge scripts and stored on-chain for enforcement. A policy starts with a function signature and a set of constraints.
+Policies are designed to be built in Forge scripts and stored onchain for enforcement. A policy starts with a function signature and a set of constraints.
 
 ```solidity
 import { arg } from "callcium/Constraint.sol";
@@ -63,5 +63,5 @@ contract MyVault is PolicyManager, Ownable {
 ## Next steps
 
 - [Building Policies](/docs/solidity/building-policies) — all constraint types, OR groups, and context constraints.
-- [Storage](/docs/solidity/storage) — managing policy lifecycle on-chain.
+- [Storage](/docs/solidity/storage) — managing policy lifecycle onchain.
 - [Enforcement](/docs/solidity/enforcement) — how policies are checked against ABI-encoded data at runtime.

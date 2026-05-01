@@ -101,7 +101,7 @@ library PolicyCoder {
     /// @notice Encodes `groups` into the canonical policy blob with embedded descriptor.
     /// @dev Canonicalization ensures the same logical policy always produces identical bytes,
     /// regardless of the order rules or groups are provided. This is critical for deterministic
-    /// policy hashing and on-chain verification.
+    /// policy hashing and onchain verification.
     /// @param groups The groups to encode.
     /// @param selector The 4-byte function selector.
     /// @param desc The function descriptor to embed.

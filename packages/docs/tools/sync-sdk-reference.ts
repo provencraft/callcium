@@ -49,7 +49,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
   },
   "policy-enforcer": {
     title: "PolicyEnforcer",
-    description: "Off-chain policy enforcement against ABI-encoded data.",
+    description: "Offchain policy enforcement against ABI-encoded data.",
     sections: { primary: ["PolicyEnforcer"], helpers: [], types: [] },
   },
   "policy-coder": {
