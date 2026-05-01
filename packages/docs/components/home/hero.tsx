@@ -86,16 +86,16 @@ export async function Hero() {
         <div className="flex flex-col items-center gap-4 text-center">
           <Image
             src="/logo.svg"
-            alt="Callcium - Programmable Calldata Validation Engine"
+            alt="Callcium - Programmable Calldata Policy Engine"
             aria-hidden="true"
             className="mb-2 w-36"
             width={144}
             height={144}
           />
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Programmable Calldata Validation Engine</h1>
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Programmable Calldata Policy Engine</h1>
           <p className="max-w-xl text-pretty text-lg text-fd-muted-foreground">
             <span className="block">Define type-safe constraints on ABI‑encoded data.</span>
-            <span className="block">Update validation rules without redeploying contracts.</span>
+            <span className="block">Enforce offchain or onchain.</span>
           </p>
           <Link href="/docs" className={cn(buttonVariants({ variant: "primary" }), "px-8 py-2.5 text-base")}>
             Get Started

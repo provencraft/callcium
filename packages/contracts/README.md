@@ -1,6 +1,6 @@
 # @callcium/contracts
 
-Solidity implementation of the Callcium onchain policy engine.
+Solidity implementation of the Callcium policy engine.
 
 ## Requirements
 

@@ -1,11 +1,11 @@
 ---
 title: What is Callcium
-description: Onchain policy engine for ABI-encoded data.
+description: Programmable policy engine for ABI-encoded data.
 ---
 
-ABI-encoded calldata is opaque at the contract boundary. Contracts that delegate, proxy, or relay calls have no standard way to constrain what those calls contain. Validation logic is typically baked into the contract and can't be updated without redeployment.
+ABI-encoded calldata is opaque at the contract boundary. Contracts that delegate, proxy, or relay calls have no standard way to constrain what those calls contain. Existing checks are hand-rolled in each contract, with no shared wire format that offchain tooling can evaluate.
 
-Callcium encodes constraints on function arguments into a compact binary policy. Policies are enforced onchain against calldata and updatable without redeploying the contract. Selectorless policies extend the same format to any ABI-encoded data.
+Callcium encodes constraints on function arguments into a compact binary policy. The same policy is enforced onchain by Solidity contracts or offchain by the TypeScript SDK — one binary, two evaluators. Selectorless policies extend the same format to any ABI-encoded data.
 
 ## How it works
 
@@ -24,7 +24,7 @@ Constraints can also target transaction context — caller address, call value, 
   <Card
     title="TypeScript SDK"
     href="/docs/sdk"
-    description="Build, validate, and simulate policies offchain. For tooling, preflight checks, and tests."
+    description="Build, validate, and enforce policies offchain. TypeScript-first workflow."
   />
 </Cards>
 

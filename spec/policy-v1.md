@@ -9,7 +9,7 @@
 
 ## 2. Purpose, Scope, and Exclusions
 
-This document specifies the canonical binary format for Policies in Callcium, an onchain policy engine for ABI-encoded data. A Policy defines constraints that ABI-encoded data must satisfy to be considered compliant.
+This document specifies the canonical binary format for Policies in Callcium, a policy engine for ABI-encoded data. A Policy defines constraints that ABI-encoded data must satisfy to be considered compliant.
 
 ### Scope
 - Binary format and encoding rules.

@@ -3,7 +3,7 @@ title: Getting Started
 description: Install the Callcium TypeScript SDK and build your first policy.
 ---
 
-The Callcium TypeScript SDK is an offchain library for building, validating, and simulating Callcium policies. It produces canonical policy bytes, reports semantic validation issues, and evaluates ABI-encoded calldata against a policy. Use it for tooling, tests, preflight checks before submitting a transaction, and policy inspection.
+The Callcium TypeScript SDK is an offchain library for building, validating, and enforcing Callcium policies. It produces canonical policy bytes, reports semantic validation issues, and evaluates ABI-encoded calldata against a policy.
 
 ## Install
 
@@ -64,7 +64,7 @@ const policy = PolicyBuilder
 
 ## Validate and enforce
 
-[`PolicyBuilder.build()`](/docs/sdk/reference/policy-builder) validates the policy at build time and throws `CallciumError("VALIDATION_ERROR")` on the first error-severity issue. [`PolicyEnforcer`](/docs/sdk/reference/policy-enforcer) evaluates ABI-encoded calldata against a built policy. Use it for simulation, tests, and preflight checks.
+[`PolicyBuilder.build()`](/docs/sdk/reference/policy-builder) validates the policy at build time and throws `CallciumError("VALIDATION_ERROR")` on the first error-severity issue. [`PolicyEnforcer`](/docs/sdk/reference/policy-enforcer) evaluates ABI-encoded calldata against a built policy. Use it for offchain enforcement, simulation, and tests.
 
 ```ts
 import { PolicyEnforcer } from "@callcium/sdk";

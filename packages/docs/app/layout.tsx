@@ -10,8 +10,7 @@ export const metadata: Metadata = {
     template: "%s | Callcium",
     default: "Callcium",
   },
-  description:
-    "Define type-safe constraints on ABI-encoded data. Update validation rules without redeploying contracts.",
+  description: "Define type-safe constraints on ABI-encoded data. Enforce offchain or onchain.",
   icons: { icon: "/icon.svg" },
 };
 

@@ -1,6 +1,6 @@
 # @callcium/sdk
 
-Build and validate Callcium policies offchain in TypeScript.
+TypeScript implementation of the Callcium policy engine.
 
 ## Install
 
