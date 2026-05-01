@@ -43,7 +43,7 @@ abstract contract ConstraintTest is BaseTest {
         }
     }
 
-    function _assertIn(bytes32 val, bytes32[] memory arr, string memory msg) private pure {
+    function _assertIn(bytes32 val, bytes32[] memory arr, string memory message) private pure {
         bool found;
         for (uint256 i = 0; i < arr.length; ++i) {
             if (val == arr[i]) {
@@ -51,7 +51,7 @@ abstract contract ConstraintTest is BaseTest {
                 break;
             }
         }
-        assertTrue(found, msg);
+        assertTrue(found, message);
     }
 
     /// @dev Asserts two arrays are element-wise equal.
@@ -83,6 +83,43 @@ abstract contract ConstraintTest is BaseTest {
         for (uint256 i; i < arr.length; ++i) {
             out[i] = bytes32(uint256(uint160(arr[i])));
         }
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                              LENGTH HELPERS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev Constrains a fuzzed array's length into `[min, max]`. Filters via `vm.assume`
+    /// when shorter than `min`; truncates in-place when longer than `max`.
+    function _boundLength(uint256[] memory arr, uint256 min, uint256 max) internal pure {
+        vm.assume(arr.length >= min);
+        assembly ("memory-safe") {
+            if gt(mload(arr), max) { mstore(arr, max) }
+        }
+    }
+
+    function _boundLength(int256[] memory arr, uint256 min, uint256 max) internal pure {
+        uint256[] memory u;
+        assembly ("memory-safe") {
+            u := arr
+        }
+        _boundLength(u, min, max);
+    }
+
+    function _boundLength(address[] memory arr, uint256 min, uint256 max) internal pure {
+        uint256[] memory u;
+        assembly ("memory-safe") {
+            u := arr
+        }
+        _boundLength(u, min, max);
+    }
+
+    function _boundLength(bytes32[] memory arr, uint256 min, uint256 max) internal pure {
+        uint256[] memory u;
+        assembly ("memory-safe") {
+            u := arr
+        }
+        _boundLength(u, min, max);
     }
 
     /*/////////////////////////////////////////////////////////////////////////

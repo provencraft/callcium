@@ -13,7 +13,7 @@ contract UintNTest is TypeCodeTest {
     }
 
     function testFuzz_Roundtrip(uint16 bits) public pure {
-        vm.assume(bits % 8 == 0 && bits >= 8 && bits <= 256);
+        bits = uint16(bound(bits, 1, 32)) * 8;
         uint8 code = TypeCode.uintN(bits);
         uint16 back = 8 + 8 * uint16(code - TypeCode.UINT8);
         assertEq(back, bits);

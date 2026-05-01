@@ -13,7 +13,7 @@ contract BytesNTest is TypeCodeTest {
     }
 
     function testFuzz_Roundtrip(uint8 length) public pure {
-        vm.assume(length >= 1 && length <= 32);
+        length = uint8(bound(length, 1, 32));
         uint8 code = TypeCode.bytesN(length);
         uint8 back = 1 + (code - TypeCode.BYTES1);
         assertEq(back, length);

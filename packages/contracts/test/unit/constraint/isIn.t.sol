@@ -12,7 +12,7 @@ contract ConstraintIsInTest is ConstraintTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function testFuzz_Uint256_SortedAndDeduped(uint256[] memory values) public pure {
-        vm.assume(values.length > 0 && values.length <= 32);
+        _boundLength(values, 1, 32);
         if (values.length > 1) values[values.length / 2] = values[0]; // Inject dupe
 
         bytes32[] memory set = _extractPackedSet(arg(0).isIn(values).operators[0]);
@@ -20,7 +20,7 @@ contract ConstraintIsInTest is ConstraintTest {
     }
 
     function testFuzz_Int256_SortedAndDeduped(int256[] memory values) public pure {
-        vm.assume(values.length > 0 && values.length <= 32);
+        _boundLength(values, 1, 32);
         if (values.length > 1) values[values.length / 2] = values[0];
 
         bytes32[] memory set = _extractPackedSet(arg(0).isIn(values).operators[0]);
@@ -28,7 +28,7 @@ contract ConstraintIsInTest is ConstraintTest {
     }
 
     function testFuzz_Address_SortedAndDeduped(address[] memory values) public pure {
-        vm.assume(values.length > 0 && values.length <= 32);
+        _boundLength(values, 1, 32);
         if (values.length > 1) values[values.length / 2] = values[0];
 
         bytes32[] memory set = _extractPackedSet(arg(0).isIn(values).operators[0]);
@@ -36,7 +36,7 @@ contract ConstraintIsInTest is ConstraintTest {
     }
 
     function testFuzz_Bytes32_SortedAndDeduped(bytes32[] memory values) public pure {
-        vm.assume(values.length > 0 && values.length <= 32);
+        _boundLength(values, 1, 32);
         if (values.length > 1) values[values.length / 2] = values[0];
 
         bytes32[] memory set = _extractPackedSet(arg(0).isIn(values).operators[0]);
@@ -44,7 +44,7 @@ contract ConstraintIsInTest is ConstraintTest {
     }
 
     function testFuzz_Uint256_PermutationInvariant(uint256[] memory values, uint256 seed) public pure {
-        vm.assume(values.length > 1 && values.length <= 16);
+        _boundLength(values, 2, 16);
         uint256[] memory shuffled = new uint256[](values.length);
         for (uint256 i; i < values.length; ++i) {
             shuffled[i] = values[i];
@@ -59,7 +59,7 @@ contract ConstraintIsInTest is ConstraintTest {
     }
 
     function testFuzz_Int256_PermutationInvariant(int256[] memory values, uint256 seed) public pure {
-        vm.assume(values.length > 1 && values.length <= 16);
+        _boundLength(values, 2, 16);
         int256[] memory shuffled = new int256[](values.length);
         for (uint256 i; i < values.length; ++i) {
             shuffled[i] = values[i];
@@ -74,7 +74,7 @@ contract ConstraintIsInTest is ConstraintTest {
     }
 
     function testFuzz_Address_PermutationInvariant(address[] memory values, uint256 seed) public pure {
-        vm.assume(values.length > 1 && values.length <= 16);
+        _boundLength(values, 2, 16);
         address[] memory shuffled = new address[](values.length);
         for (uint256 i; i < values.length; ++i) {
             shuffled[i] = values[i];
@@ -89,7 +89,7 @@ contract ConstraintIsInTest is ConstraintTest {
     }
 
     function testFuzz_Bytes32_PermutationInvariant(bytes32[] memory values, uint256 seed) public pure {
-        vm.assume(values.length > 1 && values.length <= 16);
+        _boundLength(values, 2, 16);
         bytes32[] memory shuffled = new bytes32[](values.length);
         for (uint256 i; i < values.length; ++i) {
             shuffled[i] = values[i];
@@ -189,7 +189,7 @@ contract ConstraintIsInTest is ConstraintTest {
     }
 
     function testFuzz_NotIn_SamePackingAsIsIn(uint256[] memory values) public pure {
-        vm.assume(values.length > 0 && values.length <= 16);
+        _boundLength(values, 1, 16);
         // forgefmt: disable-next-item
         assertArrayEq(
             _extractPackedSet(arg(0).isIn(values).operators[0]),
