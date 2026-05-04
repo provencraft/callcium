@@ -62,17 +62,26 @@ export class CallciumError extends Error {
  * Thrown by `PolicyEnforcer.enforce` when calldata fails policy enforcement.
  * Distinct from `CallciumError("VALIDATION_ERROR")`, which signals static
  * issues in the policy itself.
- * Carries the full list of violations (one per failed group).
+ *
+ * Carries the full list of structured violations (one per failed group). The
+ * `Error.message` is a minimal non-lossy diagnostic summary built from the
+ * first violation's structured fields — not a presentation contract. Consumers
+ * rendering violations to users should iterate `violations` directly.
  */
 export class PolicyViolationError extends Error {
   public readonly violations: import("./types").Violation[];
 
   constructor(violations: import("./types").Violation[]) {
-    const first = violations[0];
-    const msg = first ? `Policy violation: ${first.message}` : "Policy violation";
-    super(msg);
+    super(formatDiagnostic(violations[0]));
     this.name = "PolicyViolationError";
     this.violations = violations;
     Object.setPrototypeOf(this, PolicyViolationError.prototype);
   }
+}
+
+/** Build a stack-trace-friendly diagnostic line from a violation's code and coordinates. */
+function formatDiagnostic(violation: import("./types").Violation | undefined): string {
+  if (!violation) return "Policy violation";
+  const location = "group" in violation ? ` at group ${violation.group} rule ${violation.rule}` : "";
+  return `Policy violation: ${violation.code}${location}`;
 }

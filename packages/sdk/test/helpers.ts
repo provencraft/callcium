@@ -2,15 +2,60 @@ import { expect } from "vitest";
 
 import { CallciumError } from "../src";
 
+import type { EnforceResult, Violation, ViolationCode } from "../src";
+
+/** Assert an enforcement result is a failure and narrow its type. */
+export function assertFailed(result: EnforceResult): asserts result is Extract<EnforceResult, { ok: false }> {
+  if (result.ok) {
+    throw new Error(`Expected enforcement failure, got pass with matched group ${result.matchedGroup}`);
+  }
+}
+
+/** Assert an enforcement result is a pass and narrow its type. */
+export function assertPassed(result: EnforceResult): asserts result is Extract<EnforceResult, { ok: true }> {
+  if (!result.ok) {
+    const codes = result.violations.map((violation) => violation.code).join(", ") || "no violations";
+    throw new Error(`Expected enforcement pass, got failure with ${result.violations.length} violation(s): ${codes}`);
+  }
+}
+
+/** Assert a violation has the given code and narrow it to the matching variant. */
+export function assertViolationCode<C extends ViolationCode>(
+  violation: Violation,
+  code: C,
+): asserts violation is Extract<Violation, { code: C }> {
+  if (violation.code !== code) {
+    throw new Error(`Expected violation code ${code}, got ${violation.code}`);
+  }
+}
+
+/**
+ * Assert a result failed, has at least one violation, and its first violation matches `code`.
+ * Returns the narrowed violation. Combines `assertFailed` + first-violation extraction + code check
+ * for the common single-violation test pattern.
+ */
+export function firstViolation<C extends ViolationCode>(
+  result: EnforceResult,
+  code: C,
+): Extract<Violation, { code: C }> {
+  assertFailed(result);
+  const violation = result.violations[0];
+  if (violation === undefined) {
+    throw new Error("Expected at least one violation, got none");
+  }
+  assertViolationCode(violation, code);
+  return violation;
+}
+
 /** Assert that calling fn() throws a CallciumError with the given code. */
 export function expectErrorCode(fn: () => void, code: string): void {
   try {
     fn();
     expect.unreachable("Expected CallciumError");
-  } catch (e) {
-    expect(e).toBeInstanceOf(CallciumError);
-    if (e instanceof CallciumError) {
-      expect(e.code).toBe(code);
+  } catch (error) {
+    expect(error).toBeInstanceOf(CallciumError);
+    if (error instanceof CallciumError) {
+      expect(error.code).toBe(code);
     }
   }
 }

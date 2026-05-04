@@ -5,9 +5,6 @@ import {
   MAX_CONTEXT_PROPERTY_ID,
   Limits,
   Quantifier,
-  TypeCode,
-  Op,
-  lookupOp,
   lookupContextProperty,
 } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
@@ -16,7 +13,7 @@ import { decodePolicy } from "./policy-coder";
 import { locate, arrayShape, arrayElementAt, loadScalar, loadSlice, descendPath } from "./reader";
 
 import type { Location } from "./reader";
-import type { Context, DescNode, EnforceResult, Hex, Violation, ViolationCode } from "./types";
+import type { Context, DescNode, EnforceResult, Hex, NavigationViolationCode, Violation } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -30,47 +27,30 @@ function addressToBigInt(hex: string): bigint {
   return toBigInt(padded, 0);
 }
 
-/** Format a bigint as a compact hex string without leading-zero padding. */
-function compactHex(value: bigint): string {
-  if (value === 0n) return "0x0";
-  return `0x${value.toString(16)}`;
-}
-
-/** Truncate a hex string to at most maxChars characters, adding ellipsis if needed. */
-function truncateHexForMessage(hex: string, maxChars = 66): string {
-  if (hex.length <= maxChars) return hex;
-  return `${hex.slice(0, maxChars - 1)}…`;
-}
-
-/** Format a decoded operand as decimal for length ops, otherwise compact hex. */
-function formatOperandValue(value: bigint, opCode: number): string {
-  return isLengthOp(opCode) ? value.toString(10) : compactHex(value);
-}
-
-/** Format the constraint (operator + operands) from a single lookupOp call. */
-function formatConstraint(opCode: number, operandData: Uint8Array): string {
-  const negated = (opCode & Op.NOT) !== 0;
-  const { label, operands } = lookupOp(opCode);
-  const op = negated ? `not ${label}` : label;
-
-  let formattedOperands: string;
-  if (operands === "variadic") {
-    formattedOperands = `(${operandData.length / 32} values)`;
-  } else if (operands === "range") {
-    const min = toBigInt(operandData, 0);
-    const max = toBigInt(operandData, 32);
-    formattedOperands = `[${formatOperandValue(min, opCode)}, ${formatOperandValue(max, opCode)}]`;
-  } else {
-    formattedOperands = formatOperandValue(toBigInt(operandData, 0), opCode);
+/**
+ * Walk a descriptor subtree through path steps and return the terminal leaf type code.
+ *
+ * Used only for violation metadata. Valid policies have structurally valid
+ * quantifier suffixes (enforced by `PolicyValidator`); if a hand-crafted blob
+ * violates that invariant, return the last resolvable node's type code as
+ * best-effort diagnostic context.
+ */
+function resolveLeafTypeCode(elementNode: DescNode, remainingPath: Uint8Array): number {
+  let node: DescNode = elementNode;
+  const stepCount = remainingPath.length / 2;
+  for (let step = 0; step < stepCount; step++) {
+    const childIndex = readU16(remainingPath, step * 2);
+    if (node.type === "tuple") {
+      const field = node.fields[childIndex];
+      if (!field) break;
+      node = field;
+    } else if (node.type === "staticArray" || node.type === "dynamicArray") {
+      node = node.element;
+    } else {
+      break;
+    }
   }
-
-  return `${op} ${formattedOperands}`;
-}
-
-/** Build a self-contained VALUE_MISMATCH message for a scalar or length comparison. */
-function mismatchMessage(opCode: number, actual: bigint | number, operandData: Uint8Array): string {
-  const display = typeof actual === "number" ? String(actual) : truncateHexForMessage(compactHex(actual));
-  return `constraint ${formatConstraint(opCode, operandData)} violated by ${display}`;
+  return node.typeCode;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -94,12 +74,7 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
     if (callDataBytes.length < 4) {
       return {
         ok: false,
-        violations: [
-          {
-            code: "MISSING_SELECTOR",
-            message: "Calldata too short to contain a selector",
-          },
-        ],
+        violations: [{ code: "MISSING_SELECTOR" }],
       };
     }
     const expectedSelector = decoded.selector.value;
@@ -110,8 +85,8 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
         violations: [
           {
             code: "SELECTOR_MISMATCH",
-            message: `Expected selector ${expectedSelector}, got ${actualSelector}`,
             resolvedValue: actualSelector,
+            expectedValue: expectedSelector,
           },
         ],
       };
@@ -203,8 +178,10 @@ function evaluateRule(
       group: groupIndex,
       rule: ruleIndex,
       code: locResult.code,
-      message: `Navigation failed: ${locResult.code}`,
+      scope: Scope.CALLDATA,
       path: rule.path.value,
+      opCode,
+      operandData: rule.data.value,
     };
   }
 
@@ -256,8 +233,9 @@ function evaluateContextRule(
       group: groupIndex,
       rule: ruleIndex,
       code: "MISSING_CONTEXT",
-      message: `Context property ${propInfo.label} not provided`,
+      scope: Scope.CONTEXT,
       path: pathHex,
+      typeCode: propInfo.typeCode,
     };
   }
 
@@ -268,15 +246,18 @@ function evaluateContextRule(
     value = contextValue;
   }
 
-  const result = applyOperator(opCode, value, 32, operandData, TypeCode.UINT_MAX);
+  const result = applyOperator(opCode, value, 32, operandData, propInfo.typeCode);
 
   if (!result) {
     return {
       group: groupIndex,
       rule: ruleIndex,
       code: "VALUE_MISMATCH",
-      message: mismatchMessage(opCode, value, operandData),
+      scope: Scope.CONTEXT,
       path: pathHex,
+      opCode,
+      operandData: bytesToHex(operandData),
+      typeCode: propInfo.typeCode,
       resolvedValue: bigintToHex(value),
     };
   }
@@ -288,12 +269,15 @@ function evaluateContextRule(
 // Core leaf operator
 ///////////////////////////////////////////////////////////////////////////
 
-type LeafResult =
-  | { passed: true; value?: bigint; length?: number }
-  | { passed: false; value?: bigint; length?: number }
-  | { error: ViolationCode };
+type LeafResult = { passed: boolean; resolvedValue: Hex } | { error: NavigationViolationCode };
 
-/** Load a value from calldata at the given location and apply the operator. */
+/**
+ * Load a value from calldata at the given location and apply the operator.
+ *
+ * `resolvedValue` is normalised at the decision point: length operators encode
+ * the byte/element count as a hex bigint; scalar operators preserve the full
+ * 32-byte ABI word so downstream rendering can decode left-aligned `bytesN` faithfully.
+ */
 function applyLeafOperator(
   callDataBytes: Uint8Array,
   location: Location,
@@ -314,7 +298,7 @@ function applyLeafOperator(
     }
 
     const passed = applyOperator(opCode, 0n, valueLength, operandData, node.typeCode);
-    return { passed, length: valueLength };
+    return { passed, resolvedValue: bigintToHex(BigInt(valueLength)) };
   }
 
   const result = loadScalar(callDataBytes, location);
@@ -322,7 +306,7 @@ function applyLeafOperator(
 
   const value = toBigInt(result.value, 0);
   const passed = applyOperator(opCode, value, 32, operandData, node.typeCode);
-  return { passed, value };
+  return { passed, resolvedValue: bytesToHex(result.value) };
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -340,29 +324,32 @@ function evaluateLeaf(
   pathHex: Hex,
 ): Violation | null {
   const result = applyLeafOperator(callDataBytes, location, opCode, operandData);
+  const typeCode = location.node.typeCode;
 
   if ("error" in result) {
-    const message = isLengthOp(opCode)
-      ? `Failed to read length: ${result.error}`
-      : `Failed to load value: ${result.error}`;
     return {
       group: groupIndex,
       rule: ruleIndex,
       code: result.error,
-      message,
+      scope: Scope.CALLDATA,
       path: pathHex,
+      opCode,
+      operandData: bytesToHex(operandData),
+      typeCode,
     };
   }
 
   if (!result.passed) {
-    const actual: bigint | number = result.value !== undefined ? result.value : (result.length ?? 0);
     return {
       group: groupIndex,
       rule: ruleIndex,
       code: "VALUE_MISMATCH",
-      message: mismatchMessage(opCode, actual, operandData),
+      scope: Scope.CALLDATA,
       path: pathHex,
-      resolvedValue: bigintToHex(typeof actual === "number" ? BigInt(actual) : actual),
+      opCode,
+      operandData: bytesToHex(operandData),
+      typeCode,
+      resolvedValue: result.resolvedValue,
     };
   }
 
@@ -388,6 +375,13 @@ function evaluateQuantifier(
   pathHex: Hex,
 ): Violation | null {
   const { quantifier, location: arrayLocation, remainingPath } = qResult;
+  const operandHex = bytesToHex(operandData);
+  // Diagnostic metadata only — resolved before any calldata read so shape/element/navigation
+  // failures can carry it too. Falls back best-effort for hand-crafted blobs that bypass validation.
+  const arrayNode = arrayLocation.node;
+  const elementNode =
+    arrayNode.type === "staticArray" || arrayNode.type === "dynamicArray" ? arrayNode.element : arrayNode;
+  const leafTypeCode = resolveLeafTypeCode(elementNode, remainingPath);
 
   // Compute array shape from the array location.
   const shapeResult = arrayShape(callDataBytes, arrayLocation);
@@ -396,8 +390,11 @@ function evaluateQuantifier(
       group: groupIndex,
       rule: ruleIndex,
       code: shapeResult.code,
-      message: `Failed to read array shape: ${shapeResult.code}`,
+      scope: Scope.CALLDATA,
       path: pathHex,
+      opCode,
+      operandData: operandHex,
+      typeCode: leafTypeCode,
     };
   }
   const shape = shapeResult.shape;
@@ -408,8 +405,9 @@ function evaluateQuantifier(
       group: groupIndex,
       rule: ruleIndex,
       code: "QUANTIFIER_LIMIT_EXCEEDED",
-      message: `Array length ${shape.length} exceeds maximum ${Limits.MAX_QUANTIFIED_ARRAY_LENGTH}`,
+      scope: Scope.CALLDATA,
       path: pathHex,
+      resolvedValue: bigintToHex(BigInt(shape.length)),
     };
   }
 
@@ -422,7 +420,7 @@ function evaluateQuantifier(
       group: groupIndex,
       rule: ruleIndex,
       code: "QUANTIFIER_EMPTY_ARRAY",
-      message: "Quantifier applied to empty array",
+      scope: Scope.CALLDATA,
       path: pathHex,
     };
   }
@@ -439,63 +437,77 @@ function evaluateQuantifier(
           group: groupIndex,
           rule: ruleIndex,
           code: elemResult.code,
-          message: `Quantifier element ${elemIndex}: ${elemResult.code}`,
+          scope: Scope.CALLDATA,
           path: pathHex,
+          opCode,
+          operandData: operandHex,
+          typeCode: leafTypeCode,
+          elementIndex: elemIndex,
         };
       }
       continue;
     }
     const elemLocation = elemResult.location;
 
-    let elemPassed: boolean;
-
+    // Resolve the leaf location: post-descend for suffix paths, the element itself otherwise.
+    let leafLocation: Location;
     if (hasSuffix) {
-      // Descend through suffix path from element location.
-      const leafResult = descendPath(callDataBytes, elemLocation, remainingPath);
-
-      if (!leafResult.ok) {
+      const navResult = descendPath(callDataBytes, elemLocation, remainingPath);
+      if (!navResult.ok) {
         if (isUniversal) {
           return {
             group: groupIndex,
             rule: ruleIndex,
-            code: leafResult.code,
-            message: `Quantifier element ${elemIndex} navigation failed: ${leafResult.code}`,
+            code: navResult.code,
+            scope: Scope.CALLDATA,
             path: pathHex,
+            opCode,
+            operandData: operandHex,
+            typeCode: leafTypeCode,
+            elementIndex: elemIndex,
           };
         }
         continue;
       }
-
-      elemPassed = evaluateLeafValue(leafResult.location, callDataBytes, opCode, operandData);
+      leafLocation = navResult.location;
     } else {
-      // Element itself is the target.
-      const leafResult = applyLeafOperator(callDataBytes, elemLocation, opCode, operandData);
-      if ("error" in leafResult) {
-        if (isUniversal) {
-          return {
-            group: groupIndex,
-            rule: ruleIndex,
-            code: leafResult.error,
-            message: `Quantifier element ${elemIndex}: ${leafResult.error}`,
-            path: pathHex,
-          };
-        }
-        continue;
-      }
-      elemPassed = leafResult.passed;
+      leafLocation = elemLocation;
     }
 
-    // Short-circuit.
-    if (isUniversal && !elemPassed) {
+    const applied = applyLeafOperator(callDataBytes, leafLocation, opCode, operandData);
+
+    if ("error" in applied) {
+      if (isUniversal) {
+        return {
+          group: groupIndex,
+          rule: ruleIndex,
+          code: applied.error,
+          scope: Scope.CALLDATA,
+          path: pathHex,
+          opCode,
+          operandData: operandHex,
+          typeCode: leafTypeCode,
+          elementIndex: elemIndex,
+        };
+      }
+      continue;
+    }
+
+    if (isUniversal && !applied.passed) {
       return {
         group: groupIndex,
         rule: ruleIndex,
         code: "VALUE_MISMATCH",
-        message: `constraint ${formatConstraint(opCode, operandData)} violated at element ${elemIndex}`,
+        scope: Scope.CALLDATA,
         path: pathHex,
+        opCode,
+        operandData: operandHex,
+        typeCode: leafTypeCode,
+        resolvedValue: applied.resolvedValue,
+        elementIndex: elemIndex,
       };
     }
-    if (!isUniversal && elemPassed) {
+    if (!isUniversal && applied.passed) {
       return null;
     }
   }
@@ -503,29 +515,17 @@ function evaluateQuantifier(
   if (isUniversal) {
     return null;
   }
+  // Existential (ANY) failure: every element rejected the constraint.
   return {
     group: groupIndex,
     rule: ruleIndex,
     code: "VALUE_MISMATCH",
-    message: `constraint ${formatConstraint(opCode, operandData)} violated by all elements`,
+    scope: Scope.CALLDATA,
     path: pathHex,
+    opCode,
+    operandData: operandHex,
+    typeCode: leafTypeCode,
   };
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Leaf value evaluation
-///////////////////////////////////////////////////////////////////////////
-
-/** Apply a leaf operator and return a boolean. Returns false on calldata read failure. */
-function evaluateLeafValue(
-  location: Location,
-  callDataBytes: Uint8Array,
-  opCode: number,
-  operandData: Uint8Array,
-): boolean {
-  const result = applyLeafOperator(callDataBytes, location, opCode, operandData);
-  if ("error" in result) return false;
-  return result.passed;
 }
 
 /** Check and enforce policies against ABI-encoded call data. */

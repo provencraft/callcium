@@ -71,30 +71,136 @@ export type Context = {
 /** Result of enforcing a policy: pass with matched group index, or fail with one violation per failed group. */
 export type EnforceResult = { ok: true; matchedGroup: number } | { ok: false; violations: Violation[] };
 
-/** Machine-readable reason code for an enforcement violation. */
-export type ViolationCode =
-  | "VALUE_MISMATCH"
-  | "SELECTOR_MISMATCH"
-  | "MISSING_SELECTOR"
-  | "CALLDATA_OUT_OF_BOUNDS"
-  | "ARRAY_INDEX_OUT_OF_BOUNDS"
-  | "MISSING_CONTEXT"
-  | "QUANTIFIER_LIMIT_EXCEEDED"
-  | "QUANTIFIER_EMPTY_ARRAY";
+/** Subset of violation codes emitted by reader/navigation primitives. */
+export type NavigationViolationCode = "CALLDATA_OUT_OF_BOUNDS" | "ARRAY_INDEX_OUT_OF_BOUNDS";
 
-/** Details of a single rule failure during enforcement. */
-export type Violation = {
-  /** Group index that failed. Absent for pre-group failures (e.g. selector mismatch). */
-  group?: number;
-  /** Rule index within the group. Absent for pre-rule failures. */
-  rule?: number;
-  code: ViolationCode;
-  message: string;
-  /** Rule path that was being evaluated when the violation occurred. */
-  path?: Hex;
-  /** The actual value found in calldata or context, for diagnostic display. */
-  resolvedValue?: Hex;
+/** Calldata is shorter than the policy's selector slot. */
+export type MissingSelectorViolation = {
+  code: "MISSING_SELECTOR";
 };
+
+/** Calldata selector does not match the policy's expected selector. */
+export type SelectorMismatchViolation = {
+  code: "SELECTOR_MISMATCH";
+  /** Selector declared by the policy. */
+  expectedValue: Hex;
+  /** Selector observed in the calldata. */
+  resolvedValue: Hex;
+};
+
+/**
+ * A context-scoped rule referenced a property not supplied in the execution context.
+ *
+ * `opCode` and `operandData` may be added in future versions as diagnostic context
+ * without breaking the contract; consumers should tolerate their presence.
+ */
+export type MissingContextViolation = {
+  code: "MISSING_CONTEXT";
+  group: number;
+  rule: number;
+  scope: number;
+  path: Hex;
+  /** Declared type of the missing context property. */
+  typeCode: number;
+  opCode?: number;
+  operandData?: Hex;
+};
+
+/**
+ * A rule's operator returned false against the loaded value.
+ *
+ * Field combinations:
+ * - `resolvedValue` present, `elementIndex` absent — scalar leaf or context value that failed the operator.
+ * - `resolvedValue` present, `elementIndex` present — universal-quantifier per-element failure.
+ * - `resolvedValue` absent, `elementIndex` absent — existential-aggregate failure (no element satisfied).
+ * - `resolvedValue` absent, `elementIndex` present — per-element failure where the leaf could not be loaded.
+ *
+ * For length operations (`isLengthOp(opCode)`), `resolvedValue` is a hex-encoded count
+ * rather than a 32-byte ABI word.
+ */
+export type ValueMismatchViolation = {
+  code: "VALUE_MISMATCH";
+  group: number;
+  rule: number;
+  scope: number;
+  path: Hex;
+  /** Operator code with the `Op.NOT` bit intact. */
+  opCode: number;
+  /** Full untruncated operand bytes declared by the rule. */
+  operandData: Hex;
+  /** Type code of the failing value's leaf. */
+  typeCode: number;
+  resolvedValue?: Hex;
+  elementIndex?: number;
+};
+
+/**
+ * Single-code shape for a calldata-navigation failure. Internal helper for de-duplication.
+ * @internal
+ */
+type CalldataNavigationVariant<C extends NavigationViolationCode> = {
+  code: C;
+  group: number;
+  rule: number;
+  scope: number;
+  path: Hex;
+  opCode?: number;
+  operandData?: Hex;
+  typeCode?: number;
+  elementIndex?: number;
+};
+
+/**
+ * Calldata structure prevented the rule from being evaluated.
+ *
+ * The operator was never applied; `opCode`, `operandData`, `typeCode`, and `elementIndex`
+ * are diagnostic context describing the failing site, not a constraint claim. Renderers
+ * must not summarise these as "constraint violated".
+ *
+ * Encoded as a union of per-code variants so consumers can narrow on a single code via
+ * `Extract<Violation, { code: "..." }>`.
+ */
+export type CalldataNavigationViolation =
+  | CalldataNavigationVariant<"CALLDATA_OUT_OF_BOUNDS">
+  | CalldataNavigationVariant<"ARRAY_INDEX_OUT_OF_BOUNDS">;
+
+/** A quantified array exceeded `Limits.MAX_QUANTIFIED_ARRAY_LENGTH`. */
+export type QuantifierLimitExceededViolation = {
+  code: "QUANTIFIER_LIMIT_EXCEEDED";
+  group: number;
+  rule: number;
+  scope: number;
+  path: Hex;
+  /** Hex-encoded element count of the offending array. */
+  resolvedValue: Hex;
+};
+
+/** A quantifier (`ANY` or `ALL`) was applied to an empty array. */
+export type QuantifierEmptyArrayViolation = {
+  code: "QUANTIFIER_EMPTY_ARRAY";
+  group: number;
+  rule: number;
+  scope: number;
+  path: Hex;
+};
+
+/**
+ * Structured details of a single rule failure during enforcement.
+ *
+ * Carries semantic data only — message strings are the consumer's responsibility.
+ * Discriminate on `code` to narrow to the matching variant.
+ */
+export type Violation =
+  | MissingSelectorViolation
+  | SelectorMismatchViolation
+  | MissingContextViolation
+  | ValueMismatchViolation
+  | CalldataNavigationViolation
+  | QuantifierLimitExceededViolation
+  | QuantifierEmptyArrayViolation;
+
+/** Machine-readable reason code for an enforcement violation. Derived from `Violation` to prevent drift. */
+export type ViolationCode = Violation["code"];
 
 ///////////////////////////////////////////////////////////////////////////
 // Canonical policy types

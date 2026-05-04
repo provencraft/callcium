@@ -15,9 +15,13 @@ The optional `offset` indicates the byte position in the source blob where the e
 Thrown by `PolicyEnforcer.enforce` when calldata fails policy enforcement.
 Distinct from `CallciumError("VALIDATION_ERROR")`, which signals static
 issues in the policy itself.
-Carries the full list of violations (one per failed group).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L67)
+Carries the full list of structured violations (one per failed group). The
+`Error.message` is a minimal non-lossy diagnostic summary built from the
+first violation's structured fields — not a presentation contract. Consumers
+rendering violations to users should iterate `violations` directly.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L71)
 
 ## Types
 

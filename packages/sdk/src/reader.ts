@@ -2,17 +2,17 @@ import { readU16 } from "./bytes";
 import { isQuantifier } from "./constants";
 import { CallciumError } from "./errors";
 
-import type { DescNode, DynamicArrayNode, StaticArrayNode, TupleNode, ViolationCode } from "./types";
+import type { DescNode, DynamicArrayNode, NavigationViolationCode, StaticArrayNode, TupleNode } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Result types
 ///////////////////////////////////////////////////////////////////////////
 
-/** Generic result type for operations that can fail with a violation code. */
-export type Result<T> = ({ ok: true } & T) | { ok: false; code: ViolationCode };
+/** Generic result type for operations that can fail with a navigation violation code. */
+export type Result<T> = ({ ok: true } & T) | { ok: false; code: NavigationViolationCode };
 
-/** Result of a calldata read: success with data, or failure with a violation code. */
-export type ReadResult<T> = T | { code: ViolationCode };
+/** Result of a calldata read: success with data, or failure with a navigation violation code. */
+export type ReadResult<T> = T | { code: NavigationViolationCode };
 
 /** A resolved position within calldata, pairing a descriptor node with its ABI head and base offsets. */
 export type Location = {
@@ -45,7 +45,7 @@ export type QuantifierResult = {
 export type LocateResult =
   | { ok: true; type: "leaf"; location: Location }
   | { ok: true; type: "quantifier"; quantifier: QuantifierResult }
-  | { ok: false; code: ViolationCode };
+  | { ok: false; code: NavigationViolationCode };
 
 /** Result of computing array shape. */
 export type ArrayShapeResult = Result<{ shape: ArrayShape }>;
@@ -106,7 +106,7 @@ function readStep(pathBytes: Uint8Array, stepIndex: number): number {
 
 type DescendResult =
   | { type: "ok"; head: number; base: number; node: DescNode }
-  | { type: "violation"; code: ViolationCode };
+  | { type: "violation"; code: NavigationViolationCode };
 
 /** Navigate one path step through a node (tuple field, array element, or quantifier). */
 function descend(node: DescNode, callData: Uint8Array, head: number, base: number, childIndex: number): DescendResult {
@@ -270,15 +270,15 @@ export function locate(
   let node = tree[paramIndex]!;
 
   // Steps 1..N: descend through the tree.
-  for (let s = 1; s < stepCount; s++) {
-    const step = readStep(pathBytes, s);
+  for (let stepIndex = 1; stepIndex < stepCount; stepIndex++) {
+    const step = readStep(pathBytes, stepIndex);
 
     // Quantifier step: return the array location and remaining path.
     if (isQuantifier(step)) {
-      const remaining = pathBytes.subarray((s + 1) * 2);
+      const remaining = pathBytes.subarray((stepIndex + 1) * 2);
       // Defence-in-depth: reject nested quantifiers in hand-crafted blobs.
-      for (let r = 0; r < remaining.length / 2; r++) {
-        if (isQuantifier(readStep(remaining, r))) {
+      for (let remainingStepIndex = 0; remainingStepIndex < remaining.length / 2; remainingStepIndex++) {
+        if (isQuantifier(readStep(remaining, remainingStepIndex))) {
           throw new CallciumError("INVALID_QUANTIFIER", "Nested quantifiers are not supported.");
         }
       }
@@ -436,8 +436,8 @@ export function descendPath(callData: Uint8Array, location: Location, pathBytes:
   const stepCount = pathBytes.length / 2;
   let { head, base, node } = location;
 
-  for (let s = 0; s < stepCount; s++) {
-    const step = readStep(pathBytes, s);
+  for (let stepIndex = 0; stepIndex < stepCount; stepIndex++) {
+    const step = readStep(pathBytes, stepIndex);
     const result = descend(node, callData, head, base, step);
     if (result.type === "violation") return { ok: false, code: result.code };
     head = result.head;

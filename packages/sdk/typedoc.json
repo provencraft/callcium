@@ -7,7 +7,7 @@
   "excludeInternal": true,
   "excludeExternals": true,
   "readme": "none",
-  "intentionallyNotExported": ["CodeMap", "OP_TABLE"],
+  "intentionallyNotExported": ["CodeMap", "OP_TABLE", "CalldataNavigationVariant"],
   "treatWarningsAsErrors": true,
   "skipErrorChecking": false,
   "sourceLinkTemplate": "https://github.com/provencraft/callcium/blob/main/{path}#L{line}",

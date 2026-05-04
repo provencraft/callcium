@@ -41,6 +41,7 @@ export {
   lookupTypeCode,
   isQuantifier,
 } from "./constants";
+export { isLengthOp } from "./operators";
 export type {
   Operands,
   OpInfo,
@@ -74,6 +75,14 @@ export type {
   EnforceResult,
   Violation,
   ViolationCode,
+  NavigationViolationCode,
+  MissingSelectorViolation,
+  SelectorMismatchViolation,
+  MissingContextViolation,
+  ValueMismatchViolation,
+  CalldataNavigationViolation,
+  QuantifierLimitExceededViolation,
+  QuantifierEmptyArrayViolation,
 } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////

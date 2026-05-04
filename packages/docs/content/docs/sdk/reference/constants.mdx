@@ -125,6 +125,26 @@ function isQuantifier(step: number): boolean;
 
 `boolean`
 
+### isLengthOp
+
+Return true when the operator code (with or without NOT flag) is a LENGTH_* variant.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L21)
+
+```ts
+function isLengthOp(opCode: number): boolean;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `opCode` | `number` | - |
+
+**Returns**
+
+`boolean`
+
 ## Types
 
 ### Op

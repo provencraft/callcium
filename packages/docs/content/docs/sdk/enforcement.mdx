@@ -21,7 +21,7 @@ import { PolicyEnforcer } from "@callcium/sdk";
 const result = PolicyEnforcer.check(policy, calldata);
 if (!result.ok) {
   for (const violation of result.violations) {
-    console.warn(violation.code, violation.message);
+    console.warn(violation.code);
   }
 }
 
@@ -42,16 +42,31 @@ type EnforceResult = { ok: true; matchedGroup: number } | { ok: false; violation
 
 ## Violation
 
-Each `Violation` describes why a single group rejected the data:
+`Violation` is a discriminated union on `code` — the per-variant field set is documented in the [Types reference](./reference/types). Common fields:
 
-| Field           | Type            | Description                                                                         |
-| --------------- | --------------- | ----------------------------------------------------------------------------------- |
-| `group`         | `number?`       | Group index that failed. Absent for pre-group failures such as `SELECTOR_MISMATCH`. |
-| `rule`          | `number?`       | Rule index within the group. Absent for pre-rule failures.                          |
-| `code`          | `ViolationCode` | Machine-readable reason.                                                            |
-| `message`       | `string`        | Human-readable explanation suitable for logs and UI.                                |
-| `path`          | `Hex?`          | Rule path that was being evaluated when the violation occurred.                     |
-| `resolvedValue` | `Hex?`          | Actual value found in calldata or context, for diagnostic display.                  |
+| Field           | Type            | Description                                                                                                  |
+| --------------- | --------------- | ------------------------------------------------------------------------------------------------------------ |
+| `code`          | `ViolationCode` | Discriminant: which failure occurred.                                                                        |
+| `group`         | `number`        | Group index. Absent on `MISSING_SELECTOR` and `SELECTOR_MISMATCH`.                                           |
+| `rule`          | `number`        | Rule index within the group. Same absences as `group`.                                                       |
+| `scope`         | `number`        | `Scope.CALLDATA` or `Scope.CONTEXT`. Present whenever `path` is.                                             |
+| `path`          | `Hex`           | Rule path being evaluated. Absent on selector-precheck failures.                                             |
+| `opCode`        | `number`        | Operator code (with `Op.NOT` bit intact). Present on `VALUE_MISMATCH`; diagnostic on calldata-nav failures.  |
+| `operandData`   | `Hex`           | Full untruncated rule operand. Same presence as `opCode`.                                                    |
+| `typeCode`      | `number`        | Leaf type code at the failing site.                                                                          |
+| `resolvedValue` | `Hex`           | Value loaded from calldata or context. For length ops and `QUANTIFIER_LIMIT_EXCEEDED`, a hex-encoded count.  |
+| `expectedValue` | `Hex`           | Expected value for selector-precheck failures (`SELECTOR_MISMATCH`).                                         |
+| `elementIndex`  | `number`        | Failing element for universal-quantifier failures. Absent for existential failures ("violated by all").      |
+
+Narrow on `code` to access variant-specific fields:
+
+```ts
+if (violation.code === "VALUE_MISMATCH") {
+  // violation.opCode, violation.operandData, violation.typeCode are all present here.
+}
+```
+
+`Violation` carries semantic data only — message strings are the consumer's responsibility.
 
 ### ViolationCode
 

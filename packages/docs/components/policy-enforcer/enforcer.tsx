@@ -9,6 +9,7 @@ import type { Context, Hex } from "@callcium/sdk";
 import { ErrorBox } from "@/components/ui/error-box";
 import { MonoInput } from "@/components/ui/mono-input";
 import { MonoTextarea } from "@/components/ui/mono-textarea";
+import { formatViolation } from "@/lib/format-violation";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
 import { checkPolicy, type EnforceOutput } from "@/tools/policy-enforcer";
@@ -219,7 +220,7 @@ function ResultDisplay({ result }: { result: EnforceOutput }) {
   const config = STATUS_CONFIG[result.status];
   const Icon = config.icon;
   const items = result.status === "inconclusive" ? result.skipped : result.violations;
-  const isMultiGroup = items.length > 1 && items.every((v) => v.group !== undefined);
+  const isMultiGroup = items.length > 1 && items.every((v) => "group" in v);
 
   if (items.length <= 1) {
     return (
@@ -227,7 +228,7 @@ function ResultDisplay({ result }: { result: EnforceOutput }) {
         <Icon className={cn("size-5 shrink-0", config.iconClass)} />
         <span className="font-semibold">{config.label}</span>
         {result.matchedGroup !== undefined && <span>Matched group {result.matchedGroup + 1}</span>}
-        {items[0] && <span>{items[0].message}</span>}
+        {items[0] && <span>{formatViolation(items[0], result.params)}</span>}
       </div>
     );
   }
@@ -242,8 +243,8 @@ function ResultDisplay({ result }: { result: EnforceOutput }) {
         {items.map((v, i) => (
           // oxlint-disable-next-line react/no-array-index-key
           <div key={i} className="py-1.5">
-            {isMultiGroup && <span className="mr-2 font-semibold">Group {(v.group ?? 0) + 1}</span>}
-            <span>{v.message}</span>
+            {isMultiGroup && "group" in v && <span className="mr-2 font-semibold">Group {v.group + 1}</span>}
+            <span>{formatViolation(v, result.params)}</span>
           </div>
         ))}
       </div>
