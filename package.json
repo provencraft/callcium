@@ -8,7 +8,11 @@
     "packages/docs"
   ],
   "scripts": {
-    "postinstall": "lefthook install"
+    "postinstall": "lefthook install",
+    "release:sdk:patch": "bun tools/release-package.ts sdk patch",
+    "release:sdk:minor": "bun tools/release-package.ts sdk minor",
+    "release:contracts:patch": "bun tools/release-package.ts contracts patch",
+    "release:contracts:minor": "bun tools/release-package.ts contracts minor"
   },
   "devDependencies": {
     "lefthook": "2.1.5"

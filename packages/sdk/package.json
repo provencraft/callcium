@@ -34,9 +34,6 @@
   },
   "scripts": {
     "build": "tsdown",
-    "release:patch": "npm version patch --tag-version-prefix=sdk/v",
-    "release:minor": "npm version minor --tag-version-prefix=sdk/v",
-    "release:major": "npm version major --tag-version-prefix=sdk/v",
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "lint": "oxlint",

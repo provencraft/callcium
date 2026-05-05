@@ -10,6 +10,7 @@
     },
     "packages/contracts": {
       "name": "@callcium/contracts",
+      "version": "0.1.0",
     },
     "packages/docs": {
       "name": "@callcium/docs",
