@@ -1,6 +1,6 @@
 {
   "name": "@callcium/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "TypeScript implementation of the Callcium policy engine",
   "keywords": [
     "abi",
