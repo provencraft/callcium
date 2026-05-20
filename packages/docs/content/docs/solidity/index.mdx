@@ -9,11 +9,6 @@ description: Install Callcium and write your first policy in Solidity.
 forge install provencraft/callcium
 ```
 
-<Callout type="info">
-  Callcium depends on [Solady](https://github.com/Vectorized/solady). Install it separately and ensure it is mapped in
-  your `remappings.txt`.
-</Callout>
-
 ## Define a policy
 
 Policies are designed to be built in Forge scripts and stored onchain for enforcement. A policy starts with a function signature and a set of constraints.
@@ -39,12 +34,11 @@ bytes memory policy = PolicyBuilder
 [`PolicyManager`](/docs/solidity/reference/policy-manager) provides policy storage. [`PolicyEnforcer`](/docs/solidity/reference/policy-enforcer) checks calldata against a stored policy at runtime.
 
 ```solidity
-import { Ownable } from "solady/auth/Ownable.sol";
 import { PolicyEnforcer } from "callcium/PolicyEnforcer.sol";
 import { PolicyManager } from "callcium/PolicyManager.sol";
 
-contract MyVault is PolicyManager, Ownable {
-    function setPolicy(bytes calldata policy) external onlyOwner {
+contract MyVault is PolicyManager {
+    function setPolicy(bytes calldata policy) external /* access-controlled */ {
         _storeAndBindPolicy(address(this), policy);
     }
 

@@ -5,7 +5,8 @@ Solidity implementation of the Callcium policy engine.
 ## Requirements
 
 - Solidity `^0.8.26`
-- [Solady](https://github.com/Vectorized/solady) — install separately and ensure it is mapped in your `remappings.txt`
+
+No external Solidity dependencies.
 
 ## Install
 
