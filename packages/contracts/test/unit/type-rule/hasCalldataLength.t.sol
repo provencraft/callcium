@@ -12,13 +12,19 @@ contract HasCalldataLengthTest is TypeRuleTest {
         assertTrue(TypeRule.hasCalldataLength(TypeCode.DYNAMIC_ARRAY));
     }
 
-    function testFuzz_FalseForTypesWithoutCalldataLength(uint8 code) public pure {
-        // forgefmt: disable-next-item
-        vm.assume(
-               code != TypeCode.BYTES
-            && code != TypeCode.STRING
-            && code != TypeCode.DYNAMIC_ARRAY
-        );
-        assertFalse(TypeRule.hasCalldataLength(code));
+    function testFuzz_FalseForTypesWithoutCalldataLength(uint256 seed) public pure {
+        uint8[256] memory set;
+        uint256 count;
+        for (uint16 i = 0; i < 256; ++i) {
+            // Cast to 'uint8' is safe because 'i' is bounded to [0, 256).
+            // forge-lint: disable-next-line(unsafe-typecast)
+            uint8 code = uint8(i);
+            if (code != TypeCode.BYTES && code != TypeCode.STRING && code != TypeCode.DYNAMIC_ARRAY) {
+                set[count++] = code;
+            }
+        }
+        assertGt(count, 0, "empty set");
+        uint8 picked = set[bound(seed, 0, count - 1)];
+        assertFalse(TypeRule.hasCalldataLength(picked));
     }
 }

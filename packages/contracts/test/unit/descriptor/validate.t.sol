@@ -38,8 +38,17 @@ contract ValidateTest is DescriptorTest {
                            MALFORMED DESCRIPTORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function testFuzz_RevertWhen_UnknownTypeCode(uint8 code) public {
-        vm.assume(!TypeRule.isValid(code));
+    function testFuzz_RevertWhen_UnknownTypeCode(uint256 seed) public {
+        uint8[256] memory set;
+        uint256 count;
+        for (uint16 i = 0; i < 256; ++i) {
+            // Cast to 'uint8' is safe because 'i' is bounded to [0, 256).
+            // forge-lint: disable-next-line(unsafe-typecast)
+            uint8 c = uint8(i);
+            if (!TypeRule.isValid(c)) set[count++] = c;
+        }
+        assertGt(count, 0, "empty set");
+        uint8 code = set[bound(seed, 0, count - 1)];
         vm.expectRevert(abi.encodeWithSelector(Descriptor.UnknownTypeCode.selector, code));
         Descriptor.validate(bytes.concat(hex"0101", bytes1(code)));
     }

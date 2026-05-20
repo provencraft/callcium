@@ -12,14 +12,20 @@ contract IsCompositeTest is TypeRuleTest {
         assertTrue(TypeRule.isComposite(TypeCode.TUPLE));
     }
 
-    function testFuzz_FalseForNonComposite(uint8 code) public pure {
-        // forgefmt: disable-next-item
-        vm.assume(
-               code != TypeCode.STATIC_ARRAY
-            && code != TypeCode.DYNAMIC_ARRAY
-            && code != TypeCode.TUPLE
-        );
-        assertFalse(TypeRule.isComposite(code));
+    function testFuzz_FalseForNonComposite(uint256 seed) public pure {
+        uint8[256] memory set;
+        uint256 count;
+        for (uint16 i = 0; i < 256; ++i) {
+            // Cast to 'uint8' is safe because 'i' is bounded to [0, 256).
+            // forge-lint: disable-next-line(unsafe-typecast)
+            uint8 code = uint8(i);
+            if (code != TypeCode.STATIC_ARRAY && code != TypeCode.DYNAMIC_ARRAY && code != TypeCode.TUPLE) {
+                set[count++] = code;
+            }
+        }
+        assertGt(count, 0, "empty set");
+        uint8 picked = set[bound(seed, 0, count - 1)];
+        assertFalse(TypeRule.isComposite(picked));
     }
 
     function testFuzz_ImpliesIsValid(uint8 code) public pure {
