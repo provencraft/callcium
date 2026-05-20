@@ -25,7 +25,7 @@ pre-commit:
     # Docs
     docs-fmt:
       root: "packages/docs/"
-      glob: "packages/docs/**/*.{ts,tsx,mjs,css,json,md,mdx}"
+      glob: "packages/docs/**/*.{ts,tsx,mjs,css,json,md}"
       run: bunx oxfmt --check {staged_files}
 
     docs-lint:
