@@ -127,6 +127,19 @@ contract EnforcementVectorGenerator is Script {
         _vectorInLargeSetPass();
         _vectorInLargeSetFail();
 
+        // Value canonicalization: dirty bits outside the declared width must not change the outcome.
+        _vectorCanonUintDirtyFail();
+        _vectorCanonUintDirtyPass();
+        _vectorCanonSignedNoExtFail();
+        _vectorCanonSignedDirtyPass();
+        _vectorCanonNegatedDirtyFail();
+        _vectorCanonNegatedDirtyPass();
+        _vectorCanonBytesNDirtyPass();
+        _vectorCanonBoolDirtyTruePass();
+        _vectorCanonBoolTwoFail();
+        _vectorCanonAddressDirtyPass();
+        _vectorCanonFunctionDirtyPass();
+
         // Finalize: write the top-level object to disk.
         vm.writeJson(lastJson, "test/vectors/enforcement.json");
         console2.log("Generated %d enforcement vectors", vectorCount);
@@ -725,6 +738,92 @@ contract EnforcementVectorGenerator is Script {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).isIn(set)).build();
         bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
         _addVector("in-large-set-fail", "IN uint256: 42 not in 10-element set", policy, callData, false);
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                          Value canonicalization
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev uint64 `>= 1000`: low 64 bits = 1, dirty bit above the width. Canonical value 1 fails.
+    function _vectorCanonUintDirtyFail() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint64)").add(arg(0).gte(uint256(1000))).build();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), bytes32((uint256(1) << 64) | 1));
+        _addVector("canon-uint-dirty-fail", "Canonicalize uint64: dirty word, canonical 1 not >= 1000", policy, callData, false);
+    }
+
+    /// @dev uint64 `>= 1000`: low 64 bits = 2000, dirty high bit. Canonical value 2000 passes.
+    function _vectorCanonUintDirtyPass() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint64)").add(arg(0).gte(uint256(1000))).build();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), bytes32((uint256(1) << 255) | 2000));
+        _addVector("canon-uint-dirty-pass", "Canonicalize uint64: dirty word, canonical 2000 >= 1000", policy, callData, true);
+    }
+
+    /// @dev int64 `>= 0`: low 64 bits all set, high zero (not sign-extended). Canonical -1 fails.
+    function _vectorCanonSignedNoExtFail() private {
+        bytes memory policy = PolicyBuilder.create("foo(int64)").add(arg(0).gte(int256(0))).build();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(int64)")), bytes32(uint256(type(uint64).max)));
+        _addVector("canon-signed-noext-fail", "Canonicalize int64: non-extended word, canonical -1 not >= 0", policy, callData, false);
+    }
+
+    /// @dev int64 `>= 0`: low 64 bits = 5, dirty bits above the width. Canonical value 5 passes.
+    function _vectorCanonSignedDirtyPass() private {
+        bytes memory policy = PolicyBuilder.create("foo(int64)").add(arg(0).gte(int256(0))).build();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(int64)")), bytes32((uint256(1) << 200) | 5));
+        _addVector("canon-signed-dirty-pass", "Canonicalize int64: dirty word, canonical 5 >= 0", policy, callData, true);
+    }
+
+    /// @dev uint64 `!= 7` (negated): low 64 bits = 7, dirty high bit. Canonical 7 is the forbidden value.
+    function _vectorCanonNegatedDirtyFail() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint64)").add(arg(0).neq(uint256(7))).build();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), bytes32((uint256(1) << 255) | 7));
+        _addVector("canon-negated-dirty-fail", "Canonicalize uint64: dirty word, canonical 7 is excluded", policy, callData, false);
+    }
+
+    /// @dev uint64 `!= 7` (negated): low 64 bits = 8, dirty high bit. Canonical 8 is allowed.
+    function _vectorCanonNegatedDirtyPass() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint64)").add(arg(0).neq(uint256(7))).build();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), bytes32((uint256(1) << 255) | 8));
+        _addVector("canon-negated-dirty-pass", "Canonicalize uint64: dirty word, canonical 8 not excluded", policy, callData, true);
+    }
+
+    /// @dev bytes4 `== 0x11223344`: value in the high 4 bytes, dirty padding bytes. Canonical value matches.
+    function _vectorCanonBytesNDirtyPass() private {
+        bytes32 operand = bytes32(uint256(0x11223344) << 224);
+        bytes memory policy = PolicyBuilder.create("foo(bytes4)").add(arg(0).eq(operand)).build();
+        bytes32 dirty = bytes32((uint256(0x11223344) << 224) | uint256(0xabcdef));
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(bytes4)")), dirty);
+        _addVector("canon-bytesn-dirty-pass", "Canonicalize bytes4: dirty padding cleared, canonical value matches", policy, callData, true);
+    }
+
+    /// @dev bool `== true`: low bit set, dirty high bits. Canonical value true passes.
+    function _vectorCanonBoolDirtyTruePass() private {
+        bytes memory policy = PolicyBuilder.create("foo(bool)").add(arg(0).eq(true)).build();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(bool)")), bytes32((uint256(1) << 200) | 1));
+        _addVector("canon-bool-dirty-true-pass", "Canonicalize bool: dirty word with low bit set is true", policy, callData, true);
+    }
+
+    /// @dev bool `== true`: word equal to 2 (low bit clear). Masking to the low bit yields false.
+    function _vectorCanonBoolTwoFail() private {
+        bytes memory policy = PolicyBuilder.create("foo(bool)").add(arg(0).eq(true)).build();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(bool)")), bytes32(uint256(2)));
+        _addVector("canon-bool-two-fail", "Canonicalize bool: word 0x02 masks to false, not true", policy, callData, false);
+    }
+
+    /// @dev address `== 0x4D2`: value in the low 160 bits, dirty high bits. Canonical address matches.
+    function _vectorCanonAddressDirtyPass() private {
+        address target = address(uint160(0x4d2));
+        bytes memory policy = PolicyBuilder.create("foo(address)").add(arg(0).eq(target)).build();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(address)")), bytes32((uint256(1) << 200) | uint256(uint160(target))));
+        _addVector("canon-address-dirty-pass", "Canonicalize address: dirty high bits cleared, canonical address matches", policy, callData, true);
+    }
+
+    /// @dev function `==` (bytes24-aligned): value in the high 24 bytes, dirty low padding. Canonical value matches.
+    function _vectorCanonFunctionDirtyPass() private {
+        uint256 fnValue = uint256(0x0102030405060708090a0b0c0d0e0f101112131415161718) << 64;
+        bytes memory policy = PolicyBuilder.create("foo(function)").add(arg(0).eq(bytes32(fnValue))).build();
+        bytes32 dirty = bytes32(fnValue | uint256(0x0123456789abcdef));
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(function)")), dirty);
+        _addVector("canon-function-dirty-pass", "Canonicalize function: dirty low padding cleared, canonical value matches", policy, callData, true);
     }
 
     /*/////////////////////////////////////////////////////////////////////////

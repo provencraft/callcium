@@ -331,7 +331,7 @@ library PolicyEnforcer {
         // Load the value: scalars (32-byte static) get the actual value,
         // dynamic types (bytes, string, arrays) get length only.
         if (!loc.typeInfo.isDynamic && loc.typeInfo.staticSize == 32) {
-            value = CalldataReader.loadScalar(loc, callData);
+            value = TypeRule.canonicalize(CalldataReader.loadScalar(loc, callData), typeCode);
             valueLength = 32;
         } else {
             value = bytes32(0);
@@ -408,7 +408,7 @@ library PolicyEnforcer {
                 // Element is the target.
                 loop.typeCode = elemTypeInfo.code;
                 if (!elemTypeInfo.isDynamic && elemTypeInfo.staticSize == 32) {
-                    loop.value = CalldataReader.loadScalar(elemLoc, callData);
+                    loop.value = TypeRule.canonicalize(CalldataReader.loadScalar(elemLoc, callData), loop.typeCode);
                     loop.valueLength = 32;
                 } else {
                     loop.value = bytes32(0);
@@ -472,7 +472,7 @@ library PolicyEnforcer {
 
         typeCode = loc.typeInfo.code;
         if (!loc.typeInfo.isDynamic && loc.typeInfo.staticSize == 32) {
-            value = CalldataReader.loadScalar(loc, callData);
+            value = TypeRule.canonicalize(CalldataReader.loadScalar(loc, callData), typeCode);
             valueLength = 32;
         } else {
             valueLength = CalldataReader.loadSlice(loc, callData).length;

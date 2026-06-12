@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { Op, TypeCode } from "../src/constants";
-import { applyOperator, isSigned, toBigInt } from "../src/operators";
+import { applyOperator, canonicalize, isSigned, toBigInt } from "../src/operators";
 
 /** Packs a bigint into a 32-byte big-endian Uint8Array (two's complement for values that fit in 256 bits). */
 function word(value: bigint): Uint8Array {
@@ -427,5 +427,101 @@ describe("Op.NOT flag", () => {
 
   test("NOT IN inverts result", () => {
     expect(applyOperator(Op.IN | Op.NOT, 99n, 0, words(10n, 20n, 30n), UINT256)).toBe(true);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// canonicalize
+///////////////////////////////////////////////////////////////////////////
+
+describe("canonicalize", () => {
+  // A value with mixed bits across all byte positions, used to exercise both
+  // sign directions and padding boundaries per width.
+  const SAMPLE = 0x0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0n;
+
+  // Clean, canonically-encoded values must pass through unchanged.
+  test("clean uintN is a no-op across all widths", () => {
+    for (let code = TypeCode.UINT_MIN; code <= TypeCode.UINT_MAX; code++) {
+      const bits = BigInt((code + 1) * 8);
+      const clean = bits === 256n ? SAMPLE : SAMPLE & ((1n << bits) - 1n);
+      expect(canonicalize(clean, code)).toBe(clean);
+    }
+  });
+
+  test("full-width types are identity", () => {
+    expect(canonicalize(MAX_UINT256, TypeCode.UINT_MAX)).toBe(MAX_UINT256);
+    expect(canonicalize(MAX_UINT256, TypeCode.INT_MAX)).toBe(MAX_UINT256);
+    expect(canonicalize(MAX_UINT256, TypeCode.FIXED_BYTES_MAX)).toBe(MAX_UINT256);
+  });
+
+  // Unsigned masking.
+  test("dirty uintN is masked to width", () => {
+    for (let code = TypeCode.UINT_MIN; code < TypeCode.UINT_MAX; code++) {
+      const bits = BigInt((code + 1) * 8);
+      const got = canonicalize(MAX_UINT256, code);
+      expect(got).toBe((1n << bits) - 1n);
+      expect(got >> bits).toBe(0n);
+    }
+  });
+
+  test("uint64 dirty high bit collapses to the low 64 bits", () => {
+    const uint64 = TypeCode.UINT_MIN + 7;
+    expect(canonicalize((1n << 64n) | 5n, uint64)).toBe(5n);
+  });
+
+  // Signed extension.
+  test("int8 sign-extends", () => {
+    const int8 = TypeCode.INT_MIN;
+    expect(BigInt.asIntN(256, canonicalize(0xffn, int8))).toBe(-1n);
+    expect(BigInt.asIntN(256, canonicalize(0x80n, int8))).toBe(-128n);
+    expect(BigInt.asIntN(256, canonicalize(0x7fn, int8))).toBe(127n);
+  });
+
+  test("int64 sign-extends a non-extended word to -1", () => {
+    const int64 = TypeCode.INT_MIN + 7;
+    expect(BigInt.asIntN(256, canonicalize((1n << 64n) - 1n, int64))).toBe(-1n);
+  });
+
+  test("signed matches asIntN across widths", () => {
+    for (let code = TypeCode.INT_MIN; code < TypeCode.INT_MAX; code++) {
+      const bits = (code - TypeCode.INT_MIN + 1) * 8;
+      expect(canonicalize(SAMPLE, code)).toBe(BigInt.asUintN(256, BigInt.asIntN(bits, SAMPLE)));
+    }
+  });
+
+  // Fixed bytes / address / bool / function.
+  test("bytesN clears the low padding bytes across all widths", () => {
+    for (let n = 1; n < 32; n++) {
+      const code = TypeCode.FIXED_BYTES_MIN + n - 1;
+      const padBits = BigInt((32 - n) * 8);
+      const got = canonicalize(MAX_UINT256, code);
+      expect(got >> padBits).toBe(MAX_UINT256 >> padBits);
+      expect(got & ((1n << padBits) - 1n)).toBe(0n);
+    }
+  });
+
+  test("address masks the high bits", () => {
+    const addr = 0x00112233445566778899aabbccddeeff01234567n;
+    const dirty = (0x89abn << 160n) | addr;
+    const got = canonicalize(dirty, TypeCode.ADDRESS);
+    expect(got).toBe(addr);
+    expect(got >> 160n).toBe(0n);
+  });
+
+  test("bool collapses to the low bit", () => {
+    expect(canonicalize(1n, TypeCode.BOOL)).toBe(1n);
+    expect(canonicalize(0n, TypeCode.BOOL)).toBe(0n);
+    // Dirty word with the low bit set is true.
+    expect(canonicalize((1n << 200n) | 1n, TypeCode.BOOL)).toBe(1n);
+    // Word equal to 2 masks to false (matches & 1, not an x != 0 test).
+    expect(canonicalize(2n, TypeCode.BOOL)).toBe(0n);
+  });
+
+  test("function is bytes24-aligned: clears the low 8 padding bytes", () => {
+    const value = 0x0102030405060708090a0b0c0d0e0f101112131415161718n << 64n;
+    const dirty = value | 0x0123456789abcdefn;
+    const got = canonicalize(dirty, TypeCode.FUNCTION);
+    expect(got).toBe(value);
+    expect(got & ((1n << 64n) - 1n)).toBe(0n);
   });
 });

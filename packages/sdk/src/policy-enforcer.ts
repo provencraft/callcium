@@ -8,7 +8,7 @@ import {
   lookupContextProperty,
 } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
-import { applyOperator, toBigInt, isLengthOp } from "./operators";
+import { applyOperator, toBigInt, isLengthOp, canonicalize } from "./operators";
 import { decodePolicy } from "./policy-coder";
 import { locate, arrayShape, arrayElementAt, loadScalar, loadSlice, descendPath } from "./reader";
 
@@ -304,9 +304,9 @@ function applyLeafOperator(
   const result = loadScalar(callDataBytes, location);
   if (!result.ok) return { error: result.code };
 
-  const value = toBigInt(result.value, 0);
+  const value = canonicalize(toBigInt(result.value, 0), node.typeCode);
   const passed = applyOperator(opCode, value, 32, operandData, node.typeCode);
-  return { passed, resolvedValue: bytesToHex(result.value) };
+  return { passed, resolvedValue: bigintToHex(value) };
 }
 
 ///////////////////////////////////////////////////////////////////////////

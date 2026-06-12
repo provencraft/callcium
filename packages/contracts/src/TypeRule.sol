@@ -50,6 +50,54 @@ library TypeRule {
         return code >= TypeCode.INT8 && code <= TypeCode.INT256;
     }
 
+    /// @notice Canonicalizes a raw 32-byte calldata word to its ABI value for the given type.
+    /// @dev A scalar loaded from untrusted calldata may carry dirty bits outside the declared
+    /// type width. Masking unsigned/address/bool to width, clearing the trailing padding of
+    /// left-aligned function/bytesN values, and sign-extending signed integers makes the
+    /// comparison use the canonical ABI value, not the raw bytes.
+    /// @param value The raw 32-byte word loaded from calldata.
+    /// @param typeCode The type code of the value.
+    /// @return The canonicalized value.
+    function canonicalize(bytes32 value, uint8 typeCode) internal pure returns (bytes32) {
+        // Unsigned integers: mask to the low N bits.
+        if (typeCode <= TypeCode.UINT256) {
+            uint256 bits = (uint256(typeCode) + 1) << 3;
+            if (bits == 256) return value;
+            // forge-lint: disable-next-line(incorrect-shift) 2^bits bitmask
+            return bytes32(uint256(value) & ((uint256(1) << bits) - 1));
+        }
+
+        // Signed integers: sign-extend from the type's most significant byte.
+        if (typeCode >= TypeCode.INT8 && typeCode <= TypeCode.INT256) {
+            uint256 byteIndex = uint256(typeCode - TypeCode.INT8);
+            if (byteIndex == 31) return value;
+            bytes32 out;
+            assembly {
+                out := signextend(byteIndex, value)
+            }
+            return out;
+        }
+
+        // Address: mask to the low 160 bits.
+        if (typeCode == TypeCode.ADDRESS) return bytes32(uint256(value) & type(uint160).max);
+
+        // Boolean: collapse to the low bit.
+        if (typeCode == TypeCode.BOOL) return bytes32(uint256(value) & 1);
+
+        // Function pointer: encoded identical to bytes24 (left-aligned), clear the low 8 padding bytes.
+        if (typeCode == TypeCode.FUNCTION) return bytes32((uint256(value) >> 64) << 64);
+
+        // Fixed bytes: left-aligned, clear the low (32 - N) padding bytes.
+        if (typeCode >= TypeCode.BYTES1 && typeCode <= TypeCode.BYTES32) {
+            uint256 n = uint256(typeCode) - uint256(TypeCode.BYTES1) + 1;
+            if (n == 32) return value;
+            uint256 padBits = (32 - n) << 3;
+            return bytes32((uint256(value) >> padBits) << padBits);
+        }
+
+        return value;
+    }
+
     /// @notice Returns the physical limits of a numeric type.
     /// @param typeCode The type code to check.
     /// @return min The minimum possible value (raw bits).

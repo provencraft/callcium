@@ -276,7 +276,7 @@ Validators MUST reject descriptors where `nodeLength`, `staticWords`, array leng
 | `bool` | `0x41` |
 | `function` | `0x42` |
 
-`function` refers to the ABI external function pointer type, encoded as 24 bytes (20-byte address + 4-byte selector) left-padded to one 32-byte ABI word.
+`function` refers to the ABI external function pointer type: a 20-byte address followed by a 4-byte selector, encoded identical to `bytes24`.
 
 Codes `0x43`–`0x4F` are reserved and MUST be rejected in format version 1.
 

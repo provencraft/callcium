@@ -160,6 +160,8 @@ Length operators apply to dynamic arrays (element count) and `bytes`/`string` (b
 
 ### 4.5 Type-Specific Encoding
 
+The encodings in this section define the canonical 32-byte form for operator operands and for resolved calldata values after canonicalization (§7.8).
+
 **Address (typeCode = 0x40):**
 ```
 [0x000000000000000000000000][address:20]
@@ -183,6 +185,12 @@ Sign-extended to 32 bytes (two's complement). Comparison operators (`GT`, `LT`, 
 [0x00...00][0x00 or 0x01]
 ```
 0x00 = false, 0x01 = true. Only EQ and NOT_EQ operators are valid for booleans.
+
+**Function (typeCode = 0x42):**
+```
+[address:20][selector:4][0x0000000000000000]
+```
+External function pointer: a 20-byte address followed by a 4-byte selector (24 bytes total). Encoded identical to `bytes24` — left-aligned in the high 24 bytes and padded with 8 trailing zero bytes.
 
 **Fixed Bytes (typeCode = 0x50-0x6F):**
 ```
@@ -388,7 +396,7 @@ Lexicographic comparison of byte arrays: compare byte-by-byte from index 0. At t
 
 - Context rules (`scope == 0`) resolve the value from the execution environment using the context property ID in `path[0]`.
 - Calldata rules (`scope == 1`) resolve the value by traversing calldata using the descriptor and path (see Callcium Descriptor Spec, Section 6) and loading the scalar at the resolved location.
-- The resolved value and type code are then checked against the operator and data.
+- The resolved value is canonicalized to its declared type per §7.8, then the canonical value and type code are checked against the operator and data.
 
 ### 7.3 Quantifier Handling
 
@@ -424,6 +432,21 @@ Builders MUST detect at least the following categories of unsatisfiable groups a
 Multiple binary rules targeting the same `(path, quantifier)` within a group are valid and expected. Range composition (e.g., `gte(5)` + `lte(10)`) produces two distinct binary rules on the same path, or may be optimized into a single `BETWEEN` rule.
 
 At the source level, builders MUST enforce a single-definition-point constraint: a given `(path, quantifier)` MUST NOT appear in more than one source-level rule definition within the same group.
+
+### 7.8 Value Canonicalization
+
+Before applying an operator, a validator MUST canonicalize the resolved calldata value to the encoding defined in §4.5 for its declared type. The declared type is the type code resolved by descriptor navigation (Callcium Descriptor Spec, Section 6). Given the raw 32-byte word loaded at the resolved location:
+
+- **Unsigned integers (`0x00`–`0x1F`), `address`, `bool`**: zero all bits above the type's value width — `N * 8` bits for `uintN`, 160 for `address`, 1 for `bool`.
+- **Signed integers (`0x20`–`0x3F`)**: sign-extend from the type's most-significant byte (EVM `SIGNEXTEND`).
+- **Fixed bytes (`0x50`–`0x6F`) and `function` (`0x42`)**: zero the low `(32 − N)` padding bytes (the value is left-aligned in the high `N` bytes; `N = 24` for `function`, encoded identical to `bytes24`).
+- **`uint256`, `int256`, `bytes32`**: no change; the value occupies the full word.
+
+Canonicalization normalizes the value; it MUST NOT reject non-canonical calldata. A word carrying bits outside the declared width is evaluated by its canonical value, not its raw bytes.
+
+`bool` is canonicalized by masking to the low bit (`value & 1`): a word whose low bit is clear is `false`, otherwise `true`. This is deliberate and matches an assembly consumer computing `and(x, 1)`; it is not an `x != 0` test. No canonically-encoded `bool` (0 or 1) is affected.
+
+Context values (`scope == 0`) are exempt: per §5.4 they are evaluated as raw 32-byte words.
 
 ---
 

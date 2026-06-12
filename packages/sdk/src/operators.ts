@@ -17,6 +17,48 @@ export function isSigned(typeCode: number): boolean {
   return typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX;
 }
 
+/**
+ * Canonicalize a raw 256-bit calldata word to its ABI value for the declared type (Policy Spec §7.8).
+ * A scalar loaded from untrusted calldata may carry bits outside the declared width; masking
+ * unsigned/address/bool/function/bytesN to width and sign-extending signed integers makes the
+ * comparison use the canonical ABI value rather than the raw bytes.
+ * @param value - The raw 256-bit word loaded from calldata.
+ * @param typeCode - The declared type code of the value.
+ * @returns The canonicalized 256-bit value.
+ */
+export function canonicalize(value: bigint, typeCode: number): bigint {
+  // Unsigned integers: mask to the low N bits.
+  if (typeCode <= TypeCode.UINT_MAX) {
+    const bits = BigInt((typeCode + 1) * 8);
+    return bits === 256n ? value : value & ((1n << bits) - 1n);
+  }
+
+  // Signed integers: sign-extend from the type's most-significant byte.
+  if (typeCode <= TypeCode.INT_MAX) {
+    const bits = (typeCode - TypeCode.INT_MIN + 1) * 8;
+    return bits === 256 ? value : BigInt.asUintN(256, BigInt.asIntN(bits, value));
+  }
+
+  // Address: mask to the low 160 bits.
+  if (typeCode === TypeCode.ADDRESS) return value & ((1n << 160n) - 1n);
+
+  // Boolean: collapse to the low bit.
+  if (typeCode === TypeCode.BOOL) return value & 1n;
+
+  // Function pointer: encoded identical to bytes24 (left-aligned), clear the low 8 padding bytes.
+  if (typeCode === TypeCode.FUNCTION) return (value >> 64n) << 64n;
+
+  // Fixed bytes: left-aligned, clear the low (32 - N) padding bytes.
+  if (typeCode >= TypeCode.FIXED_BYTES_MIN && typeCode <= TypeCode.FIXED_BYTES_MAX) {
+    const n = typeCode - TypeCode.FIXED_BYTES_MIN + 1;
+    if (n === 32) return value;
+    const padBits = BigInt((32 - n) * 8);
+    return (value >> padBits) << padBits;
+  }
+
+  return value;
+}
+
 /** Return true when the operator code (with or without NOT flag) is a LENGTH_* variant. */
 export function isLengthOp(opCode: number): boolean {
   const base = opCode & ~Op.NOT;

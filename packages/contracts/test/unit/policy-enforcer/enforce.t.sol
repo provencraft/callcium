@@ -1194,4 +1194,37 @@ contract EnforceSelectorlessTest is PolicyEnforcerTest {
         bytes memory callData = abi.encode(uint256(99));
         assertFalse(harness.check(policy, callData));
     }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                            VALUE CANONICALIZATION
+    /////////////////////////////////////////////////////////////////////////*/
+
+    // The enforcer must interpret a resolved scalar by its canonical ABI value, i.e.
+    // masked to the declared width for unsigned/bytes types and sign-extended for signed
+    // types. A word with dirty bits outside the type width must be evaluated by its
+    // canonical value, not the raw 32 bytes, or non-canonical calldata bypasses the rule.
+
+    /// @dev uint64 `>= 1000`: canonical value 1 must be rejected despite a high dirty bit.
+    function test_CanonicalizesUintAboveWidth() public view {
+        bytes memory policy = PolicyBuilder.create("foo(uint64)").add(arg(0).gte(uint256(1000))).buildUnsafe();
+        // Low 64 bits = 1 (canonical value), bit 64 set so the raw word reads >= 1000.
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), bytes32((uint256(1) << 64) | 1));
+        assertFalse(harness.check(policy, callData), "canonical value 1 violates >= 1000");
+    }
+
+    /// @dev int64 `>= 0`: non-sign-extended low bits encode -1 and must be rejected.
+    function test_CanonicalizesSignedWithoutSignExtension() public view {
+        bytes memory policy = PolicyBuilder.create("foo(int64)").add(arg(0).gte(int256(0))).buildUnsafe();
+        // Low 64 bits all set, high bits zero: canonical int64 value is -1.
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(int64)")), bytes32(uint256(type(uint64).max)));
+        assertFalse(harness.check(policy, callData), "canonical value -1 violates >= 0");
+    }
+
+    /// @dev uint64 `!= 7` (blocklist): canonical value 7 must fail despite dirty high bits.
+    function test_CanonicalizesUintForNegatedEquality() public view {
+        bytes memory policy = PolicyBuilder.create("foo(uint64)").add(arg(0).neq(uint256(7))).buildUnsafe();
+        // Low 64 bits = 7 (the forbidden value), high dirty bit set.
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), bytes32((uint256(1) << 255) | 7));
+        assertFalse(harness.check(policy, callData), "canonical value 7 is the forbidden value");
+    }
 }
