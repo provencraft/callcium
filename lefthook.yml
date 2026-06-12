@@ -26,6 +26,8 @@ pre-commit:
     docs-fmt:
       root: "packages/docs/"
       glob: "packages/docs/**/*.{ts,tsx,mjs,css,json,md}"
+      exclude:
+        - "packages/docs/content/docs/**"
       run: bunx oxfmt --check {staged_files}
 
     docs-lint:
@@ -39,25 +41,25 @@ pre-commit:
       run: bun run types:check
 
     docs-sync-solidity:
-      root: "packages/docs/"
       glob:
+        - "packages/contracts/src/*.sol"
         - "packages/contracts/src/**/*.sol"
         - "packages/contracts/foundry.toml"
         - "packages/docs/tools/sync-reference.ts"
         - "packages/docs/tools/sol-symbol-map.ts"
-      run: bun run sync:reference && git add content/docs/solidity/reference
+      run: bun run --cwd packages/docs sync:reference && git add packages/docs/content/docs/solidity/reference
 
     docs-sync-sdk:
-      root: "packages/docs/"
       glob:
+        - "packages/sdk/src/*.ts"
         - "packages/sdk/src/**/*.ts"
         - "packages/sdk/typedoc.json"
         - "packages/docs/tools/sync-sdk-reference.ts"
-      run: bun run sync:sdk-reference && git add content/docs/sdk/reference
+      run: bun run --cwd packages/docs sync:sdk-reference && git add packages/docs/content/docs/sdk/reference
 
     docs-sync-specs:
-      root: "packages/docs/"
       glob:
+        - "spec/*.md"
         - "spec/**/*.md"
         - "packages/docs/tools/sync-specs.ts"
-      run: bun run sync:specs && git add "content/docs/(protocol)/specifications"
+      run: bun run --cwd packages/docs sync:specs && git add "packages/docs/content/docs/(protocol)/specifications"
