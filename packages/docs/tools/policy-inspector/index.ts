@@ -7,4 +7,4 @@ export type {
   ExplainedRule,
   ExplainOptions,
 } from "./explainer";
-export { explainPolicy, flattenGroup } from "./explainer";
+export { explainPolicy, flattenGroup, formatOperands } from "./explainer";

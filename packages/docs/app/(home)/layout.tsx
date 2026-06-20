@@ -5,11 +5,11 @@ export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <HomeLayout {...baseOptions()}>
       {children}
-      <footer className="mt-auto py-4 text-center text-xs text-fd-muted-foreground/50">
+      <footer className="mt-auto border-t border-fd-border py-6 text-center text-xs text-fd-muted-foreground">
         Callcium by{" "}
         <a
           href="https://provencraft.com"
-          className="hover:text-fd-muted-foreground"
+          className="text-fd-foreground/80 transition-colors hover:text-fd-foreground"
           target="_blank"
           rel="noopener noreferrer"
         >

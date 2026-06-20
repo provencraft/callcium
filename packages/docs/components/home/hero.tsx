@@ -1,119 +1,51 @@
-import { highlight } from "fumadocs-core/highlight";
-import { CodeBlock, Pre } from "fumadocs-ui/components/codeblock";
-import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import { SiGithub } from "@icons-pack/react-simple-icons";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { HeroBackground } from "./hero-background";
-import { shikiThemes } from "@/lib/shiki";
+import { GridBackground } from "./grid-background";
+import { PolicyLens } from "./policy-lens";
+import { buildApproveLens } from "./policy-lens-data";
+import { gitConfig } from "@/lib/layout.shared";
 import { cn } from "@/lib/utils";
 
-const tabs = [
-  {
-    label: "Flat Arguments",
-    code: `// function approve(address spender, uint256 amount)
-bytes memory policy = PolicyBuilder
-    .create("approve(address,uint256)")
-    .add(arg(0).isIn(trustedSpenders))     // spender
-    .add(arg(1).lte(uint256(1_000_000e6))) // amount
-    .build();`,
-  },
-  {
-    label: "Nested Structs",
-    code: `// struct SwapParams { address tokenIn; address tokenOut; uint256 amount; }
-// function swap(SwapParams params)
-bytes memory policy = PolicyBuilder
-    .create("swap((address,address,uint256))")
-    .add(arg(0, 0).notIn(sanctioned)) // params.tokenIn
-    .add(arg(0, 1).notIn(sanctioned)) // params.tokenOut
-    .add(arg(0, 2).gt(uint256(0)))    // params.amount
-    .build();`,
-  },
-  {
-    label: "Array Guards",
-    code: `// struct Transaction { address to; uint256 value; }
-// function multiSend(Transaction[] calls)
-bytes memory policy = PolicyBuilder
-    .create("multiSend((address,uint256)[])")
-    .add(arg(0).lengthBetween(1, 50))            // calls.length
-    .add(arg(0, Path.ALL, 0).notIn(sanctioned))  // calls[*].to
-    .add(arg(0, Path.ALL, 1).lte(uint256(1e18))) // calls[*].value
-    .build();`,
-  },
-  {
-    label: "Context Constraints",
-    code: `// function transfer(address to, uint256 amount)
-bytes memory policy = PolicyBuilder
-    .create("transfer(address,uint256)")
-    .add(msgSender().isIn(operators))    // caller
-    .add(arg(0).notIn(sanctioned))       // to
-    .add(arg(1).lte(uint256(100e18)))    // amount
-    .build();`,
-  },
-  {
-    label: "OR Groups",
-    code: `// function supply(address asset, uint256 amount)
-bytes memory policy = PolicyBuilder
-    .create("supply(address,uint256)")
-    .add(msgSender().eq(OPERATOR))   // caller
-    .or()
-    .add(arg(0).isIn(allowedAssets)) // asset
-    .build();`,
-  },
-];
-
-export async function Hero() {
-  const highlighted = await Promise.all(
-    tabs.map(async (tab) => ({
-      label: tab.label,
-      rendered: await highlight(tab.code, {
-        lang: "solidity" as const,
-        themes: shikiThemes,
-        defaultColor: false,
-        components: {
-          pre: (props) => <Pre {...props} />,
-        },
-      }),
-    })),
-  );
+export function Hero() {
+  const lens = buildApproveLens();
 
   return (
-    <section className="relative overflow-hidden px-6 py-8 lg:py-12">
-      <HeroBackground />
+    <section className="relative overflow-hidden px-6 py-12 lg:py-16">
+      <GridBackground />
 
-      <div className="relative mx-auto flex max-w-4xl flex-col items-center gap-10">
-        {/* Title block */}
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Image
-            src="/logo.svg"
-            alt="Callcium - Programmable Calldata Policy Engine"
-            aria-hidden="true"
-            className="mb-2 w-36"
-            width={144}
-            height={144}
-          />
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Programmable Calldata Policy Engine</h1>
-          <p className="max-w-xl text-pretty text-lg text-fd-muted-foreground">
-            <span className="block">Define type-safe constraints on ABI‑encoded data.</span>
-            <span className="block">Enforce offchain or onchain.</span>
+      <div className="relative mx-auto flex max-w-5xl flex-col items-center gap-7 text-center">
+        <Image src="/logo.svg" alt="Callcium" aria-hidden="true" className="w-24 sm:w-28" width={144} height={144} />
+
+        <div className="flex flex-col items-center gap-4">
+          <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+            Programmable Calldata Policy Engine
+          </h1>
+          <p className="max-w-2xl text-lg text-pretty text-fd-muted-foreground">
+            Define type-safe constraints on ABI-encoded data. Enforce them{" "}
+            <span className="text-fd-foreground">onchain in Solidity</span>, or{" "}
+            <span className="text-fd-foreground">offchain in TypeScript</span>.
           </p>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <Link href="/docs" className={cn(buttonVariants({ variant: "primary" }), "px-8 py-2.5 text-base")}>
             Get Started
           </Link>
+          <Link
+            href={`https://github.com/${gitConfig.user}/${gitConfig.repo}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(buttonVariants({ variant: "secondary" }), "gap-2 px-6 py-2.5 text-base")}
+          >
+            <SiGithub className="h-4 w-4" aria-hidden="true" />
+            View on GitHub
+          </Link>
         </div>
 
-        {/* Code tabs — full width, server-highlighted */}
-        <div className="w-full">
-          <h2 className="mb-4 text-center text-sm font-medium tracking-wide text-fd-muted-foreground">
-            Build policies with a fluent Solidity API
-          </h2>
-          <Tabs items={highlighted.map((t) => t.label)}>
-            {highlighted.map((tab) => (
-              <Tab key={tab.label} value={tab.label}>
-                <CodeBlock className="min-h-[11rem]">{tab.rendered}</CodeBlock>
-              </Tab>
-            ))}
-          </Tabs>
+        <div className="w-full max-w-2xl text-left">
+          <PolicyLens data={lens} />
         </div>
       </div>
     </section>

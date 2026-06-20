@@ -71,6 +71,14 @@ export function flattenGroup(group: ExplainedGroup): ExplainedFlatRule[] {
   return group.constraints.flatMap((c) => c.rules.map((r) => ({ constraint: c, rule: r })));
 }
 
+/** Render a rule's operands as a display string, bracketed by operand shape (set vs range). */
+export function formatOperands(rule: ExplainedRule): string {
+  const op = rule.operator;
+  if (op === "in" || op === "not in") return `{${rule.operands.join(", ")}}`;
+  if (op.includes("between")) return `[${rule.operands.join(", ")}]`;
+  return rule.operands.join(", ");
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Path resolution
 ///////////////////////////////////////////////////////////////////////////

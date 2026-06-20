@@ -8,13 +8,14 @@ import { useSearchParams } from "next/navigation";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { Abi } from "viem";
 import { ErrorBox } from "@/components/ui/error-box";
+import { HexDump } from "@/components/ui/hex-dump";
 import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { PillToggle } from "@/components/ui/pill-toggle";
 import { lookup4byte, parseAbiJson } from "@/lib/abi";
 import { formatError } from "@/lib/format-error";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
-import { type ExplainedPolicy, type ExplainedRule, explainPolicy, flattenGroup } from "@/tools/policy-inspector";
+import { type ExplainedPolicy, explainPolicy, flattenGroup, formatOperands } from "@/tools/policy-inspector";
 
 const plural = (n: number) => (n === 1 ? "" : "s");
 
@@ -183,13 +184,6 @@ export function Inspector() {
 ///////////////////////////////////////////////////////////////////////////
 // Summary view
 ///////////////////////////////////////////////////////////////////////////
-
-function formatOperands(rule: ExplainedRule): string {
-  const op = rule.operator;
-  if (op === "in" || op === "not in") return `{${rule.operands.join(", ")}}`;
-  if (op.includes("between")) return `[${rule.operands.join(", ")}]`;
-  return rule.operands.join(", ");
-}
 
 function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functionName: string | null }) {
   const displayName = functionName ?? policy.functionName ?? policy.selector;
@@ -410,77 +404,17 @@ function buildByteToSpan(nodes: TreeNode[], totalBytes: number): (Span | null)[]
   return map;
 }
 
-function HexDump({
-  hex,
-  tree,
-  hovered,
-  onHover,
-}: {
-  hex: string;
-  tree: TreeNode[];
-  hovered: Span | null;
-  onHover: (span: Span | null) => void;
-}) {
-  const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
-  const totalBytes = cleanHex.length / 2;
-
-  const byteToSpan = useMemo(() => buildByteToSpan(tree, totalBytes), [tree, totalBytes]);
-
-  // Event delegation: resolve byte index from data attribute.
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      const idx = Number((e.target as HTMLElement).dataset.idx);
-      if (!Number.isNaN(idx)) {
-        const span = byteToSpan[idx];
-        if (span) onHover(span);
-      }
-    },
-    [byteToSpan, onHover],
-  );
-  const handleMouseLeave = useCallback(() => onHover(null), [onHover]);
-
-  return (
-    <div className="rounded-t-lg border-b border-fd-border bg-fd-muted/30 px-4 py-3">
-      {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- hex dump uses event delegation for hover. */}
-      <div
-        className="flex flex-wrap gap-x-0.5 gap-y-0.5 font-mono text-xs leading-relaxed"
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      >
-        {Array.from({ length: totalBytes }, (_, byteIndex) => {
-          const byteHex = cleanHex.slice(byteIndex * 2, byteIndex * 2 + 2);
-          const isHighlighted = hovered && byteIndex >= hovered.start && byteIndex < hovered.end;
-          const isCovered = byteToSpan[byteIndex] !== null;
-
-          return (
-            <span
-              key={byteIndex}
-              data-idx={byteIndex}
-              className={cn(
-                "rounded-sm px-0.5 cursor-default",
-                isHighlighted
-                  ? "bg-fd-info text-fd-info-foreground ring-1 ring-fd-info-foreground/30"
-                  : isCovered
-                    ? "text-fd-foreground"
-                    : "text-fd-muted-foreground/50",
-              )}
-            >
-              {byteHex}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function InspectView({ decoded, explained, hex }: { decoded: DecodedPolicy; explained: ExplainedPolicy; hex: string }) {
   const tree = useMemo(() => buildTree(decoded, explained, hex), [decoded, explained, hex]);
+  const totalBytes = (hex.startsWith("0x") ? hex.length - 2 : hex.length) / 2;
+  const byteToSpan = useMemo(() => buildByteToSpan(tree, totalBytes), [tree, totalBytes]);
   const [hovered, setHovered] = useState<Span | null>(null);
 
   return (
     <div className="rounded-lg border border-fd-border bg-fd-card">
-      <HexDump hex={hex} tree={tree} hovered={hovered} onHover={setHovered} />
+      <div className="rounded-t-lg border-b border-fd-border bg-fd-muted/30 px-4 py-3">
+        <HexDump hex={hex} byteToSpan={byteToSpan} active={hovered} onHover={setHovered} />
+      </div>
       <div className="font-mono text-xs">
         <div
           className="flex items-baseline gap-2 border-b border-fd-border px-3 py-1 text-fd-muted-foreground/60"
