@@ -39,10 +39,9 @@ export function PolicyLens({ data }: { data: LensData }) {
 
   return (
     <div>
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <span className="font-mono text-[0.7rem] text-fd-muted-foreground/50">a policy is just canonical bytes</span>
-        <span className="font-mono text-[0.7rem] text-fd-muted-foreground/50">hover or tap a field</span>
-      </div>
+      <p className="mb-3 text-center font-mono text-[0.7rem] text-fd-muted-foreground/50">
+        A policy is just canonical bytes
+      </p>
 
       <div className="overflow-hidden rounded-lg border border-fd-border bg-fd-card">
         <div className="border-b border-fd-border bg-fd-muted/30 px-4 py-3">
@@ -80,6 +79,8 @@ export function PolicyLens({ data }: { data: LensData }) {
           ))}
         </div>
       </div>
+
+      <p className="mt-3 text-center font-mono text-[0.7rem] text-fd-muted-foreground/50">Hover or tap a field</p>
     </div>
   );
 }

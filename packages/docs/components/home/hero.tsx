@@ -29,15 +29,15 @@ export function Hero() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Link href="/docs" className={cn(buttonVariants({ variant: "primary" }), "px-8 py-2.5 text-base")}>
+        <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <Link href="/docs" className={cn(buttonVariants({ variant: "primary" }), "px-8 py-2.5 text-base sm:w-auto")}>
             Get Started
           </Link>
           <Link
             href={`https://github.com/${gitConfig.user}/${gitConfig.repo}`}
             target="_blank"
             rel="noopener noreferrer"
-            className={cn(buttonVariants({ variant: "secondary" }), "gap-2 px-6 py-2.5 text-base")}
+            className={cn(buttonVariants({ variant: "secondary" }), "gap-2 px-6 py-2.5 text-base sm:w-auto")}
           >
             <SiGithub className="h-4 w-4" aria-hidden="true" />
             View on GitHub

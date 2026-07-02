@@ -18,7 +18,7 @@ export function GetStarted() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
           <GetStartedButton />
           <Link
             href={`https://github.com/${gitConfig.user}/${gitConfig.repo}`}

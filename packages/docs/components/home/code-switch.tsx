@@ -27,7 +27,7 @@ export function CodeSwitch({
   const { lang, setLang } = useLanguage();
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         {label ? (
           <span className="font-mono text-xs text-fd-muted-foreground">{label}</span>
@@ -36,8 +36,8 @@ export function CodeSwitch({
         )}
         <PillToggle value={lang} options={LANG_OPTIONS} onChange={setLang} />
       </div>
-      <div className={cn(lang !== "solidity" && "hidden")}>{solidity}</div>
-      <div className={cn(lang !== "typescript" && "hidden")}>{typescript}</div>
+      <div className={cn("min-w-0", lang !== "solidity" && "hidden")}>{solidity}</div>
+      <div className={cn("min-w-0", lang !== "typescript" && "hidden")}>{typescript}</div>
     </div>
   );
 }
