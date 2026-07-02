@@ -4,8 +4,10 @@ pragma solidity ^0.8.26;
 import { PolicyTest } from "../Policy.t.sol";
 
 import { Be16 } from "src/Be16.sol";
+import { arg } from "src/Constraint.sol";
 import { OpCode } from "src/OpCode.sol";
 import { Policy } from "src/Policy.sol";
+import { PolicyBuilder } from "src/PolicyBuilder.sol";
 import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 
 contract ValidateTest is PolicyTest {
@@ -96,6 +98,28 @@ contract ValidateTest is PolicyTest {
         }
         vm.expectRevert(Policy.UnexpectedEnd.selector);
         harness.validate(extended);
+    }
+
+    function test_RevertWhen_InSetNotSorted() public {
+        uint256[] memory set = new uint256[](2);
+        set[0] = 10;
+        set[1] = 20;
+        bytes memory blob = PolicyBuilder.create("foo(uint256)").add(arg(0).isIn(set)).buildUnsafe();
+
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        uint8 depth = uint8(blob[ruleOffset + PF.RULE_DEPTH_OFFSET]);
+        uint256 payloadStart = ruleOffset + PF.RULE_PATH_OFFSET + uint256(depth) * PF.PATH_STEP_SIZE
+            + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
+
+        // Swap the two sorted operand words so the set is descending.
+        for (uint256 i; i < 32; ++i) {
+            bytes1 tmp = blob[payloadStart + i];
+            blob[payloadStart + i] = blob[payloadStart + 32 + i];
+            blob[payloadStart + 32 + i] = tmp;
+        }
+
+        vm.expectRevert(abi.encodeWithSelector(Policy.UnsortedInSet.selector, ruleOffset));
+        harness.validate(blob);
     }
 
     /*/////////////////////////////////////////////////////////////////////////

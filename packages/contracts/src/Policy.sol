@@ -74,6 +74,10 @@ library Policy {
     /// @param ruleOffset The offset of the rule with the invalid operator.
     error UnknownOperator(uint256 ruleOffset);
 
+    /// @notice Thrown when an IN operator's operands are not strictly ascending (unsigned).
+    /// @param ruleOffset The offset of the rule with the unsorted set.
+    error UnsortedInSet(uint256 ruleOffset);
+
     /// @notice Thrown when a group declares zero rules.
     /// @param groupOffset The offset of the empty group.
     error EmptyGroup(uint256 groupOffset);
@@ -192,38 +196,7 @@ library Policy {
             uint256 ruleOffset = offset + PF.GROUP_HEADER_SIZE;
 
             for (uint256 ruleIndex; ruleIndex < totalRules; ++ruleIndex) {
-                uint16 ruleTotalSize = ruleSize(self, ruleOffset);
-
-                // Scope must be a defined value.
-                uint8 ruleScope = uint8(self[ruleOffset + PF.RULE_SCOPE_OFFSET]);
-                require(ruleScope == PF.SCOPE_CONTEXT || ruleScope == PF.SCOPE_CALLDATA, InvalidScope(ruleOffset));
-
-                // Framing consistency: declared size must match field layout.
-                uint256 depth = uint8(self[ruleOffset + PF.RULE_DEPTH_OFFSET]);
-                // forgefmt: disable-next-item
-                uint256 dataLengthOffset = (
-                    ruleOffset + PF.RULE_PATH_OFFSET + depth * PF.PATH_STEP_SIZE + PF.RULE_OPCODE_SIZE
-                );
-                require(
-                    dataLengthOffset + PF.RULE_DATALENGTH_SIZE <= ruleOffset + ruleTotalSize,
-                    RuleSizeMismatch(ruleOffset)
-                );
-                uint16 dataLength = Be16.readUnchecked(self, dataLengthOffset);
-                require(
-                    ruleTotalSize == PF.RULE_FIXED_OVERHEAD + depth * PF.PATH_STEP_SIZE + dataLength,
-                    RuleSizeMismatch(ruleOffset)
-                );
-
-                // Operator must be a defined opcode with valid payload size.
-                uint8 opBase = uint8(self[dataLengthOffset - PF.RULE_OPCODE_SIZE]) & ~OpCode.NOT;
-                require(opBase != 0 && OpRule.isValidPayloadSize(opBase, dataLength), UnknownOperator(ruleOffset));
-
-                // Path must be non-empty. Context-scope rules must have exactly one path step.
-                require(depth >= 1, EmptyPath(ruleOffset));
-                if (ruleScope == PF.SCOPE_CONTEXT) require(depth == 1, InvalidContextPath(ruleOffset));
-
-                ruleOffset += ruleTotalSize;
-                require(ruleOffset <= groupEnd, RuleOverflow(ruleOffset - ruleTotalSize));
+                ruleOffset = _validateRule(self, ruleOffset, groupEnd);
             }
 
             require(ruleOffset == groupEnd, GroupSizeMismatch(offset));
@@ -232,6 +205,62 @@ library Policy {
         }
 
         require(offset == self.length, UnexpectedEnd());
+    }
+
+    /// @dev Validates a single rule and returns the offset of the next rule.
+    function _validateRule(bytes memory self, uint256 ruleOffset, uint256 groupEnd) private pure returns (uint256) {
+        uint16 ruleTotalSize = ruleSize(self, ruleOffset);
+
+        // Scope must be a defined value.
+        uint8 ruleScope = uint8(self[ruleOffset + PF.RULE_SCOPE_OFFSET]);
+        require(ruleScope == PF.SCOPE_CONTEXT || ruleScope == PF.SCOPE_CALLDATA, InvalidScope(ruleOffset));
+
+        // Framing consistency: declared size must match field layout.
+        uint256 depth = uint8(self[ruleOffset + PF.RULE_DEPTH_OFFSET]);
+        uint256 dataLengthOffset = ruleOffset + PF.RULE_PATH_OFFSET + depth * PF.PATH_STEP_SIZE + PF.RULE_OPCODE_SIZE;
+        require(dataLengthOffset + PF.RULE_DATALENGTH_SIZE <= ruleOffset + ruleTotalSize, RuleSizeMismatch(ruleOffset));
+        uint16 dataLength = Be16.readUnchecked(self, dataLengthOffset);
+        require(
+            ruleTotalSize == PF.RULE_FIXED_OVERHEAD + depth * PF.PATH_STEP_SIZE + dataLength,
+            RuleSizeMismatch(ruleOffset)
+        );
+
+        // Operator must be a defined opcode with valid payload size.
+        uint8 opBase = uint8(self[dataLengthOffset - PF.RULE_OPCODE_SIZE]) & ~OpCode.NOT;
+        require(opBase != 0 && OpRule.isValidPayloadSize(opBase, dataLength), UnknownOperator(ruleOffset));
+
+        // IN operands must be strictly ascending (unsigned): the enforcer's binary search
+        // relies on the order, and strictness also rejects duplicates.
+        if (opBase == OpCode.IN) {
+            _validateInAscending(self, dataLengthOffset + PF.RULE_DATALENGTH_SIZE, dataLength, ruleOffset);
+        }
+
+        // Path must be non-empty. Context-scope rules must have exactly one path step.
+        require(depth >= 1, EmptyPath(ruleOffset));
+        if (ruleScope == PF.SCOPE_CONTEXT) require(depth == 1, InvalidContextPath(ruleOffset));
+
+        ruleOffset += ruleTotalSize;
+        require(ruleOffset <= groupEnd, RuleOverflow(ruleOffset - ruleTotalSize));
+        return ruleOffset;
+    }
+
+    /// @dev Requires the IN operand words to be strictly ascending by unsigned value.
+    function _validateInAscending(
+        bytes memory self,
+        uint256 payloadStart,
+        uint16 dataLength,
+        uint256 ruleOffset
+    )
+        private
+        pure
+    {
+        uint256 count = dataLength / 32;
+        uint256 prev = uint256(LibBytes.load(self, payloadStart));
+        for (uint256 i = 1; i < count; ++i) {
+            uint256 cur = uint256(LibBytes.load(self, payloadStart + i * 32));
+            require(cur > prev, UnsortedInSet(ruleOffset));
+            prev = cur;
+        }
     }
 
     /// @notice Returns the byte offset of the `index`-th group in `self`.

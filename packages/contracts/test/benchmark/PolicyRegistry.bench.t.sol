@@ -21,12 +21,14 @@ abstract contract PolicyRegistryBench is PolicyRegistryTest {
     bytes internal policyNestedTuple;
     bytes internal policyArray;
     bytes internal policyComplex;
+    bytes internal policyLargeIn;
 
     function setUp() public virtual override {
         super.setUp();
         _buildPolicyFixtures();
         _buildTargetFixtures();
         _buildDescriptorComplexityFixtures();
+        _buildLargeSetFixtures();
     }
 
     function _buildPolicyFixtures() internal {
@@ -61,6 +63,16 @@ abstract contract PolicyRegistryBench is PolicyRegistryTest {
             .buildUnsafe();
         policyComplex = PolicyBuilder.create("corge(uint256,(address,uint256[],bool),(uint256,uint256))")
             .add(arg(0).eq(uint256(1)))
+            .buildUnsafe();
+    }
+
+    function _buildLargeSetFixtures() internal {
+        uint256[] memory largeSet = new uint256[](256);
+        for (uint256 i; i < 256; ++i) {
+            largeSet[i] = i + 1;
+        }
+        policyLargeIn = PolicyBuilder.create("grault(uint256)")
+            .add(arg(0).isIn(largeSet))
             .buildUnsafe();
     }
 }

@@ -45,4 +45,9 @@ contract StoreBench is PolicyRegistryBench {
         harness.store(policyComplex);
         vm.snapshotGasLastCall("PolicyRegistry.store", "complex_3params");
     }
+
+    function test_StoreLargeInSet() public {
+        harness.store(policyLargeIn);
+        vm.snapshotGasLastCall("PolicyRegistry.store", "large_in_set_256");
+    }
 }
