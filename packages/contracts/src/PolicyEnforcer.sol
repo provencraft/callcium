@@ -627,7 +627,9 @@ library PolicyEnforcer {
     /// @dev Checks if `value` is in the set of operands.
     /// Operands are packed as consecutive sorted 32-byte values.
     /// Uses linear scan for small sets (<=6 elements) and binary search for larger sets.
-    /// Binary search adapted from Solady LibSort._searchSorted.
+    /// Binary search adapted from Solady LibSort._searchSorted: 1-indexed search over the
+    /// packed operands, where adjBase mimics the array length slot. Unsigned-only,
+    /// membership-only — the signed bias and index-return of the original are dropped.
     /// Assumes dataLength > 0 and dataLength % 32 == 0.
     function _checkIn(
         bytes32 value,
@@ -653,14 +655,15 @@ library PolicyEnforcer {
                 }
             }
             default {
-                // Binary search using 1-indexed access: adjBase = base - 32.
+                // Binary search using 1-indexed access: adjBase = base - 32,
                 // so that mload(adjBase + 32*i) reads element i-1 (0-based).
                 let adjBase := sub(base, 32)
                 let l := 1
                 let h := shr(5, dataLength)
                 let t := 0
+                let mid := 0
                 for { } 1 { } {
-                    let mid := shr(1, add(l, h))
+                    mid := shr(1, add(l, h))
                     t := mload(add(adjBase, shl(5, mid)))
                     if or(gt(l, h), eq(t, value)) { break }
                     if iszero(gt(value, t)) {
@@ -669,7 +672,7 @@ library PolicyEnforcer {
                     }
                     l := add(mid, 1)
                 }
-                found := eq(t, value)
+                found := and(eq(t, value), iszero(iszero(mid)))
             }
         }
     }

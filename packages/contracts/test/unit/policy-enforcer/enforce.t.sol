@@ -21,6 +21,8 @@ import { PolicyCoder, PolicyData } from "src/PolicyCoder.sol";
 import { PolicyEnforcer } from "src/PolicyEnforcer.sol";
 import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 
+import { LibBytes } from "solady/utils/LibBytes.sol";
+
 import { PolicyEnforcerTest } from "../PolicyEnforcer.t.sol";
 
 /// @dev Tests for value and length operators (eq, gt, lt, between, bitmask, length, etc.)
@@ -174,6 +176,38 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(80));
         harness.enforce(policy, callData);
+    }
+
+    /// @dev A value equal to the 32-byte policy word immediately preceding the operand
+    /// payload, and strictly below the set minimum, is not a member of the set and must be
+    /// rejected. The set has 8 elements so membership resolves via the binary-search path.
+    function test_In_HeaderWordBelowMinIsNotMember() public view {
+        // The 8 largest possible values, so the small header word is trivially below the set.
+        uint256 setMin = type(uint256).max - 7;
+        uint256[] memory set = new uint256[](8);
+        for (uint256 i; i < 8; ++i) {
+            set[i] = setMin + i;
+        }
+
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).isIn(set))
+            .buildUnsafe();
+
+        // At mid == 0 the search reads the word just before the operand payload, not a set
+        // element. Operands begin at dataOffset, so that word is the one ending at dataOffset.
+        // `dataOffset - 32` underflows when dataOffset < 32, but the wrap cancels in load's
+        // pointer addition (mod 2^256), so it still resolves to that word.
+        uint256 ruleOffset = Policy.ruleAt(policy, Policy.groupAt(policy, 0), 0);
+        (uint256 dataOffset,) = Policy.dataView(policy, ruleOffset);
+        uint256 headerWord;
+        unchecked {
+            headerWord = uint256(LibBytes.load(policy, dataOffset - 32));
+        }
+
+        assertLt(headerWord, setMin, "header word must be below the set minimum");
+
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", headerWord);
+        assertFalse(harness.check(policy, callData), "header word wrongly reported as a set member");
     }
 
     function test_BitmaskAll_AllBitsSet() public view {
