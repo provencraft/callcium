@@ -15,7 +15,8 @@ enum IssueCategory {
     TypeMismatch,
     Contradiction,
     Redundancy,
-    Vacuity
+    Vacuity,
+    Compatibility
 }
 
 /// @notice A single validation issue found during policy analysis.
@@ -808,6 +809,101 @@ library ValidationIssue {
             value1: bytes32(value),
             value2: bytes32(0),
             message: "lengthLte() bound equals maximum (always true)"
+        });
+    }
+
+    /// @notice Creates a warning for a path deeper than the reference enforcer's cap.
+    /// @return The constructed validation issue.
+    function pathDepthExceeded(
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        uint256 depth,
+        uint256 maxDepth
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return Issue({
+            severity: IssueSeverity.Warning,
+            category: IssueCategory.Compatibility,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: IssueCode.PATH_DEPTH_EXCEEDED,
+            value1: bytes32(depth),
+            value2: bytes32(maxDepth),
+            message: "Path depth exceeds the reference enforcer cap"
+        });
+    }
+
+    /// @notice Creates a warning for a quantifier over a static array beyond the iteration cap.
+    /// @return The constructed validation issue.
+    function quantifierOverStaticLimit(
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        uint256 arrayLength,
+        uint256 maxLength
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return Issue({
+            severity: IssueSeverity.Warning,
+            category: IssueCategory.Compatibility,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: IssueCode.QUANTIFIER_OVER_STATIC_LIMIT,
+            value1: bytes32(arrayLength),
+            value2: bytes32(maxLength),
+            message: "Quantifier over static array exceeds the reference enforcer cap"
+        });
+    }
+
+    /// @notice Creates a warning for an unassigned context property ID.
+    /// @return The constructed validation issue.
+    function unknownContextProperty(
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        uint256 contextId,
+        uint256 maxContextId
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return Issue({
+            severity: IssueSeverity.Warning,
+            category: IssueCategory.Compatibility,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: IssueCode.UNKNOWN_CONTEXT_PROPERTY,
+            value1: bytes32(contextId),
+            value2: bytes32(maxContextId),
+            message: "Unknown context property ID"
+        });
+    }
+
+    /// @notice Creates a warning for a negated operator under an existential quantifier.
+    /// @return The constructed validation issue.
+    function negationUnderAny(
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        uint256 opCode
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return Issue({
+            severity: IssueSeverity.Warning,
+            category: IssueCategory.Compatibility,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: IssueCode.NEGATION_UNDER_ANY,
+            value1: bytes32(opCode),
+            value2: bytes32(0),
+            message: "Negated operator under any() passes when a decoy element differs"
         });
     }
 }

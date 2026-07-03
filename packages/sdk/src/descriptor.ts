@@ -1,5 +1,5 @@
 import { readU16, readU24 } from "./bytes";
-import { DescriptorFormat as DF, TypeCode } from "./constants";
+import { DescriptorFormat as DF, TypeCode, isQuantifier } from "./constants";
 import { CallciumError } from "./errors";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -93,6 +93,19 @@ function inspect(desc: Uint8Array, offset: number): TypeInfo {
  * @throws {CallciumError} On empty steps, out-of-bounds param, or descent into elementary type.
  */
 function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
+  return walkPath(desc, steps).typeInfo;
+}
+
+/**
+ * Resolve the type at the path and the declared length of the static array a
+ * quantifier step descends into (zero when the path holds no quantifier step
+ * over a static array).
+ * @param desc - Raw descriptor bytes.
+ * @param steps - Path steps, length >= 1.
+ * @returns TypeInfo at the resolved path and the quantified static array length.
+ * @throws {CallciumError} On empty steps, out-of-bounds param, or descent into elementary type.
+ */
+function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quantifiedStaticLength: number } {
   if (steps.length === 0) {
     throw new CallciumError("INVALID_PATH", "Path must have at least one step.");
   }
@@ -104,6 +117,7 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
   }
 
   let cursor = paramOffset(desc, paramIndex);
+  let quantifiedStaticLength = 0;
 
   for (let stepIndex = 1; stepIndex < steps.length; stepIndex++) {
     const typeCode = desc[cursor]!;
@@ -116,13 +130,16 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
       }
       cursor = tupleFieldOffset(desc, cursor, step);
     } else if (typeCode === TypeCode.STATIC_ARRAY || typeCode === TypeCode.DYNAMIC_ARRAY) {
+      if (typeCode === TypeCode.STATIC_ARRAY && isQuantifier(step)) {
+        quantifiedStaticLength = staticArrayLength(desc, cursor);
+      }
       cursor = arrayElementOffset(cursor);
     } else {
       throw new CallciumError("INVALID_PATH", `Cannot descend into elementary type at offset ${cursor}.`);
     }
   }
 
-  return inspect(desc, cursor);
+  return { typeInfo: inspect(desc, cursor), quantifiedStaticLength };
 }
 
 /**
@@ -165,4 +182,5 @@ export const Descriptor = {
   staticArrayLength,
   nodeLength,
   arrayElementOffset,
+  walkPath,
 };

@@ -202,6 +202,18 @@ export function decodePolicy(blob: Hex): {
         throw new CallciumError("INVALID_OPERATOR", "Unrecognized or malformed operator", ruleOffset);
       }
 
+      // IN operands must be strictly ascending (unsigned): the enforcer's binary search relies on it.
+      if (opBase === Op.IN) {
+        const wordCount = dataLengthValue / 32;
+        for (let word = 1; word < wordCount; word++) {
+          const prev = data.subarray(dataStart + (word - 1) * 32, dataStart + word * 32);
+          const cur = data.subarray(dataStart + word * 32, dataStart + (word + 1) * 32);
+          if (compareBytes(prev, cur) >= 0) {
+            throw new CallciumError("UNSORTED_IN_SET", "IN operands must be strictly ascending", ruleOffset);
+          }
+        }
+      }
+
       rules.push({
         ruleSize: field(ruleSizeValue, ruleOffset, ruleOffset + PF.RULE_SIZE_SIZE),
         scope: field(scopeValue, scopeOffset, scopeOffset + 1),

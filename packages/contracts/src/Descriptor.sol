@@ -260,6 +260,25 @@ library Descriptor {
     /// @param path Path encoded as big-endian uint16 steps.
     /// @return The type info at the resolved path.
     function typeAt(bytes memory self, bytes memory path) internal pure returns (TypeInfo memory) {
+        (TypeInfo memory typeInfo,) = walkPath(self, path);
+        return typeInfo;
+    }
+
+    /// @notice Resolves the type at path and the declared length of the static array a
+    /// quantifier step descends into.
+    /// @dev The length is zero when the path holds no quantifier step over a static array.
+    /// @param self The descriptor bytes.
+    /// @param path Path encoded as big-endian uint16 steps.
+    /// @return typeInfo The type info at the resolved path.
+    /// @return quantifiedStaticLength The declared static array length under the quantifier, or zero.
+    function walkPath(
+        bytes memory self,
+        bytes memory path
+    )
+        internal
+        pure
+        returns (TypeInfo memory typeInfo, uint256 quantifiedStaticLength)
+    {
         // Validate descriptor version and resolve top-level argument.
         uint8 formatVersion = version(self);
         require(formatVersion == DF.VERSION, UnsupportedVersion(formatVersion));
@@ -285,6 +304,8 @@ library Descriptor {
                 if (childIndex < Path.ANY) {
                     uint256 arrayLength = staticArrayLength(self, descOffset);
                     require(childIndex < arrayLength, ArrayIndexOutOfBounds(childIndex, arrayLength));
+                } else {
+                    quantifiedStaticLength = staticArrayLength(self, descOffset);
                 }
                 descOffset += DF.ARRAY_HEADER_SIZE;
             } else if (code == TypeCode.DYNAMIC_ARRAY) {
@@ -295,7 +316,7 @@ library Descriptor {
         }
 
         (uint8 finalCode, bool isDynamic, uint32 staticSize,) = inspect(self, descOffset);
-        return TypeInfo({ code: finalCode, isDynamic: isDynamic, staticSize: staticSize });
+        typeInfo = TypeInfo({ code: finalCode, isDynamic: isDynamic, staticSize: staticSize });
     }
 
     /*/////////////////////////////////////////////////////////////////////////

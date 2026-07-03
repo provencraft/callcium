@@ -7,26 +7,8 @@ import { expectErrorCode, hex } from "./helpers";
 import type { CallciumErrorCode, Constraint, PolicyData } from "../src";
 
 ///////////////////////////////////////////////////////////////////////////
-// Test helpers
+// Vector types
 ///////////////////////////////////////////////////////////////////////////
-
-const ERROR_MAP: Record<string, CallciumErrorCode> = {
-  MalformedHeader: "MALFORMED_HEADER",
-  UnsupportedVersion: "UNSUPPORTED_VERSION",
-  UnexpectedEnd: "UNEXPECTED_END",
-  EmptyPolicy: "EMPTY_POLICY",
-  EmptyGroup: "EMPTY_GROUP",
-  EmptyPath: "EMPTY_PATH",
-  InvalidContextPath: "INVALID_CONTEXT_PATH",
-  InvalidScope: "INVALID_SCOPE",
-  RuleSizeMismatch: "RULE_SIZE_MISMATCH",
-  GroupSizeMismatch: "GROUP_SIZE_MISMATCH",
-  GroupTooSmall: "GROUP_SIZE_MISMATCH",
-  GroupOverflow: "GROUP_OVERFLOW",
-  RuleTooSmall: "RULE_SIZE_MISMATCH",
-  RuleOverflow: "RULE_OVERFLOW",
-  UnknownOperator: "INVALID_OPERATOR",
-};
 
 type VectorConstraint = {
   path: string;
@@ -59,6 +41,29 @@ type Vector = {
 const vectors: Vector[] = rawVectors;
 const validVectors = vectors.filter((v) => v.error === "" && v.spec?.decoded !== undefined);
 
+///////////////////////////////////////////////////////////////////////////
+// Test helpers
+///////////////////////////////////////////////////////////////////////////
+
+const ERROR_MAP: Record<string, CallciumErrorCode> = {
+  MalformedHeader: "MALFORMED_HEADER",
+  UnsupportedVersion: "UNSUPPORTED_VERSION",
+  UnexpectedEnd: "UNEXPECTED_END",
+  EmptyPolicy: "EMPTY_POLICY",
+  EmptyGroup: "EMPTY_GROUP",
+  EmptyPath: "EMPTY_PATH",
+  InvalidContextPath: "INVALID_CONTEXT_PATH",
+  InvalidScope: "INVALID_SCOPE",
+  RuleSizeMismatch: "RULE_SIZE_MISMATCH",
+  GroupSizeMismatch: "GROUP_SIZE_MISMATCH",
+  GroupTooSmall: "GROUP_SIZE_MISMATCH",
+  GroupOverflow: "GROUP_OVERFLOW",
+  RuleTooSmall: "RULE_SIZE_MISMATCH",
+  RuleOverflow: "RULE_OVERFLOW",
+  UnknownOperator: "INVALID_OPERATOR",
+  UnsortedInSet: "UNSORTED_IN_SET",
+};
+
 /** Build a PolicyData from a vector's decoded spec. */
 function policyDataFromVector(decoded: VectorDecoded): PolicyData {
   const groups: Constraint[][] = decoded.groups.map((g) =>
@@ -77,10 +82,10 @@ function policyDataFromVector(decoded: VectorDecoded): PolicyData {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Decoding
+// Inspect
 ///////////////////////////////////////////////////////////////////////////
 
-describe("policy conformance - decoding", () => {
+describe("PolicyCoder conformance vectors - inspect", () => {
   for (const vector of vectors) {
     test(`${vector.id}: ${vector.description}`, () => {
       if (vector.error === "") {
@@ -102,10 +107,10 @@ describe("policy conformance - decoding", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-// Public API decode (PolicyCoder)
+// Decode
 ///////////////////////////////////////////////////////////////////////////
 
-describe("policy conformance - PolicyCoder.decode", () => {
+describe("PolicyCoder conformance vectors - decode", () => {
   for (const vector of validVectors) {
     test(`${vector.id}: decodes blob to expected structure`, () => {
       const decoded = vector.spec!.decoded!;
@@ -134,10 +139,10 @@ describe("policy conformance - PolicyCoder.decode", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-// Encoding
+// Encode
 ///////////////////////////////////////////////////////////////////////////
 
-describe("policy conformance - PolicyCoder.encode", () => {
+describe("PolicyCoder conformance vectors - encode", () => {
   for (const vector of validVectors) {
     test(`${vector.id}: encodes to expected blob`, () => {
       const decoded = vector.spec!.decoded!;
@@ -152,7 +157,7 @@ describe("policy conformance - PolicyCoder.encode", () => {
 // Round-trip
 ///////////////////////////////////////////////////////////////////////////
 
-describe("policy conformance - round-trip", () => {
+describe("PolicyCoder conformance vectors - round-trip", () => {
   for (const vector of validVectors) {
     test(`${vector.id}: encode(decode(blob)) === blob`, () => {
       const decoded = PolicyCoder.decode(hex(vector.blob));

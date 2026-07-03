@@ -718,6 +718,11 @@ contract EnforceContextTest is PolicyEnforcerTest {
 /// @dev Tests for path navigation (depth, structs, arrays)
 // forgefmt: disable-next-item
 contract EnforcePathTest is PolicyEnforcerTest {
+    function test_PathDepthCapMatchesSpecLimit() public pure {
+        // The enforcer's local literal (required for fixed array sizing) must track PF.MAX_PATH_DEPTH.
+        assertEq(PolicyEnforcer.MAX_PATH_DEPTH, PF.MAX_PATH_DEPTH);
+    }
+
     function test_Depth1_Elementary() public view {
         bytes memory policy = PolicyBuilder.create("foo(uint256)")
             .add(arg(0).eq(uint256(42)))

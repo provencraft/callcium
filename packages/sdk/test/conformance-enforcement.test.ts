@@ -6,6 +6,10 @@ import { hex } from "./helpers";
 
 import type { Context } from "../src";
 
+///////////////////////////////////////////////////////////////////////////
+// Vector types
+///////////////////////////////////////////////////////////////////////////
+
 type VectorContext = {
   msgSender: string;
   msgValue: string;
@@ -19,6 +23,10 @@ type Vector = {
   context?: VectorContext;
   expected: boolean;
 };
+
+///////////////////////////////////////////////////////////////////////////
+// Test helpers
+///////////////////////////////////////////////////////////////////////////
 
 /** Parse a hex-encoded context into the SDK Context type. */
 function parseContext(ctx: VectorContext): Context {
@@ -38,7 +46,11 @@ function parseContext(ctx: VectorContext): Context {
 
 const vectors: Vector[] = Object.values(vectorMap);
 
-describe("enforcement conformance vectors", () => {
+///////////////////////////////////////////////////////////////////////////
+// Conformance
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyEnforcer conformance vectors", () => {
   for (const vector of vectors) {
     test(`${vector.id}: ${vector.description}`, () => {
       const context = vector.context ? parseContext(vector.context) : undefined;

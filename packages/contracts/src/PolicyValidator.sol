@@ -162,9 +162,25 @@ library PolicyValidator {
             if (ctxIdx == type(uint256).max) {
                 Descriptor.TypeInfo memory typeInfo;
                 if (constraint.scope == PF.SCOPE_CALLDATA) {
-                    typeInfo = Descriptor.typeAt(state.data.descriptor, constraint.path);
+                    // Compatibility warnings against the reference enforcer's limits (spec §9.1).
+                    uint256 depth = constraint.path.length / 2;
+                    if (depth > PF.MAX_PATH_DEPTH) {
+                        state.tempIssues[state.issueCount++] =
+                            ValidationIssue.pathDepthExceeded(groupIndex, constraintIndex, depth, PF.MAX_PATH_DEPTH);
+                    }
+                    uint256 quantifiedLength;
+                    (typeInfo, quantifiedLength) = Descriptor.walkPath(state.data.descriptor, constraint.path);
+                    if (quantifiedLength > PF.MAX_QUANTIFIED_ARRAY_LENGTH) {
+                        state.tempIssues[state.issueCount++] = ValidationIssue.quantifierOverStaticLimit(
+                            groupIndex, constraintIndex, quantifiedLength, PF.MAX_QUANTIFIED_ARRAY_LENGTH
+                        );
+                    }
                 } else {
                     uint16 ctxId = Path.atUnchecked(constraint.path, 0);
+                    if (ctxId > PF.CTX_MAX) {
+                        state.tempIssues[state.issueCount++] =
+                            ValidationIssue.unknownContextProperty(groupIndex, constraintIndex, ctxId, PF.CTX_MAX);
+                    }
                     typeInfo = Descriptor.TypeInfo({
                         code: (ctxId == PF.CTX_MSG_SENDER || ctxId == PF.CTX_TX_ORIGIN)
                             ? TypeCode.ADDRESS
@@ -210,12 +226,18 @@ library PolicyValidator {
     {
         bytes[] memory operators = constraint.operators;
         uint256 operatorCount = operators.length;
+        bool underAny = _hasAnyQuantifier(constraint);
 
         for (uint256 i; i < operatorCount; ++i) {
             bytes memory op = operators[i];
             uint8 opCode = uint8(op[0]);
             uint8 base = opCode & ~OpCode.NOT;
             bool isNegated = (opCode & OpCode.NOT) != 0;
+
+            // A negated operator under any() is satisfied by a single decoy element.
+            if (underAny && isNegated) {
+                issues[issueCount++] = ValidationIssue.negationUnderAny(groupIndex, constraintIndex, opCode);
+            }
 
             // Type compatibility check (delegates to OpRule).
             // forgefmt: disable-next-item
@@ -802,6 +824,16 @@ library PolicyValidator {
     }
 
     /// @dev Counts total operators across all constraints in the policy data.
+    /// @dev Returns true if a calldata constraint's path contains the existential quantifier.
+    function _hasAnyQuantifier(Constraint memory constraint) private pure returns (bool) {
+        if (constraint.scope != PF.SCOPE_CALLDATA) return false;
+        uint256 depth = constraint.path.length / 2;
+        for (uint256 i; i < depth; ++i) {
+            if (Path.atUnchecked(constraint.path, i) == Path.ANY) return true;
+        }
+        return false;
+    }
+
     function _countOperators(PolicyData memory data) private pure returns (uint256 count) {
         uint256 groupCount = data.groups.length;
         for (uint256 i; i < groupCount; ++i) {
@@ -811,9 +843,10 @@ library PolicyValidator {
                 count += constraints[j].operators.length;
             }
         }
-        // Each operator can trigger multiple issues (contradiction, redundancy, vacuity),
-        // plus cross-constraint issues, decompositions (e.g., BETWEEN -> GTE + LTE), and empty groups.
-        count = count * 3 + 20 + data.groups.length;
+        // Each operator can trigger multiple issues (contradiction, redundancy, vacuity, negation-
+        // under-any), plus cross-constraint issues, decompositions (e.g., BETWEEN -> GTE + LTE),
+        // per-path compatibility warnings, and empty groups.
+        count = count * 4 + 20 + data.groups.length;
     }
 
     /// @dev Initializes a constraint context with domain limits for the given type.

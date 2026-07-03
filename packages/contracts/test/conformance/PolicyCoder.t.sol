@@ -25,6 +25,17 @@ contract PolicyCoderConformanceTest is BaseTest {
 
     error UnknownFixtureError(string name);
 
+    /// @dev Loads and parses all fixtures from the policy vector file, also returning the raw JSON for path lookups.
+    function _fixtures() private view returns (string memory json, PolicyFixture[] memory fixtures) {
+        json = vm.readFile("test/vectors/policies.json");
+        uint256 count;
+        while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
+        fixtures = new PolicyFixture[](count);
+        for (uint256 i; i < count; ++i) {
+            fixtures[i] = abi.decode(vm.parseJson(json, string.concat(".[", vm.toString(i), "]")), (PolicyFixture));
+        }
+    }
+
     /// @dev External wrapper so `vm.expectRevert` can intercept reverts from decode.
     function decode(bytes memory blob) external pure returns (PolicyData memory) {
         return PolicyCoder.decode(blob);
@@ -47,6 +58,7 @@ contract PolicyCoderConformanceTest is BaseTest {
         if (h == keccak256("RuleTooSmall")) return Policy.RuleTooSmall.selector;
         if (h == keccak256("UnexpectedEnd")) return Policy.UnexpectedEnd.selector;
         if (h == keccak256("UnknownOperator")) return Policy.UnknownOperator.selector;
+        if (h == keccak256("UnsortedInSet")) return Policy.UnsortedInSet.selector;
         if (h == keccak256("UnsupportedVersion")) return Policy.UnsupportedVersion.selector;
         revert UnknownFixtureError(name);
     }
@@ -55,17 +67,6 @@ contract PolicyCoderConformanceTest is BaseTest {
     function _toBytes4(bytes memory b) internal pure returns (bytes4 r) {
         assembly ("memory-safe") {
             r := mload(add(b, 32))
-        }
-    }
-
-    /// @dev Loads and parses all fixtures from the policy vector file, also returning the raw JSON for path lookups.
-    function _loadFixtures() private view returns (string memory json, PolicyFixture[] memory fixtures) {
-        json = vm.readFile("test/vectors/policies.json");
-        uint256 count;
-        while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
-        fixtures = new PolicyFixture[](count);
-        for (uint256 i; i < count; ++i) {
-            fixtures[i] = abi.decode(vm.parseJson(json, string.concat(".[", vm.toString(i), "]")), (PolicyFixture));
         }
     }
 
@@ -209,7 +210,7 @@ contract PolicyCoderConformanceTest is BaseTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_DecodesConformWithSpecification() public {
-        (string memory json, PolicyFixture[] memory fixtures) = _loadFixtures();
+        (string memory json, PolicyFixture[] memory fixtures) = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             PolicyFixture memory f = fixtures[i];
             if (bytes(f.error).length > 0) {
@@ -228,7 +229,7 @@ contract PolicyCoderConformanceTest is BaseTest {
     }
 
     function test_EncodesConformWithSpecification() public {
-        (string memory json, PolicyFixture[] memory fixtures) = _loadFixtures();
+        (string memory json, PolicyFixture[] memory fixtures) = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             PolicyFixture memory f = fixtures[i];
             if (bytes(f.error).length > 0) continue;

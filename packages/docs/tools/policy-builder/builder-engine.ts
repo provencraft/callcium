@@ -408,7 +408,9 @@ function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; e
   try {
     const issues = builder.validate();
     const hasErrors = issues.some((i) => i.severity === "error");
-    const hex = hasErrors ? null : builder.build();
+    // Strict build() rejects any issue; the exploratory builder still previews the
+    // encoding for warning/info-level policies via the explicit escape hatch.
+    const hex = hasErrors ? null : issues.length > 0 ? builder.buildUnsafe() : builder.build();
     return { hex, issues, errors: [] };
   } catch (e) {
     return { hex: null, issues: [], errors: [formatError(e)] };

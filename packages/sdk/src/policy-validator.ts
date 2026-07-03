@@ -1,5 +1,14 @@
 import { bigintToHex, hexToBytes } from "./bytes";
-import { classifyTypeCode, lookupContextProperty, Op, Scope, TypeCode } from "./constants";
+import {
+  classifyTypeCode,
+  Limits,
+  lookupContextProperty,
+  MAX_CONTEXT_PROPERTY_ID,
+  Op,
+  Quantifier,
+  Scope,
+  TypeCode,
+} from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
 import { isSigned, isLengthOp, isLengthValidType } from "./operators";
 import { parsePathSteps } from "./policy-coder";
@@ -709,11 +718,17 @@ function validateConstraint(
   issues: Issue[],
 ): void {
   const operators = constraint.operators;
+  const underAny = constraint.scope === Scope.CALLDATA && parsePathSteps(constraint.path).includes(Quantifier.ANY);
 
   for (const opHex of operators) {
     const opCode = parseInt(opHex.slice(2, 4), 16);
     const base = opCode & ~Op.NOT;
     const isNegated = (opCode & Op.NOT) !== 0;
+
+    // A negated operator under any() is satisfied by a single decoy element.
+    if (underAny && isNegated) {
+      issues.push(Issues.negationUnderAny(groupIndex, constraintIndex, bigintToHex(BigInt(opCode))));
+    }
 
     const compat = checkCompatibility(base, ctx.typeInfo.typeCode, ctx.typeInfo.isDynamic, ctx.typeInfo.staticSize);
     if (!compat.compatible) {
@@ -798,12 +813,47 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
       let typeInfo: TypeInfo;
       if (constraint.scope === Scope.CALLDATA) {
         const steps = parsePathSteps(constraint.path);
-        typeInfo = Descriptor.typeAt(descBytes, steps);
+        // Compatibility warnings against the reference enforcer's limits (spec §9.1).
+        if (steps.length > Limits.MAX_PATH_DEPTH) {
+          issues.push(
+            Issues.pathDepthExceeded(
+              groupIndex,
+              constraintIndex,
+              bigintToHex(BigInt(steps.length)),
+              bigintToHex(BigInt(Limits.MAX_PATH_DEPTH)),
+            ),
+          );
+        }
+        const walk = Descriptor.walkPath(descBytes, steps);
+        if (walk.quantifiedStaticLength > Limits.MAX_QUANTIFIED_ARRAY_LENGTH) {
+          issues.push(
+            Issues.quantifierOverStaticLimit(
+              groupIndex,
+              constraintIndex,
+              bigintToHex(BigInt(walk.quantifiedStaticLength)),
+              bigintToHex(BigInt(Limits.MAX_QUANTIFIED_ARRAY_LENGTH)),
+            ),
+          );
+        }
+        typeInfo = walk.typeInfo;
       } else {
         const steps = parsePathSteps(constraint.path);
         const ctxId = steps[0]!;
-        const typeCode = lookupContextProperty(ctxId).typeCode;
-        typeInfo = { typeCode, isDynamic: false, staticSize: 32 };
+        if (ctxId > MAX_CONTEXT_PROPERTY_ID) {
+          // Mirror the Solidity validator: warn and fall back to uint256 typing.
+          issues.push(
+            Issues.unknownContextProperty(
+              groupIndex,
+              constraintIndex,
+              bigintToHex(BigInt(ctxId)),
+              bigintToHex(BigInt(MAX_CONTEXT_PROPERTY_ID)),
+            ),
+          );
+          typeInfo = { typeCode: TypeCode.UINT_MAX, isDynamic: false, staticSize: 32 };
+        } else {
+          const typeCode = lookupContextProperty(ctxId).typeCode;
+          typeInfo = { typeCode, isDynamic: false, staticSize: 32 };
+        }
       }
       ctx = initContext(constraint.scope, normalizedPath, typeInfo);
       contexts.push(ctx);

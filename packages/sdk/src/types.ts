@@ -281,7 +281,7 @@ export type DecodedPolicy = {
 export type IssueSeverity = "info" | "warning" | "error";
 
 /** Category of a validation issue. */
-export type IssueCategory = "typeMismatch" | "contradiction" | "redundancy" | "vacuity";
+export type IssueCategory = "typeMismatch" | "contradiction" | "redundancy" | "vacuity" | "compatibility";
 
 /** A single validation issue found during policy analysis. */
 export type Issue = {

@@ -3,11 +3,11 @@ title: Policy Validation
 description: Type mismatches, contradictions, redundancies, and vacuities.
 ---
 
-The SDK validates policies through semantic analysis. When `PolicyBuilder.build()` is called, the [`PolicyValidator`](/docs/sdk/reference/policy-validator) inspects every constraint for type errors, logical contradictions, redundancies, and vacuous conditions, then throws if any error-severity issue is found.
+The SDK validates policies through semantic analysis. When `PolicyBuilder.build()` is called, the [`PolicyValidator`](/docs/sdk/reference/policy-validator) inspects every constraint for type errors, logical contradictions, redundancies, and vacuous conditions, then throws if any issue is found — regardless of severity.
 
 ## Using validation
 
-`PolicyBuilder.build()` validates by default and throws a `CallciumError("VALIDATION_ERROR")` on the first error-severity issue:
+`PolicyBuilder.build()` validates by default and throws a `CallciumError("VALIDATION_ERROR")` on the first issue:
 
 ```ts
 import { PolicyBuilder, arg } from "@callcium/sdk";
@@ -34,14 +34,20 @@ for (const issue of issues) {
 
 `validate()` returns an `Issue[]` covering errors, warnings, and info-level suggestions in a single call. The builder can be inspected multiple times before committing to `build()`.
 
+To encode a policy despite reported issues, use `buildUnsafe()`. It skips validation entirely — the deliberate escape hatch for policies that target an enforcer with different operational limits than the reference Solidity enforcer:
+
+```ts
+const policy = builder.buildUnsafe();
+```
+
 ## Issue structure
 
 Each issue is an `Issue` object with the following fields:
 
 | Field             | Type                                                             | Description                                                                  |
 | ----------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `severity`        | `"info" \| "warning" \| "error"`                                 | Impact level. `error` blocks `build()`.                                      |
-| `category`        | `"typeMismatch" \| "contradiction" \| "redundancy" \| "vacuity"` | Nature of the issue.                                                         |
+| `severity`        | `"info" \| "warning" \| "error"`                                 | Impact level for display and triage. Any issue blocks `build()`.             |
+| `category`        | `"typeMismatch" \| "contradiction" \| "redundancy" \| "vacuity" \| "compatibility"` | Nature of the issue.                                      |
 | `groupIndex`      | `number`                                                         | Index of the group containing the issue.                                     |
 | `constraintIndex` | `number`                                                         | Index of the constraint within the group.                                    |
 | `code`            | `string`                                                         | Machine-readable identifier.                                                 |
@@ -55,9 +61,13 @@ Both values are `Hex` strings in the canonical 32-byte-padded encoding used thro
 
 ## Severity levels
 
-- `error`: the policy is structurally or semantically broken (type mismatch, impossible constraint). `build()` throws; the policy will not encode.
-- `warning`: the policy is valid but suspicious (e.g. a redundant constraint that is always implied by another). `build()` succeeds.
-- `info`: an observation that may suggest a clearer formulation. `build()` succeeds.
+Severity is a presentation and triage signal, not a gating mechanism: `build()` requires a clean validation result and throws on any issue. `buildUnsafe()` bypasses validation for all of them.
+
+- `error`: the policy is structurally or semantically broken (type mismatch, impossible constraint).
+- `warning`: the policy is valid but suspicious (e.g. a redundant constraint that is always implied by another).
+- `info`: an observation that may suggest a clearer formulation.
+
+The strict gate is identical across implementations: the Solidity `PolicyBuilder.build()` reverts under the same zero-issue rule, and both validators are pinned to each other by the shared conformance vector suite.
 
 ## Categories
 
@@ -67,6 +77,7 @@ Both values are `Hex` strings in the canonical 32-byte-padded encoding used thro
 | `contradiction` | Two constraints in the same group cannot both hold (e.g. `eq(x)` and `neq(x)`).          |
 | `redundancy`    | A constraint is implied by another in the same group and adds no additional check.       |
 | `vacuity`       | A constraint is satisfied by every value (e.g. `between(0, 2**256 - 1)` on a `uint256`). |
+| `compatibility` | A construct exceeds the reference enforcer's operational limits, or is a known semantic footgun (e.g. `neq` under `any()`). |
 
 ## Skipping validation
 

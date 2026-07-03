@@ -73,11 +73,9 @@ library PolicyEnforcer {
         uint8 typeCode;
     }
 
-    /// @dev Path scratch capacity in steps (be16 per step).
+    /// @dev Path scratch capacity in steps (be16 per step). Must equal `PF.MAX_PATH_DEPTH`;
+    /// a local literal is required because cross-library constants cannot size fixed arrays.
     uint8 internal constant MAX_PATH_DEPTH = 32;
-
-    /// @dev Maximum array length for quantifier iteration (gas DoS protection).
-    uint256 internal constant MAX_QUANTIFIED_ARRAY_LENGTH = 256;
 
     /*/////////////////////////////////////////////////////////////////////////
                                         ERRORS
@@ -370,8 +368,8 @@ library PolicyEnforcer {
         );
 
         require(
-            shape.length <= MAX_QUANTIFIED_ARRAY_LENGTH,
-            QuantifierLimitExceeded(shape.length, MAX_QUANTIFIED_ARRAY_LENGTH)
+            shape.length <= PF.MAX_QUANTIFIED_ARRAY_LENGTH,
+            QuantifierLimitExceeded(shape.length, PF.MAX_QUANTIFIED_ARRAY_LENGTH)
         );
 
         // Empty array semantics: ALL_OR_EMPTY (vacuous truth) vs ANY/ALL (false).

@@ -7,7 +7,7 @@ description: "ABI descriptor model and coder."
 
 Inspect and navigate raw descriptor bytes.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L158)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L175)
 
 ### Methods
 
@@ -187,6 +187,27 @@ function arrayElementOffset(offset: number): number;
 **Returns**
 
 `number`
+
+### walkPath
+
+Resolve the type at the path and the declared length of the static array a
+quantifier step descends into (zero when the path holds no quantifier step
+over a static array).
+
+```ts
+function walkPath(desc: Uint8Array, steps: number[]): object;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | Raw descriptor bytes. |
+| `steps` | `number[]` | Path steps, length >= 1. |
+
+**Returns**
+
+`object` — TypeInfo at the resolved path and the quantified static array length.
 
 ## DescriptorCoder
 

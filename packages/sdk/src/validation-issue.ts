@@ -519,6 +519,76 @@ export function vacuousLengthLte(groupIndex: number, constraintIndex: number, va
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Compatibility
+///////////////////////////////////////////////////////////////////////////
+
+/** Path deeper than the reference enforcer's cap. */
+export function pathDepthExceeded(groupIndex: number, constraintIndex: number, depth: Hex, maxDepth: Hex): Issue {
+  return makeIssue(
+    "warning",
+    "compatibility",
+    groupIndex,
+    constraintIndex,
+    "PATH_DEPTH_EXCEEDED",
+    depth,
+    maxDepth,
+    "Path depth exceeds the reference enforcer cap",
+  );
+}
+
+/** Quantifier over a static array beyond the reference enforcer's iteration cap. */
+export function quantifierOverStaticLimit(
+  groupIndex: number,
+  constraintIndex: number,
+  arrayLength: Hex,
+  maxLength: Hex,
+): Issue {
+  return makeIssue(
+    "warning",
+    "compatibility",
+    groupIndex,
+    constraintIndex,
+    "QUANTIFIER_OVER_STATIC_LIMIT",
+    arrayLength,
+    maxLength,
+    "Quantifier over static array exceeds the reference enforcer cap",
+  );
+}
+
+/** Context property ID outside the assigned set. */
+export function unknownContextProperty(
+  groupIndex: number,
+  constraintIndex: number,
+  contextId: Hex,
+  maxContextId: Hex,
+): Issue {
+  return makeIssue(
+    "warning",
+    "compatibility",
+    groupIndex,
+    constraintIndex,
+    "UNKNOWN_CONTEXT_PROPERTY",
+    contextId,
+    maxContextId,
+    "Unknown context property ID",
+  );
+}
+
+/** Negated operator under the existential quantifier. */
+export function negationUnderAny(groupIndex: number, constraintIndex: number, opCode: Hex): Issue {
+  return makeIssue(
+    "warning",
+    "compatibility",
+    groupIndex,
+    constraintIndex,
+    "NEGATION_UNDER_ANY",
+    opCode,
+    ZERO,
+    "Negated operator under any() passes when a decoy element differs",
+  );
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Bound issue factory set
 ///////////////////////////////////////////////////////////////////////////
 

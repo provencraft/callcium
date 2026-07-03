@@ -137,4 +137,17 @@ library PolicyFormat {
 
     /// @dev tx.origin (address).
     uint16 internal constant CTX_TX_ORIGIN = 0x0005;
+
+    /// @dev Highest assigned context property ID.
+    uint16 internal constant CTX_MAX = CTX_TX_ORIGIN;
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                NORMATIVE LIMITS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev Maximum path depth accepted by the reference enforcer (policy spec §9.1).
+    uint8 internal constant MAX_PATH_DEPTH = 32;
+
+    /// @dev Maximum array length for quantifier iteration (policy spec §9.1, gas DoS protection).
+    uint256 internal constant MAX_QUANTIFIED_ARRAY_LENGTH = 256;
 }

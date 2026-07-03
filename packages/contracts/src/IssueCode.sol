@@ -103,4 +103,17 @@ library IssueCode {
     bytes32 internal constant VACUOUS_LENGTH_GTE = "VACUOUS_LENGTH_GTE";
     /// lengthLte() bound equals the maximum (always true).
     bytes32 internal constant VACUOUS_LENGTH_LTE = "VACUOUS_LENGTH_LTE";
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                  COMPATIBILITY
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// Path exceeds the reference enforcer's depth cap.
+    bytes32 internal constant PATH_DEPTH_EXCEEDED = "PATH_DEPTH_EXCEEDED";
+    /// Quantifier over a static array longer than the reference enforcer's iteration cap.
+    bytes32 internal constant QUANTIFIER_OVER_STATIC_LIMIT = "QUANTIFIER_OVER_STATIC_LIMIT";
+    /// Context property ID is not in the assigned set.
+    bytes32 internal constant UNKNOWN_CONTEXT_PROPERTY = "UNKNOWN_CONTEXT_PROPERTY";
+    /// Negated operator under an existential quantifier (a decoy element satisfies the rule).
+    bytes32 internal constant NEGATION_UNDER_ANY = "NEGATION_UNDER_ANY";
 }

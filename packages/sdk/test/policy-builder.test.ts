@@ -147,6 +147,27 @@ describe("PolicyBuilder", () => {
     }).toThrow(CallciumError);
   });
 
+  test("build() throws on warning-severity issues (strict gate)", () => {
+    // gte(5) then weaker gte(3) → DOMINATED_BOUND warning; strict build() blocks any issue.
+    expect(() => {
+      PolicyBuilder.create("foo(uint256)").add(arg(0).gte(5n).gte(3n)).build();
+    }).toThrow(CallciumError);
+  });
+
+  test("build() throws on info-severity issues (strict gate)", () => {
+    // gte(0) on uint256 → VACUOUS_GTE info; strict build() blocks any issue.
+    expect(() => {
+      PolicyBuilder.create("foo(uint256)").add(arg(0).gte(0n)).build();
+    }).toThrow(CallciumError);
+  });
+
+  test("buildUnsafe() encodes despite validation issues", () => {
+    const builder = PolicyBuilder.create("foo(uint256)").add(arg(0).gte(5n).gte(3n));
+    expect(builder.validate().length).toBeGreaterThan(0);
+    const blob = builder.buildUnsafe();
+    expect(PolicyCoder.decode(blob).groups.length).toBe(1);
+  });
+
   test("rejects quantifier on non-array type", () => {
     expect(() => {
       PolicyBuilder.create("foo(uint256)").add(arg(0, Quantifier.ALL).eq(1n));

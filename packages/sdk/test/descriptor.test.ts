@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { TypeCode } from "../src/constants";
+import { Quantifier, TypeCode } from "../src/constants";
 import { Descriptor } from "../src/descriptor";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { expectErrorCode } from "./helpers";
@@ -159,5 +159,49 @@ describe("Descriptor.staticArrayLength", () => {
   test("returns 5 for address[5]", () => {
     const desc = DescriptorCoder.fromTypes("address[5]");
     expect(Descriptor.staticArrayLength(desc, 2)).toBe(5);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// walkPath
+///////////////////////////////////////////////////////////////////////////
+
+describe("Descriptor.walkPath", () => {
+  test("no quantifier → zero quantified length", () => {
+    const desc = DescriptorCoder.fromTypes("uint256");
+    const walk = Descriptor.walkPath(desc, [0]);
+    expect(walk.typeInfo.typeCode).toBe(TypeCode.UINT_MAX);
+    expect(walk.quantifiedStaticLength).toBe(0);
+  });
+
+  test("quantifier over static array → declared length", () => {
+    const desc = DescriptorCoder.fromTypes("uint256[3]");
+    const walk = Descriptor.walkPath(desc, [0, Quantifier.ALL]);
+    expect(walk.typeInfo.typeCode).toBe(TypeCode.UINT_MAX);
+    expect(walk.quantifiedStaticLength).toBe(3);
+  });
+
+  test("all sentinels return the declared length", () => {
+    const desc = DescriptorCoder.fromTypes("address[7]");
+    expect(Descriptor.walkPath(desc, [0, Quantifier.ALL]).quantifiedStaticLength).toBe(7);
+    expect(Descriptor.walkPath(desc, [0, Quantifier.ANY]).quantifiedStaticLength).toBe(7);
+    expect(Descriptor.walkPath(desc, [0, Quantifier.ALL_OR_EMPTY]).quantifiedStaticLength).toBe(7);
+  });
+
+  test("quantifier over dynamic array → zero", () => {
+    const desc = DescriptorCoder.fromTypes("uint256[]");
+    expect(Descriptor.walkPath(desc, [0, Quantifier.ALL]).quantifiedStaticLength).toBe(0);
+  });
+
+  test("concrete index into static array → zero", () => {
+    const desc = DescriptorCoder.fromTypes("uint256[3]");
+    expect(Descriptor.walkPath(desc, [0, 1]).quantifiedStaticLength).toBe(0);
+  });
+
+  test("suffix after quantifier → length and field type", () => {
+    const desc = DescriptorCoder.fromTypes("(address,uint256)[4]");
+    const walk = Descriptor.walkPath(desc, [0, Quantifier.ALL, 1]);
+    expect(walk.typeInfo.typeCode).toBe(TypeCode.UINT_MAX);
+    expect(walk.quantifiedStaticLength).toBe(4);
   });
 });

@@ -186,19 +186,32 @@ export class PolicyBuilder {
   }
 
   /**
-   * Build the policy into an encoded binary blob.
+   * Build the policy into an encoded binary blob with strict validation.
+   * Throws on any issue, regardless of severity. Use {@link validate} to
+   * inspect issues, or {@link buildUnsafe} to encode without validation.
    * @returns The policy as a 0x-prefixed hex string.
-   * @throws {CallciumError} If any group is empty or validation finds errors.
+   * @throws {CallciumError} If any group is empty or validation finds any issue.
    */
   build(): Hex {
     this.checkGroups();
     const policyData = this.toPolicyData();
     const issues = PolicyValidator.validate(policyData);
-    const firstError = issues.find((issue) => issue.severity === "error");
-    if (firstError) {
-      throw new CallciumError("VALIDATION_ERROR", firstError.message);
+    if (issues.length > 0) {
+      throw new CallciumError("VALIDATION_ERROR", issues[0]!.message);
     }
     return PolicyCoder.encode(policyData);
+  }
+
+  /**
+   * Build the policy into an encoded binary blob without validation.
+   * The resulting policy may be invalid. Prefer {@link build}; use this
+   * only to knowingly bypass a reported issue.
+   * @returns The policy as a 0x-prefixed hex string.
+   * @throws {CallciumError} If any group is empty.
+   */
+  buildUnsafe(): Hex {
+    this.checkGroups();
+    return PolicyCoder.encode(this.toPolicyData());
   }
 
   /**

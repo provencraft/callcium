@@ -7,21 +7,9 @@ import { expectErrorCode, hex } from "./helpers";
 
 import type { CallciumErrorCode } from "../src";
 
-// Map conformance vector error names to SDK error codes.
-const ERROR_MAP: Record<string, CallciumErrorCode> = {
-  MalformedHeader: "MALFORMED_HEADER",
-  UnsupportedVersion: "UNSUPPORTED_VERSION",
-  UnexpectedEnd: "UNEXPECTED_END",
-  ParamCountMismatch: "PARAM_COUNT_MISMATCH",
-  NodeLengthTooSmall: "MALFORMED_HEADER",
-  NodeOverflow: "NODE_OVERFLOW",
-  UnknownTypeCode: "UNKNOWN_TYPE_CODE",
-  InvalidTupleFieldCount: "INVALID_TUPLE_FIELD_COUNT",
-  InvalidArrayLength: "INVALID_ARRAY_LENGTH",
-  TooManyParams: "PARAM_COUNT_MISMATCH",
-  ArrayLengthTooLarge: "INVALID_ARRAY_LENGTH",
-  TupleFieldCountTooLarge: "INVALID_TUPLE_FIELD_COUNT",
-};
+///////////////////////////////////////////////////////////////////////////
+// Vector types
+///////////////////////////////////////////////////////////////////////////
 
 type VectorParam = {
   index: number;
@@ -43,7 +31,31 @@ type Vector = {
 
 const vectors: Vector[] = rawVectors;
 
-describe("descriptor conformance vectors", () => {
+///////////////////////////////////////////////////////////////////////////
+// Test helpers
+///////////////////////////////////////////////////////////////////////////
+
+/** Map conformance vector error names to SDK error codes. */
+const ERROR_MAP: Record<string, CallciumErrorCode> = {
+  MalformedHeader: "MALFORMED_HEADER",
+  UnsupportedVersion: "UNSUPPORTED_VERSION",
+  UnexpectedEnd: "UNEXPECTED_END",
+  ParamCountMismatch: "PARAM_COUNT_MISMATCH",
+  NodeLengthTooSmall: "MALFORMED_HEADER",
+  NodeOverflow: "NODE_OVERFLOW",
+  UnknownTypeCode: "UNKNOWN_TYPE_CODE",
+  InvalidTupleFieldCount: "INVALID_TUPLE_FIELD_COUNT",
+  InvalidArrayLength: "INVALID_ARRAY_LENGTH",
+  TooManyParams: "PARAM_COUNT_MISMATCH",
+  ArrayLengthTooLarge: "INVALID_ARRAY_LENGTH",
+  TupleFieldCountTooLarge: "INVALID_TUPLE_FIELD_COUNT",
+};
+
+///////////////////////////////////////////////////////////////////////////
+// Conformance
+///////////////////////////////////////////////////////////////////////////
+
+describe("Descriptor conformance vectors", () => {
   for (const vector of vectors) {
     test(`${vector.id}: ${vector.description}`, () => {
       if (vector.error === "") {

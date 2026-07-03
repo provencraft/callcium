@@ -160,3 +160,14 @@ Constraints that are always true. All are **Info** severity.
 | `VACUOUS_LTE`        | `lte()` on type maximum (always true).  |
 | `VACUOUS_LENGTH_GTE` | `lengthGte(0)` (always true).           |
 | `VACUOUS_LENGTH_LTE` | `lengthLte()` on maximum (always true). |
+
+### Compatibility
+
+Constructs that exceed the reference Solidity enforcer's operational limits or that behave differently than most authors intend. All are **Warning** severity. A policy targeting an enforcer with different limits bypasses them deliberately with `buildUnsafe()`.
+
+| Code                           | Description                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| `PATH_DEPTH_EXCEEDED`          | Path deeper than 32 steps; the reference enforcer rejects it at every call.      |
+| `QUANTIFIER_OVER_STATIC_LIMIT` | Quantifier over a static array longer than 256; exceeds the iteration cap.       |
+| `UNKNOWN_CONTEXT_PROPERTY`     | Context property ID outside the assigned set; the reference enforcer reverts.    |
+| `NEGATION_UNDER_ANY`           | Negated operator under `any()`; a single decoy element satisfies the rule.       |

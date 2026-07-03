@@ -10,13 +10,13 @@ The policy pipeline has four stages: builder (off-chain), coder (off-chain), reg
 
 The threat model assumes that `PolicyManager` access is gated — only trusted entities can store policies. An actor with storage access could simply delete a policy or store a trivial always-pass policy; crafting a subtly malformed blob offers no advantage.
 
-The spec (policy-v1, Section 10.1) defines structural checks that validators MUST perform. The question is where these checks live and what the enforcer can assume about its input.
+The spec (policy-v1, Section 8.1) defines structural checks that validators MUST perform. The question is where these checks live and what the enforcer can assume about its input.
 
 ## Decision
 
 Validation is split into three tiers. Each tier trusts the ones before it.
 
-**Storage time (`Policy.validate()`)** performs all spec Section 10.1 structural checks:
+**Storage time (`Policy.validate()`)** performs all spec Section 8.1 structural checks:
 
 - Version byte validity.
 - Descriptor structural validity.
@@ -27,10 +27,11 @@ Validation is split into three tiers. Each tier trusts the ones before it.
 - Context path depth (`scope == 0 ⇒ depth == 1`).
 - Path non-emptiness (`depth >= 1`).
 - Operator code validity and payload size match.
+- IN operand ordering (strictly ascending by unsigned value) — a canonical-form invariant (spec Sections 7.4, 9.3) the enforcer's binary search relies on; gated at storage beyond Section 8.1's minimum because an unsorted set silently mis-enforces rather than reverting.
 
 These run once at storage time — never during enforcement.
 
-**Build time (`PolicyValidator`)** performs semantic checks: operator-type compatibility, contradiction detection, redundancy warnings, path navigability. These are advisory and run off-chain.
+**Build time (`PolicyValidator`)** performs semantic checks: operator-type compatibility, contradiction detection, redundancy warnings, path navigability. These run offchain and gate the strict `build()` in every implementation — any reported issue blocks it; `buildUnsafe()` is the deliberate bypass. They are never re-checked onchain.
 
 **Runtime (`PolicyEnforcer`)** performs only checks that depend on live transaction data:
 
@@ -46,7 +47,7 @@ The structural/semantic line is: **can the byte stream be parsed and interpreted
 ## Alternatives Considered
 
 - **Duplicate checks in the enforcer (defense-in-depth)**: Rejected. Costs ~530-720 gas per rule per enforcement call. The threat model makes malformed-blob attacks irrational — if you control storage, you don't need a crafted blob.
-- **Exclude opCode validation from `Policy.validate()` to avoid coupling to `OpCode.sol`**: Rejected. The spec requires it (Section 10.1, MUST reject), and the coupling cost is acceptable.
+- **Exclude opCode validation from `Policy.validate()` to avoid coupling to `OpCode.sol`**: Rejected. The spec requires it (Section 8.1, MUST reject), and the coupling cost is acceptable.
 - **Separate `Policy.validateStrict()` for third-party encoders**: Rejected. The pipeline is the product — third-party encoders that bypass the builder own the consequences.
 
 ## Consequences
