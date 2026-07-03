@@ -428,7 +428,17 @@ export function loadSlice(callData: Uint8Array, location: Location): SliceResult
   const lengthResult = readPointer(callData, dataStart);
   if (typeof lengthResult !== "number") return { ok: false, code: lengthResult.code };
 
-  return { ok: true, dataOffset: dataStart + 32, length: lengthResult };
+  // The declared length must be fully backed by calldata: byte-for-byte for bytes/string,
+  // stride bytes per element for dynamic arrays — the element head size, or one offset word
+  // for dynamic elements. Mirrors CalldataReader.loadSlice onchain.
+  const dataOffset = dataStart + 32;
+  const node = location.node;
+  const stride = node.type === "dynamicArray" ? (node.element.isDynamic ? 32 : node.element.staticSize) : 1;
+  if (dataOffset > callData.length || lengthResult > Math.floor((callData.length - dataOffset) / stride)) {
+    return { ok: false, code: "CALLDATA_OUT_OF_BOUNDS" };
+  }
+
+  return { ok: true, dataOffset, length: lengthResult };
 }
 
 /** Continue navigating through additional path steps from a resolved location. */

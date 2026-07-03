@@ -269,11 +269,22 @@ library CalldataReader {
     }
 
     /// @notice Resolves a dynamic sequence into its slice.
-    /// @dev Returns the data offset and byte length of the dynamic content.
+    /// @dev Returns the data offset and byte length of the dynamic content. The declared length must
+    /// be fully backed by calldata: byte-for-byte for `bytes`/`string`, stride bytes per element for dynamic arrays.
+    /// An inflated array length word therefore reverts here instead of surfacing as a trusted element count.
+    /// @param desc The descriptor bytes.
     /// @param location The resolved location.
     /// @param callData The calldata buffer.
     /// @return The dynamic slice (data offset and length).
-    function loadSlice(Location memory location, bytes calldata callData) internal pure returns (DynamicSlice memory) {
+    function loadSlice(
+        bytes memory desc,
+        Location memory location,
+        bytes calldata callData
+    )
+        internal
+        pure
+        returns (DynamicSlice memory)
+    {
         uint8 code = location.typeInfo.code;
         require(TypeRule.hasCalldataLength(code), NoCalldataLength(code));
 
@@ -283,7 +294,17 @@ library CalldataReader {
         uint256 dataOffset = payloadBase + 32;
         uint256 callDataLength = callData.length;
 
-        require(dataOffset <= callDataLength && length <= callDataLength - dataOffset, CalldataOutOfBounds());
+        // Bytes and strings count bytes (stride 1);
+        // arrays count elements occupying `stride` bytes each — the element head size, or one offset word for dynamic elements.
+        uint256 stride = 1;
+        if (code == TypeCode.DYNAMIC_ARRAY) {
+            (,, bool elementIsDynamic, uint32 elementStaticSize,) =
+                _descendArrayMeta(desc, location.descOffset, code, 0);
+            stride = elementIsDynamic ? 32 : elementStaticSize;
+        }
+
+        // Division instead of `length * stride` keeps an attacker-controlled length word from overflowing.
+        require(dataOffset <= callDataLength && length <= (callDataLength - dataOffset) / stride, CalldataOutOfBounds());
 
         return DynamicSlice({ dataOffset: dataOffset, length: length });
     }

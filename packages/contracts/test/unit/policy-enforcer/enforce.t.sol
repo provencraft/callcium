@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { Be16 } from "src/Be16.sol";
+import { CalldataReader } from "src/CalldataReader.sol";
 import {
     Constraint,
     arg,
@@ -309,6 +310,20 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
             .add(arg(0).lengthGte(10))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_ArrayLengthInflated() public {
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0).lengthGte(10))
+            .buildUnsafe();
+        // Length word claims 10 elements while only 2 element words follow; the inflated
+        // count must revert instead of satisfying the length constraint.
+        bytes memory callData = abi.encodePacked(
+            bytes4(keccak256("foo(uint256[])")), uint256(0x20), uint256(10), uint256(1), uint256(2)
+        );
+
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
         harness.enforce(policy, callData);
     }
 

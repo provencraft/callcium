@@ -20,22 +20,22 @@ contract LoadSliceBench is CalldataReaderBench {
     }
 
     function test_Small() public {
-        harness.loadSlice(locSmall, callDataBytesSmall);
+        harness.loadSlice(descBytes, locSmall, callDataBytesSmall);
         vm.snapshotGasLastCall("CalldataReader.loadSlice", "small");
     }
 
     function test_Medium() public {
-        harness.loadSlice(locMedium, callDataBytesMedium);
+        harness.loadSlice(descBytes, locMedium, callDataBytesMedium);
         vm.snapshotGasLastCall("CalldataReader.loadSlice", "medium");
     }
 
     function test_Large() public {
-        harness.loadSlice(locLarge, callDataBytesLarge);
+        harness.loadSlice(descBytes, locLarge, callDataBytesLarge);
         vm.snapshotGasLastCall("CalldataReader.loadSlice", "large");
     }
 
     function test_Empty() public {
-        harness.loadSlice(locEmpty, callDataBytesEmpty);
+        harness.loadSlice(descBytes, locEmpty, callDataBytesEmpty);
         vm.snapshotGasLastCall("CalldataReader.loadSlice", "empty");
     }
 }

@@ -23,6 +23,7 @@ contract CalldataReaderHarness {
     }
 
     function loadSlice(
+        bytes memory desc,
         CalldataReader.Location memory loc,
         bytes calldata callData
     )
@@ -30,7 +31,7 @@ contract CalldataReaderHarness {
         pure
         returns (CalldataReader.DynamicSlice memory)
     {
-        return CalldataReader.loadSlice(loc, callData);
+        return CalldataReader.loadSlice(desc, loc, callData);
     }
 
     function arrayShape(

@@ -333,7 +333,7 @@ library PolicyEnforcer {
             valueLength = 32;
         } else {
             value = bytes32(0);
-            valueLength = CalldataReader.loadSlice(loc, callData).length;
+            valueLength = CalldataReader.loadSlice(state.desc, loc, callData).length;
         }
 
         // Restore scratch buffer capacity for next rule.
@@ -410,7 +410,7 @@ library PolicyEnforcer {
                     loop.valueLength = 32;
                 } else {
                     loop.value = bytes32(0);
-                    loop.valueLength = CalldataReader.loadSlice(elemLoc, callData).length;
+                    loop.valueLength = CalldataReader.loadSlice(state.desc, elemLoc, callData).length;
                 }
             }
 
@@ -473,7 +473,7 @@ library PolicyEnforcer {
             value = TypeRule.canonicalize(CalldataReader.loadScalar(loc, callData), typeCode);
             valueLength = 32;
         } else {
-            valueLength = CalldataReader.loadSlice(loc, callData).length;
+            valueLength = CalldataReader.loadSlice(state.desc, loc, callData).length;
             value = bytes32(0);
         }
     }

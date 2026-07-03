@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import { Script } from "forge-std/Script.sol";
 import { console2 } from "forge-std/console2.sol";
 
+import { CalldataReader } from "src/CalldataReader.sol";
 import { arg, msgSender, msgValue } from "src/Constraint.sol";
 import { Path } from "src/Path.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
@@ -73,6 +74,10 @@ contract EnforcementVectorGenerator is Script {
         // LENGTH_EQ: on bytes argument.
         _vectorLengthEqPass();
         _vectorLengthEqFail();
+
+        // LENGTH on arrays: element count, including an unbacked length word.
+        _vectorLengthArrayPass();
+        _vectorLengthArrayInflatedFail();
 
         // Selectorless policy: no selector check.
         _vectorSelectorlessPass();
@@ -367,6 +372,28 @@ contract EnforcementVectorGenerator is Script {
         bytes memory policy = PolicyBuilder.create("foo(bytes)").add(arg(0).lengthEq(uint256(5))).build();
         bytes memory callData = abi.encodeWithSignature("foo(bytes)", bytes("hi"));
         _addVector("length-eq-fail", "LENGTH_EQ bytes: length 2 != 5", policy, callData, false);
+    }
+
+    function _vectorLengthArrayPass() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])").add(arg(0).lengthGte(uint256(2))).build();
+        uint256[] memory array = new uint256[](3);
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", array);
+        _addVector("length-array-pass", "LENGTH_GTE uint256[]: 3 elements >= 2", policy, callData, true);
+    }
+
+    function _vectorLengthArrayInflatedFail() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])").add(arg(0).lengthGte(uint256(10))).build();
+        // Length word claims 10 elements while only 2 element words follow; the declared
+        // count is not backed by calldata and must surface as an out-of-bounds error.
+        bytes memory callData = abi.encodePacked(
+            bytes4(keccak256("foo(uint256[])")), uint256(0x20), uint256(10), uint256(1), uint256(2)
+        );
+        _addErrorVector(
+            "length-array-inflated-error",
+            "LENGTH_GTE uint256[]: inflated length word not backed by calldata",
+            policy,
+            callData
+        );
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -848,6 +875,37 @@ contract EnforcementVectorGenerator is Script {
         vm.serializeBytes(key, "policy", policy);
         vm.serializeBytes(key, "callData", callData);
         string memory vectorJson = vm.serializeBool(key, "expected", expected);
+        lastJson = vm.serializeString(OBJ, id, vectorJson);
+
+        vectorCount++;
+    }
+
+    /// @dev Adds a vector whose calldata is malformed: the onchain enforcer reverts
+    ///      CalldataOutOfBounds and the SDK reports a CALLDATA_OUT_OF_BOUNDS violation.
+    function _addErrorVector(
+        string memory id,
+        string memory description,
+        bytes memory policy,
+        bytes memory callData
+    ) private {
+        // Verify the on-chain enforcer reverts with the expected error.
+        try harness.check(policy, callData) returns (bool) {
+            revert(string.concat("Vector expected revert but check passed: ", id));
+        } catch (bytes memory err) {
+            // Truncating to the selector is the point: compare the revert reason's first four bytes.
+            // forge-lint: disable-next-item(unsafe-typecast)
+            require(
+                bytes4(err) == CalldataReader.CalldataOutOfBounds.selector,
+                string.concat("Vector reverted with unexpected error: ", id)
+            );
+        }
+
+        string memory key = _nextKey();
+        vm.serializeString(key, "id", id);
+        vm.serializeString(key, "description", description);
+        vm.serializeBytes(key, "policy", policy);
+        vm.serializeBytes(key, "callData", callData);
+        string memory vectorJson = vm.serializeString(key, "expectedError", "CALLDATA_OUT_OF_BOUNDS");
         lastJson = vm.serializeString(OBJ, id, vectorJson);
 
         vectorCount++;

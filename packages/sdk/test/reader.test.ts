@@ -848,8 +848,8 @@ describe("loadScalar", () => {
 
 describe("loadSlice", () => {
   test("reads data offset and length of dynamic bytes", () => {
-    // Layout: [offset_ptr(32)] at head=0 pointing to 32, then [length(32)] at 32.
-    const callData = concat(word(32), word(10));
+    // Layout: [offset_ptr(32)] at head=0 pointing to 32, then [length(32)] at 32, then payload.
+    const callData = concat(word(32), word(10), word(0));
     const loc: Location = { head: 0, base: 0, node: BYTES };
     const result = loadSlice(callData, loc);
     assertOk(result);
@@ -862,6 +862,42 @@ describe("loadSlice", () => {
     const loc: Location = { head: 0, base: 0, node: BYTES };
     const result = loadSlice(callData, loc);
     expect(result.ok).toBe(false);
+  });
+
+  test("returns error when bytes length is not backed by calldata", () => {
+    // Length word claims 10 bytes but no payload follows.
+    const callData = concat(word(32), word(10));
+    const loc: Location = { head: 0, base: 0, node: BYTES };
+    const result = loadSlice(callData, loc);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("CALLDATA_OUT_OF_BOUNDS");
+  });
+
+  test("reads array length exactly backed by calldata", () => {
+    // uint256[] with 2 elements backed by exactly 2 words.
+    const callData = concat(word(32), word(2), word(1), word(2));
+    const loc: Location = { head: 0, base: 0, node: dynamicArrayNode(UINT256) };
+    const result = loadSlice(callData, loc);
+    assertOk(result);
+    expect(result.length).toBe(2);
+  });
+
+  test("returns error when array length is not stride-backed", () => {
+    // Length word claims 4 elements while only 2 element words follow.
+    const callData = concat(word(32), word(4), word(1), word(2));
+    const loc: Location = { head: 0, base: 0, node: dynamicArrayNode(UINT256) };
+    const result = loadSlice(callData, loc);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("CALLDATA_OUT_OF_BOUNDS");
+  });
+
+  test("returns error when dynamic-element array length is not backed by offset words", () => {
+    // Length word claims 2 elements while only one offset word follows.
+    const callData = concat(word(32), word(2), word(64));
+    const loc: Location = { head: 0, base: 0, node: dynamicArrayNode(BYTES) };
+    const result = loadSlice(callData, loc);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe("CALLDATA_OUT_OF_BOUNDS");
   });
 });
 

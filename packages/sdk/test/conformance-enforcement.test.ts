@@ -21,7 +21,9 @@ type Vector = {
   policy: string;
   callData: string;
   context?: VectorContext;
-  expected: boolean;
+  expected?: boolean;
+  /** Violation code for malformed-calldata vectors (the onchain enforcer reverts). */
+  expectedError?: string;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -57,7 +59,12 @@ describe("PolicyEnforcer conformance vectors", () => {
 
       const result = PolicyEnforcer.check(hex(vector.policy), hex(vector.callData), context);
 
-      if (vector.expected) {
+      if (vector.expectedError !== undefined) {
+        expect(result.ok, "Expected error but got pass").toBe(false);
+        if (!result.ok) {
+          expect(result.violations.map((violation) => violation.code)).toContain(vector.expectedError);
+        }
+      } else if (vector.expected) {
         expect(result.ok, `Expected pass but got fail: ${!result.ok ? JSON.stringify(result.violations) : ""}`).toBe(
           true,
         );
