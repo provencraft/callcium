@@ -14,10 +14,19 @@ contract BindTest is PolicyRegistryTest {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
         (bytes32 hash,) = harness.store(policy);
 
-        harness.bind(TARGET, SELECTOR, hash);
+        harness.bind(TARGET, hash);
 
         assertEq(harness.hashFor(TARGET, SELECTOR), hash);
         assertEq(harness.resolve(TARGET, SELECTOR), policy);
+    }
+
+    function test_SelectorlessBindsUnderZeroSelector() public {
+        bytes memory policy = PolicyBuilder.createRaw("uint256").add(arg(0).eq(uint256(42))).buildUnsafe();
+        (bytes32 hash,) = harness.store(policy);
+
+        harness.bind(TARGET, hash);
+
+        assertEq(harness.resolve(TARGET, bytes4(0)), policy);
     }
 
     function test_OverwritesExisting() public {
@@ -26,10 +35,10 @@ contract BindTest is PolicyRegistryTest {
         (bytes32 hash1,) = harness.store(policy1);
         (bytes32 hash2,) = harness.store(policy2);
 
-        harness.bind(TARGET, SELECTOR, hash1);
+        harness.bind(TARGET, hash1);
         assertEq(harness.hashFor(TARGET, SELECTOR), hash1);
 
-        harness.bind(TARGET, SELECTOR, hash2);
+        harness.bind(TARGET, hash2);
         assertEq(harness.hashFor(TARGET, SELECTOR), hash2);
         assertEq(harness.resolve(TARGET, SELECTOR), policy2);
     }
@@ -38,11 +47,11 @@ contract BindTest is PolicyRegistryTest {
         bytes32 nonExistentHash = keccak256("nonexistent");
 
         vm.expectRevert(abi.encodeWithSelector(PolicyRegistry.PolicyNotFound.selector, nonExistentHash));
-        harness.bind(TARGET, SELECTOR, nonExistentHash);
+        harness.bind(TARGET, nonExistentHash);
     }
 
     function test_RevertWhen_ZeroHash() public {
         vm.expectRevert(PolicyRegistry.InvalidPolicyHash.selector);
-        harness.bind(TARGET, SELECTOR, bytes32(0));
+        harness.bind(TARGET, bytes32(0));
     }
 }

@@ -18,7 +18,7 @@ contract ResolveTest is PolicyRegistryTest {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
         (bytes32 hash,) = harness.store(policy);
 
-        harness.bind(TARGET, SELECTOR, hash);
+        harness.bind(TARGET, hash);
 
         bytes memory resolved = harness.resolve(TARGET, SELECTOR);
         assertEq(resolved, policy);
@@ -29,7 +29,7 @@ contract ResolveTest is PolicyRegistryTest {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
         (bytes32 hash,) = harness.store(policy);
 
-        harness.bind(address(0), SELECTOR, hash);
+        harness.bind(address(0), hash);
 
         bytes memory resolved = harness.resolve(TARGET, SELECTOR);
         assertEq(resolved, policy);
@@ -43,8 +43,8 @@ contract ResolveTest is PolicyRegistryTest {
         (bytes32 defaultHash,) = harness.store(defaultPolicy);
         (bytes32 targetHash,) = harness.store(targetPolicy);
 
-        harness.bind(address(0), SELECTOR, defaultHash);
-        harness.bind(TARGET, SELECTOR, targetHash);
+        harness.bind(address(0), defaultHash);
+        harness.bind(TARGET, targetHash);
 
         bytes memory resolved = harness.resolve(TARGET, SELECTOR);
         assertEq(resolved, targetPolicy);

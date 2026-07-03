@@ -5,6 +5,7 @@ import { EfficientHashLib } from "solady/utils/EfficientHashLib.sol";
 import { SSTORE2 } from "solady/utils/SSTORE2.sol";
 
 import { Policy } from "./Policy.sol";
+import { PolicyFormat as PF } from "./PolicyFormat.sol";
 
 /// @title PolicyRegistry
 /// @notice Library for policy storage and lookup operations.
@@ -58,14 +59,21 @@ library PolicyRegistry {
         }
     }
 
-    /// @notice Binds a policy to a (target, selector) pair.
+    /// @notice Binds a stored policy to a target under the policy's own selector.
+    /// @dev The bind key is derived from the stored policy — its embedded selector, or the
+    /// zero selector for selectorless policies — so a policy can only be bound under the
+    /// selector it declares. This extends an already-stored policy to more targets without
+    /// re-uploading the blob; the derivation reads only the policy header prefix.
     /// @param self The policy store.
     /// @param target The contract address to bind the policy to.
-    /// @param selector The function selector.
     /// @param policyHash The policy hash (must already be stored).
-    function bind(Store storage self, address target, bytes4 selector, bytes32 policyHash) internal {
+    function bind(Store storage self, address target, bytes32 policyHash) internal {
         require(policyHash != bytes32(0), InvalidPolicyHash());
-        require(self.policyOf[policyHash] != address(0), PolicyNotFound(policyHash));
+        address pointer = self.policyOf[policyHash];
+        require(pointer != address(0), PolicyNotFound(policyHash));
+
+        bytes memory prefix = SSTORE2.read(pointer, 0, PF.POLICY_HEADER_PREFIX);
+        bytes4 selector = Policy.isSelectorless(prefix) ? bytes4(0) : Policy.selector(prefix);
 
         self.policyFor[target][selector] = policyHash;
     }

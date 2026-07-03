@@ -7,8 +7,8 @@ import { PolicyRegistryBench } from "../PolicyRegistry.bench.t.sol";
 contract ResolveBench is PolicyRegistryBench {
     function setUp() public override {
         super.setUp();
-        harness.bind(target, SELECTOR, policyHash);
-        harness.bind(address(0), SELECTOR, policyHash);
+        harness.bind(target, policyHash);
+        harness.bind(address(0), policyHash);
     }
 
     function test_Target() public {

@@ -7,7 +7,7 @@ import { PolicyRegistryBench } from "../PolicyRegistry.bench.t.sol";
 contract LoadBench is PolicyRegistryBench {
     function setUp() public override {
         super.setUp();
-        harness.bind(target, SELECTOR, policyHash);
+        harness.bind(target, policyHash);
     }
 
     function test_Existing() public {

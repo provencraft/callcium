@@ -14,7 +14,7 @@ contract BindDefaultTest is PolicyRegistryTest {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
         (bytes32 hash,) = harness.store(policy);
 
-        harness.bind(address(0), SELECTOR, hash);
+        harness.bind(address(0), hash);
 
         // Target without specific binding should resolve to default.
         assertEq(harness.hashFor(TARGET, SELECTOR), hash);
@@ -27,10 +27,10 @@ contract BindDefaultTest is PolicyRegistryTest {
         (bytes32 hash1,) = harness.store(policy1);
         (bytes32 hash2,) = harness.store(policy2);
 
-        harness.bind(address(0), SELECTOR, hash1);
+        harness.bind(address(0), hash1);
         assertEq(harness.hashFor(TARGET, SELECTOR), hash1);
 
-        harness.bind(address(0), SELECTOR, hash2);
+        harness.bind(address(0), hash2);
         assertEq(harness.hashFor(TARGET, SELECTOR), hash2);
         assertEq(harness.resolve(TARGET, SELECTOR), policy2);
     }
@@ -39,11 +39,11 @@ contract BindDefaultTest is PolicyRegistryTest {
         bytes32 nonExistentHash = keccak256("nonexistent");
 
         vm.expectRevert(abi.encodeWithSelector(PolicyRegistry.PolicyNotFound.selector, nonExistentHash));
-        harness.bind(address(0), SELECTOR, nonExistentHash);
+        harness.bind(address(0), nonExistentHash);
     }
 
     function test_RevertWhen_ZeroHash() public {
         vm.expectRevert(PolicyRegistry.InvalidPolicyHash.selector);
-        harness.bind(address(0), SELECTOR, bytes32(0));
+        harness.bind(address(0), bytes32(0));
     }
 }

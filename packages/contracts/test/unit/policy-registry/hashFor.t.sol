@@ -14,7 +14,7 @@ contract HashForTest is PolicyRegistryTest {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
         (bytes32 hash,) = harness.store(policy);
 
-        harness.bind(TARGET, SELECTOR, hash);
+        harness.bind(TARGET, hash);
 
         assertEq(harness.hashFor(TARGET, SELECTOR), hash);
     }
@@ -23,7 +23,7 @@ contract HashForTest is PolicyRegistryTest {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
         (bytes32 hash,) = harness.store(policy);
 
-        harness.bind(address(0), SELECTOR, hash);
+        harness.bind(address(0), hash);
 
         // Target without specific binding should return default
         assertEq(harness.hashFor(TARGET, SELECTOR), hash);

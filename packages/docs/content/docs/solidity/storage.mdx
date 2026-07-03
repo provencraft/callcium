@@ -75,16 +75,16 @@ bytes32 policyHash = _storeAndBindPolicy(targets, policy);
 To bind an already-stored policy to additional targets (for example, when a new contract joins a shared policy), use `_bindPolicy` directly:
 
 ```solidity
-_bindPolicy(address(vaultC), IVault.withdraw.selector, policyHash);
+_bindPolicy(address(vaultC), policyHash);
 ```
 
-`_bindPolicy` requires the hash to already exist in storage; it reverts with `PolicyNotFound` otherwise.
+The bind key is derived from the stored policy — its embedded selector, or `bytes4(0)` for selectorless policies. A policy binds only under the selector it declares; a mismatched binding cannot be created. `_bindPolicy` requires the hash to already exist in storage; it reverts with `PolicyNotFound` otherwise.
 
-**Updating a policy** means storing a new blob and rebinding the selector:
+**Updating a policy** means storing a new blob and rebinding. The new policy declares the same selector, so the new binding replaces the old one:
 
 ```solidity
 (bytes32 newHash,) = _storePolicy(newPolicy);
-_bindPolicy(address(this), IVault.withdraw.selector, newHash);
+_bindPolicy(address(this), newHash);
 ```
 
 The old blob remains in storage permanently. Only the binding changes.

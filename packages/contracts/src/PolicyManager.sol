@@ -34,14 +34,14 @@ abstract contract PolicyManager {
         return _policyStore().store(policy);
     }
 
-    /// @notice Binds a policy to a (target, selector) pair.
-    /// @dev Binding a policy activates it for enforcement on the given target.
-    /// Restrict access as tightly as policy storage itself.
+    /// @notice Binds a stored policy to a target under the policy's own selector.
+    /// @dev Binding a policy activates it for enforcement on the given target. The selector
+    /// is derived from the stored policy, so a policy binds only under the selector it
+    /// declares. Restrict access as tightly as policy storage itself.
     /// @param target The contract address to bind the policy to.
-    /// @param selector The function selector.
     /// @param policyHash The policy hash (must already be stored).
-    function _bindPolicy(address target, bytes4 selector, bytes32 policyHash) internal {
-        _policyStore().bind(target, selector, policyHash);
+    function _bindPolicy(address target, bytes32 policyHash) internal {
+        _policyStore().bind(target, policyHash);
     }
 
     /// @notice Unbinds a policy from a (target, selector) pair.

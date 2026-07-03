@@ -8,8 +8,8 @@ contract PolicyRegistryHarness is PolicyManager {
         return _storePolicy(policy);
     }
 
-    function bind(address target, bytes4 selector, bytes32 policyHash) external {
-        _bindPolicy(target, selector, policyHash);
+    function bind(address target, bytes32 policyHash) external {
+        _bindPolicy(target, policyHash);
     }
 
     function unbind(address target, bytes4 selector) external {

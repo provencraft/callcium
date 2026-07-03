@@ -13,7 +13,7 @@ contract UnbindDefaultTest is PolicyRegistryTest {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
         (bytes32 hash,) = harness.store(policy);
 
-        harness.bind(address(0), SELECTOR, hash);
+        harness.bind(address(0), hash);
         assertEq(harness.hashFor(TARGET, SELECTOR), hash);
 
         harness.unbind(address(0), SELECTOR);
