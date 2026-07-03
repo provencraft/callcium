@@ -11,10 +11,10 @@ description: "Abstract contract providing EIP-7201 namespaced policy storage."
 
 Returns the namespaced policy store.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L16)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L22)
 
 ```solidity
-function _policyStore() private pure returns (PolicyRegistry.Store storage $);
+function _policyStore() private view returns (PolicyRegistry.Store storage);
 ```
 
 ### _storePolicy
@@ -24,7 +24,7 @@ Stores a policy blob via SSTORE2.
 Stored policies are trusted at enforcement time without semantic validation.
 Access to this function is the primary security boundary for enforcement integrity.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L33)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L41)
 
 ```solidity
 function _storePolicy(bytes memory policy) internal returns (bytes32 policyHash, address pointer);
@@ -51,7 +51,7 @@ Binding a policy activates it for enforcement on the given target. The selector
 is derived from the stored policy, so a policy binds only under the selector it
 declares. Restrict access as tightly as policy storage itself.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L43)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L51)
 
 ```solidity
 function _bindPolicy(address target, bytes32 policyHash) internal;
@@ -68,7 +68,10 @@ function _bindPolicy(address target, bytes32 policyHash) internal;
 
 Unbinds a policy from a (target, selector) pair.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L50)
+Unbinding deactivates enforcement for the pair, reopening the guarded selector.
+Restrict access as tightly as policy storage itself.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L60)
 
 ```solidity
 function _unbindPolicy(address target, bytes4 selector) internal;
@@ -88,7 +91,7 @@ Stores a policy and binds it to targets in one call.
 Stored policies are trusted at enforcement time without semantic validation,
 and binding activates them immediately. Access to this function is the primary security boundary.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L60)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L70)
 
 ```solidity
 function _storeAndBindPolicy(address[] calldata targets, bytes memory policy)
@@ -116,7 +119,7 @@ Stores a policy and binds it to a single target.
 Stored policies are trusted at enforcement time without semantic validation,
 and binding activates them immediately. Access to this function is the primary security boundary.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L73)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L83)
 
 ```solidity
 function _storeAndBindPolicy(address target, bytes memory policy) internal returns (bytes32 policyHash);
@@ -139,7 +142,7 @@ function _storeAndBindPolicy(address target, bytes memory policy) internal retur
 
 Resolves and loads the policy for a (target, selector) pair.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L81)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L91)
 
 ```solidity
 function _resolvePolicy(address target, bytes4 selector) internal view returns (bytes memory);
@@ -162,7 +165,7 @@ function _resolvePolicy(address target, bytes4 selector) internal view returns (
 
 Returns the policy hash for a (target, selector) pair.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L89)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L99)
 
 ```solidity
 function _policyHashFor(address target, bytes4 selector) internal view returns (bytes32);
@@ -185,7 +188,7 @@ function _policyHashFor(address target, bytes4 selector) internal view returns (
 
 Loads a policy blob by its hash.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L96)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L106)
 
 ```solidity
 function _loadPolicy(bytes32 policyHash) internal view returns (bytes memory);
@@ -207,7 +210,7 @@ function _loadPolicy(bytes32 policyHash) internal view returns (bytes memory);
 
 Checks if a policy exists in storage.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L103)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L113)
 
 ```solidity
 function _policyExists(bytes32 policyHash) internal view returns (bool);
@@ -229,7 +232,7 @@ function _policyExists(bytes32 policyHash) internal view returns (bool);
 
 Returns the SSTORE2 pointer for a policy hash.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L110)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L120)
 
 ```solidity
 function _policyPointerOf(bytes32 policyHash) internal view returns (address);

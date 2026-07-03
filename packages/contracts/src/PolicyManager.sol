@@ -8,16 +8,24 @@ import { PolicyRegistry } from "./PolicyRegistry.sol";
 abstract contract PolicyManager {
     using PolicyRegistry for PolicyRegistry.Store;
 
+    /// @custom:storage-location erc7201:callcium.storage.PolicyManager
+    struct PolicyManagerStorage {
+        PolicyRegistry.Store store;
+    }
+
     /// @dev EIP-7201 storage slot for PolicyManager.
     /// keccak256(abi.encode(uint256(keccak256("callcium.storage.PolicyManager")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant POLICY_STORE_SLOT = 0x8aa465d0fd610b7d06ba8430304aa155d63c58ad6e68cf8241a8a9f56215da00;
+    bytes32 private constant POLICY_MANAGER_STORAGE_LOCATION =
+        0x8aa465d0fd610b7d06ba8430304aa155d63c58ad6e68cf8241a8a9f56215da00;
 
     /// @dev Returns the namespaced policy store.
-    function _policyStore() private pure returns (PolicyRegistry.Store storage $) {
-        bytes32 slot = POLICY_STORE_SLOT;
+    function _policyStore() private view returns (PolicyRegistry.Store storage) {
+        PolicyManagerStorage storage $;
+        bytes32 slot = POLICY_MANAGER_STORAGE_LOCATION;
         assembly ("memory-safe") {
             $.slot := slot
         }
+        return $.store;
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -45,6 +53,8 @@ abstract contract PolicyManager {
     }
 
     /// @notice Unbinds a policy from a (target, selector) pair.
+    /// @dev Unbinding deactivates enforcement for the pair, reopening the guarded selector.
+    /// Restrict access as tightly as policy storage itself.
     /// @param target The contract address.
     /// @param selector The function selector.
     function _unbindPolicy(address target, bytes4 selector) internal {
