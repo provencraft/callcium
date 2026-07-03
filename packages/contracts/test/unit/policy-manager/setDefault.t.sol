@@ -5,9 +5,9 @@ import { arg } from "src/Constraint.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 import { PolicyRegistry } from "src/PolicyRegistry.sol";
 
-import { PolicyRegistryTest } from "../PolicyRegistry.t.sol";
+import { PolicyManagerTest } from "../PolicyManager.t.sol";
 
-contract BindDefaultTest is PolicyRegistryTest {
+contract BindDefaultTest is PolicyManagerTest {
     address internal constant TARGET = address(1);
 
     function test_ValidPolicy() public {

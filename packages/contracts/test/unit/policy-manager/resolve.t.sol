@@ -4,9 +4,9 @@ pragma solidity ^0.8.26;
 import { arg } from "src/Constraint.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
-import { PolicyRegistryTest } from "../PolicyRegistry.t.sol";
+import { PolicyManagerTest } from "../PolicyManager.t.sol";
 
-contract ResolveTest is PolicyRegistryTest {
+contract ResolveTest is PolicyManagerTest {
     address internal constant TARGET = address(1);
 
     function test_ReturnsEmptyWhenNoneBound() public view {

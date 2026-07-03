@@ -67,13 +67,14 @@ library PolicyRegistry {
     /// @param self The policy store.
     /// @param target The contract address to bind the policy to.
     /// @param policyHash The policy hash (must already be stored).
-    function bind(Store storage self, address target, bytes32 policyHash) internal {
+    /// @return selector The derived bind selector.
+    function bind(Store storage self, address target, bytes32 policyHash) internal returns (bytes4 selector) {
         require(policyHash != bytes32(0), InvalidPolicyHash());
         address pointer = self.policyOf[policyHash];
         require(pointer != address(0), PolicyNotFound(policyHash));
 
         bytes memory prefix = SSTORE2.read(pointer, 0, PF.POLICY_HEADER_PREFIX);
-        bytes4 selector = Policy.isSelectorless(prefix) ? bytes4(0) : Policy.selector(prefix);
+        selector = Policy.isSelectorless(prefix) ? bytes4(0) : Policy.selector(prefix);
 
         self.policyFor[target][selector] = policyHash;
     }
@@ -91,17 +92,19 @@ library PolicyRegistry {
     /// @param targets Target addresses to bind to. Use `address(0)` for default.
     /// @param policy The encoded policy blob.
     /// @return policyHash The policy hash.
+    /// @return pointer The SSTORE2 pointer address.
+    /// @return selector The derived bind selector.
     function storeAndBind(
         Store storage self,
         address[] calldata targets,
         bytes memory policy
     )
         internal
-        returns (bytes32 policyHash)
+        returns (bytes32 policyHash, address pointer, bytes4 selector)
     {
-        (policyHash,) = store(self, policy);
+        (policyHash, pointer) = store(self, policy);
 
-        bytes4 selector = Policy.isSelectorless(policy) ? bytes4(0) : Policy.selector(policy);
+        selector = Policy.isSelectorless(policy) ? bytes4(0) : Policy.selector(policy);
 
         uint256 targetCount = targets.length;
         for (uint256 i; i < targetCount; ++i) {
@@ -114,17 +117,19 @@ library PolicyRegistry {
     /// @param target The target address. Use `address(0)` for default.
     /// @param policy The encoded policy blob.
     /// @return policyHash The policy hash.
+    /// @return pointer The SSTORE2 pointer address.
+    /// @return selector The derived bind selector.
     function storeAndBind(
         Store storage self,
         address target,
         bytes memory policy
     )
         internal
-        returns (bytes32 policyHash)
+        returns (bytes32 policyHash, address pointer, bytes4 selector)
     {
-        (policyHash,) = store(self, policy);
+        (policyHash, pointer) = store(self, policy);
 
-        bytes4 selector = Policy.isSelectorless(policy) ? bytes4(0) : Policy.selector(policy);
+        selector = Policy.isSelectorless(policy) ? bytes4(0) : Policy.selector(policy);
 
         self.policyFor[target][selector] = policyHash;
     }

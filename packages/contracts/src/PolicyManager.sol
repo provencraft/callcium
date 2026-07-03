@@ -8,6 +8,31 @@ import { PolicyRegistry } from "./PolicyRegistry.sol";
 abstract contract PolicyManager {
     using PolicyRegistry for PolicyRegistry.Store;
 
+    /*/////////////////////////////////////////////////////////////////////////
+                                     EVENTS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @notice Emitted when a policy blob is stored.
+    /// @dev Emitted on every store call, including deduplicated stores of an existing blob.
+    /// @param policyHash The keccak256 hash of the policy blob.
+    /// @param pointer The SSTORE2 pointer address.
+    event PolicyStored(bytes32 indexed policyHash, address pointer);
+
+    /// @notice Emitted when a policy is bound to a (target, selector) pair.
+    /// @param target The contract address the policy is bound to.
+    /// @param selector The bind selector derived from the policy.
+    /// @param policyHash The bound policy hash.
+    event PolicyBound(address indexed target, bytes4 indexed selector, bytes32 indexed policyHash);
+
+    /// @notice Emitted when a policy is unbound from a (target, selector) pair.
+    /// @param target The contract address.
+    /// @param selector The function selector.
+    event PolicyUnbound(address indexed target, bytes4 indexed selector);
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                     STORAGE
+    /////////////////////////////////////////////////////////////////////////*/
+
     /// @custom:storage-location erc7201:callcium.storage.PolicyManager
     struct PolicyManagerStorage {
         PolicyRegistry.Store store;
@@ -39,7 +64,8 @@ abstract contract PolicyManager {
     /// @return policyHash The keccak256 hash of the policy.
     /// @return pointer The SSTORE2 pointer address.
     function _storePolicy(bytes memory policy) internal returns (bytes32 policyHash, address pointer) {
-        return _policyStore().store(policy);
+        (policyHash, pointer) = _policyStore().store(policy);
+        emit PolicyStored(policyHash, pointer);
     }
 
     /// @notice Binds a stored policy to a target under the policy's own selector.
@@ -49,7 +75,8 @@ abstract contract PolicyManager {
     /// @param target The contract address to bind the policy to.
     /// @param policyHash The policy hash (must already be stored).
     function _bindPolicy(address target, bytes32 policyHash) internal {
-        _policyStore().bind(target, policyHash);
+        bytes4 selector = _policyStore().bind(target, policyHash);
+        emit PolicyBound(target, selector, policyHash);
     }
 
     /// @notice Unbinds a policy from a (target, selector) pair.
@@ -59,6 +86,7 @@ abstract contract PolicyManager {
     /// @param selector The function selector.
     function _unbindPolicy(address target, bytes4 selector) internal {
         _policyStore().unbind(target, selector);
+        emit PolicyUnbound(target, selector);
     }
 
     /// @notice Stores a policy and binds it to targets in one call.
@@ -71,7 +99,15 @@ abstract contract PolicyManager {
         internal
         returns (bytes32 policyHash)
     {
-        return _policyStore().storeAndBind(targets, policy);
+        (bytes32 storedHash, address pointer, bytes4 selector) = _policyStore().storeAndBind(targets, policy);
+        emit PolicyStored(storedHash, pointer);
+
+        uint256 targetCount = targets.length;
+        for (uint256 i; i < targetCount; ++i) {
+            emit PolicyBound(targets[i], selector, storedHash);
+        }
+
+        return storedHash;
     }
 
     /// @notice Stores a policy and binds it to a single target.
@@ -81,7 +117,11 @@ abstract contract PolicyManager {
     /// @param policy The encoded policy blob.
     /// @return policyHash The policy hash.
     function _storeAndBindPolicy(address target, bytes memory policy) internal returns (bytes32 policyHash) {
-        return _policyStore().storeAndBind(target, policy);
+        (bytes32 storedHash, address pointer, bytes4 selector) = _policyStore().storeAndBind(target, policy);
+        emit PolicyStored(storedHash, pointer);
+        emit PolicyBound(target, selector, storedHash);
+
+        return storedHash;
     }
 
     /// @notice Resolves and loads the policy for a (target, selector) pair.

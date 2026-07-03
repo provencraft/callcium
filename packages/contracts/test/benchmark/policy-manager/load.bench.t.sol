@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
-import { PolicyRegistryBench } from "../PolicyRegistry.bench.t.sol";
+import { PolicyManagerBench } from "../PolicyManager.bench.t.sol";
 
 /// @dev Benchmarks for PolicyRegistry.load().
-contract LoadBench is PolicyRegistryBench {
+contract LoadBench is PolicyManagerBench {
     function setUp() public override {
         super.setUp();
         harness.bind(target, policyHash);
@@ -12,11 +12,11 @@ contract LoadBench is PolicyRegistryBench {
 
     function test_Existing() public {
         harness.load(policyHash);
-        vm.snapshotGasLastCall("PolicyRegistry.load", "existing");
+        vm.snapshotGasLastCall("PolicyManager.load", "existing");
     }
 
     function test_NonExistent() public {
         harness.load(bytes32(uint256(1)));
-        vm.snapshotGasLastCall("PolicyRegistry.load", "non_existent");
+        vm.snapshotGasLastCall("PolicyManager.load", "non_existent");
     }
 }

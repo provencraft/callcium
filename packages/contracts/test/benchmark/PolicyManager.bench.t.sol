@@ -4,11 +4,11 @@ pragma solidity ^0.8.26;
 import { arg } from "src/Constraint.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
-import { PolicyRegistryTest } from "../unit/PolicyRegistry.t.sol";
+import { PolicyManagerTest } from "../unit/PolicyManager.t.sol";
 
 /// @dev Base contract for PolicyRegistry benchmarks with pre-built fixtures.
 // forgefmt: disable-next-item
-abstract contract PolicyRegistryBench is PolicyRegistryTest {
+abstract contract PolicyManagerBench is PolicyManagerTest {
     bytes internal policy;
     bytes32 internal policyHash;
 

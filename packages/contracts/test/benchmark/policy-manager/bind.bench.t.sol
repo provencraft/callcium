@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
-import { PolicyRegistryBench } from "../PolicyRegistry.bench.t.sol";
+import { PolicyManagerBench } from "../PolicyManager.bench.t.sol";
 
 /// @dev Benchmarks for PolicyRegistry.bind().
-contract BindBench is PolicyRegistryBench {
+contract BindBench is PolicyManagerBench {
     function test_Bind() public {
         harness.bind(target, policyHash);
-        vm.snapshotGasLastCall("PolicyRegistry.bind", "bind");
+        vm.snapshotGasLastCall("PolicyManager.bind", "bind");
     }
 }

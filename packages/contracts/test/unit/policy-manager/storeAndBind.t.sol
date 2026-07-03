@@ -4,10 +4,11 @@ pragma solidity ^0.8.26;
 import { arg } from "src/Constraint.sol";
 import { Policy } from "src/Policy.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
+import { PolicyManager } from "src/PolicyManager.sol";
 
-import { PolicyRegistryTest } from "../PolicyRegistry.t.sol";
+import { PolicyManagerTest } from "../PolicyManager.t.sol";
 
-contract StoreAndBindTest is PolicyRegistryTest {
+contract StoreAndBindTest is PolicyManagerTest {
     address internal constant TARGET1 = address(1);
     address internal constant TARGET2 = address(2);
     address internal constant TARGET3 = address(3);
@@ -17,6 +18,10 @@ contract StoreAndBindTest is PolicyRegistryTest {
         address[] memory targets = new address[](1);
         targets[0] = TARGET1;
 
+        vm.expectEmit(true, false, false, false);
+        emit PolicyManager.PolicyStored(keccak256(policy), address(0));
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBound(TARGET1, SELECTOR, keccak256(policy));
         bytes32 hash = harness.storeAndBind(targets, policy);
 
         assertTrue(harness.exists(hash));
@@ -31,6 +36,14 @@ contract StoreAndBindTest is PolicyRegistryTest {
         targets[1] = TARGET2;
         targets[2] = TARGET3;
 
+        vm.expectEmit(true, false, false, false);
+        emit PolicyManager.PolicyStored(keccak256(policy), address(0));
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBound(TARGET1, SELECTOR, keccak256(policy));
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBound(TARGET2, SELECTOR, keccak256(policy));
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBound(TARGET3, SELECTOR, keccak256(policy));
         bytes32 hash = harness.storeAndBind(targets, policy);
 
         assertTrue(harness.exists(hash));

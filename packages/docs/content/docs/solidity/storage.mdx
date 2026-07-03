@@ -97,6 +97,12 @@ _unbindPolicy(address(this), IVault.withdraw.selector);
 
 After unbinding, resolution falls back to the global default or returns empty bytes.
 
+## Events
+
+`PolicyManager` emits an event for every storage mutation: `PolicyStored(policyHash, pointer)`, `PolicyBound(target, selector, policyHash)`, and `PolicyUnbound(target, selector)`. Binding and unbinding change what the enforcer accepts — the events make that configuration indexable and monitorable offchain.
+
+`PolicyStored` fires on every store call, including deduplicated stores of an already-known blob. `PolicyBound` carries the selector derived from the policy. Custom managers built directly on `PolicyRegistry` define their own events; the library emits nothing.
+
 ## Resolving policies
 
 `_resolvePolicy` returns the policy blob for a `(target, selector)` pair, or empty bytes if none is found:

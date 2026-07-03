@@ -4,9 +4,9 @@ pragma solidity ^0.8.26;
 import { arg } from "src/Constraint.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
-import { PolicyRegistryTest } from "../PolicyRegistry.t.sol";
+import { PolicyManagerTest } from "../PolicyManager.t.sol";
 
-contract HashForTest is PolicyRegistryTest {
+contract HashForTest is PolicyManagerTest {
     address internal constant TARGET = address(1);
     address internal constant OTHER_TARGET = address(2);
 

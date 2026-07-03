@@ -3,17 +3,20 @@ pragma solidity ^0.8.26;
 
 import { arg } from "src/Constraint.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
+import { PolicyManager } from "src/PolicyManager.sol";
 import { PolicyRegistry } from "src/PolicyRegistry.sol";
 
-import { PolicyRegistryTest } from "../PolicyRegistry.t.sol";
+import { PolicyManagerTest } from "../PolicyManager.t.sol";
 
-contract BindTest is PolicyRegistryTest {
+contract BindTest is PolicyManagerTest {
     address internal constant TARGET = address(1);
 
     function test_ValidPolicy() public {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
         (bytes32 hash,) = harness.store(policy);
 
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBound(TARGET, SELECTOR, hash);
         harness.bind(TARGET, hash);
 
         assertEq(harness.hashFor(TARGET, SELECTOR), hash);
@@ -24,6 +27,8 @@ contract BindTest is PolicyRegistryTest {
         bytes memory policy = PolicyBuilder.createRaw("uint256").add(arg(0).eq(uint256(42))).buildUnsafe();
         (bytes32 hash,) = harness.store(policy);
 
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBound(TARGET, bytes4(0), hash);
         harness.bind(TARGET, hash);
 
         assertEq(harness.resolve(TARGET, bytes4(0)), policy);

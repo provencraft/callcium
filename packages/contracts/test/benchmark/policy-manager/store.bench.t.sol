@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.26;
 
-import { PolicyRegistryBench } from "../PolicyRegistry.bench.t.sol";
+import { PolicyManagerBench } from "../PolicyManager.bench.t.sol";
 import { arg } from "src/Constraint.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
 // forgefmt: disable-next-item
-contract StoreBench is PolicyRegistryBench {
+contract StoreBench is PolicyManagerBench {
     bytes internal newPolicy;
 
     function setUp() public virtual override {
@@ -18,36 +18,36 @@ contract StoreBench is PolicyRegistryBench {
 
     function test_StoreNewPolicy() public {
         harness.store(newPolicy);
-        vm.snapshotGasLastCall("PolicyRegistry.store", "new_policy");
+        vm.snapshotGasLastCall("PolicyManager.store", "new_policy");
     }
 
     function test_StoreExistingPolicy() public {
         harness.store(policy);
-        vm.snapshotGasLastCall("PolicyRegistry.store", "existing_policy");
+        vm.snapshotGasLastCall("PolicyManager.store", "existing_policy");
     }
 
     function test_StoreTuple() public {
         harness.store(policyTuple);
-        vm.snapshotGasLastCall("PolicyRegistry.store", "tuple_3fields");
+        vm.snapshotGasLastCall("PolicyManager.store", "tuple_3fields");
     }
 
     function test_StoreNestedTuple() public {
         harness.store(policyNestedTuple);
-        vm.snapshotGasLastCall("PolicyRegistry.store", "nested_tuple");
+        vm.snapshotGasLastCall("PolicyManager.store", "nested_tuple");
     }
 
     function test_StoreArray() public {
         harness.store(policyArray);
-        vm.snapshotGasLastCall("PolicyRegistry.store", "dynamic_array");
+        vm.snapshotGasLastCall("PolicyManager.store", "dynamic_array");
     }
 
     function test_StoreComplex() public {
         harness.store(policyComplex);
-        vm.snapshotGasLastCall("PolicyRegistry.store", "complex_3params");
+        vm.snapshotGasLastCall("PolicyManager.store", "complex_3params");
     }
 
     function test_StoreLargeInSet() public {
         harness.store(policyLargeIn);
-        vm.snapshotGasLastCall("PolicyRegistry.store", "large_in_set_256");
+        vm.snapshotGasLastCall("PolicyManager.store", "large_in_set_256");
     }
 }

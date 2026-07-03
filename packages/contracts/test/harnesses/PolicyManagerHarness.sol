@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import { PolicyManager } from "src/PolicyManager.sol";
 
-contract PolicyRegistryHarness is PolicyManager {
+contract PolicyManagerHarness is PolicyManager {
     function store(bytes memory policy) external returns (bytes32 policyHash, address pointer) {
         return _storePolicy(policy);
     }
