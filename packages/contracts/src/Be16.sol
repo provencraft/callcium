@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 /// @title Be16
 /// @notice Helpers for reading and writing big-endian uint16 values.

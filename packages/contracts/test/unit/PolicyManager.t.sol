@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { PolicyManagerHarness } from "test/harnesses/PolicyManagerHarness.sol";
 import { BaseTest } from "test/unit/BaseTest.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 /// @title Cast
 /// @notice Helpers for upcasting fixed bytes and smaller numeric types to 32-byte words.

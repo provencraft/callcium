@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { EfficientHashLib } from "solady/utils/EfficientHashLib.sol";
 import { SSTORE2 } from "solady/utils/SSTORE2.sol";

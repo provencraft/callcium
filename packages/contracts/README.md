@@ -4,7 +4,8 @@ Solidity implementation of the Callcium policy engine.
 
 ## Requirements
 
-- Solidity `^0.8.26`
+- Solidity `^0.8.28`, compiled with `via_ir = true` — the library does not compile under the legacy codegen pipeline
+- EVM Cancun or later — compiled bytecode uses `push0` and `mcopy`; the target chain must support Cancun opcodes
 
 No external Solidity dependencies.
 

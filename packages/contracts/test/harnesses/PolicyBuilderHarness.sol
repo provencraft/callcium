@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { arg, blockTimestamp, msgSender, msgValue } from "src/Constraint.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { PathTest } from "../Path.t.sol";
 import { Path } from "src/Path.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 import { Be16 } from "./Be16.sol";
 import { Descriptor } from "./Descriptor.sol";

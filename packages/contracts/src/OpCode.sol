@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 /// @title OpCode
 /// @notice Byte values for policy operators (the "instruction set").

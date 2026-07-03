@@ -37,6 +37,12 @@ jobs:
         run: forge build
         id: build
 
+      - name: Check floor compiler version
+        run: forge build --force --skip test --skip script
+        env:
+          FOUNDRY_PROFILE: floor
+        id: floor
+
       - name: Run Forge tests
         run: forge test -vvv
         id: test

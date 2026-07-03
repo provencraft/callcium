@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.28;
 
 /// @title DescriptorFormat
 /// @notice Layout constants for the descriptor binary format.
