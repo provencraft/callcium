@@ -19,6 +19,17 @@ contract CheckCompatibilityTest is OpRuleTest {
         assertEq(code, "VALUE_OP_ON_DYNAMIC");
     }
 
+    function test_EqOnStaticCompositeWith32ByteHead_NotCompatible() public pure {
+        // uint256[1] and (uint256) both present a 32-byte static head but are composite.
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.EQ, TypeCode.STATIC_ARRAY, false, 32);
+        assertFalse(ok);
+        assertEq(code, "VALUE_OP_ON_COMPOSITE");
+
+        (ok, code) = OpRule.checkCompatibility(OpCode.EQ, TypeCode.TUPLE, false, 32);
+        assertFalse(ok);
+        assertEq(code, "VALUE_OP_ON_COMPOSITE");
+    }
+
     function test_GtOnNonNumeric_NotCompatible() public pure {
         (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.GT, TypeCode.ADDRESS, false, 32);
         assertFalse(ok);

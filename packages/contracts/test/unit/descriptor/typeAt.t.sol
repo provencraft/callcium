@@ -153,6 +153,23 @@ contract TypeAtTest is DescriptorTest {
         assertEq(t.code, TypeCode.UINT256);
     }
 
+    function test_StaticArray_QuantifierDescendsIntoElement() public pure {
+        bytes memory desc = DescriptorBuilder.fromTypes("uint256[3]");
+
+        assertEq(desc.typeAt(_path(0, Path.ALL)).code, TypeCode.UINT256);
+        assertEq(desc.typeAt(_path(0, Path.ANY)).code, TypeCode.UINT256);
+        assertEq(desc.typeAt(_path(0, Path.ALL_OR_EMPTY)).code, TypeCode.UINT256);
+    }
+
+    function test_StaticArray_QuantifierBeyondDeclaredLength() public pure {
+        // Sentinels are not concrete indices; declared length must not bound them.
+        bytes memory desc = DescriptorBuilder.fromTypes("address[2]");
+
+        Descriptor.TypeInfo memory t = desc.typeAt(_path(0, Path.ALL));
+
+        assertEq(t.code, TypeCode.ADDRESS);
+    }
+
     function test_StaticArrayDynamicElem_Root() public pure {
         bytes memory desc = DescriptorBuilder.fromTypes("bytes[2]");
 

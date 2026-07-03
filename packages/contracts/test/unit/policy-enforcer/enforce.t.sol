@@ -895,6 +895,35 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
+    function test_All_OnStaticArray_WhenAllElementsMatch() public view {
+        // build() (not buildUnsafe) proves the validator accepts static-array quantifiers.
+        bytes memory policy = PolicyBuilder.create("foo(uint256[3])")
+            .add(arg(0, Path.ALL).lte(uint256(3)))
+            .build();
+        uint256[3] memory arr = [uint256(1), 2, 3];
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[3])", arr);
+        harness.enforce(policy, callData);
+    }
+
+    function test_All_OnStaticArray_WhenOneElementViolates() public {
+        bytes memory policy = PolicyBuilder.create("foo(uint256[3])")
+            .add(arg(0, Path.ALL).lte(uint256(3)))
+            .build();
+        uint256[3] memory arr = [uint256(1), 2, 4];
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[3])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_Any_OnStaticArray_WhenOneElementMatches() public view {
+        bytes memory policy = PolicyBuilder.create("foo(address[2])")
+            .add(arg(0, Path.ANY).eq(address(1)))
+            .build();
+        address[2] memory arr = [address(9), address(1)];
+        bytes memory callData = abi.encodeWithSignature("foo(address[2])", arr);
+        harness.enforce(policy, callData);
+    }
+
     function test_AllOrEmptyWithSuffix() public view {
         TwoUints[] memory arr = new TwoUints[](2);
         arr[0] = TwoUints({ a: 1, b: 10 });

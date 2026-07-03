@@ -1,5 +1,5 @@
 import { bigintToHex, hexToBytes } from "./bytes";
-import { lookupContextProperty, Op, Scope, TypeCode } from "./constants";
+import { classifyTypeCode, lookupContextProperty, Op, Scope, TypeCode } from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
 import { isSigned, isLengthOp, isLengthValidType } from "./operators";
 import { parsePathSteps } from "./policy-coder";
@@ -168,6 +168,9 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: string; messag
   if (isValueOp(opBase)) {
     if (isDynamic || staticSize !== 32) {
       return { code: "VALUE_OP_ON_DYNAMIC", message: "Value operator used on dynamic type" };
+    }
+    if (classifyTypeCode(typeCode).typeClass !== "elementary") {
+      return { code: "VALUE_OP_ON_COMPOSITE", message: "Value operator used on composite type" };
     }
     if (isComparisonOp(opBase) && !isNumericType(typeCode)) {
       return { code: "NUMERIC_OP_ON_NON_NUMERIC", message: "Comparison operator used on non-numeric type" };

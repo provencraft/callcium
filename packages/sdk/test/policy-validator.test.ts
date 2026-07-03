@@ -62,6 +62,17 @@ describe("PolicyValidator - type compatibility", () => {
     expect(findIssue(issues, "VALUE_OP_ON_DYNAMIC")).toBeDefined();
   });
 
+  test("reports VALUE_OP_ON_COMPOSITE for eq on a one-element static array", () => {
+    // uint256[1] has a 32-byte static head but is composite; the enforcer cannot load it.
+    const issues = PolicyValidator.validate(rawPolicy("uint256[1]", Scope.CALLDATA, "0x0000", [op(Op.EQ, 42n)]));
+    expect(findIssue(issues, "VALUE_OP_ON_COMPOSITE")).toBeDefined();
+  });
+
+  test("reports VALUE_OP_ON_COMPOSITE for eq on a single-static-field tuple", () => {
+    const issues = PolicyValidator.validate(rawPolicy("(uint256)", Scope.CALLDATA, "0x0000", [op(Op.EQ, 42n)]));
+    expect(findIssue(issues, "VALUE_OP_ON_COMPOSITE")).toBeDefined();
+  });
+
   test("reports NUMERIC_OP_ON_NON_NUMERIC for gt on address", () => {
     const issues = validate("address", (b) => b.add(arg(0).gt(42n)));
     expect(findIssue(issues, "NUMERIC_OP_ON_NON_NUMERIC")).toBeDefined();

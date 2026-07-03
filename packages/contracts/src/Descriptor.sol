@@ -280,8 +280,12 @@ library Descriptor {
                 // forge-lint: disable-next-line(unsafe-typecast)
                 descOffset = tupleFieldOffset(self, descOffset, uint16(childIndex));
             } else if (code == TypeCode.STATIC_ARRAY) {
-                uint256 arrayLength = staticArrayLength(self, descOffset);
-                require(childIndex < arrayLength, ArrayIndexOutOfBounds(childIndex, arrayLength));
+                // Quantifier sentinels descend into the element type; only concrete
+                // indices are bounds-checked against the declared array length.
+                if (childIndex < Path.ANY) {
+                    uint256 arrayLength = staticArrayLength(self, descOffset);
+                    require(childIndex < arrayLength, ArrayIndexOutOfBounds(childIndex, arrayLength));
+                }
                 descOffset += DF.ARRAY_HEADER_SIZE;
             } else if (code == TypeCode.DYNAMIC_ARRAY) {
                 descOffset += DF.ARRAY_HEADER_SIZE;

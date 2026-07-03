@@ -7,6 +7,7 @@ import { Constraint, arg, msgSender } from "src/Constraint.sol";
 import { DescriptorBuilder } from "src/DescriptorBuilder.sol";
 import { IssueCode } from "src/IssueCode.sol";
 import { OpCode } from "src/OpCode.sol";
+import { Path } from "src/Path.sol";
 import { PolicyData } from "src/PolicyCoder.sol";
 import { PolicyValidator } from "src/PolicyValidator.sol";
 import { TypeDesc } from "src/TypeDesc.sol";
@@ -67,6 +68,59 @@ contract LengthOnStaticTest is PolicyValidatorTest {
         Constraint memory c = arg(0).lengthGte(1);
 
         PolicyData memory data = _createPolicyData("foo(uint256[])", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 0);
+    }
+}
+
+contract ValueOpOnCompositeTest is PolicyValidatorTest {
+    function test_EqOnSingleElementStaticArray_ReturnsError() public pure {
+        // uint256[1] has a 32-byte static head but is composite; the enforcer cannot load it.
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.array_(TypeDesc.uint256_(), 1)).build();
+
+        Constraint memory c = arg(0).eq(uint256(42));
+
+        PolicyData memory data = _createPolicyData("foo(uint256[1])", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].severity, IssueSeverity.Error);
+        assertEq(issues[0].category, IssueCategory.TypeMismatch);
+        assertEq(issues[0].code, IssueCode.VALUE_OP_ON_COMPOSITE);
+    }
+
+    function test_EqOnSingleStaticFieldTuple_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.tuple_(TypeDesc.uint256_())).build();
+
+        Constraint memory c = arg(0).eq(uint256(42));
+
+        PolicyData memory data = _createPolicyData("foo((uint256))", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.VALUE_OP_ON_COMPOSITE);
+    }
+
+    function test_EqOnTupleField_NoError() public pure {
+        // Descending into the field reaches the elementary type; this is the correct authoring.
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.tuple_(TypeDesc.uint256_())).build();
+
+        Constraint memory c = arg(0, 0).eq(uint256(42));
+
+        PolicyData memory data = _createPolicyData("foo((uint256))", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 0);
+    }
+
+    function test_AllQuantifierOnStaticArray_NoError() public pure {
+        // Quantified paths resolve to the element type for static arrays.
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.array_(TypeDesc.uint256_(), 3)).build();
+
+        Constraint memory c = arg(0, Path.ALL).eq(uint256(42));
+
+        PolicyData memory data = _createPolicyData("foo(uint256[3])", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
         assertEq(issues.length, 0);

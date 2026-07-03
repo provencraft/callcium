@@ -67,12 +67,16 @@ library OpRule {
     }
 
     /// @notice Checks if a value operator is compatible with the given type.
-    /// @dev Value operators (EQ, GT, LT, GTE, LTE, BETWEEN, IN, BITMASK_*) require 32-byte static types.
+    /// @dev Value operators (EQ, GT, LT, GTE, LTE, BETWEEN, IN, BITMASK_*) require 32-byte static
+    /// elementary types. Composites with a 32-byte head (a one-element static array, a
+    /// single-static-field tuple) are excluded: the enforcer loads scalars only from
+    /// elementary nodes and would revert on every call.
+    /// @param typeCode The type code of the target value.
     /// @param isDynamic Whether the type has dynamic ABI encoding.
     /// @param staticSize The ABI head size in bytes (0 if dynamic).
     /// @return True if the value operator can be used with this type.
-    function isValueOpCompatible(bool isDynamic, uint32 staticSize) internal pure returns (bool) {
-        return !isDynamic && staticSize == 32;
+    function isValueOpCompatible(uint8 typeCode, bool isDynamic, uint32 staticSize) internal pure returns (bool) {
+        return !isDynamic && staticSize == 32 && TypeRule.isElementary(typeCode);
     }
 
     /// @notice Checks if a length operator is compatible with the given type code.
@@ -159,8 +163,9 @@ library OpRule {
         returns (bool compatible, bytes32 code)
     {
         if (isValueOp(opBase)) {
-            // Value operators require 32-byte static types.
-            if (!isValueOpCompatible(isDynamic, staticSize)) return (false, IssueCode.VALUE_OP_ON_DYNAMIC);
+            // Value operators require 32-byte static elementary types.
+            if (isDynamic || staticSize != 32) return (false, IssueCode.VALUE_OP_ON_DYNAMIC);
+            if (!TypeRule.isElementary(typeCode)) return (false, IssueCode.VALUE_OP_ON_COMPOSITE);
 
             // Comparison operators need numeric types.
             if (isComparisonOp(opBase) && !isComparisonCompatible(typeCode)) {
@@ -189,6 +194,7 @@ library OpRule {
     /// @return message The human-readable description.
     function compatibilityMessage(bytes32 code) internal pure returns (string memory message) {
         if (code == IssueCode.VALUE_OP_ON_DYNAMIC) return "Value operator used on dynamic type";
+        if (code == IssueCode.VALUE_OP_ON_COMPOSITE) return "Value operator used on composite type";
         if (code == IssueCode.NUMERIC_OP_ON_NON_NUMERIC) return "Comparison operator used on non-numeric type";
         if (code == IssueCode.BITMASK_ON_INVALID) return "Bitmask operator used on incompatible type";
         if (code == IssueCode.LENGTH_ON_STATIC) return "Length operator used on non-dynamic type";

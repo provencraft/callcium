@@ -10,6 +10,8 @@ library IssueCode {
 
     /// Value operator used on a dynamic type.
     bytes32 internal constant VALUE_OP_ON_DYNAMIC = "VALUE_OP_ON_DYNAMIC";
+    /// Value operator used on a composite type (array or tuple), even when its static head is 32 bytes.
+    bytes32 internal constant VALUE_OP_ON_COMPOSITE = "VALUE_OP_ON_COMPOSITE";
     /// Comparison operator used on a non-numeric type.
     bytes32 internal constant NUMERIC_OP_ON_NON_NUMERIC = "NUMERIC_OP_ON_NON_NUMERIC";
     /// Bitmask operator used on an incompatible type.
