@@ -21,7 +21,7 @@ The policy format uses DNF: groups have OR semantics, rules within groups have A
 
 **Group-major layout enables O(1) short-circuit.** The blob structure `[groups...]` with `[ruleCount][groupSize]` lets DNF return true on the first passing group. On group failure, skip to the next group in O(1) using groupSize. CNF requires evaluating at least one literal per clause and all clauses overall.
 
-**Path locality and LCP reuse.** Within a DNF group, rules are sorted by `(scope, pathDepth, pathBytes)`. Adjacent rules share prefixes, so the traversal engine reuses state. CNF interleaves disjuncts from different clauses, reducing locality and increasing re-traversal.
+**Contiguous evaluation blocks.** Within a DNF group, rules are sorted by `(scope, pathDepth, pathBytes)`, so a group evaluates as one cheap call-level block followed by one calldata block. CNF interleaves disjuncts from different clauses, forcing per-literal scope branching.
 
 **Compact OR expressions via operators.** Many CNF-shaped intents map to a single operator in DNF. For example, `recipient == A OR recipient == B` becomes one `OP_IN(recipient, {A, B})` rule. This keeps AND-groups small and contiguous.
 
@@ -33,7 +33,7 @@ CNF's success path must touch every clause. Even with optimal literal ordering, 
 
 ## Alternatives Considered
 
-- **CNF (Conjunctive Normal Form):** AND of OR-clauses. Rejected because CNF's success path must touch every clause — even with optimal literal ordering, all clause paths must be visited to return true. This eliminates early-exit on common patterns like admin bypass. Additionally, CNF interleaves disjuncts from different clauses, reducing path locality and increasing calldata re-traversal.
+- **CNF (Conjunctive Normal Form):** AND of OR-clauses. Rejected because CNF's success path must touch every clause — even with optimal literal ordering, all clause paths must be visited to return true. This eliminates early-exit on common patterns like admin bypass. Additionally, CNF interleaves disjuncts from different clauses, forcing per-literal scope branching instead of contiguous evaluation blocks.
 
 ## Consequences
 

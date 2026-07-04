@@ -57,15 +57,6 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     Fixture internal depth3ArrayStructField;
 
     /*/////////////////////////////////////////////////////////////////////////
-                              LCP BENEFIT FIXTURES
-    /////////////////////////////////////////////////////////////////////////*/
-
-    Fixture internal lcpNone4Rules;
-    Fixture internal lcp1Shared4Rules;
-    Fixture internal lcp3Deep4Rules;
-    Fixture internal lcpIdenticalPaths;
-
-    /*/////////////////////////////////////////////////////////////////////////
                               OPERATOR FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
@@ -129,7 +120,6 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         _buildGroupScalingFixtures();
         _buildRuleScalingFixtures();
         _buildPathDepthFixtures();
-        _buildLcpFixtures();
         _buildOperatorFixtures();
         _buildScopeFixtures();
         _buildValueTypeFixtures();
@@ -391,74 +381,6 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         }
 
         return Fixture({ policy: policy, callData: callData });
-    }
-
-    /*/////////////////////////////////////////////////////////////////////////
-                              LCP BENEFIT BUILDERS
-    /////////////////////////////////////////////////////////////////////////*/
-
-    function _buildLcpFixtures() internal {
-        // "None": 4 separate top-level parameters, paths are [0], [1], [2], [3]
-        // (no shared prefix across the set beyond "calldata scope" itself).
-        {
-            string memory sig = "foo(uint256,uint256,uint256,uint256)";
-            bytes memory callData = abi.encodeWithSignature(sig, uint256(1), uint256(2), uint256(3), uint256(4));
-            lcpNone4Rules = _buildFixture(
-                PolicyBuilder.create(sig)
-                    .add(arg(0).eq(uint256(1)))
-                    .add(arg(1).eq(uint256(2)))
-                    .add(arg(2).eq(uint256(3)))
-                    .add(arg(3).eq(uint256(4))),
-                callData
-            );
-        }
-
-        // "1 shared": tuple field accesses share the first path step [0]
-        {
-            string memory sig = "foo((uint256,uint256,uint256,uint256))";
-            bytes memory callData = _encodeTupleCalldata(sig, 4);
-            lcp1Shared4Rules = _buildFixture(
-                PolicyBuilder.create(sig)
-                    .add(arg(0, 0).eq(uint256(1)))
-                    .add(arg(0, 1).eq(uint256(2)))
-                    .add(arg(0, 2).eq(uint256(3)))
-                    .add(arg(0, 3).eq(uint256(4))),
-                callData
-            );
-        }
-
-        // "3 deep": deeply nested tuple, paths share [0, 0, 0]
-        {
-            string memory sig = "foo((((uint256,uint256,uint256,uint256),uint256),uint256))";
-            bytes memory callData = abi.encodePacked(
-                abi.encodeWithSignature(sig),
-                bytes32(uint256(1)),
-                bytes32(uint256(2)),
-                bytes32(uint256(3)),
-                bytes32(uint256(4)),
-                bytes32(uint256(5)),
-                bytes32(uint256(6))
-            );
-            lcp3Deep4Rules = _buildFixture(
-                PolicyBuilder.create(sig)
-                    .add(arg(0, 0, 0, 0).eq(uint256(1)))
-                    .add(arg(0, 0, 0, 1).eq(uint256(2)))
-                    .add(arg(0, 0, 0, 2).eq(uint256(3)))
-                    .add(arg(0, 0, 0, 3).eq(uint256(4))),
-                callData
-            );
-        }
-
-        // "Identical paths": all rules share the exact same path [0, 0]
-        {
-            string memory sig = "foo((uint256,uint256,uint256,uint256))";
-            bytes memory callData = _encodeTupleCalldata(sig, 4);
-            lcpIdenticalPaths = _buildFixture(
-                PolicyBuilder.create(sig)
-                    .add(arg(0, 0).gte(uint256(0)).gte(uint256(1)).lte(uint256(100)).lte(uint256(200))),
-                callData
-            );
-        }
     }
 
     /*/////////////////////////////////////////////////////////////////////////

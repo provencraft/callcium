@@ -27,8 +27,6 @@ library PolicyEnforcer {
         bytes pathScratch;
         /// CalldataReader configuration with base offset.
         CalldataReader.Config config;
-        /// Path depth of the previous rule for LCP optimization.
-        uint8 prevDepth;
     }
 
     /// @dev Pre-parsed rule fields to avoid redundant policy blob reads.
@@ -153,16 +151,14 @@ library PolicyEnforcer {
             policy: policy,
             desc: Policy.descriptor(policy),
             pathScratch: new bytes(uint256(MAX_PATH_DEPTH) * 2),
-            config: CalldataReader.Config({ baseOffset: baseOffset }),
-            prevDepth: 0
+            config: CalldataReader.Config({ baseOffset: baseOffset })
         });
 
-        uint16[MAX_PATH_DEPTH] memory prevSteps;
         uint8 groups = Policy.groupCount(policy);
 
         // Evaluate groups with OR semantics: first passing group succeeds.
         for (uint32 groupIndex; groupIndex < groups; ++groupIndex) {
-            (bool groupOk, uint32 failingRuleIndex) = _evalGroup(state, prevSteps, callData, groupIndex);
+            (bool groupOk, uint32 failingRuleIndex) = _evalGroup(state, callData, groupIndex);
             if (groupOk) return (true, 0, 0);
             failingGroup = groupIndex;
             failingRule = failingRuleIndex;
@@ -174,7 +170,6 @@ library PolicyEnforcer {
     /// @dev Evaluates a single group. Returns (true, 0) if group passes, (false, failingRule) otherwise.
     function _evalGroup(
         EvalState memory state,
-        uint16[MAX_PATH_DEPTH] memory prevSteps,
         bytes calldata callData,
         uint32 groupIndex
     )
@@ -188,12 +183,11 @@ library PolicyEnforcer {
         uint256 groupEnd = groupOffset + PF.GROUP_HEADER_SIZE + groupSize;
 
         uint256 ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
-        state.prevDepth = 0;
 
         for (uint32 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
             uint16 ruleSize = Policy.ruleSize(state.policy, ruleOffset);
 
-            bool ruleOk = _evalRule(state, prevSteps, callData, ruleOffset);
+            bool ruleOk = _evalRule(state, callData, ruleOffset);
             if (!ruleOk) return (false, ruleIndex);
 
             unchecked {
@@ -222,12 +216,7 @@ library PolicyEnforcer {
     }
 
     /// @dev Evaluates a single rule. Returns true if rule passes.
-    function _evalRule(
-        EvalState memory state,
-        uint16[MAX_PATH_DEPTH] memory prevSteps,
-        bytes calldata callData,
-        uint256 ruleOffset
-    )
+    function _evalRule(EvalState memory state, bytes calldata callData, uint256 ruleOffset)
         private
         view
         returns (bool)
@@ -246,7 +235,7 @@ library PolicyEnforcer {
             bool quantifiedResult;
             // forgefmt: disable-next-item
             (value, valueLength, typeCode, isQuantified, quantifiedResult) = _loadCalldataValue(
-                state, prevSteps, callData, rule, opBase
+                state, callData, rule, opBase
             );
 
             if (isQuantified) return quantifiedResult;
@@ -258,11 +247,6 @@ library PolicyEnforcer {
     }
 
     /// @dev Loads a value from calldata at the path specified by the rule.
-    ///
-    /// Uses LCP (Longest Common Prefix) optimization: consecutive rules often share
-    /// path prefixes, so we only recompute the differing suffix. The scratch buffer
-    /// retains the prefix from the previous rule.
-    ///
     /// @return value The loaded value (32 bytes for scalars, zero for dynamic types).
     /// @return valueLength Length in bytes (32 for scalars, actual length for dynamic).
     /// @return typeCode The type code of the resolved value, used for signed comparison.
@@ -270,7 +254,6 @@ library PolicyEnforcer {
     /// @return quantifiedResult The result of quantifier evaluation if isQuantified is true.
     function _loadCalldataValue(
         EvalState memory state,
-        uint16[MAX_PATH_DEPTH] memory prevSteps,
         bytes calldata callData,
         RuleView memory rule,
         uint8 opBase
@@ -279,16 +262,11 @@ library PolicyEnforcer {
         pure
         returns (bytes32 value, uint256 valueLength, uint8 typeCode, bool isQuantified, bool quantifiedResult)
     {
-        // LCP optimization: find how many path steps match the previous rule.
-        uint256 sharedDepth = _computeSharedDepth(state, prevSteps, rule);
-
         uint8 quantifierIndex;
         uint16 quantifierType;
 
-        // Only write the suffix (new steps) into the scratch buffer.
-        // Steps [0, sharedDepth) are already correct from the previous rule.
-        assert(rule.depth <= MAX_PATH_DEPTH);
-        for (uint256 i = sharedDepth; i < rule.depth; ++i) {
+        // Copy the rule's path steps into the scratch buffer, noting a quantifier if present.
+        for (uint256 i; i < rule.depth; ++i) {
             uint16 step = Be16.readUnchecked(state.policy, rule.pathStart + i * 2);
 
             if (step >= Path.ANY) {
@@ -299,14 +277,10 @@ library PolicyEnforcer {
             }
 
             Be16.writeUnchecked(state.pathScratch, i * 2, step);
-            prevSteps[i] = step;
         }
 
         // Quantified path: delegate to specialized handler.
-        // Reset LCP optimization because quantified paths modify pathScratch during iteration,
-        // making the cached prefix invalid for subsequent rules.
         if (quantifierType != 0) {
-            state.prevDepth = 0;
             quantifiedResult = _evalQuantifiedPath(state, callData, rule, quantifierIndex, quantifierType, opBase);
             return (bytes32(0), 0, 0, true, quantifiedResult);
         }
@@ -321,7 +295,6 @@ library PolicyEnforcer {
 
         // Resolve the path to a calldata location.
         CalldataReader.Location memory loc = CalldataReader.locate(state.desc, callData, pathScratch, state.config);
-        state.prevDepth = depth;
 
         // Extract type code for signed integer comparison in _applyOperator.
         typeCode = loc.typeInfo.code;
@@ -493,26 +466,6 @@ library PolicyEnforcer {
     function _restorePathScratch(bytes memory pathScratch) private pure {
         assembly ("memory-safe") {
             mstore(pathScratch, mul(MAX_PATH_DEPTH, 2))
-        }
-    }
-
-    /// @dev Computes the shared path depth between current rule and previous rule.
-    function _computeSharedDepth(
-        EvalState memory state,
-        uint16[MAX_PATH_DEPTH] memory prevSteps,
-        RuleView memory rule
-    )
-        private
-        pure
-        returns (uint256 sharedDepth)
-    {
-        uint256 minDepth = rule.depth < state.prevDepth ? rule.depth : state.prevDepth;
-        for (uint256 i; i < minDepth; ++i) {
-            uint16 step = Be16.readUnchecked(state.policy, rule.pathStart + i * 2);
-            if (prevSteps[i] != step) break;
-            unchecked {
-                ++sharedDepth;
-            }
         }
     }
 

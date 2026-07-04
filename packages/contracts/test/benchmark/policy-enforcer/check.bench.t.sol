@@ -138,30 +138,6 @@ contract CheckBench is PolicyEnforcerBench {
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                              LCP BENEFIT
-    /////////////////////////////////////////////////////////////////////////*/
-
-    function test_Lcp1_Shared4Rules() public {
-        harness.check(lcp1Shared4Rules.policy, lcp1Shared4Rules.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "lcp_1_shared_4rules");
-    }
-
-    function test_Lcp3_Deep4Rules() public {
-        harness.check(lcp3Deep4Rules.policy, lcp3Deep4Rules.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "lcp_3_deep_4rules");
-    }
-
-    function test_LcpIdenticalPaths() public {
-        harness.check(lcpIdenticalPaths.policy, lcpIdenticalPaths.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "lcp_identical_paths");
-    }
-
-    function test_LcpNone_DisjointAtDepth2() public {
-        harness.check(lcpNone4Rules.policy, lcpNone4Rules.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "lcp_none_disjoint_depth2");
-    }
-
-    /*/////////////////////////////////////////////////////////////////////////
                               OPERATORS
     /////////////////////////////////////////////////////////////////////////*/
 

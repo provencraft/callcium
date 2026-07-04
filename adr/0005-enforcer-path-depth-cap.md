@@ -35,7 +35,6 @@ The policy format allows `pathDepth` up to 255 (1-byte field). `CalldataReader` 
 ## Consequences
 
 - Single preallocated scratch buffer (64 bytes) reused across all rules, enabling a zero-allocation hot loop.
-- Longest-common-prefix (LCP) reuse across path-sorted rules (see ADR-0002) minimises per-rule writes to the path buffer.
 - Policies with paths deeper than 32 steps are rejected at runtime rather than silently degrading performance or overflowing the scratch buffer.
 - `CalldataReader` remains a generic, reusable traversal library with no enforcer-specific constraints baked in.
 - The cap can be raised in a future version without a format change — it is an operational limit (spec Section 9.1, Design category), not a wire-format field.
