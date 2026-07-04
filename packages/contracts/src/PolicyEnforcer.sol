@@ -394,6 +394,13 @@ library PolicyEnforcer {
         }
 
         QLoopState memory loop;
+        // Each iteration allocates scratch memory (element Location, suffix descent).
+        // After copying results into `loop`, free-memory pointer rewinds to this checkpoint.
+        // Prevents corruption: escaping references from one iteration would be overwritten.
+        uint256 memCheckpoint;
+        assembly ("memory-safe") {
+            memCheckpoint := mload(0x40)
+        }
         // Element iteration: O(1) per element via arrayElementAt.
         for (uint256 elemIndex = 0; elemIndex < shape.length; ++elemIndex) {
             CalldataReader.Location memory elemLoc = CalldataReader.arrayElementAt(shape, elemIndex, callData);
@@ -432,6 +439,10 @@ library PolicyEnforcer {
             if (!params.isUniversal && elemResult) {
                 _restorePathScratch(pathScratch);
                 return true;
+            }
+
+            assembly ("memory-safe") {
+                mstore(0x40, memCheckpoint)
             }
         }
 
