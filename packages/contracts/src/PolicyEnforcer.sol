@@ -5,6 +5,7 @@ import { Be16 } from "./Be16.sol";
 
 import { CalldataReader } from "./CalldataReader.sol";
 import { Descriptor } from "./Descriptor.sol";
+import { DescriptorFormat as DF } from "./DescriptorFormat.sol";
 import { OpCode } from "./OpCode.sol";
 import { Path } from "./Path.sol";
 import { Policy } from "./Policy.sol";
@@ -23,8 +24,6 @@ library PolicyEnforcer {
         bytes policy;
         /// The descriptor extracted from policy.
         bytes desc;
-        /// Scratch buffer for path construction.
-        bytes pathScratch;
         /// CalldataReader configuration with base offset.
         CalldataReader.Config config;
     }
@@ -148,11 +147,12 @@ library PolicyEnforcer {
 
         // Extract descriptor from policy and initialize evaluation state.
         EvalState memory state = EvalState({
-            policy: policy,
-            desc: Policy.descriptor(policy),
-            pathScratch: new bytes(uint256(MAX_PATH_DEPTH) * 2),
-            config: CalldataReader.Config({ baseOffset: baseOffset })
+            policy: policy, desc: Policy.descriptor(policy), config: CalldataReader.Config({ baseOffset: baseOffset })
         });
+
+        // Validate the descriptor version once; locateSteps skips this check per rule.
+        uint8 formatVersion = Descriptor.version(state.desc);
+        require(formatVersion == DF.VERSION, Descriptor.UnsupportedVersion(formatVersion));
 
         uint8 groups = Policy.groupCount(policy);
 
@@ -265,7 +265,7 @@ library PolicyEnforcer {
         uint8 quantifierIndex;
         uint16 quantifierType;
 
-        // Copy the rule's path steps into the scratch buffer, noting a quantifier if present.
+        // Scan the rule's path steps for a quantifier.
         for (uint256 i; i < rule.depth; ++i) {
             uint16 step = Be16.readUnchecked(state.policy, rule.pathStart + i * 2);
 
@@ -275,8 +275,6 @@ library PolicyEnforcer {
                 quantifierIndex = uint8(i);
                 quantifierType = step;
             }
-
-            Be16.writeUnchecked(state.pathScratch, i * 2, step);
         }
 
         // Quantified path: delegate to specialized handler.
@@ -285,33 +283,21 @@ library PolicyEnforcer {
             return (bytes32(0), 0, 0, true, quantifiedResult);
         }
 
-        // Temporarily adjust pathScratch length for CalldataReader.
-        // The buffer has capacity for MAX_PATH_DEPTH steps but we only use `depth`.
-        uint8 depth = rule.depth;
-        bytes memory pathScratch = state.pathScratch;
-        assembly ("memory-safe") {
-            mstore(pathScratch, mul(depth, 2))
-        }
-
-        // Resolve the path to a calldata location.
-        CalldataReader.Location memory loc = CalldataReader.locate(state.desc, callData, pathScratch, state.config);
+        // Resolve the path to a calldata location, reading steps directly from the policy blob.
+        CalldataReader.Location memory loc =
+            CalldataReader.locateSteps(state.desc, callData, state.policy, rule.pathStart, rule.depth, state.config);
 
         // Extract type code for signed integer comparison in _applyOperator.
-        typeCode = loc.typeInfo.code;
+        typeCode = loc.typeCode;
 
         // Load the value: scalars (32-byte static) get the actual value,
         // dynamic types (bytes, string, arrays) get length only.
-        if (!loc.typeInfo.isDynamic && loc.typeInfo.staticSize == 32) {
+        if (!loc.isDynamic && loc.staticSize == 32) {
             value = TypeRule.canonicalize(CalldataReader.loadScalar(loc, callData), typeCode);
             valueLength = 32;
         } else {
             value = bytes32(0);
             valueLength = CalldataReader.loadSlice(state.desc, loc, callData).length;
-        }
-
-        // Restore scratch buffer capacity for next rule.
-        assembly ("memory-safe") {
-            mstore(pathScratch, mul(MAX_PATH_DEPTH, 2))
         }
     }
 
@@ -328,17 +314,11 @@ library PolicyEnforcer {
         pure
         returns (bool)
     {
-        bytes memory pathScratch = state.pathScratch;
-
-        // Set pathScratch to prefix for arrayShape.
-        assembly ("memory-safe") {
-            mstore(pathScratch, mul(quantifierIndex, 2))
-        }
-
-        // forgefmt: disable-next-item
-        CalldataReader.ArrayShape memory shape = CalldataReader.arrayShape(
-            state.desc, callData, pathScratch, state.config
+        // Locate the array via the path prefix before the quantifier, then take its shape.
+        CalldataReader.Location memory arrayLoc = CalldataReader.locateSteps(
+            state.desc, callData, state.policy, rule.pathStart, quantifierIndex, state.config
         );
+        CalldataReader.ArrayShape memory shape = CalldataReader.arrayShape(state.desc, callData, arrayLoc);
 
         require(
             shape.length <= PF.MAX_QUANTIFIED_ARRAY_LENGTH,
@@ -346,10 +326,7 @@ library PolicyEnforcer {
         );
 
         // Empty array semantics: ALL_OR_EMPTY (vacuous truth) vs ANY/ALL (false).
-        if (shape.length == 0) {
-            _restorePathScratch(pathScratch);
-            return quantifierType == Path.ALL_OR_EMPTY;
-        }
+        if (shape.length == 0) return quantifierType == Path.ALL_OR_EMPTY;
 
         QParams memory params;
         params.opBase = opBase;
@@ -405,21 +382,14 @@ library PolicyEnforcer {
             );
 
             // Short-circuit.
-            if (params.isUniversal && !elemResult) {
-                _restorePathScratch(pathScratch);
-                return false;
-            }
-            if (!params.isUniversal && elemResult) {
-                _restorePathScratch(pathScratch);
-                return true;
-            }
+            if (params.isUniversal && !elemResult) return false;
+            if (!params.isUniversal && elemResult) return true;
 
             assembly ("memory-safe") {
                 mstore(0x40, memCheckpoint)
             }
         }
 
-        _restorePathScratch(pathScratch);
         return params.isUniversal; // Universal: all passed, Existential: none passed.
     }
 
@@ -440,7 +410,7 @@ library PolicyEnforcer {
 
         for (uint8 i = startStep; i < endDepth; ++i) {
             uint16 step = Be16.readUnchecked(state.policy, pathStart + uint256(i) * 2);
-            uint8 code = loc.typeInfo.code;
+            uint8 code = loc.typeCode;
 
             if (code == TypeCode.TUPLE) {
                 loc = CalldataReader.tupleField(state.desc, loc, step, callData);
@@ -452,20 +422,13 @@ library PolicyEnforcer {
             }
         }
 
-        typeCode = loc.typeInfo.code;
-        if (!loc.typeInfo.isDynamic && loc.typeInfo.staticSize == 32) {
+        typeCode = loc.typeCode;
+        if (!loc.isDynamic && loc.staticSize == 32) {
             value = TypeRule.canonicalize(CalldataReader.loadScalar(loc, callData), typeCode);
             valueLength = 32;
         } else {
             valueLength = CalldataReader.loadSlice(state.desc, loc, callData).length;
             value = bytes32(0);
-        }
-    }
-
-    /// @dev Restores pathScratch length to full capacity after quantifier evaluation.
-    function _restorePathScratch(bytes memory pathScratch) private pure {
-        assembly ("memory-safe") {
-            mstore(pathScratch, mul(MAX_PATH_DEPTH, 2))
         }
     }
 

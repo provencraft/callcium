@@ -27,9 +27,9 @@ contract LocateTest is CalldataReaderTest {
         assertEq(loc.head, 4);
         assertEq(loc.base, 4);
         assertEq(loc.descOffset, 2);
-        assertEq(loc.typeInfo.code, TypeCode.ADDRESS);
-        assertEq(loc.typeInfo.isDynamic, false);
-        assertEq(loc.typeInfo.staticSize, 32);
+        assertEq(loc.typeCode, TypeCode.ADDRESS);
+        assertEq(loc.isDynamic, false);
+        assertEq(loc.staticSize, 32);
     }
 
     function test_SingleUint256() public view {
@@ -39,9 +39,9 @@ contract LocateTest is CalldataReaderTest {
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0), cfg);
 
         assertEq(loc.head, 4);
-        assertEq(loc.typeInfo.code, TypeCode.UINT256);
-        assertEq(loc.typeInfo.isDynamic, false);
-        assertEq(loc.typeInfo.staticSize, 32);
+        assertEq(loc.typeCode, TypeCode.UINT256);
+        assertEq(loc.isDynamic, false);
+        assertEq(loc.staticSize, 32);
     }
 
     function test_MultipleElementaryTypes_SecondParam() public view {
@@ -52,7 +52,7 @@ contract LocateTest is CalldataReaderTest {
 
         assertEq(loc.head, 36);
         assertEq(loc.descOffset, 3);
-        assertEq(loc.typeInfo.code, TypeCode.UINT256);
+        assertEq(loc.typeCode, TypeCode.UINT256);
     }
 
     function test_MultipleElementaryTypes_ThirdParam() public view {
@@ -63,7 +63,7 @@ contract LocateTest is CalldataReaderTest {
 
         assertEq(loc.head, 68);
         assertEq(loc.descOffset, 4);
-        assertEq(loc.typeInfo.code, TypeCode.BOOL);
+        assertEq(loc.typeCode, TypeCode.BOOL);
     }
 
     function test_SingleBytes() public view {
@@ -73,9 +73,9 @@ contract LocateTest is CalldataReaderTest {
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0), cfg);
 
         assertEq(loc.head, 4);
-        assertEq(loc.typeInfo.code, TypeCode.BYTES);
-        assertEq(loc.typeInfo.isDynamic, true);
-        assertEq(loc.typeInfo.staticSize, 0);
+        assertEq(loc.typeCode, TypeCode.BYTES);
+        assertEq(loc.isDynamic, true);
+        assertEq(loc.staticSize, 0);
     }
 
     function test_SingleString() public view {
@@ -85,8 +85,8 @@ contract LocateTest is CalldataReaderTest {
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0), cfg);
 
         assertEq(loc.head, 4);
-        assertEq(loc.typeInfo.code, TypeCode.STRING);
-        assertEq(loc.typeInfo.isDynamic, true);
+        assertEq(loc.typeCode, TypeCode.STRING);
+        assertEq(loc.isDynamic, true);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -100,9 +100,9 @@ contract LocateTest is CalldataReaderTest {
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0), cfg);
 
         assertEq(loc.head, 4);
-        assertEq(loc.typeInfo.code, TypeCode.TUPLE);
-        assertEq(loc.typeInfo.isDynamic, false);
-        assertEq(loc.typeInfo.staticSize, 64);
+        assertEq(loc.typeCode, TypeCode.TUPLE);
+        assertEq(loc.isDynamic, false);
+        assertEq(loc.staticSize, 64);
     }
 
     function test_StaticStruct_FirstField() public view {
@@ -114,7 +114,7 @@ contract LocateTest is CalldataReaderTest {
         assertEq(loc.head, 4);
         // First field at offset: header(2) + tupleHeader(6) = 8.
         assertEq(loc.descOffset, 8);
-        assertEq(loc.typeInfo.code, TypeCode.ADDRESS);
+        assertEq(loc.typeCode, TypeCode.ADDRESS);
     }
 
     function test_StaticStruct_SecondField() public view {
@@ -124,7 +124,7 @@ contract LocateTest is CalldataReaderTest {
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0, 1), cfg);
 
         assertEq(loc.head, 36);
-        assertEq(loc.typeInfo.code, TypeCode.UINT256);
+        assertEq(loc.typeCode, TypeCode.UINT256);
     }
 
     function test_DynamicStruct_Root() public view {
@@ -134,9 +134,9 @@ contract LocateTest is CalldataReaderTest {
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0), cfg);
 
         assertEq(loc.head, 4);
-        assertEq(loc.typeInfo.code, TypeCode.TUPLE);
-        assertEq(loc.typeInfo.isDynamic, true);
-        assertEq(loc.typeInfo.staticSize, 0);
+        assertEq(loc.typeCode, TypeCode.TUPLE);
+        assertEq(loc.isDynamic, true);
+        assertEq(loc.staticSize, 0);
     }
 
     function test_DynamicStruct_StaticField() public view {
@@ -145,7 +145,7 @@ contract LocateTest is CalldataReaderTest {
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0, 0), cfg);
 
-        assertEq(loc.typeInfo.code, TypeCode.ADDRESS);
+        assertEq(loc.typeCode, TypeCode.ADDRESS);
     }
 
     function test_DynamicStruct_DynamicField() public view {
@@ -154,8 +154,8 @@ contract LocateTest is CalldataReaderTest {
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0, 1), cfg);
 
-        assertEq(loc.typeInfo.code, TypeCode.BYTES);
-        assertEq(loc.typeInfo.isDynamic, true);
+        assertEq(loc.typeCode, TypeCode.BYTES);
+        assertEq(loc.isDynamic, true);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -170,9 +170,9 @@ contract LocateTest is CalldataReaderTest {
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0), cfg);
 
         assertEq(loc.head, 4);
-        assertEq(loc.typeInfo.code, TypeCode.STATIC_ARRAY);
-        assertEq(loc.typeInfo.isDynamic, false);
-        assertEq(loc.typeInfo.staticSize, 96);
+        assertEq(loc.typeCode, TypeCode.STATIC_ARRAY);
+        assertEq(loc.isDynamic, false);
+        assertEq(loc.staticSize, 96);
     }
 
     function test_StaticArrayStaticElem_Element() public view {
@@ -185,7 +185,7 @@ contract LocateTest is CalldataReaderTest {
         assertEq(loc.head, 36);
         // Element at offset: header(2) + code(1) + meta(3) = 6.
         assertEq(loc.descOffset, 6);
-        assertEq(loc.typeInfo.code, TypeCode.UINT256);
+        assertEq(loc.typeCode, TypeCode.UINT256);
     }
 
     function test_StaticArrayDynamicElem_Element() public view {
@@ -197,8 +197,8 @@ contract LocateTest is CalldataReaderTest {
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0, 1), cfg);
 
-        assertEq(loc.typeInfo.code, TypeCode.BYTES);
-        assertEq(loc.typeInfo.isDynamic, true);
+        assertEq(loc.typeCode, TypeCode.BYTES);
+        assertEq(loc.isDynamic, true);
     }
 
     function test_DynamicArrayStaticElem_Root() public view {
@@ -212,8 +212,8 @@ contract LocateTest is CalldataReaderTest {
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0), cfg);
 
         assertEq(loc.head, 4);
-        assertEq(loc.typeInfo.code, TypeCode.DYNAMIC_ARRAY);
-        assertEq(loc.typeInfo.isDynamic, true);
+        assertEq(loc.typeCode, TypeCode.DYNAMIC_ARRAY);
+        assertEq(loc.isDynamic, true);
     }
 
     function test_DynamicArrayStaticElem_Element() public view {
@@ -228,7 +228,7 @@ contract LocateTest is CalldataReaderTest {
 
         // Element at offset: header(2) + code(1) + meta(3) = 6.
         assertEq(loc.descOffset, 6);
-        assertEq(loc.typeInfo.code, TypeCode.UINT256);
+        assertEq(loc.typeCode, TypeCode.UINT256);
     }
 
     function test_DynamicArrayDynamicElem_Element() public view {
@@ -240,8 +240,8 @@ contract LocateTest is CalldataReaderTest {
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0, 1), cfg);
 
-        assertEq(loc.typeInfo.code, TypeCode.BYTES);
-        assertEq(loc.typeInfo.isDynamic, true);
+        assertEq(loc.typeCode, TypeCode.BYTES);
+        assertEq(loc.isDynamic, true);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -258,7 +258,7 @@ contract LocateTest is CalldataReaderTest {
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0, 0, 1), cfg);
 
-        assertEq(loc.typeInfo.code, TypeCode.UINT256);
+        assertEq(loc.typeCode, TypeCode.UINT256);
     }
 
     function test_ArrayInsideStruct() public view {
@@ -271,7 +271,7 @@ contract LocateTest is CalldataReaderTest {
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0, 1, 0), cfg);
 
-        assertEq(loc.typeInfo.code, TypeCode.UINT256);
+        assertEq(loc.typeCode, TypeCode.UINT256);
     }
 
     function test_ThreeLevelNesting() public view {
@@ -283,7 +283,7 @@ contract LocateTest is CalldataReaderTest {
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0, 0, 0, 0), cfg);
 
-        assertEq(loc.typeInfo.code, TypeCode.ADDRESS);
+        assertEq(loc.typeCode, TypeCode.ADDRESS);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -299,7 +299,7 @@ contract LocateTest is CalldataReaderTest {
 
         assertEq(loc.head, 0);
         assertEq(loc.base, 0);
-        assertEq(loc.typeInfo.code, TypeCode.ADDRESS);
+        assertEq(loc.typeCode, TypeCode.ADDRESS);
     }
 
     function test_MaxDepthAtLimit() public view {
@@ -311,7 +311,54 @@ contract LocateTest is CalldataReaderTest {
 
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(0, 0, 0, 0), cfg);
 
-        assertEq(loc.typeInfo.code, TypeCode.ADDRESS);
+        assertEq(loc.typeCode, TypeCode.ADDRESS);
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                  LOCATE STEPS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_LocateSteps_ReadsFromContainingBuffer() public view {
+        bytes memory desc = DescriptorBuilder.fromTypes("(address,uint256)");
+        SimpleTuple memory tuple = SimpleTuple(address(1), 42);
+        bytes memory callData = abi.encodeWithSelector(SELECTOR, tuple);
+
+        // The path [0, 1] embedded in a larger blob at a non-zero offset.
+        bytes memory blob = abi.encodePacked(hex"1111111111", uint16(0), uint16(1), hex"2222");
+        CalldataReader.Location memory loc = harness.locateSteps(desc, callData, blob, 5, 2, cfg);
+
+        CalldataReader.Location memory expected = harness.locate(desc, callData, _path(0, 1), cfg);
+        assertEq(loc.head, expected.head);
+        assertEq(loc.base, expected.base);
+        assertEq(loc.descOffset, expected.descOffset);
+        assertEq(loc.typeCode, expected.typeCode);
+    }
+
+    function test_LocateSteps_RevertWhen_DepthZero() public {
+        bytes memory desc = DescriptorBuilder.fromTypes("uint256");
+        bytes memory callData = abi.encodeWithSelector(SELECTOR, uint256(1));
+
+        vm.expectRevert(Path.MalformedPath.selector);
+        harness.locateSteps(desc, callData, _path(0), 0, 0, cfg);
+    }
+
+    function test_LocateSteps_RevertWhen_StepsNotBackedByBuffer() public {
+        bytes memory desc = DescriptorBuilder.fromTypes("uint256");
+        bytes memory callData = abi.encodeWithSelector(SELECTOR, uint256(1));
+
+        // Depth 2 claimed over a buffer holding a single step.
+        vm.expectRevert(Path.MalformedPath.selector);
+        harness.locateSteps(desc, callData, _path(0), 0, 2, cfg);
+    }
+
+    function test_LocateSteps_SkipsDescriptorVersionCheck() public view {
+        // Version byte 2 is unsupported: locate reverts, locateSteps trusts the caller's earlier check.
+        bytes memory desc = DescriptorBuilder.fromTypes("uint256");
+        desc[0] = 0x02;
+        bytes memory callData = abi.encodeWithSelector(SELECTOR, uint256(42));
+
+        CalldataReader.Location memory loc = harness.locateSteps(desc, callData, _path(0), 0, 1, cfg);
+        assertEq(loc.typeCode, TypeCode.UINT256);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -443,7 +490,7 @@ contract LocateTest is CalldataReaderTest {
         CalldataReader.Location memory loc = harness.locate(desc, callData, _path(uint16(index)), cfg);
 
         assertEq(loc.head, 4 + index * 32);
-        assertEq(loc.typeInfo.code, typeCodes[index % 4]);
+        assertEq(loc.typeCode, typeCodes[index % 4]);
     }
 
     function testFuzz_RevertWhen_ArgIndexOutOfBounds(uint256 argCount, uint256 index) public {

@@ -32,10 +32,10 @@ contract TupleFieldTest is CalldataReaderTest {
         CalldataReader.Location memory expectedUint256 = harness.locate(desc, callData, _path(0, 1), cfg);
 
         _assertLocationMatches(addressField, expectedAddress);
-        assertEq(addressField.typeInfo.code, TypeCode.ADDRESS);
+        assertEq(addressField.typeCode, TypeCode.ADDRESS);
 
         _assertLocationMatches(uint256Field, expectedUint256);
-        assertEq(uint256Field.typeInfo.code, TypeCode.UINT256);
+        assertEq(uint256Field.typeCode, TypeCode.UINT256);
 
         bytes32 addressWord = harness.loadScalar(addressField, callData);
         bytes32 uint256Word = harness.loadScalar(uint256Field, callData);
@@ -53,9 +53,9 @@ contract TupleFieldTest is CalldataReaderTest {
         CalldataReader.Location memory uint256Field = harness.tupleField(desc, tupleLoc, 1, callData);
         CalldataReader.Location memory boolField = harness.tupleField(desc, tupleLoc, 2, callData);
 
-        assertEq(addressField.typeInfo.code, TypeCode.ADDRESS);
-        assertEq(uint256Field.typeInfo.code, TypeCode.UINT256);
-        assertEq(boolField.typeInfo.code, TypeCode.BOOL);
+        assertEq(addressField.typeCode, TypeCode.ADDRESS);
+        assertEq(uint256Field.typeCode, TypeCode.UINT256);
+        assertEq(boolField.typeCode, TypeCode.BOOL);
 
         assertEq(uint256(harness.loadScalar(uint256Field, callData)), 42);
         assertEq(uint256(harness.loadScalar(boolField, callData)), 1);
@@ -95,10 +95,10 @@ contract TupleFieldTest is CalldataReaderTest {
         CalldataReader.Location memory expectedArray = harness.locate(desc, callData, _path(0, 1), cfg);
 
         _assertLocationMatches(addressField, expectedAddress);
-        assertEq(addressField.typeInfo.code, TypeCode.ADDRESS);
+        assertEq(addressField.typeCode, TypeCode.ADDRESS);
 
         _assertLocationMatches(arrayField, expectedArray);
-        assertEq(arrayField.typeInfo.code, TypeCode.DYNAMIC_ARRAY);
+        assertEq(arrayField.typeCode, TypeCode.DYNAMIC_ARRAY);
 
         bytes32 addressWord = harness.loadScalar(addressField, callData);
         assertEq(address(uint160(uint256(addressWord))), address(1));
@@ -118,14 +118,14 @@ contract TupleFieldTest is CalldataReaderTest {
         CalldataReader.Location memory outerLoc = harness.locate(desc, callData, _path(0), cfg);
         CalldataReader.Location memory innerLoc = harness.tupleField(desc, outerLoc, 0, callData);
 
-        assertEq(innerLoc.typeInfo.code, TypeCode.TUPLE);
-        assertFalse(innerLoc.typeInfo.isDynamic);
+        assertEq(innerLoc.typeCode, TypeCode.TUPLE);
+        assertFalse(innerLoc.isDynamic);
 
         CalldataReader.Location memory innerAddress = harness.tupleField(desc, innerLoc, 0, callData);
         CalldataReader.Location memory innerUint = harness.tupleField(desc, innerLoc, 1, callData);
 
-        assertEq(innerAddress.typeInfo.code, TypeCode.ADDRESS);
-        assertEq(innerUint.typeInfo.code, TypeCode.UINT256);
+        assertEq(innerAddress.typeCode, TypeCode.ADDRESS);
+        assertEq(innerUint.typeCode, TypeCode.UINT256);
 
         assertEq(address(uint160(uint256(harness.loadScalar(innerAddress, callData)))), address(1));
         assertEq(uint256(harness.loadScalar(innerUint, callData)), 42);

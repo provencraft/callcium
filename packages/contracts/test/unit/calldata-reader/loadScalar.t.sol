@@ -200,9 +200,9 @@ contract LoadScalarTest is CalldataReaderTest {
         CalldataReader.Location memory loc;
         loc.head = 4;
         loc.base = 4;
-        loc.typeInfo.code = TypeCode.UINT256;
-        loc.typeInfo.isDynamic = false;
-        loc.typeInfo.staticSize = 32;
+        loc.typeCode = TypeCode.UINT256;
+        loc.isDynamic = false;
+        loc.staticSize = 32;
 
         bytes memory callData = abi.encodeWithSelector(SELECTOR);
 

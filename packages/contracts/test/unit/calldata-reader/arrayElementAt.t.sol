@@ -25,9 +25,9 @@ contract ArrayElementAtTest is CalldataReaderTest {
         CalldataReader.Location memory elem1 = harness.arrayElementAt(shape, 1, callData);
 
         assertEq(elem1.head, shape.dataOffset + 64);
-        assertEq(elem1.typeInfo.code, TypeCode.TUPLE);
-        assertFalse(elem1.typeInfo.isDynamic);
-        assertEq(elem1.typeInfo.staticSize, 64);
+        assertEq(elem1.typeCode, TypeCode.TUPLE);
+        assertFalse(elem1.isDynamic);
+        assertEq(elem1.staticSize, 64);
 
         CalldataReader.Location memory elem1Field0 = harness.locate(desc, callData, _path(0, 1, 0), cfg);
         bytes32 word = harness.loadScalar(elem1Field0, callData);
@@ -64,8 +64,8 @@ contract ArrayElementAtTest is CalldataReaderTest {
         CalldataReader.Location memory elem2 = harness.arrayElementAt(shape, 2, callData);
 
         assertEq(elem2.head, shape.headsOffset + 64);
-        assertEq(elem2.typeInfo.code, TypeCode.BYTES);
-        assertTrue(elem2.typeInfo.isDynamic);
+        assertEq(elem2.typeCode, TypeCode.BYTES);
+        assertTrue(elem2.isDynamic);
     }
 
     /*/////////////////////////////////////////////////////////////////////////

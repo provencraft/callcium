@@ -3,7 +3,7 @@ title: "PolicyEnforcer"
 description: "Enforces that `callData` complies with a `policy`."
 ---
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L19)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L20)
 
 ## State Variables
 
@@ -12,7 +12,7 @@ description: "Enforces that `callData` complies with a `policy`."
 Path scratch capacity in steps (be16 per step). Must equal `PF.MAX_PATH_DEPTH`;
 a local literal is required because cross-library constants cannot size fixed arrays.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L76)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L75)
 
 ```solidity
 uint8 internal constant MAX_PATH_DEPTH = 32
@@ -24,7 +24,7 @@ uint8 internal constant MAX_PATH_DEPTH = 32
 
 Reverts when `callData` violates `policy`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L110)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L109)
 
 ```solidity
 function enforce(bytes memory policy, bytes calldata callData) internal view;
@@ -43,7 +43,7 @@ Returns true if `callData` complies with `policy`.
 
 Reverts for malformed policies; returns false for violations.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L120)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L119)
 
 ```solidity
 function check(bytes memory policy, bytes calldata callData) internal view returns (bool ok);
@@ -68,7 +68,7 @@ function check(bytes memory policy, bytes calldata callData) internal view retur
 
 Thrown when policy validation fails.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L83)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L82)
 
 ```solidity
 error PolicyViolation(uint32 groupIndex, uint32 ruleIndex);
@@ -78,7 +78,7 @@ error PolicyViolation(uint32 groupIndex, uint32 ruleIndex);
 
 Thrown when the function selector does not match the policy header.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L86)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L85)
 
 ```solidity
 error SelectorMismatch(bytes4 expected, bytes4 actual);
@@ -88,7 +88,7 @@ error SelectorMismatch(bytes4 expected, bytes4 actual);
 
 Thrown when an unknown operator code is encountered.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L89)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L88)
 
 ```solidity
 error UnknownOperator(uint8 opCode);
@@ -98,7 +98,7 @@ error UnknownOperator(uint8 opCode);
 
 Thrown when an unknown context property ID is requested.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L92)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L91)
 
 ```solidity
 error UnknownContextProperty(uint16 contextId);
@@ -108,7 +108,7 @@ error UnknownContextProperty(uint16 contextId);
 
 Thrown when calldata is too short to contain a selector.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L95)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L94)
 
 ```solidity
 error MissingSelector();
@@ -118,7 +118,7 @@ error MissingSelector();
 
 Thrown when nested quantifiers are used (unsupported).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L98)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L97)
 
 ```solidity
 error NestedQuantifiersUnsupported();
@@ -128,7 +128,7 @@ error NestedQuantifiersUnsupported();
 
 Thrown when array exceeds max length for quantified iteration.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L101)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L100)
 
 ```solidity
 error QuantifierLimitExceeded(uint256 length, uint256 maxLength);

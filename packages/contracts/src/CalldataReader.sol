@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import { Be16 } from "./Be16.sol";
 import { Descriptor } from "./Descriptor.sol";
 import { DescriptorFormat as DF } from "./DescriptorFormat.sol";
 
@@ -28,8 +29,12 @@ library CalldataReader {
         uint256 base;
         /// Descriptor offset for the type at this node.
         uint256 descOffset;
-        /// Minimal type info.
-        Descriptor.TypeInfo typeInfo;
+        /// TypeCode at the node (elementary or composite).
+        uint8 typeCode;
+        /// True if the type has dynamic ABI encoding.
+        bool isDynamic;
+        /// ABI head size in bytes; 0 if dynamic.
+        uint32 staticSize;
     }
 
     /// @notice View of a dynamic sequence payload.
@@ -115,10 +120,39 @@ library CalldataReader {
         pure
         returns (Location memory)
     {
-        // Validate descriptor version and argument index.
         uint8 formatVersion = Descriptor.version(desc);
         require(formatVersion == DF.VERSION, Descriptor.UnsupportedVersion(formatVersion));
-        uint256 argIndex = Path.atUnchecked(path, 0);
+        uint256 depth = Path.validate(path);
+        return locateSteps(desc, callData, path, 0, depth, config);
+    }
+
+    /// @notice Resolves a path to a calldata location, reading steps from a containing buffer.
+    /// @dev Lets a caller traverse a path embedded in a larger blob (e.g. a policy) without
+    /// copying it into a standalone `bytes`. The first step is the argument index.
+    /// Does not validate the descriptor version — the caller must check it once before traversal.
+    /// @param desc Descriptor bytes.
+    /// @param callData Full calldata buffer for the function call.
+    /// @param steps Buffer containing the path steps as big-endian uint16 values.
+    /// @param stepsOffset Byte offset of the first step within `steps`.
+    /// @param depth Number of steps; must be at least 1 and backed by `steps`.
+    /// @param config Traversal config.
+    /// @return Resolved location for the path target.
+    function locateSteps(
+        bytes memory desc,
+        bytes calldata callData,
+        bytes memory steps,
+        uint256 stepsOffset,
+        uint256 depth,
+        Config memory config
+    )
+        internal
+        pure
+        returns (Location memory)
+    {
+        require(depth != 0 && stepsOffset + depth * 2 <= steps.length, Path.MalformedPath());
+
+        // Validate the argument index against the declared parameter count.
+        uint256 argIndex = Be16.readUnchecked(steps, stepsOffset);
         uint256 argCount = Descriptor.paramCount(desc);
         require(argIndex < argCount, ArgIndexOutOfBounds(argIndex, argCount));
 
@@ -135,9 +169,8 @@ library CalldataReader {
         uint256 base = config.baseOffset;
 
         // Descend through subsequent steps if any.
-        uint256 depth = Path.validate(path);
         for (uint256 stepIndex = 1; stepIndex < depth; ++stepIndex) {
-            uint256 childIndex = Path.atUnchecked(path, stepIndex);
+            uint256 childIndex = Be16.readUnchecked(steps, stepsOffset + stepIndex * 2);
             (descOffset, head, base) = _descend(desc, descOffset, head, base, childIndex, callData);
         }
 
@@ -145,10 +178,7 @@ library CalldataReader {
         (uint8 code, bool isDynamic, uint32 staticSize,) = Descriptor.inspect(desc, descOffset);
 
         return Location({
-            head: head,
-            base: base,
-            descOffset: descOffset,
-            typeInfo: Descriptor.TypeInfo({ code: code, isDynamic: isDynamic, staticSize: staticSize })
+            head: head, base: base, descOffset: descOffset, typeCode: code, isDynamic: isDynamic, staticSize: staticSize
         });
     }
 
@@ -187,7 +217,7 @@ library CalldataReader {
         pure
         returns (ArrayShape memory)
     {
-        uint8 code = location.typeInfo.code;
+        uint8 code = location.typeCode;
         require(code == TypeCode.STATIC_ARRAY || code == TypeCode.DYNAMIC_ARRAY, NotComposite(code));
 
         // Use index=0 for _descendArrayMeta; validation passes since fixedLength >= 1 for static arrays.
@@ -262,8 +292,8 @@ library CalldataReader {
     function loadScalar(Location memory location, bytes calldata callData) internal pure returns (bytes32) {
         // forgefmt: disable-next-item
         require(
-            location.typeInfo.isDynamic || (location.typeInfo.staticSize == 32 && TypeRule.isElementary(location.typeInfo.code)),
-            NotScalar(location.typeInfo.code)
+            location.isDynamic || (location.staticSize == 32 && TypeRule.isElementary(location.typeCode)),
+            NotScalar(location.typeCode)
         );
         return _calldataload(callData, location.head);
     }
@@ -285,7 +315,7 @@ library CalldataReader {
         pure
         returns (DynamicSlice memory)
     {
-        uint8 code = location.typeInfo.code;
+        uint8 code = location.typeCode;
         require(TypeRule.hasCalldataLength(code), NoCalldataLength(code));
 
         uint256 payloadBase = location.base + uint256(_calldataload(callData, location.head));
@@ -343,11 +373,9 @@ library CalldataReader {
             head: head,
             base: base,
             descOffset: shape.elementDescOffset,
-            typeInfo: Descriptor.TypeInfo({
-                code: shape.elementTypeCode,
-                isDynamic: shape.elementIsDynamic,
-                staticSize: shape.elementIsDynamic ? 0 : shape.elementStaticSize
-            })
+            typeCode: shape.elementTypeCode,
+            isDynamic: shape.elementIsDynamic,
+            staticSize: shape.elementIsDynamic ? 0 : shape.elementStaticSize
         });
     }
 
@@ -367,7 +395,8 @@ library CalldataReader {
         pure
         returns (Location memory)
     {
-        (uint8 parentCode,,,) = Descriptor.inspect(desc, location.descOffset);
+        // The location already carries its node's type code; re-inspecting the descriptor is redundant.
+        uint8 parentCode = location.typeCode;
         require(parentCode == TypeCode.TUPLE, NotComposite(parentCode));
 
         // forgefmt: disable-next-item
@@ -381,7 +410,9 @@ library CalldataReader {
             head: newHead,
             base: newBase,
             descOffset: newDescOffset,
-            typeInfo: Descriptor.TypeInfo({ code: code, isDynamic: isDynamic, staticSize: staticSize })
+            typeCode: code,
+            isDynamic: isDynamic,
+            staticSize: staticSize
         });
     }
 

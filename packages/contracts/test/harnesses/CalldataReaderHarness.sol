@@ -18,6 +18,21 @@ contract CalldataReaderHarness {
         return CalldataReader.locate(desc, callData, path, cfg);
     }
 
+    function locateSteps(
+        bytes memory desc,
+        bytes calldata callData,
+        bytes memory steps,
+        uint256 stepsOffset,
+        uint256 depth,
+        CalldataReader.Config memory cfg
+    )
+        external
+        pure
+        returns (CalldataReader.Location memory)
+    {
+        return CalldataReader.locateSteps(desc, callData, steps, stepsOffset, depth, cfg);
+    }
+
     function loadScalar(CalldataReader.Location memory loc, bytes calldata callData) external pure returns (bytes32) {
         return CalldataReader.loadScalar(loc, callData);
     }
