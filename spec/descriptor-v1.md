@@ -1,9 +1,8 @@
-# Callcium Descriptor Spec v1.0
+# Callcium Descriptor Spec
 
 ## 1. Document Control
-- Version: 1.0
+- Version: 1.1
 - Status: Normative
-- Date: 2026-02-22
 
 ---
 
@@ -24,11 +23,12 @@ This document does not define:
 ## 3. Terminology and Conformance
 
 - The key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY in this document are to be interpreted as described in RFC 2119.
-- "Validator" refers to any component that checks the well-formedness of a descriptor or uses it to traverse calldata.
+- "Validator" refers to any component that checks a descriptor blob against the invariants of Section 7.
 - "Builder" refers to any component that constructs descriptor blobs from higher-level type definitions.
+- "Reader" refers to any component that traverses ABI-encoded calldata using a descriptor.
 - "ABI word" means a 32-byte slot in ABI encoding.
 
-A descriptor is conformant if and only if it adheres to all MUST/REQUIRED statements in Sections 4–8.
+An implementation is conformant if and only if it meets all MUST/REQUIRED obligations in Sections 4–7.
 
 ---
 
@@ -118,7 +118,7 @@ Codes not listed in Appendix A within ranges `0x40`–`0x4F`, `0x70`–`0x7F`, `
 
 ## 6. Calldata Traversal
 
-Conformant validators MUST maintain a state triple `(head, base, descOffset)` during path navigation through ABI-encoded calldata.
+Readers MUST maintain a state triple `(head, base, descOffset)` during path navigation through ABI-encoded calldata.
 
 ### 6.1 State Triple
 
@@ -132,7 +132,7 @@ Conformant validators MUST maintain a state triple `(head, base, descOffset)` du
 
 Given a `baseOffset` (the byte offset where ABI-encoded parameters begin):
 - `head = baseOffset`, `base = baseOffset`, `descOffset = HEADER_SIZE` (2).
-- The validator resolves the target parameter by iterating through prior parameters, advancing `head` by each parameter's head contribution and `descOffset` by each parameter's `nodeLength`.
+- The reader resolves the target parameter by iterating through prior parameters, advancing `head` by each parameter's head contribution and `descOffset` by each parameter's `nodeLength`.
 
 The calling layer determines `baseOffset`. Standard calldata uses `baseOffset = 4` (after the 4-byte selector); raw ABI payloads use `baseOffset = 0`.
 
@@ -157,7 +157,7 @@ In both cases below, `elementStaticSize = elemStaticWords * 32` — the element'
 
 **Dynamic array:**
 1. `arrayBase = base + calldataload(head)`.
-2. `length = calldataload(arrayBase)`. Validator MUST check `childIndex < length`.
+2. `length = calldataload(arrayBase)`. The reader MUST check `childIndex < length`.
 3. `headsSection = arrayBase + 32` (skip the length word).
 4. If elements are dynamic: `newHead = headsSection + (childIndex * 32)`,
    `newBase = headsSection`.
@@ -174,64 +174,59 @@ In both cases below, `elementStaticSize = elemStaticWords * 32` — the element'
 
 ### 6.5 Bounds Checking
 
-Validators MUST verify that ABI offsets read from calldata point within the calldata bounds. An offset that would cause a read beyond `calldatasize()` MUST cause validation failure, not silent mis-parsing.
+Readers MUST verify that ABI offsets read from calldata point within the calldata bounds. An offset that would cause a read beyond `calldatasize()` MUST cause traversal failure, not silent mis-parsing.
 
-- **Bounds**: For every 32-byte read at offset `offset`, validators MUST check `offset + 32 <= calldatasize()`. For dynamic-length reads (e.g., `bytes`/`string` payload), validators MUST check that the declared length does not extend beyond the calldata boundary.
-- **Arithmetic overflow**: When computing a resolved offset as `base + offset`, validators MUST ensure the addition does not overflow.
-- **Word alignment**: Validators are NOT required to check that ABI offsets are 32-byte aligned. Implementations MAY reject non-aligned offsets as a strictness option but this is not required for conformance.
-- **Overlapping regions**: Validators are NOT required to detect overlapping data regions. Implementations MAY perform overlap detection as an optional strictness check.
+- **Bounds**: For every 32-byte read at offset `offset`, readers MUST check `offset + 32 <= calldatasize()`. For dynamic-length reads (e.g., `bytes`/`string` payload), readers MUST check that the declared length does not extend beyond the calldata boundary.
+- **Arithmetic overflow**: When computing a resolved offset as `base + offset`, readers MUST ensure the addition does not overflow.
+- **Word alignment**: Readers are NOT required to check that ABI offsets are 32-byte aligned. Implementations MAY reject non-aligned offsets as a strictness option but this is not required for conformance.
+- **Overlapping regions**: Readers are NOT required to detect overlapping data regions. Implementations MAY perform overlap detection as an optional strictness check.
 
 ---
 
 ## 7. Validation Rules
 
-### 7.1 Structural (Runtime)
+### 7.1 Well-Formedness
 
-Runtime validators MUST reject descriptors that violate any of the following rules:
+A descriptor is well-formed if it satisfies all of the following invariants. Validators MUST reject a descriptor that is not well-formed before it is used for calldata traversal (Section 6). Where that rejection happens — decoding, storage, or a standalone validation pass — is implementation-defined.
 
-- MUST reject if fewer than 2 bytes (cannot read header).
-- MUST reject if `version != 0x01`.
-- MUST reject if the descriptor body does not contain exactly `paramCount` complete parameter nodes.
-- MUST reject if trailing bytes remain after the last parameter node.
-- MUST reject any type code in the reserved range `0xA0`–`0xFF` or any unassigned code within an allocated range (see Section 5.3).
+- **DWF-1**: The descriptor is at least 2 bytes (version and `paramCount` are present).
+- **DWF-2**: `version == 0x01`.
+- **DWF-3**: Every type code is assigned in Appendix A; reserved and unassigned codes (Section 5.3) do not appear.
+- **DWF-4**: Every composite node's metadata lies within the descriptor, its `nodeLength` is at least the node's header size, and the node's span (`nodeLength` bytes from its type code) does not extend beyond the descriptor.
+- **DWF-5**: Every tuple has `fieldCount` in `[1, MAX_TUPLE_FIELDS]`.
+- **DWF-6**: Every static array has `length` in `[1, MAX_STATIC_ARRAY_LENGTH]`.
+- **DWF-7**: No composite node has a nesting depth greater than `MAX_NESTING_DEPTH`. The nesting depth of a node is the number of nodes on the path from its top-level parameter node to it, inclusive. Leaf nodes are not subject to the cap.
+- **DWF-8**: The descriptor body contains exactly `paramCount` complete parameter nodes with no trailing bytes.
 
-### 7.2 Semantic (Builder)
+### 7.2 Validity
 
-Builders MUST reject descriptors that violate any of the following rules:
+A descriptor is valid if it is well-formed and satisfies the following invariants. Builders MUST NOT emit an invalid descriptor. Validators are not required to verify these invariants; calldata traversal (Section 6) is defined only for valid descriptors.
 
-- MUST reject if `nodeLength` for a composite type does not equal the actual byte span of the node.
-- MUST reject if `staticWords != 0` for a node that contains any dynamic sub-value.
-- MUST reject if `staticWords == 0` for a node where all sub-values are static.
-- MUST reject tuple where `fieldCount` does not match the number of parsed field descriptors within `nodeLength`.
-- MUST reject static array where `length` exceeds `MAX_STATIC_ARRAY_LENGTH` (4,095).
-- MUST reject tuples with `fieldCount == 0` and static arrays with `length == 0`.
+- **DV-1**: `nodeLength` of every composite node equals the actual byte span of that node, and a tuple's `fieldCount` field descriptors exactly fill its `nodeLength`.
+- **DV-2**: `staticWords` is zero if and only if the node contains a dynamic sub-value; otherwise it equals the node's ABI head size in words (Sections 4.3–4.6).
 
----
+### 7.3 Normative Limits
 
-## 8. Normative Limits
+| Constant | Value | Category | Invariant | Derivation |
+|:---|:---|:---|:---|:---|
+| `MAX_NODE_LENGTH` | 4,095 bytes | Format | — | 12-bit `nodeLength` field in composite metadata (`0x0FFF`). |
+| `MAX_STATIC_WORDS` | 4,095 words (~128 KB) | Format | — | 12-bit `staticWords` field in composite metadata. |
+| `MAX_STATIC_ARRAY_LENGTH` | 4,095 elements | Format | DWF-6 | 12-bit field width uniformity with other composite metadata limits. |
+| `MAX_TUPLE_FIELDS` | 4,089 fields | Derived | DWF-5 | `MAX_NODE_LENGTH - TUPLE_HEADER_SIZE` (4,095 - 6). |
+| `MAX_NESTING_DEPTH` | 64 levels | Design | DWF-7 | Operational cap on composite nesting; counting rule in Section 7.1. |
+| `MAX_PARAMS` | 255 | Format | — | 1-byte `paramCount` in descriptor header. |
 
-### 8.1 Descriptor Format Limits
+Limits without an invariant reference (—) are bounds of the encoding itself: no byte string can exceed them, so there is nothing for a validator to check.
 
-| Constant | Value | Category | Derivation |
-|:---|:---|:---|:---|
-| `MAX_NODE_LENGTH` | 4,095 bytes | Format | 12-bit `nodeLength` field in composite metadata (`0x0FFF`). |
-| `MAX_STATIC_WORDS` | 4,095 words (~128 KB) | Format | 12-bit `staticWords` field in composite metadata. |
-| `MAX_STATIC_ARRAY_LENGTH` | 4,095 elements | Format | 12-bit field width uniformity with other composite metadata limits. |
-| `MAX_TUPLE_FIELDS` | 4,089 fields | Derived | `MAX_NODE_LENGTH - TUPLE_HEADER_SIZE` (4,095 - 6). |
-| Max parameters | 255 | Format | 1-byte `paramCount` in descriptor header. |
-
-### 8.2 Limit Categories
+Limit categories:
 
 - **Format**: Structural constraint from the binary encoding field width. Cannot change without a format version bump.
 - **Derived**: Mechanically follows from other limits.
-
-### 8.3 Enforcement
-
-Validators MUST reject descriptors where `nodeLength`, `staticWords`, array length, or tuple field count exceed the limits above.
+- **Design**: Operational cap chosen for implementation safety. Normative and fixed for format version 1: all conformant implementations enforce the same value.
 
 ---
 
-## 9. References
+## 8. References
 
 - [ABI Specification](https://docs.soliditylang.org/en/latest/abi-spec.html) (Solidity documentation, applicable to all EVM languages).
 - [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) — Key words for use in RFCs to Indicate Requirement Levels.
@@ -318,3 +313,9 @@ Codes `0x82`–`0x8F` are reserved and MUST be rejected in format version 1.
 | `tuple` | `0x90` |
 
 Codes `0x91`–`0x9F` are reserved and MUST be rejected in format version 1.
+
+---
+
+## Appendix B. Changelog
+- v1.1 (2026-07-04): Section 7 restructured into labeled well-formedness and validity invariants; added `MAX_NESTING_DEPTH`.
+- v1.0 (2026-02-22): Initial specification.
