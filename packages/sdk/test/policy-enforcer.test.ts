@@ -678,7 +678,7 @@ describe("enforce - quantifier element failure paths", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("enforce - tampered policy blobs (attack surface testing)", () => {
-  test("path depth > MAX_PATH_DEPTH (33 steps) throws INVALID_PATH", () => {
+  test("path depth > MAX_PATH_DEPTH (33 steps) throws PATH_TOO_DEEP", () => {
     // Requires craftPolicy because adding 33 path steps changes rule size structurally.
     const policy = craftPolicy({
       descriptor: "01011f",
@@ -693,13 +693,13 @@ describe("enforce - tampered policy blobs (attack surface testing)", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(CallciumError);
       if (err instanceof CallciumError) {
-        expect(err.code).toBe("INVALID_PATH");
+        expect(err.code).toBe("PATH_TOO_DEEP");
         expect(err.message).toContain("exceeds maximum");
       }
     }
   });
 
-  test("unknown context property ID throws INVALID_CONTEXT_PATH", () => {
+  test("unknown context property ID throws INVALID_CONTEXT_PROPERTY", () => {
     // Start from a valid context policy, then tamper the property ID bytes.
     const validPolicy = PolicyBuilder.createRaw("uint256")
       .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
@@ -714,7 +714,7 @@ describe("enforce - tampered policy blobs (attack surface testing)", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(CallciumError);
       if (err instanceof CallciumError) {
-        expect(err.code).toBe("INVALID_CONTEXT_PATH");
+        expect(err.code).toBe("INVALID_CONTEXT_PROPERTY");
         expect(err.message).toContain("ffff");
       }
     }

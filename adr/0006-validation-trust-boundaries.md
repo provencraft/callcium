@@ -25,9 +25,10 @@ Validation is split into three tiers. Each tier trusts the ones before it.
 - Group and blob exact consumption (no trailing bytes at either level).
 - Scope validity (`scope ∈ {0, 1}`).
 - Context path depth (`scope == 0 ⇒ depth == 1`).
-- Path non-emptiness (`depth >= 1`).
+- Context property ID validity (`path[0]` names a defined property).
+- Path depth bounds (`1 <= depth <= MAX_PATH_DEPTH`).
 - Operator code validity and payload size match.
-- IN operand ordering (strictly ascending by unsigned value) — a canonical-form invariant (spec Sections 7.4, 9.3) the enforcer's binary search relies on; gated at storage beyond Section 8.1's minimum because an unsorted set silently mis-enforces rather than reverting.
+- IN operand ordering (strictly ascending by unsigned value, equivalently lexicographic on the 32-byte encodings) — a well-formedness invariant (spec Section 8.1, PWF-21) the enforcer's binary search relies on; an unsorted set silently mis-enforces rather than reverting.
 
 These run once at storage time — never during enforcement.
 
@@ -39,8 +40,8 @@ These run once at storage time — never during enforcement.
 - Calldata length and bounds during ABI traversal.
 - Array length cap for quantifier iteration (DoS protection).
 - Nested quantifier rejection.
-- Path depth <= 32 (runtime gas-safety cap).
-- Unknown context property ID (inherent to the assembly switch structure).
+- Path depth <= 32 (self-shielding duplicate of the storage-time check; see ADR-0005).
+- Unknown context property ID (inherent to the assembly switch structure; also checked at storage time).
 
 The structural/semantic line is: **can the byte stream be parsed and interpreted without ambiguity?** Scope and opCode are structural because they are closed-set tag bytes that determine how the rule is interpreted. This follows the spec's classification.
 

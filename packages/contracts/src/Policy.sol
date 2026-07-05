@@ -78,6 +78,15 @@ library Policy {
     /// @param ruleOffset The offset of the rule with the unsorted set.
     error UnsortedInSet(uint256 ruleOffset);
 
+    /// @notice Thrown when a rule path exceeds the maximum depth.
+    /// @param ruleOffset The offset of the rule.
+    /// @param depth The declared path depth.
+    error PathTooDeep(uint256 ruleOffset, uint256 depth);
+
+    /// @notice Thrown when a context rule references an undefined context property.
+    /// @param ruleOffset The offset of the rule.
+    error UnknownContextProperty(uint256 ruleOffset);
+
     /// @notice Thrown when a group declares zero rules.
     /// @param groupOffset The offset of the empty group.
     error EmptyGroup(uint256 groupOffset);
@@ -235,9 +244,16 @@ library Policy {
             _validateInAscending(self, dataLengthOffset + PF.RULE_DATALENGTH_SIZE, dataLength, ruleOffset);
         }
 
-        // Path must be non-empty. Context-scope rules must have exactly one path step.
+        // Path must be non-empty and within the depth cap.
         require(depth >= 1, EmptyPath(ruleOffset));
-        if (ruleScope == PF.SCOPE_CONTEXT) require(depth == 1, InvalidContextPath(ruleOffset));
+        require(depth <= PF.MAX_PATH_DEPTH, PathTooDeep(ruleOffset, depth));
+
+        // Context-scope rules must have exactly one path step naming a defined property.
+        if (ruleScope == PF.SCOPE_CONTEXT) {
+            require(depth == 1, InvalidContextPath(ruleOffset));
+            uint16 contextPropertyId = Be16.readUnchecked(self, ruleOffset + PF.RULE_PATH_OFFSET);
+            require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(ruleOffset));
+        }
 
         ruleOffset += ruleTotalSize;
         require(ruleOffset <= groupEnd, RuleOverflow(ruleOffset - ruleTotalSize));

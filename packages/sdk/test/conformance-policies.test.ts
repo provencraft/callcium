@@ -62,6 +62,8 @@ const ERROR_MAP: Record<string, CallciumErrorCode> = {
   RuleOverflow: "RULE_OVERFLOW",
   UnknownOperator: "INVALID_OPERATOR",
   UnsortedInSet: "UNSORTED_IN_SET",
+  PathTooDeep: "PATH_TOO_DEEP",
+  UnknownContextProperty: "INVALID_CONTEXT_PROPERTY",
 };
 
 /** Build a PolicyData from a vector's decoded spec. */

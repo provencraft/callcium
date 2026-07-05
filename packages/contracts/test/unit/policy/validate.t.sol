@@ -11,6 +11,22 @@ import { PolicyBuilder } from "src/PolicyBuilder.sol";
 import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 
 contract ValidateTest is PolicyTest {
+    /// @dev Builds a single-rule calldata-scope blob with a zero path of the given depth.
+    function _pathDepthBlob(uint256 depth) private pure returns (bytes memory) {
+        // forge-lint: disable-next-item(unsafe-typecast)
+        bytes memory rule = bytes.concat(
+            bytes2(uint16(PF.RULE_FIXED_OVERHEAD + depth * PF.PATH_STEP_SIZE + 32)),
+            bytes1(PF.SCOPE_CALLDATA),
+            bytes1(uint8(depth)),
+            new bytes(depth * PF.PATH_STEP_SIZE),
+            bytes1(OpCode.EQ),
+            bytes2(uint16(32)),
+            new bytes(32)
+        );
+        // forge-lint: disable-next-item(unsafe-typecast)
+        return bytes.concat(hex"012fbebd38000301011f01", bytes2(uint16(1)), bytes4(uint32(rule.length)), rule);
+    }
+
     /*/////////////////////////////////////////////////////////////////////////
                                   VALID POLICY
     /////////////////////////////////////////////////////////////////////////*/
@@ -133,6 +149,36 @@ contract ValidateTest is PolicyTest {
         uint256 opCodeOffset = ruleOffset + PF.RULE_PATH_OFFSET + uint256(depth) * PF.PATH_STEP_SIZE;
         // EQ with NOT flag should still be valid.
         blob[opCodeOffset] = bytes1(OpCode.NOT | OpCode.EQ);
+        harness.validate(blob);
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                        PATH DEPTH AND CONTEXT PROPERTIES
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_PathDepthAtMax() public view {
+        harness.validate(_pathDepthBlob(PF.MAX_PATH_DEPTH));
+    }
+
+    function test_RevertWhen_PathTooDeep() public {
+        bytes memory blob = _pathDepthBlob(uint256(PF.MAX_PATH_DEPTH) + 1);
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        vm.expectRevert(abi.encodeWithSelector(Policy.PathTooDeep.selector, ruleOffset, uint256(PF.MAX_PATH_DEPTH) + 1));
+        harness.validate(blob);
+    }
+
+    function test_ContextPropertyAtMax() public view {
+        // CTX_TX_ORIGIN (0x0005) is the highest defined property.
+        bytes memory blob =
+            hex"012fbebd38000301011f010001000000290029000100050100200000000000000000000000000000000000000000000000000000000000000001";
+        harness.validate(blob);
+    }
+
+    function test_RevertWhen_UnknownContextProperty() public {
+        bytes memory blob =
+            hex"012fbebd38000301011f010001000000290029000100990100200000000000000000000000000000000000000000000000000000000000000001";
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        vm.expectRevert(abi.encodeWithSelector(Policy.UnknownContextProperty.selector, ruleOffset));
         harness.validate(blob);
     }
 }

@@ -10,7 +10,7 @@ The policy format allows `pathDepth` up to 255 (1-byte field). `CalldataReader` 
 
 ## Decision
 
-`MAX_PATH_DEPTH` is an operational cap on the reference enforcer, not a wire-format rule. The default cap is 32 steps (64-byte scratch path buffer). The constant is declared in `PolicyFormat` alongside the other spec Section 9.1 normative limits.
+`MAX_PATH_DEPTH` is an operational cap on the reference enforcer, not a wire-format rule. The default cap is 32 steps (64-byte scratch path buffer). The constant is declared in `PolicyFormat` alongside the other spec Section 8.4 normative limits.
 
 **Separation of concerns:**
 - The policy format (encoder) defines structural limits (byte sizes, field widths) and remains versioned.
@@ -21,7 +21,7 @@ The policy format allows `pathDepth` up to 255 (1-byte field). `CalldataReader` 
 - Prefer validating the cap at the trust boundary (policy ingestion/storage) to avoid per-call gas: a storage-time validator walks rules and checks `pathDepth <= MAX_PATH_DEPTH`.
 - If storage-time validation is not guaranteed, include a single runtime check before locating the path: `require(depth <= MAX_PATH_DEPTH)`.
 
-**Why runtime-only was chosen:** The enforcer must be self-shielding because it can be used offchain via `staticcall` against arbitrary policy bytes that bypass storage validation. Since the runtime `require` cannot be removed, a storage-time check in `Policy.validate()` provides only marginal gas savings. Proactive validation belongs in `PolicyValidator`, which operates at the same layer as the enforcer.
+**Why both tiers check:** The enforcer must be self-shielding because it can be used offchain via `staticcall` against arbitrary policy bytes that bypass storage validation, so the runtime `require` cannot be removed. The cap is additionally a well-formedness invariant (spec Section 8.1, PWF-17), so `Policy.validate()` rejects over-deep policies at the trust boundary as well; the runtime check remains as defense-in-depth.
 
 **Error taxonomy:** `error PathTooDeep(uint256 depth, uint256 maxDepth)` is defined in `CalldataReader` for reuse by all consumers. Structural errors (bounds, size fields) originate from `Policy`/`Descriptor`; semantic errors (unknown operator, context IDs) originate from the enforcer.
 
@@ -37,4 +37,4 @@ The policy format allows `pathDepth` up to 255 (1-byte field). `CalldataReader` 
 - Single preallocated scratch buffer (64 bytes) reused across all rules, enabling a zero-allocation hot loop.
 - Policies with paths deeper than 32 steps are rejected at runtime rather than silently degrading performance or overflowing the scratch buffer.
 - `CalldataReader` remains a generic, reusable traversal library with no enforcer-specific constraints baked in.
-- The cap can be raised in a future version without a format change — it is an operational limit (spec Section 9.1, Design category), not a wire-format field.
+- The cap can be raised in a future spec revision without a wire-format change — it is a Design-category limit (spec Section 8.4), not a wire-format field.

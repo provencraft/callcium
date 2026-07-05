@@ -53,10 +53,12 @@ contract PolicyCoderConformanceTest is BaseTest {
         if (h == keccak256("InvalidContextPath")) return Policy.InvalidContextPath.selector;
         if (h == keccak256("InvalidScope")) return Policy.InvalidScope.selector;
         if (h == keccak256("MalformedHeader")) return Policy.MalformedHeader.selector;
+        if (h == keccak256("PathTooDeep")) return Policy.PathTooDeep.selector;
         if (h == keccak256("RuleOverflow")) return Policy.RuleOverflow.selector;
         if (h == keccak256("RuleSizeMismatch")) return Policy.RuleSizeMismatch.selector;
         if (h == keccak256("RuleTooSmall")) return Policy.RuleTooSmall.selector;
         if (h == keccak256("UnexpectedEnd")) return Policy.UnexpectedEnd.selector;
+        if (h == keccak256("UnknownContextProperty")) return Policy.UnknownContextProperty.selector;
         if (h == keccak256("UnknownOperator")) return Policy.UnknownOperator.selector;
         if (h == keccak256("UnsortedInSet")) return Policy.UnsortedInSet.selector;
         if (h == keccak256("UnsupportedVersion")) return Policy.UnsupportedVersion.selector;

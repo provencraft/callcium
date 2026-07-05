@@ -1,7 +1,15 @@
 import { keccak_256 } from "@noble/hashes/sha3";
 
 import { bytesToHex, hexToBytes, toHex, readU16, readU32, writeBE16 } from "./bytes";
-import { DescriptorFormat as DF, PolicyFormat as PF, Scope, Limits, Op, isValidOperatorData } from "./constants";
+import {
+  DescriptorFormat as DF,
+  PolicyFormat as PF,
+  Scope,
+  Limits,
+  Op,
+  isValidOperatorData,
+  MAX_CONTEXT_PROPERTY_ID,
+} from "./constants";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError } from "./errors";
 
@@ -166,6 +174,13 @@ export function decodePolicy(blob: Hex): {
       if (depthValue === 0) {
         throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step", ruleOffset);
       }
+      if (depthValue > Limits.MAX_PATH_DEPTH) {
+        throw new CallciumError(
+          "PATH_TOO_DEEP",
+          `Path depth ${depthValue} exceeds maximum ${Limits.MAX_PATH_DEPTH}`,
+          ruleOffset,
+        );
+      }
       if (scopeValue === Scope.CONTEXT && depthValue !== 1) {
         throw new CallciumError(
           "INVALID_CONTEXT_PATH",
@@ -177,6 +192,16 @@ export function decodePolicy(blob: Hex): {
       const pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
       const pathLength = depthValue * PF.PATH_STEP_SIZE;
       const pathHex = toHex(data, pathStart, pathStart + pathLength);
+      if (scopeValue === Scope.CONTEXT) {
+        const contextPropertyId = readU16(data, pathStart);
+        if (contextPropertyId > MAX_CONTEXT_PROPERTY_ID) {
+          throw new CallciumError(
+            "INVALID_CONTEXT_PROPERTY",
+            `Context rule references undefined context property 0x${contextPropertyId.toString(16).padStart(4, "0")}`,
+            ruleOffset,
+          );
+        }
+      }
 
       const opCodeOffset = pathStart + pathLength;
       const opCodeValue = data[opCodeOffset]!;
@@ -317,7 +342,7 @@ function encodeRule(rule: Rule): Uint8Array {
   }
   const depth = rule.path.length / 2;
   if (depth > Limits.MAX_PATH_DEPTH) {
-    throw new CallciumError("INVALID_PATH", `Path depth ${depth} exceeds maximum ${Limits.MAX_PATH_DEPTH}.`);
+    throw new CallciumError("PATH_TOO_DEEP", `Path depth ${depth} exceeds maximum ${Limits.MAX_PATH_DEPTH}.`);
   }
   if (rule.scope === Scope.CONTEXT && depth !== 1) {
     throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope rules must have exactly one path step.");
