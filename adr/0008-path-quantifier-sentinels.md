@@ -6,10 +6,7 @@ Accepted.
 
 ## Context
 
-Policies must express constraints over array elements: "all recipients must be in the allowlist" (universal) or "at least one recipient must be a priority address" (existential). Two approaches were considered:
-
-1. **Separate opcodes**: Add quantifier-specific operators (e.g., `OP_ALL_IN`, `OP_ANY_EQ`).
-2. **Path sentinels**: Reserve special path indices that signal quantification, reusing existing operators.
+Policies must express constraints over array elements: "all recipients must be in the allowlist" (universal) or "at least one recipient must be a priority address" (existential).
 
 ## Decision
 
@@ -25,7 +22,6 @@ Rationale:
 - Quantification is a property of the path, not the operator.
 - The same operator (e.g., `OP_IN`) can be used with any quantifier.
 - Path-based encoding keeps the rule structure uniform.
-- No additional fields or format changes required.
 
 ## Alternatives Considered
 

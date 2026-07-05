@@ -16,21 +16,9 @@ The spec (policy-v1, Section 8.1) defines structural checks that validators MUST
 
 Validation is split into three tiers. Each tier trusts the ones before it.
 
-**Storage time (`Policy.validate()`)** performs all spec Section 8.1 structural checks:
+**Storage time (`Policy.validate()`)** performs every spec Section 8.1 well-formedness check (PWF-1 through PWF-21): header and descriptor validity, size and consumption consistency, scope and context-path rules, path-depth bounds, operator validity, and IN operand ordering. These run once at storage time — never during enforcement.
 
-- Version byte validity.
-- Descriptor structural validity.
-- `groupCount > 0` and `ruleCount > 0` per group.
-- Rule size consistency (`ruleSize == fixed overhead + depth * 2 + dataLength`).
-- Group and blob exact consumption (no trailing bytes at either level).
-- Scope validity (`scope ∈ {0, 1}`).
-- Context path depth (`scope == 0 ⇒ depth == 1`).
-- Context property ID validity (`path[0]` names a defined property).
-- Path depth bounds (`1 <= depth <= MAX_PATH_DEPTH`).
-- Operator code validity and payload size match.
-- IN operand ordering (strictly ascending by unsigned value, equivalently lexicographic on the 32-byte encodings) — a well-formedness invariant (spec Section 8.1, PWF-21) the enforcer's binary search relies on; an unsorted set silently mis-enforces rather than reverting.
-
-These run once at storage time — never during enforcement.
+IN operand ordering (PWF-21) deserves emphasis: operands must be strictly ascending by lexicographic comparison of their 32-byte encodings, the invariant the enforcer's binary search relies on. An unsorted set silently mis-enforces rather than reverting, so it cannot be deferred to build time.
 
 **Build time (`PolicyValidator`)** performs semantic checks: operator-type compatibility, contradiction detection, redundancy warnings, path navigability. These run offchain and gate the strict `build()` in every implementation — any reported issue blocks it; `buildUnsafe()` is the deliberate bypass. They are never re-checked onchain.
 
@@ -42,8 +30,6 @@ These run once at storage time — never during enforcement.
 - Nested quantifier rejection.
 - Path depth <= 32 (self-shielding duplicate of the storage-time check; see ADR-0005).
 - Unknown context property ID (inherent to the assembly switch structure; also checked at storage time).
-
-The structural/semantic line is: **can the byte stream be parsed and interpreted without ambiguity?** Scope and opCode are structural because they are closed-set tag bytes that determine how the rule is interpreted. This follows the spec's classification.
 
 ## Alternatives Considered
 

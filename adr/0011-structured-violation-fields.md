@@ -45,19 +45,17 @@ type Violation = {
 | Existential aggregate mismatch (additional) | `VALUE_MISMATCH` for `Quantifier.ANY` "violated by all elements" | `opCode`, `operandData`, `typeCode` when captured during iteration; no `resolvedValue` |
 | Pre-rule selector codes | `MISSING_SELECTOR`, `SELECTOR_MISMATCH` | none of the path fields |
 
-For `SELECTOR_MISMATCH`, `expectedValue` is the policy selector and `resolvedValue` is the calldata selector.
+For `SELECTOR_MISMATCH`, `expectedValue` is the policy selector and `resolvedValue` is the calldata selector. `scope` is required whenever `path` is present. `elementIndex` is absent on existential (`Quantifier.ANY`) failures, where no single element is to blame.
 
 ### `PolicyViolationError.message`
 
 A single-line, non-lossy diagnostic built from the first violation's structured fields. Not a presentation contract. Consumers rendering for humans iterate `violations` and use their own formatter.
 
-### Rendering principles
+### Encoding invariants
 
 - Scalar `resolvedValue` is the full 32-byte ABI word for calldata leaves and context values. Going through `toBigInt` and back loses left-aligned `bytesN` semantics.
-- `opCode` keeps the `Op.NOT` bit raw. Consumers decide when to render `not ==` as `!=`.
-- Length operations encode `resolvedValue` as a hex-encoded count. Consumers branch on `isLengthOp(opCode)`.
-- `QUANTIFIER_LIMIT_EXCEEDED` encodes the array length in `resolvedValue`. Consumers branch on `code` to interpret it as a count.
-- Unknown `typeCode` falls back to raw hex. Defaulting to `TypeCode.UINT_MAX` decimal is forbidden.
+- `opCode` keeps the `Op.NOT` bit raw.
+- Length operations and `QUANTIFIER_LIMIT_EXCEEDED` encode `resolvedValue` as a hex-encoded count.
 - Context property `typeCode` reflects the declared type. The enforcer must not pass `UINT_MAX` for address-typed properties.
 
 ## Alternatives Considered
@@ -75,12 +73,4 @@ A single-line, non-lossy diagnostic built from the first violation's structured 
 - Tests assert structured fields, not message strings.
 - Consumers own presentation. The docs site renders Solidity-style operators, checksummed addresses, decimal integers, bool literals, and full-fidelity hex bytes; other consumers can choose differently.
 - The Solidity enforcer is unaffected. Per ADR-0010 it reverts on violation rather than carrying a structured payload onchain. A future onchain transcript decoder reconstructs this shape from raw event data; the field set is its target schema.
-- Reference documentation auto-regenerates from TSDoc. The field documentation is the public contract.
-
-## Boundary cases
-
-- **`elementIndex` absent on existential quantifier failures.** For `Quantifier.ANY` "violated by all elements", no single element is to blame. Renderers branch on its presence.
-- **`scope` required whenever `path` is present.** Without it, the consumer cannot choose between `formatCalldataPath` and `formatContextPath`.
-- **`opCode`, `operandData`, and `typeCode` on navigation failures are diagnostic context, not constraint claims.** When `code` is `CALLDATA_OUT_OF_BOUNDS` or `ARRAY_INDEX_OUT_OF_BOUNDS`, the operator was never evaluated. Quantifier-path failures (shape read, element resolution, suffix navigation) populate these alongside `elementIndex` so renderers can label the failing site, but the constraint itself is not a claim about the calldata. Renderers must not summarise these as "constraint violated".
-- **`MISSING_CONTEXT` is rule-derived, not a precheck.** It carries `group`, `rule`, `scope`, `path`, and `typeCode` (the declared property type) so consumers can render the missing property label faithfully. No `resolvedValue`. `opCode` and `operandData` may be added later as diagnostic context without breaking the contract.
-- **Per-element `resolvedValue` for universal quantifier `VALUE_MISMATCH` is populated when the failing leaf value was successfully loaded** (the typical case). If the per-element evaluation cannot reach or load the leaf, the violation uses the underlying navigation/read code rather than `VALUE_MISMATCH`, and no `resolvedValue` is present. Renderers should still tolerate a `VALUE_MISMATCH` without `resolvedValue` by reporting `violated at element N` without an actual.
+- Reference documentation auto-regenerates from TSDoc. The field documentation is the public contract; per-field boundary cases (diagnostic-only fields on navigation failures, optional `resolvedValue`) live there, not here.

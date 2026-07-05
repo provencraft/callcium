@@ -31,5 +31,6 @@ Verdict alignment is normative: the Policy Spec (§9.3) assigns each violation c
 ## Consequences
 
 - The runtimes produce **identical accept/reject verdicts** for identical policy, calldata, and context (Policy Spec §9.3). Control flow and reporting remain implementation-specific.
+- Because aborts stop evaluation wherever they occur, group order is observable on malformed calldata; the canonical group order (ADR-0003) makes that cutoff identical across implementations.
 - The SDK keeps richer diagnostics — one violation per evaluated failing group — while the Solidity enforcer reports only the first failure.
 - Multi-group conformance vectors pin the abort and group-local effects across both implementations.

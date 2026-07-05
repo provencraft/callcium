@@ -10,12 +10,6 @@ Policies were locked to function calldata: the binary format embeds a 4-byte sel
 
 This creates a missed capability. Governance proposals, bridge payloads, and stored parameters are all plain `abi.encode(...)` blobs without a selector prefix. The descriptor traversal engine can already handle them, but there is no way to express a policy that targets raw ABI data.
 
-Three approaches were considered:
-
-1. **Separate policy type**: Introduce a distinct `RawPolicy` format with no selector field. Requires a parallel encode/decode path and duplicates validation logic.
-2. **Variable-offset header**: Remove the selector field entirely and store `baseOffset` in the header. Breaks fixed offsets for all existing fields, complicating every accessor.
-3. **Flag bit in the header byte**: Repurpose the upper nibble of the existing version byte as flags. A single bit signals selectorless mode while keeping the wire format layout unchanged.
-
 ## Decision
 
 Use a flag bit (`FLAG_NO_SELECTOR = 0x10`) in the header byte. The first byte is redefined from a plain version number to a composite header:
@@ -39,8 +33,7 @@ When the flag is clear, behavior is identical to the original format.
 
 ## Consequences
 
-- Existing policies are fully backward compatible. Header byte `0x01` has bit 4 clear, so `isSelectorless` is false.
+- Existing policies are fully backward compatible.
 - Three reserved flag bits (5-7) remain available for future extensions.
 - The selector slot is always present in the wire format at fixed offset 1, preserving all existing accessor offsets. For selectorless policies it must be zeroed, ensuring deterministic hashing.
 - `bytes4(0)` is used as the registry key for selectorless policies. This value cannot collide with real function selectors in practice.
-- `PolicyData` uses `bool isSelectorless` rather than a raw flags nibble, keeping the human-friendly data model semantically clear while the wire format uses bit-packing for efficiency. `PolicyCoder` translates between the two representations.

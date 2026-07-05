@@ -17,29 +17,7 @@ The five files Callcium uses are stable, narrowly scoped, and never appear in an
 
 ## Decision
 
-Vendor the five Solady utilities into the contracts package under `src/vendor/solady/`, mirroring upstream's `utils/` substructure. Drop `solady` from `foundry.toml` dependencies. Re-point the `solady` remapping at the vendored tree so existing import paths in Callcium sources remain unchanged.
-
-### Layout
-
-```
-src/vendor/solady/
-├── LICENSE
-├── README.md
-└── utils/
-    ├── DynamicBufferLib.sol
-    ├── EfficientHashLib.sol
-    ├── LibBytes.sol
-    ├── LibSort.sol
-    └── SSTORE2.sol
-```
-
-### Remapping
-
-```
-solady/=src/vendor/solady/
-```
-
-Source files keep their `import { ... } from "solady/utils/...";` lines verbatim.
+Vendor the five Solady utilities into the contracts package under `src/vendor/solady/`, mirroring upstream's `utils/` substructure. Drop `solady` from `foundry.toml` dependencies. Re-point the `solady` remapping (`solady/=src/vendor/solady/`) at the vendored tree so existing import paths in Callcium sources remain unchanged.
 
 ### Vendor rules
 
@@ -48,13 +26,6 @@ Source files keep their `import { ... } from "solady/utils/...";` lines verbatim
 - `src/vendor/solady/README.md` records the upstream version tag and refresh procedure.
 - Vendored types must not appear in any external or public function signature. Internal use only.
 - `forge doc` and the docs reference pipeline exclude `src/vendor/`.
-
-### Refresh procedure
-
-1. Bump the recorded upstream tag in `src/vendor/solady/README.md`.
-2. Replace each vendored file with its upstream counterpart from the new tag.
-3. Review the diff against the upstream tag, not against the previous vendored version, to surface any change introduced by mistake.
-4. Run the full contracts test suite.
 
 ## Alternatives Considered
 

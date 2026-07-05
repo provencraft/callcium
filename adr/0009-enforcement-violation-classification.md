@@ -16,18 +16,7 @@ Enforcement failures are classified by the **"different calldata" test**: if dif
 
 ### Enforcement violations (calldata-dependent)
 
-These are part of the shared `ViolationCode` vocabulary. They represent runtime mismatches between valid policy expectations and specific input data.
-
-| Code | Trigger |
-|---|---|
-| `VALUE_MISMATCH` | Operator not satisfied on resolved value. |
-| `SELECTOR_MISMATCH` | Calldata selector does not match policy. |
-| `MISSING_SELECTOR` | Calldata too short for selector. |
-| `CALLDATA_OUT_OF_BOUNDS` | Calldata truncated or invalid pointers. |
-| `ARRAY_INDEX_OUT_OF_BOUNDS` | Dynamic array shorter than required index. |
-| `MISSING_CONTEXT` | Context property not provided at runtime. |
-| `QUANTIFIER_LIMIT_EXCEEDED` | Array exceeds iteration limit. |
-| `QUANTIFIER_EMPTY_ARRAY` | ANY/ALL on empty array. |
+These are part of the shared `ViolationCode` vocabulary — runtime mismatches between valid policy expectations and specific input data. The eight codes and their triggers are normative in the policy spec (Section 9.1).
 
 ### Integrity errors (descriptor/policy-fixed)
 

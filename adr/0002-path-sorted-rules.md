@@ -21,22 +21,6 @@ Rules within each group are sorted by `(scope, pathDepth, pathBytes, operatorByt
 - **Adjacent duplicates and contradictions**: Rules on the same path end up next to each other, so build-time duplicate and contradiction detection is a single linear pass over neighbors.
 - **Deterministic evaluation order**: The failing rule index reported by the enforcer is stable for a given policy and calldata.
 
-### Walkthrough
-
-Given rules:
-```
-scope=0, path=[0x0000]  // msg.sender check
-scope=0, path=[0x0001]  // msg.value check
-scope=1, path=[0x0000]          // param 0
-scope=1, path=[0x0000, 0x0000]  // param 0, field 0
-scope=1, path=[0x0000, 0x0001]  // param 0, field 1
-scope=1, path=[0x0001]          // param 1
-```
-
-Validator processes:
-1. **Call-level block**: msg.sender, msg.value (O(1) each, no traversal).
-2. **Calldata block**: param 0 → field 0 → field 1 → param 1.
-
 ## Alternatives Considered
 
 - **User-defined rule order:** Allow policy authors to control evaluation order within groups. Rejected because AND semantics make order irrelevant to the outcome, while arbitrary ordering breaks canonical encoding and forces per-rule scope branching.
