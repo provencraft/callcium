@@ -5,7 +5,17 @@
 export { PolicyBuilder } from "./policy-builder";
 export { PolicyCoder, parsePathSteps } from "./policy-coder";
 export { isOpAllowed, PolicyValidator } from "./policy-validator";
-export { arg, msgSender, msgValue, blockTimestamp, blockNumber, chainId, txOrigin } from "./constraint";
+export {
+  arg,
+  msgSender,
+  msgValue,
+  blockTimestamp,
+  blockNumber,
+  chainId,
+  txOrigin,
+  baseFee,
+  gasPrice,
+} from "./constraint";
 export type { ConstraintBuilder, ScalarValue } from "./constraint";
 
 ///////////////////////////////////////////////////////////////////////////

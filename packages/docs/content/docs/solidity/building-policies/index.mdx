@@ -143,7 +143,7 @@ bytes memory policy = PolicyBuilder
 
 ## Transaction context
 
-Six context properties are available as constraint targets:
+The following context properties are available as constraint targets:
 
 | Target             | Solidity equivalent | Type      |
 | ------------------ | ------------------- | --------- |
@@ -153,6 +153,8 @@ Six context properties are available as constraint targets:
 | `blockNumber()`    | `block.number`      | `uint256` |
 | `chainId()`        | `block.chainid`     | `uint256` |
 | `txOrigin()`       | `tx.origin`         | `address` |
+| `baseFee()`        | `block.basefee`     | `uint256` |
+| `gasPrice()`       | `tx.gasprice`       | `uint256` |
 
 When enforced via a static call, `msgSender()` reflects the `from` address of the call — set it explicitly to simulate the intended caller. `msgValue()` always resolves to 0; static calls cannot forward value.
 

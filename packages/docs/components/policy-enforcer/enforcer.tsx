@@ -39,6 +39,8 @@ export function Enforcer() {
   const [ctxBlockNumber, setCtxBlockNumber] = useState("");
   const [ctxChainId, setCtxChainId] = useState("");
   const [ctxTxOrigin, setCtxTxOrigin] = useState("");
+  const [ctxBaseFee, setCtxBaseFee] = useState("");
+  const [ctxGasPrice, setCtxGasPrice] = useState("");
 
   useEffect(() => {
     const policyHex = searchParams.get("policy");
@@ -60,8 +62,12 @@ export function Enforcer() {
     const chain = tryParseBigInt(ctxChainId);
     if (chain !== undefined) ctx.chainId = chain;
     if (ctxTxOrigin.trim()) ctx.txOrigin = ctxTxOrigin.trim() as `0x${string}`;
+    const base = tryParseBigInt(ctxBaseFee);
+    if (base !== undefined) ctx.baseFee = base;
+    const gas = tryParseBigInt(ctxGasPrice);
+    if (gas !== undefined) ctx.gasPrice = gas;
     return Object.keys(ctx).length > 0 ? ctx : undefined;
-  }, [ctxMsgSender, ctxMsgValue, ctxBlockTimestamp, ctxBlockNumber, ctxChainId, ctxTxOrigin]);
+  }, [ctxMsgSender, ctxMsgValue, ctxBlockTimestamp, ctxBlockNumber, ctxChainId, ctxTxOrigin, ctxBaseFee, ctxGasPrice]);
 
   const result = useMemo((): EnforceOutput | null => {
     const policy = debouncedPolicy.trim();
@@ -138,6 +144,8 @@ export function Enforcer() {
             />
             <ContextField label="chain.id" placeholder="chain ID" value={ctxChainId} onChange={setCtxChainId} />
             <ContextField label="tx.origin" placeholder="0x..." value={ctxTxOrigin} onChange={setCtxTxOrigin} />
+            <ContextField label="block.basefee" placeholder="wei amount" value={ctxBaseFee} onChange={setCtxBaseFee} />
+            <ContextField label="tx.gasprice" placeholder="wei amount" value={ctxGasPrice} onChange={setCtxGasPrice} />
           </div>
         </CollapsibleContent>
       </Collapsible>

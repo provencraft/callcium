@@ -304,3 +304,13 @@ export function chainId(): ConstraintBuilder {
 export function txOrigin(): ConstraintBuilder {
   return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.TX_ORIGIN]));
 }
+
+/** Target the `block.basefee` context property. */
+export function baseFee(): ConstraintBuilder {
+  return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.BASE_FEE]));
+}
+
+/** Target the `tx.gasprice` context property. */
+export function gasPrice(): ConstraintBuilder {
+  return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.GAS_PRICE]));
+}

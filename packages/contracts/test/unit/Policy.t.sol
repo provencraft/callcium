@@ -34,6 +34,13 @@ abstract contract PolicyTest is BaseTest {
         return PolicyBuilder.create("foo(uint256)").add(msgSender().eq(address(1))).buildUnsafe();
     }
 
+    /// @dev Builds a context-scope policy and rewrites its property ID to `ctxId`, bypassing builder validation.
+    function _contextBlob(uint16 ctxId) internal pure returns (bytes memory) {
+        bytes memory blob = _contextBlob();
+        Be16.write(blob, _firstRuleOffset(blob) + PF.RULE_PATH_OFFSET, ctxId);
+        return blob;
+    }
+
     /// @dev Returns the offset of the first group header within a policy blob.
     function _firstGroupOffset(bytes memory blob) internal pure returns (uint256) {
         uint16 descLen = Be16.readUnchecked(blob, PF.POLICY_DESC_LENGTH_OFFSET);

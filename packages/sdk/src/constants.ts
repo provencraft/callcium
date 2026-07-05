@@ -112,6 +112,8 @@ const CTX_PROP_TABLE = [
   { key: "BLOCK_NUMBER", code: 0x0003, label: "block.number", typeCode: 0x1f },
   { key: "CHAIN_ID", code: 0x0004, label: "block.chainid", typeCode: 0x1f },
   { key: "TX_ORIGIN", code: 0x0005, label: "tx.origin", typeCode: 0x40 },
+  { key: "BASE_FEE", code: 0x0006, label: "block.basefee", typeCode: 0x1f },
+  { key: "GAS_PRICE", code: 0x0007, label: "tx.gasprice", typeCode: 0x1f },
 ] as const;
 
 /** Well-known context property IDs for context-scope rules. */
@@ -131,6 +133,8 @@ const CTX_KEY_MAP: Record<(typeof CTX_PROP_TABLE)[number]["key"], keyof import("
   BLOCK_NUMBER: "blockNumber",
   CHAIN_ID: "chainId",
   TX_ORIGIN: "txOrigin",
+  BASE_FEE: "baseFee",
+  GAS_PRICE: "gasPrice",
 };
 
 const ctxPropByCode = new Map<number, ContextPropertyInfo>(

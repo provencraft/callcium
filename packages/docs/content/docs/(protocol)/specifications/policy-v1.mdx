@@ -4,7 +4,7 @@ description: Binary encoding format for onchain calldata policies.
 ---
 ## 1. Document Control
 
-- Version: 1.1
+- Version: 1.2
 - Status: Normative
 
 ***
@@ -260,6 +260,8 @@ CTX_BLOCK_TIMESTAMP = 0x0002  // block.timestamp (uint256)
 CTX_BLOCK_NUMBER = 0x0003     // block.number (uint256)
 CTX_CHAIN_ID = 0x0004         // chain.id (uint256)
 CTX_TX_ORIGIN = 0x0005        // tx.origin (address)
+CTX_BASE_FEE = 0x0006         // block.basefee (uint256)
+CTX_GAS_PRICE = 0x0007        // tx.gasprice (uint256)
 ```
 
 Builders MUST validate operator-type compatibility for context rules using the declared types above (`address` or `uint256`). Enforcers MUST treat all context values as raw 32-byte words at evaluation time; runtime type checking is not required.
@@ -586,5 +588,6 @@ Enforcers MUST produce the same accept/reject verdict for identical policy, call
 
 ## Appendix A. Changelog
 
+- v1.2 (2026-07-05): Added `basefee` and `gasprice` context property IDs (Section 5.4).
 - v1.1 (2026-07-04): Sections 7–9 restructured into labeled well-formedness, validity, and canonical-form invariants; violation effects made normative (Section 9.3).
 - v1.0 (2026-02-22): Initial specification.

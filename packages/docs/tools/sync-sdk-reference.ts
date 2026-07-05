@@ -38,7 +38,17 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
     description: "Constraint helpers and builder types.",
     sections: {
       primary: [],
-      helpers: ["arg", "msgSender", "msgValue", "blockTimestamp", "blockNumber", "chainId", "txOrigin"],
+      helpers: [
+        "arg",
+        "msgSender",
+        "msgValue",
+        "blockTimestamp",
+        "blockNumber",
+        "chainId",
+        "txOrigin",
+        "baseFee",
+        "gasPrice",
+      ],
       types: ["ConstraintBuilder", "ScalarValue"],
     },
   },

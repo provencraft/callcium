@@ -59,6 +59,18 @@ function txOrigin() pure returns (Constraint memory) {
     return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_TX_ORIGIN), operators: new bytes[](0) });
 }
 
+/// @notice Creates a constraint targeting `block.basefee`.
+/// @return A context-scoped constraint for block.basefee.
+function baseFee() pure returns (Constraint memory) {
+    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BASE_FEE), operators: new bytes[](0) });
+}
+
+/// @notice Creates a constraint targeting `tx.gasprice`.
+/// @return A context-scoped constraint for tx.gasprice.
+function gasPrice() pure returns (Constraint memory) {
+    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_GAS_PRICE), operators: new bytes[](0) });
+}
+
 /// @notice Creates a constraint targeting a top-level argument.
 /// @param p0 The argument index.
 /// @return A calldata-scoped constraint at the given path.

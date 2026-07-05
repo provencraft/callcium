@@ -11,6 +11,7 @@ import {
   Op,
   Scope,
   ContextProperty,
+  MAX_CONTEXT_PROPERTY_ID,
   Quantifier,
   TypeCode,
 } from "../src/constants";
@@ -165,8 +166,24 @@ describe("lookupContextProperty", () => {
     });
   });
 
+  test("BASE_FEE", () => {
+    expect(lookupContextProperty(ContextProperty.BASE_FEE)).toEqual({
+      label: "block.basefee",
+      contextKey: "baseFee",
+      typeCode: 0x1f,
+    });
+  });
+
+  test("GAS_PRICE", () => {
+    expect(lookupContextProperty(ContextProperty.GAS_PRICE)).toEqual({
+      label: "tx.gasprice",
+      contextKey: "gasPrice",
+      typeCode: 0x1f,
+    });
+  });
+
   test("rejects unknown context property code", () => {
-    expectErrorCode(() => lookupContextProperty(0x0006), "INVALID_CONTEXT_PROPERTY");
+    expectErrorCode(() => lookupContextProperty(MAX_CONTEXT_PROPERTY_ID + 1), "INVALID_CONTEXT_PROPERTY");
   });
 });
 

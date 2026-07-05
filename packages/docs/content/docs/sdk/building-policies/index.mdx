@@ -129,7 +129,7 @@ const policy = PolicyBuilder
 
 ## Transaction context
 
-Six context properties are available as constraint targets:
+The following context properties are available as constraint targets:
 
 | Target             | Description                              | Type      |
 | ------------------ | ---------------------------------------- | --------- |
@@ -139,6 +139,8 @@ Six context properties are available as constraint targets:
 | `blockNumber()`    | Block number observed by the call.       | `uint256` |
 | `chainId()`        | Chain identifier the policy applies to.  | `uint256` |
 | `txOrigin()`       | Address that originated the transaction. | `address` |
+| `baseFee()`        | Base fee of the block.                   | `uint256` |
+| `gasPrice()`       | Effective gas price of the transaction.  | `uint256` |
 
 Context values are supplied explicitly to the enforcer alongside calldata; they are not inferred from any runtime environment. See [Policy Enforcement](./enforcement) for the exact shape of the context object.
 

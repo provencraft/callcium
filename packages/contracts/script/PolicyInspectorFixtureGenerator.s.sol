@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import { Script } from "forge-std/Script.sol";
 import { console2 } from "forge-std/console2.sol";
 
-import { arg, blockTimestamp, msgSender, msgValue, txOrigin } from "src/Constraint.sol";
+import { arg, baseFee, blockTimestamp, gasPrice, msgSender, msgValue, txOrigin } from "src/Constraint.sol";
 import { OpCode } from "src/OpCode.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
 
@@ -47,6 +47,8 @@ contract PolicyInspectorFixtureGenerator is Script {
         _add("CTX_MSG_VALUE", PolicyBuilder.create("f(uint256)").add(msgValue().eq(uint256(1))).build());
         _add("CTX_BLOCK_TIMESTAMP", PolicyBuilder.create("f(uint256)").add(blockTimestamp().eq(uint256(1))).build());
         _add("CTX_TX_ORIGIN", PolicyBuilder.create("f(uint256)").add(txOrigin().eq(address(1))).build());
+        _add("CTX_BASE_FEE", PolicyBuilder.create("f(uint256)").add(baseFee().eq(uint256(1))).build());
+        _add("CTX_GAS_PRICE", PolicyBuilder.create("f(uint256)").add(gasPrice().eq(uint256(1))).build());
         _add("TUPLE_FIELD", PolicyBuilder.create("f((uint256,address))").add(arg(0, 1).eq(address(1))).build());
         _add("DYNAMIC_ARRAY_ELEM", PolicyBuilder.create("f(uint256[])").add(arg(0, 0).eq(uint256(7))).build());
 

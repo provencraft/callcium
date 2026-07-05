@@ -225,7 +225,7 @@ library PolicyBuilder {
         require(depth == 1, InvalidPathNavigation(path, 0));
         // The step must reference a valid context property.
         uint16 contextPropertyId = Path.atUnchecked(path, 0);
-        require(contextPropertyId <= PF.CTX_TX_ORIGIN, InvalidPathNavigation(path, 0));
+        require(contextPropertyId <= PF.CTX_MAX, InvalidPathNavigation(path, 0));
     }
 
     /// @dev Validates that `path` can be navigated within calldata described by `desc`.

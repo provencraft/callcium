@@ -1839,7 +1839,7 @@
   },
   {
     "id": "unknown-context-property",
-    "description": "context property ID 0x0006 is unassigned",
+    "description": "context property ID 0x0099 is unassigned",
     "policy": {
       "isSelectorless": true,
       "selector": "0x00000000",
@@ -1849,7 +1849,7 @@
           "constraints": [
             {
               "scope": 0,
-              "path": "0x0006",
+              "path": "0x0099",
               "operators": [
                 "0x010000000000000000000000000000000000000000000000000000000000000001"
               ]
@@ -1867,6 +1867,79 @@
       }
     ],
     "builds": false
+  },
+  {
+    "id": "context-all-properties",
+    "description": "every defined context property is recognized and typed: eq on address props, gte on uint256 props",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 0,
+              "path": "0x0000",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000001234"
+              ]
+            },
+            {
+              "scope": 0,
+              "path": "0x0001",
+              "operators": [
+                "0x0400000000000000000000000000000000000000000000000000000000000001"
+              ]
+            },
+            {
+              "scope": 0,
+              "path": "0x0002",
+              "operators": [
+                "0x0400000000000000000000000000000000000000000000000000000000000001"
+              ]
+            },
+            {
+              "scope": 0,
+              "path": "0x0003",
+              "operators": [
+                "0x0400000000000000000000000000000000000000000000000000000000000001"
+              ]
+            },
+            {
+              "scope": 0,
+              "path": "0x0004",
+              "operators": [
+                "0x0400000000000000000000000000000000000000000000000000000000000001"
+              ]
+            },
+            {
+              "scope": 0,
+              "path": "0x0005",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000001234"
+              ]
+            },
+            {
+              "scope": 0,
+              "path": "0x0006",
+              "operators": [
+                "0x0400000000000000000000000000000000000000000000000000000000000001"
+              ]
+            },
+            {
+              "scope": 0,
+              "path": "0x0007",
+              "operators": [
+                "0x0400000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
   },
   {
     "id": "negation-under-any",

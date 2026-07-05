@@ -168,15 +168,12 @@ contract ValidateTest is PolicyTest {
     }
 
     function test_ContextPropertyAtMax() public view {
-        // CTX_TX_ORIGIN (0x0005) is the highest defined property.
-        bytes memory blob =
-            hex"012fbebd38000301011f010001000000290029000100050100200000000000000000000000000000000000000000000000000000000000000001";
+        bytes memory blob = _contextBlob(PF.CTX_MAX);
         harness.validate(blob);
     }
 
     function test_RevertWhen_UnknownContextProperty() public {
-        bytes memory blob =
-            hex"012fbebd38000301011f010001000000290029000100990100200000000000000000000000000000000000000000000000000000000000000001";
+        bytes memory blob = _contextBlob(PF.CTX_MAX + 1);
         uint256 ruleOffset = _firstRuleOffset(blob);
         vm.expectRevert(abi.encodeWithSelector(Policy.UnknownContextProperty.selector, ruleOffset));
         harness.validate(blob);

@@ -13,6 +13,8 @@ import type { Context } from "../src";
 type VectorContext = {
   msgSender: string;
   msgValue: string;
+  baseFee: string;
+  gasPrice: string;
 };
 
 type Vector = {
@@ -30,6 +32,13 @@ type Vector = {
 // Test helpers
 ///////////////////////////////////////////////////////////////////////////
 
+/** Parse a hex-encoded uint256 context word, returning undefined when zero (unset). */
+function parseUint(word: string | undefined): bigint | undefined {
+  if (!word) return undefined;
+  const value = BigInt(word);
+  return value === 0n ? undefined : value;
+}
+
 /** Parse a hex-encoded context into the SDK Context type. */
 function parseContext(ctx: VectorContext): Context {
   const result: Context = {};
@@ -38,10 +47,9 @@ function parseContext(ctx: VectorContext): Context {
     result.msgSender = toAddress(ctx.msgSender);
   }
 
-  if (ctx.msgValue && ctx.msgValue !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-    const cleanHex = ctx.msgValue.replace(/^0x/, "");
-    result.msgValue = BigInt(`0x${cleanHex}`);
-  }
+  result.msgValue = parseUint(ctx.msgValue);
+  result.baseFee = parseUint(ctx.baseFee);
+  result.gasPrice = parseUint(ctx.gasPrice);
 
   return result;
 }

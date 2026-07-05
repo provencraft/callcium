@@ -85,7 +85,7 @@ if (violation.code === "VALUE_MISMATCH") {
 
 ## Supplying context
 
-The `context` argument is optional. Provide it only when the policy constrains context properties (`msgSender()`, `msgValue()`, `blockTimestamp()`, `blockNumber()`, `chainId()`, `txOrigin()`). Policies that reference no context properties take no third argument:
+The `context` argument is optional. Provide it only when the policy constrains context properties (`msgSender()`, `msgValue()`, `blockTimestamp()`, `blockNumber()`, `chainId()`, `txOrigin()`, `baseFee()`, `gasPrice()`). Policies that reference no context properties take no third argument:
 
 ```ts
 const result = PolicyEnforcer.check(policy, calldata);
@@ -117,6 +117,8 @@ type Context = {
   blockNumber?: bigint;
   chainId?: bigint;
   txOrigin?: Address;
+  baseFee?: bigint;
+  gasPrice?: bigint;
 };
 ```
 

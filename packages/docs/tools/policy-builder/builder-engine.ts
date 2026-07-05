@@ -10,9 +10,11 @@ import {
   TypeCode,
   type TypeInfo,
   arg,
+  baseFee,
   blockNumber,
   blockTimestamp,
   chainId,
+  gasPrice,
   isOpAllowed,
   lookupTypeCode,
   msgSender,
@@ -148,6 +150,8 @@ const CONTEXT_FACTORIES = {
   blockNumber,
   chainId,
   txOrigin,
+  baseFee,
+  gasPrice,
 } as const;
 
 ///////////////////////////////////////////////////////////////////////////

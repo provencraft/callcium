@@ -618,6 +618,10 @@ library PolicyEnforcer {
             case 0x0004 { v := chainid() }
             // CTX_TX_ORIGIN
             case 0x0005 { v := origin() }
+            // CTX_BASE_FEE
+            case 0x0006 { v := basefee() }
+            // CTX_GAS_PRICE
+            case 0x0007 { v := gasprice() }
             default {
                 // Revert with UnknownContextProperty(contextPropertyId).
                 mstore(0, 0x33abc51300000000000000000000000000000000000000000000000000000000)

@@ -5,7 +5,7 @@ import { Script } from "forge-std/Script.sol";
 import { console2 } from "forge-std/console2.sol";
 
 import { CalldataReader } from "src/CalldataReader.sol";
-import { arg, msgSender, msgValue } from "src/Constraint.sol";
+import { Constraint, arg, baseFee, gasPrice, msgSender, msgValue } from "src/Constraint.sol";
 import { Path } from "src/Path.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
 import { PolicyEnforcer } from "src/PolicyEnforcer.sol";
@@ -92,11 +92,8 @@ contract EnforcementVectorGenerator is Script {
         _vectorMultiRuleAndPass();
         _vectorMultiRuleAndFail();
 
-        // Context rules: msg.sender check, msg.value check.
-        _vectorContextSenderPass();
-        _vectorContextSenderFail();
-        _vectorContextValuePass();
-        _vectorContextValueFail();
+        // Context rules: msg.sender, msg.value, block.basefee, tx.gasprice checks.
+        _vectorContextRules();
 
         // Quantifier ALL: array where all elements pass, one fails.
         _vectorQuantifierAllPass();
@@ -471,68 +468,17 @@ contract EnforcementVectorGenerator is Script {
                           Context rules
     /////////////////////////////////////////////////////////////////////////*/
 
-    function _vectorContextSenderPass() private {
-        bytes memory policy = PolicyBuilder.create("foo(uint256)")
-            .add(msgSender().eq(address(1)))
-            .build();
-        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
-        _addContextVector(
-            "context-sender-pass",
-            "Context msg.sender: matches address(1)",
-            policy,
-            callData,
-            address(1),
-            0,
-            true
-        );
-    }
-
-    function _vectorContextSenderFail() private {
-        bytes memory policy = PolicyBuilder.create("foo(uint256)")
-            .add(msgSender().eq(address(1)))
-            .build();
-        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
-        _addContextVector(
-            "context-sender-fail",
-            "Context msg.sender: does not match address(2)",
-            policy,
-            callData,
-            address(2),
-            0,
-            false
-        );
-    }
-
-    function _vectorContextValuePass() private {
-        bytes memory policy = PolicyBuilder.create("foo(uint256)")
-            .add(msgValue().eq(uint256(1 ether)))
-            .build();
-        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
-        _addContextVector(
-            "context-value-pass",
-            "Context msg.value: matches 1 ether",
-            policy,
-            callData,
-            address(0),
-            1 ether,
-            true
-        );
-    }
-
-    function _vectorContextValueFail() private {
-        bytes memory policy = PolicyBuilder.create("foo(uint256)")
-            .add(msgValue().eq(uint256(1 ether)))
-            .build();
-        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
-        _addContextVector(
-            "context-value-fail",
-            "Context msg.value: does not match 2 ether",
-            policy,
-            callData,
-            address(0),
-            2 ether,
-            false
-        );
+    /// @dev One pass and one fail vector per context property. Each supplies a single context value;
+    ///      the rest default to zero.
+    function _vectorContextRules() private {
+        _addContextVector("context-sender-pass", "Context msg.sender: matches address(1)", msgSender().eq(address(1)), address(1), 0, 0, 0, true);
+        _addContextVector("context-sender-fail", "Context msg.sender: does not match address(2)", msgSender().eq(address(1)), address(2), 0, 0, 0, false);
+        _addContextVector("context-value-pass", "Context msg.value: matches 1 ether", msgValue().eq(uint256(1 ether)), address(0), 1 ether, 0, 0, true);
+        _addContextVector("context-value-fail", "Context msg.value: does not match 2 ether", msgValue().eq(uint256(1 ether)), address(0), 2 ether, 0, 0, false);
+        _addContextVector("context-basefee-pass", "Context block.basefee: 10 gwei is <= 10 gwei", baseFee().lte(uint256(10 gwei)), address(0), 0, 10 gwei, 0, true);
+        _addContextVector("context-basefee-fail", "Context block.basefee: 50 gwei is not <= 10 gwei", baseFee().lte(uint256(10 gwei)), address(0), 0, 50 gwei, 0, false);
+        _addContextVector("context-gasprice-pass", "Context tx.gasprice: 20 gwei is < 30 gwei", gasPrice().lt(uint256(30 gwei)), address(0), 0, 0, 20 gwei, true);
+        _addContextVector("context-gasprice-fail", "Context tx.gasprice: 40 gwei is not < 30 gwei", gasPrice().lt(uint256(30 gwei)), address(0), 0, 0, 40 gwei, false);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -1024,23 +970,30 @@ contract EnforcementVectorGenerator is Script {
         vectorCount++;
     }
 
-    /// @dev Adds a vector with context. Context rules cannot be verified on-chain from a script
-    ///      because msg.sender/msg.value are script-specific.
+    /// @dev Adds a context vector: builds a foo(uint256) policy from `constraint`, paired with fixed
+    ///      calldata and the given context values. Context rules cannot be verified onchain from a
+    ///      script because context values are script-specific, so these are consumed offchain.
     function _addContextVector(
         string memory id,
         string memory description,
-        bytes memory policy,
-        bytes memory callData,
+        Constraint memory constraint,
         address sender,
         uint256 value,
+        uint256 baseFeeValue,
+        uint256 gasPriceValue,
         bool expected
     ) private {
+        bytes memory policy = PolicyBuilder.create("foo(uint256)").add(constraint).build();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
+
         string memory key = _nextKey();
         string memory ctxKey = string.concat("ctx_", key);
 
         // Build context sub-object.
         vm.serializeString(ctxKey, "msgSender", vm.toString(sender));
-        string memory ctxJson = vm.serializeString(ctxKey, "msgValue", vm.toString(bytes32(value)));
+        vm.serializeString(ctxKey, "msgValue", vm.toString(bytes32(value)));
+        vm.serializeString(ctxKey, "baseFee", vm.toString(bytes32(baseFeeValue)));
+        string memory ctxJson = vm.serializeString(ctxKey, "gasPrice", vm.toString(bytes32(gasPriceValue)));
 
         // Build vector object.
         vm.serializeString(key, "id", id);

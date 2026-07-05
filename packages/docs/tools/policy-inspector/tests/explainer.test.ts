@@ -142,6 +142,18 @@ describe("scope and path resolution", () => {
     expect(constraint.targetType).toBe("address");
   });
 
+  it("resolves block.basefee as uint256", () => {
+    const constraint = _firstConstraint(B.CTX_BASE_FEE);
+    expect(constraint.pathLabel).toBe("block.basefee");
+    expect(constraint.targetType).toBe("uint256");
+  });
+
+  it("resolves tx.gasprice as uint256", () => {
+    const constraint = _firstConstraint(B.CTX_GAS_PRICE);
+    expect(constraint.pathLabel).toBe("tx.gasprice");
+    expect(constraint.targetType).toBe("uint256");
+  });
+
   it("resolves tuple field path", () => {
     const constraint = _firstConstraint(B.TUPLE_FIELD);
     expect(constraint.pathLabel).toBe("arg(0).field(1)");

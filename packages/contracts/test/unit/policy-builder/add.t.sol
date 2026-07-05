@@ -89,7 +89,7 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
         PolicyDraft memory draft = PolicyBuilder.create("foo()");
 
         Constraint memory c = msgSender().eq(address(1));
-        c.path = Path.encode(PF.CTX_TX_ORIGIN + 1);
+        c.path = Path.encode(PF.CTX_MAX + 1);
 
         vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.InvalidPathNavigation.selector, c.path, 0));
         draft.add(c);

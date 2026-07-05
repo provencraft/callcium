@@ -6,9 +6,11 @@ import { CalldataReader } from "src/CalldataReader.sol";
 import {
     Constraint,
     arg,
+    baseFee,
     blockNumber,
     blockTimestamp,
     chainId,
+    gasPrice,
     msgSender,
     msgValue,
     txOrigin
@@ -682,6 +684,24 @@ contract EnforceContextTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
+    function test_BaseFee() public {
+        vm.fee(10 gwei);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(baseFee().lte(uint256(10 gwei)))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
+        harness.enforce(policy, callData);
+    }
+
+    function test_GasPrice() public {
+        vm.txGasPrice(20 gwei);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(gasPrice().lt(uint256(30 gwei)))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
+        harness.enforce(policy, callData);
+    }
+
     /*/////////////////////////////////////////////////////////////////////////
                                   CONTEXT ERRORS
     /////////////////////////////////////////////////////////////////////////*/
@@ -709,6 +729,28 @@ contract EnforceContextTest is PolicyEnforcerTest {
     function test_RevertWhen_TxOrigin_Different() public {
         bytes memory policy = PolicyBuilder.create("foo(uint256)")
             .add(txOrigin().eq(address(1)))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_BaseFee_TooHigh() public {
+        vm.fee(50 gwei);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(baseFee().lte(uint256(10 gwei)))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_GasPrice_TooHigh() public {
+        vm.txGasPrice(40 gwei);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(gasPrice().lt(uint256(30 gwei)))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
 

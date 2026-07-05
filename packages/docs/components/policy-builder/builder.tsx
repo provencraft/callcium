@@ -934,6 +934,8 @@ function AddConstraintForm({
                 {!usedContextProps.has("blockNumber") && <SelectItem value="blockNumber">block.number</SelectItem>}
                 {!usedContextProps.has("chainId") && <SelectItem value="chainId">chain.id</SelectItem>}
                 {!usedContextProps.has("txOrigin") && <SelectItem value="txOrigin">tx.origin</SelectItem>}
+                {!usedContextProps.has("baseFee") && <SelectItem value="baseFee">block.basefee</SelectItem>}
+                {!usedContextProps.has("gasPrice") && <SelectItem value="gasPrice">tx.gasprice</SelectItem>}
               </SelectContent>
             </Select>
           )}

@@ -1161,7 +1161,7 @@
   },
   {
     "blob": "0x1100000000000301011f010001000000290029000100050100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "EQ rule on tx.origin, the highest defined context property (0x0005)",
+    "description": "EQ rule on tx.origin context property",
     "error": "",
     "errorArgs": [],
     "id": "context-tx-origin-eq",

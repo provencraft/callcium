@@ -16,6 +16,8 @@ export const CONTEXT_IDS: Record<string, number> = {
   blockNumber: ContextProperty.BLOCK_NUMBER,
   chainId: ContextProperty.CHAIN_ID,
   txOrigin: ContextProperty.TX_ORIGIN,
+  baseFee: ContextProperty.BASE_FEE,
+  gasPrice: ContextProperty.GAS_PRICE,
 };
 
 /** Total number of context properties (derived from SDK). */

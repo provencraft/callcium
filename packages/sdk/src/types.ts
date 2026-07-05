@@ -66,6 +66,8 @@ export type Context = {
   blockNumber?: bigint;
   chainId?: bigint;
   txOrigin?: Address;
+  baseFee?: bigint;
+  gasPrice?: bigint;
 };
 
 /** Result of enforcing a policy: pass with matched group index, or fail with one violation per failed group. */

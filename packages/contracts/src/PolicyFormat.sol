@@ -70,7 +70,7 @@ library PolicyFormat {
                                      SCOPES
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Context scope (msg.sender, msg.value, block.*, chain.id).
+    /// @dev Context scope (execution environment properties).
     uint8 internal constant SCOPE_CONTEXT = 0x00;
 
     /// @dev Calldata scope (argument path traversal).
@@ -138,8 +138,14 @@ library PolicyFormat {
     /// @dev tx.origin (address).
     uint16 internal constant CTX_TX_ORIGIN = 0x0005;
 
+    /// @dev block.basefee (uint256).
+    uint16 internal constant CTX_BASE_FEE = 0x0006;
+
+    /// @dev tx.gasprice (uint256).
+    uint16 internal constant CTX_GAS_PRICE = 0x0007;
+
     /// @dev Highest assigned context property ID.
-    uint16 internal constant CTX_MAX = CTX_TX_ORIGIN;
+    uint16 internal constant CTX_MAX = CTX_GAS_PRICE;
 
     /*/////////////////////////////////////////////////////////////////////////
                                 NORMATIVE LIMITS
