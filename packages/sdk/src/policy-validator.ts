@@ -187,6 +187,10 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: string; messag
     if (isBitmaskOp(opBase) && !isBitmaskCompatible(typeCode)) {
       return { code: "BITMASK_ON_INVALID", message: "Bitmask operator used on incompatible type" };
     }
+    // IN on bool is degenerate: the two-value domain reduces every set to an equality, a tautology, or dead members.
+    if (opBase === Op.IN && typeCode === TypeCode.BOOL) {
+      return { code: "IN_ON_BOOL", message: "IN operator used on boolean type" };
+    }
     return null;
   }
   if (isLengthOp(opBase)) {

@@ -138,6 +138,37 @@
     "builds": false
   },
   {
+    "id": "in-on-bool",
+    "description": "isIn on bool",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x010141",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x0700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "IN_ON_BOOL",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
     "id": "value-op-on-composite-array",
     "description": "eq on uint256[1] (32-byte head, composite)",
     "policy": {

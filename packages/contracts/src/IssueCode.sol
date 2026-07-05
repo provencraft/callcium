@@ -16,6 +16,8 @@ library IssueCode {
     bytes32 internal constant NUMERIC_OP_ON_NON_NUMERIC = "NUMERIC_OP_ON_NON_NUMERIC";
     /// Bitmask operator used on an incompatible type.
     bytes32 internal constant BITMASK_ON_INVALID = "BITMASK_ON_INVALID";
+    /// IN operator used on a boolean.
+    bytes32 internal constant IN_ON_BOOL = "IN_ON_BOOL";
     /// Length operator used on a non-dynamic type.
     bytes32 internal constant LENGTH_ON_STATIC = "LENGTH_ON_STATIC";
     /// Unrecognised operator code.

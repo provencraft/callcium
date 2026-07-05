@@ -77,4 +77,16 @@ contract CheckCompatibilityTest is OpRuleTest {
         assertFalse(ok);
         assertEq(code, "UNKNOWN_OPERATOR");
     }
+
+    function test_InOnBool_NotCompatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.IN, TypeCode.BOOL, false, 32);
+        assertFalse(ok);
+        assertEq(code, "IN_ON_BOOL");
+    }
+
+    function test_EqOnBool_Compatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.EQ, TypeCode.BOOL, false, 32);
+        assertTrue(ok);
+        assertEq(code, bytes32(0));
+    }
 }

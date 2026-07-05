@@ -175,6 +175,9 @@ library OpRule {
             // Bitmask operators need compatible types.
             if (isBitmaskOp(opBase) && !isBitmaskCompatible(typeCode)) return (false, IssueCode.BITMASK_ON_INVALID);
 
+            // IN on bool is degenerate: the two-value domain reduces every set to an equality, a tautology, or dead members.
+            if (opBase == OpCode.IN && typeCode == TypeCode.BOOL) return (false, IssueCode.IN_ON_BOOL);
+
             return (true, bytes32(0));
         }
 
@@ -197,6 +200,7 @@ library OpRule {
         if (code == IssueCode.VALUE_OP_ON_COMPOSITE) return "Value operator used on composite type";
         if (code == IssueCode.NUMERIC_OP_ON_NON_NUMERIC) return "Comparison operator used on non-numeric type";
         if (code == IssueCode.BITMASK_ON_INVALID) return "Bitmask operator used on incompatible type";
+        if (code == IssueCode.IN_ON_BOOL) return "IN operator used on boolean type";
         if (code == IssueCode.LENGTH_ON_STATIC) return "Length operator used on non-dynamic type";
         return "Unknown operator code";
     }

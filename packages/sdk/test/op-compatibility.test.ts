@@ -46,9 +46,9 @@ describe("isOpAllowed - value operators", () => {
     for (const op of comparisonOps) expect(isOpAllowed(op, address)).toBe(false);
   });
 
-  test("EQ and IN allowed on bool, comparison ops forbidden", () => {
+  test("only EQ allowed on bool; IN and comparison ops forbidden", () => {
     expect(isOpAllowed(Op.EQ, bool)).toBe(true);
-    expect(isOpAllowed(Op.IN, bool)).toBe(true);
+    expect(isOpAllowed(Op.IN, bool)).toBe(false);
     for (const op of comparisonOps) expect(isOpAllowed(op, bool)).toBe(false);
   });
 
