@@ -35,7 +35,7 @@ contract PolicyValidatorConformanceTest is BaseTest {
 
     /// @dev Loads and parses all fixtures from the validation vector file, also returning the raw JSON for path lookups.
     function _fixtures() private view returns (string memory json, ValidationFixture[] memory fixtures) {
-        json = vm.readFile("test/vectors/validation.json");
+        json = vm.readFile("../../spec/vectors/validation.json");
         uint256 count;
         while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
         fixtures = new ValidationFixture[](count);

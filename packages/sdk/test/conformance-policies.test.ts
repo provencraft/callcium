@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import rawVectors from "../../contracts/test/vectors/policies.json";
+import rawVectors from "../../../spec/vectors/policies.json";
 import { PolicyCoder } from "../src/policy-coder";
 import { expectErrorCode, hex } from "./helpers";
 

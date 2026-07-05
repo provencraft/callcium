@@ -43,7 +43,7 @@ contract DescriptorConformanceTest is BaseTest {
 
     /// @dev Loads and parses all fixtures from the descriptor vector file.
     function _fixtures() private view returns (DescriptorFixture[] memory fixtures) {
-        string memory json = vm.readFile("test/vectors/descriptors.json");
+        string memory json = vm.readFile("../../spec/vectors/descriptors.json");
         uint256 count;
         while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
         fixtures = new DescriptorFixture[](count);

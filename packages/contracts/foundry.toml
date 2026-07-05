@@ -12,7 +12,7 @@ optimizer_runs = 10_000
 via_ir = true
 isolate = true
 ast = true
-fs_permissions = [{ access = "read-write", path = "test/vectors/" }]
+fs_permissions = [{ access = "read-write", path = "../../spec/vectors/" }]
 
 # Compile-checks the library at the minimum supported compiler version.
 [profile.floor]

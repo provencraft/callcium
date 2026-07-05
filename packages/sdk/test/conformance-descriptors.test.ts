@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import rawVectors from "../../contracts/test/vectors/descriptors.json";
+import rawVectors from "../../../spec/vectors/descriptors.json";
 import { hexToBytes } from "../src/bytes";
 import { decodeDescriptor } from "../src/descriptor-coder";
 import { expectErrorCode, hex } from "./helpers";

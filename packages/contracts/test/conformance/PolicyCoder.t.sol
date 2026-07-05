@@ -27,7 +27,7 @@ contract PolicyCoderConformanceTest is BaseTest {
 
     /// @dev Loads and parses all fixtures from the policy vector file, also returning the raw JSON for path lookups.
     function _fixtures() private view returns (string memory json, PolicyFixture[] memory fixtures) {
-        json = vm.readFile("test/vectors/policies.json");
+        json = vm.readFile("../../spec/vectors/policies.json");
         uint256 count;
         while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
         fixtures = new PolicyFixture[](count);

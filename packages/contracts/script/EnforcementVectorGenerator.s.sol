@@ -152,7 +152,7 @@ contract EnforcementVectorGenerator is Script {
         _vectorGroupLocalEmptyArrayMultiGroup();
 
         // Finalize: write the top-level object to disk.
-        vm.writeJson(lastJson, "test/vectors/enforcement.json");
+        vm.writeJson(lastJson, "../../spec/vectors/enforcement.json");
         console2.log("Generated %d enforcement vectors", vectorCount);
     }
 

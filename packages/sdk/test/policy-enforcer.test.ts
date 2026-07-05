@@ -27,7 +27,7 @@ import { assertFailed, assertPassed, assertViolationCode, firstViolation, op } f
 import type { Context, Hex, PolicyData } from "../src";
 
 ///////////////////////////////////////////////////////////////////////////
-// Test policy blobs from test/vectors/policies.json
+// Test policy blobs from spec/vectors/policies.json
 ///////////////////////////////////////////////////////////////////////////
 
 // EQ rule: arg(0) == 42, selector 0x2fbebd38, descriptor uint256.
