@@ -310,7 +310,7 @@ function toTypes(desc: Uint8Array): string {
 type ParseResult = { node: DescNode; next: number };
 
 /** Recursively parse a single descriptor node starting at offset. */
-function parseNode(data: Uint8Array, offset: number): ParseResult {
+function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult {
   if (offset >= data.length) {
     throw new CallciumError("UNEXPECTED_END", "Unexpected end of descriptor", offset);
   }
@@ -328,6 +328,15 @@ function parseNode(data: Uint8Array, offset: number): ParseResult {
       span: { start: offset, end: metaOffset },
     };
     return { node, next: metaOffset };
+  }
+
+  // Only composites nest; a leaf below the deepest allowed composite is fine.
+  if (depth > DF.MAX_NESTING_DEPTH) {
+    throw new CallciumError(
+      "NESTING_TOO_DEEP",
+      `Composite nesting exceeds maximum depth ${DF.MAX_NESTING_DEPTH}`,
+      offset,
+    );
   }
 
   const metaEnd = metaOffset + DF.COMPOSITE_META_SIZE;
@@ -375,7 +384,7 @@ function parseNode(data: Uint8Array, offset: number): ParseResult {
     const fields: DescNode[] = [];
     let cursor = offset + DF.TUPLE_HEADER_SIZE;
     for (let i = 0; i < fieldCount; i++) {
-      const result = parseNode(data, cursor);
+      const result = parseNode(data, cursor, depth + 1);
       fields.push(result.node);
       cursor = result.next;
     }
@@ -392,7 +401,7 @@ function parseNode(data: Uint8Array, offset: number): ParseResult {
   }
 
   if (info.typeClass === "staticArray") {
-    const elemResult = parseNode(data, Descriptor.arrayElementOffset(offset));
+    const elemResult = parseNode(data, Descriptor.arrayElementOffset(offset), depth + 1);
     const lengthOffset = elemResult.next;
     if (lengthOffset + DF.ARRAY_LENGTH_SIZE > data.length) {
       throw new CallciumError("UNEXPECTED_END", "Missing static array length suffix", offset);
@@ -421,7 +430,7 @@ function parseNode(data: Uint8Array, offset: number): ParseResult {
     return { node, next: nodeEnd };
   }
 
-  const elemResult = parseNode(data, Descriptor.arrayElementOffset(offset));
+  const elemResult = parseNode(data, Descriptor.arrayElementOffset(offset), depth + 1);
   const node: DescNode = {
     type: "dynamicArray",
     typeCode: code,
@@ -474,7 +483,7 @@ export function decodeDescriptor(data: Uint8Array): {
       );
     }
 
-    const { node, next } = parseNode(data, cursor);
+    const { node, next } = parseNode(data, cursor, 1);
     tree.push(node);
 
     params.push({

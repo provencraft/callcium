@@ -64,6 +64,7 @@ contract DescriptorConformanceTest is BaseTest {
         if (h == keccak256("InvalidArrayLength")) return Descriptor.InvalidArrayLength.selector;
         if (h == keccak256("InvalidTupleFieldCount")) return Descriptor.InvalidTupleFieldCount.selector;
         if (h == keccak256("MalformedHeader")) return Descriptor.MalformedHeader.selector;
+        if (h == keccak256("NestingTooDeep")) return Descriptor.NestingTooDeep.selector;
         if (h == keccak256("NodeLengthTooSmall")) return Descriptor.NodeLengthTooSmall.selector;
         if (h == keccak256("NodeOverflow")) return Descriptor.NodeOverflow.selector;
         if (h == keccak256("ParamCountMismatch")) return Descriptor.ParamCountMismatch.selector;

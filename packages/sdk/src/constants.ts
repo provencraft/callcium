@@ -20,6 +20,7 @@ export const DescriptorFormat = {
   MAX_STATIC_ARRAY_LENGTH: 4095,
   MAX_TUPLE_FIELDS: 4089,
   MAX_PARAMS: 255,
+  MAX_NESTING_DEPTH: 64,
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////

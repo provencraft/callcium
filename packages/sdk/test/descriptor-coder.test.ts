@@ -235,3 +235,34 @@ describe("DescriptorCoder.toTypes", () => {
     expect(DescriptorCoder.toTypes(desc)).toBe(typesCsv);
   });
 });
+
+///////////////////////////////////////////////////////////////////////////
+// Nesting depth
+///////////////////////////////////////////////////////////////////////////
+
+/** Build a descriptor with `levels` nested single-field tuples around a uint256 leaf. */
+function nestedTuples(levels: number): Uint8Array {
+  let node = new Uint8Array([TypeCode.UINT_MAX]);
+  for (let i = 0; i < levels; i++) {
+    const nodeLength = DF.TUPLE_HEADER_SIZE + node.length;
+    const meta = (1 << DF.META_STATIC_WORDS_SHIFT) | nodeLength;
+    const wrapped = new Uint8Array(DF.TUPLE_HEADER_SIZE + node.length);
+    wrapped.set([TypeCode.TUPLE, (meta >> 16) & 0xff, (meta >> 8) & 0xff, meta & 0xff, 0x00, 0x01], 0);
+    wrapped.set(node, DF.TUPLE_HEADER_SIZE);
+    node = wrapped;
+  }
+  const blob = new Uint8Array(DF.HEADER_SIZE + node.length);
+  blob.set([DF.VERSION, 0x01], 0);
+  blob.set(node, DF.HEADER_SIZE);
+  return blob;
+}
+
+describe("decodeDescriptor nesting depth", () => {
+  test("accepts nesting at the maximum depth", () => {
+    expect(decodeParamCount(nestedTuples(DF.MAX_NESTING_DEPTH))).toBe(1);
+  });
+
+  test("rejects nesting beyond the maximum depth", () => {
+    expectErrorCode(() => decodeDescriptor(nestedTuples(DF.MAX_NESTING_DEPTH + 1)), "NESTING_TOO_DEEP");
+  });
+});

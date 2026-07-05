@@ -6,6 +6,18 @@ import { Descriptor } from "src/Descriptor.sol";
 import { TypeRule } from "src/TypeRule.sol";
 
 contract ValidateTest is DescriptorTest {
+    /// @dev Builds a descriptor with `levels` nested single-field tuples around a uint256 leaf.
+    function _nestedTuples(uint256 levels) private pure returns (bytes memory) {
+        bytes memory node = hex"1f";
+        for (uint256 i; i < levels; ++i) {
+            // staticWords = 1 | nodeLength = header(6) + inner node; fits 24 bits for any test depth.
+            // forge-lint: disable-next-line(unsafe-typecast)
+            uint24 meta = uint24((1 << 12) | (node.length + 6));
+            node = bytes.concat(hex"90", bytes3(meta), hex"0001", node);
+        }
+        return bytes.concat(hex"0101", node);
+    }
+
     /*/////////////////////////////////////////////////////////////////////////
                              VALID DESCRIPTORS
     /////////////////////////////////////////////////////////////////////////*/
@@ -84,5 +96,15 @@ contract ValidateTest is DescriptorTest {
         // Inner static array: [code:80][meta:002007][elem:40][length:0002].
         // nodeLength=7, staticWords=2. Outer nodeLength=6+7=13=0x0d, staticWords=2.
         Descriptor.validate(hex"01019000200d0001800020074000" hex"02");
+    }
+
+    function test_NestingAtMaxDepth() public pure {
+        Descriptor.validate(_nestedTuples(64));
+    }
+
+    function test_RevertWhen_NestingTooDeep() public {
+        // The depth-65 node starts after the header and 64 tuple headers: 2 + 64 * 6 = 386.
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.NestingTooDeep.selector, 2 + 64 * 6));
+        Descriptor.validate(_nestedTuples(65));
     }
 }

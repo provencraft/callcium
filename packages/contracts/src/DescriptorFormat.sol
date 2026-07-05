@@ -85,4 +85,11 @@ library DescriptorFormat {
     /// The suffix is `uint16` but intentionally restricted to 12 bits (4095) for uniformity with other limits and to
     /// bound arrays of dynamic elements.
     uint256 internal constant MAX_STATIC_ARRAY_LENGTH = 4095;
+
+    /// @dev Cap on composite nesting depth.
+    /// Operational bound on recursive validation; the EVM stack exhausts near 150 recursion levels.
+    uint256 internal constant MAX_NESTING_DEPTH = 64;
+
+    /// @dev Upper bound of the `paramCount` header field (1 byte).
+    uint256 internal constant MAX_PARAMS = 255;
 }

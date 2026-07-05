@@ -7,7 +7,7 @@ description: "Offchain policy enforcement against ABI-encoded data."
 
 Check and enforce policies against ABI-encoded call data.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-enforcer.ts#L532)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-enforcer.ts#L543)
 
 ### Methods
 
@@ -29,7 +29,7 @@ function check(policy: templateLiteral, callData: templateLiteral, context?: Con
 
 **Returns**
 
-`EnforceResult` — Pass with matched group index, or fail with one violation per failed group.
+`EnforceResult` — Pass with matched group index, or fail with one violation per evaluated failing group.
 
 ### enforce
 

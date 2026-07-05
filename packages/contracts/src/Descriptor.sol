@@ -76,6 +76,9 @@ library Descriptor {
     /// @notice Thrown when a tuple field count exceeds the format maximum.
     error TupleFieldCountTooLarge(uint256 offset, uint16 fieldCount);
 
+    /// @notice Thrown when composite nesting exceeds the maximum depth.
+    error NestingTooDeep(uint256 offset);
+
     /*/////////////////////////////////////////////////////////////////////////
                                      FUNCTIONS
     /////////////////////////////////////////////////////////////////////////*/
@@ -108,11 +111,11 @@ library Descriptor {
         uint256 parsedCount;
         uint256 descLength = self.length;
         while (cursor < descLength) {
-            cursor = _validateNode(self, cursor);
+            cursor = _validateNode(self, cursor, 1);
             unchecked {
                 ++parsedCount;
             }
-            require(parsedCount <= type(uint8).max, TooManyParams());
+            require(parsedCount <= DF.MAX_PARAMS, TooManyParams());
         }
 
         require(parsedCount == declaredCount, ParamCountMismatch(declaredCount, parsedCount));
@@ -324,9 +327,12 @@ library Descriptor {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @dev Validates a descriptor node recursively and returns the offset after it.
-    function _validateNode(bytes memory self, uint256 offset) private pure returns (uint256 next) {
+    function _validateNode(bytes memory self, uint256 offset, uint256 depth) private pure returns (uint256 next) {
         uint8 code;
         (code,,, next) = inspect(self, offset);
+
+        // Only composites nest; a leaf below the deepest allowed composite is fine.
+        if (TypeRule.isComposite(code)) require(depth <= DF.MAX_NESTING_DEPTH, NestingTooDeep(offset));
 
         if (code == TypeCode.TUPLE) {
             uint16 fields = tupleFieldCount(self, offset);
@@ -334,11 +340,11 @@ library Descriptor {
             require(fields <= DF.MAX_TUPLE_FIELDS, TupleFieldCountTooLarge(offset, fields));
             uint256 child = offset + DF.TUPLE_HEADER_SIZE;
             for (uint256 i; i < fields; ++i) {
-                child = _validateNode(self, child);
+                child = _validateNode(self, child, depth + 1);
             }
         } else if (code == TypeCode.STATIC_ARRAY) {
             // Validate element type recursively.
-            uint256 elemEnd = _validateNode(self, offset + DF.ARRAY_HEADER_SIZE);
+            uint256 elemEnd = _validateNode(self, offset + DF.ARRAY_HEADER_SIZE, depth + 1);
             // Read and validate the length suffix after the element descriptor.
             require(elemEnd + DF.ARRAY_LENGTH_SIZE <= self.length, UnexpectedEnd());
             uint16 length = Be16.readUnchecked(self, elemEnd);
@@ -346,7 +352,7 @@ library Descriptor {
             require(length <= DF.MAX_STATIC_ARRAY_LENGTH, ArrayLengthTooLarge(offset, length));
         } else if (code == TypeCode.DYNAMIC_ARRAY) {
             // Validate element type recursively.
-            _validateNode(self, offset + DF.ARRAY_HEADER_SIZE);
+            _validateNode(self, offset + DF.ARRAY_HEADER_SIZE, depth + 1);
         }
     }
 }

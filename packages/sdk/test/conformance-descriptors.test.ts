@@ -41,6 +41,7 @@ const ERROR_MAP: Record<string, CallciumErrorCode> = {
   UnsupportedVersion: "UNSUPPORTED_VERSION",
   UnexpectedEnd: "UNEXPECTED_END",
   ParamCountMismatch: "PARAM_COUNT_MISMATCH",
+  NestingTooDeep: "NESTING_TOO_DEEP",
   NodeLengthTooSmall: "MALFORMED_HEADER",
   NodeOverflow: "NODE_OVERFLOW",
   UnknownTypeCode: "UNKNOWN_TYPE_CODE",
