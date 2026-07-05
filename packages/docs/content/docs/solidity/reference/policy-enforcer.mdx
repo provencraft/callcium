@@ -41,7 +41,7 @@ function enforce(bytes memory policy, bytes calldata callData) internal view;
 
 Returns true if `callData` complies with `policy`.
 
-Reverts for malformed policies; returns false for violations.
+Reverts for malformed policies and abort violations; returns false for group-local violations.
 
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L119)
 

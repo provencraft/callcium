@@ -24,16 +24,6 @@ Verdict alignment is normative: the Policy Spec (§9.3) assigns each violation c
 - **Safety posture**: On-chain, if calldata cannot satisfy a rule's structural expectations, reverting the transaction is the safer default. Allowing a transaction to pass because one group couldn't fully evaluate introduces risk.
 - **Practical impact**: Calldata structure is fixed per function signature. If calldata is truncated or a dynamic array is shorter than expected, it is unlikely that a different group targeting the same calldata would pass. The DNF divergence is theoretical more than practical.
 
-### Resulting semantic model
-
-| Concern | Solidity | TypeScript SDK |
-|---|---|---|
-| Violation vocabulary | Shared (ADR-0009). | Shared (ADR-0009). |
-| Control flow on violation | Revert (fail-fast). | Group-local: collect violation, try next group. Abort: stop evaluation. |
-| `check()` return on violation | `false` (no group/rule detail). | `{ ok: false, violations: [...] }`. |
-| `enforce()` on violation | `revert PolicyViolation(group, rule)`. | `throw PolicyViolationError`. |
-| Calldata-relative reader failure | Revert (kills evaluation). | Report the violation and abort (spec §9.3). |
-
 ## Alternatives Considered
 
 - **Refactor CalldataReader to return result types**: This would make Solidity's DNF evaluation match the SDK's — calldata-relative failures would cause the current group to fail and the next group to be tried. Rejected because the gas overhead is real, the stricter on-chain posture is appropriate, and the practical impact of the divergence is minimal. If DNF correctness under calldata-relative failures becomes a requirement, this can be revisited.

@@ -21,7 +21,7 @@ The policy format uses DNF: groups have OR semantics, rules within groups have A
 
 **Group-major layout enables O(1) short-circuit.** The blob structure `[groups...]` with `[ruleCount][groupSize]` lets DNF return true on the first passing group. On group failure, skip to the next group in O(1) using groupSize. CNF requires evaluating at least one literal per clause and all clauses overall.
 
-**Contiguous evaluation blocks.** Within a DNF group, rules are sorted by `(scope, pathDepth, pathBytes)`, so a group evaluates as one cheap call-level block followed by one calldata block. CNF interleaves disjuncts from different clauses, forcing per-literal scope branching.
+**Contiguous evaluation blocks.** Within a DNF group, rules are sorted by `(scope, pathDepth, pathBytes, operatorBytes)`, so a group evaluates as one cheap call-level block followed by one calldata block. CNF interleaves disjuncts from different clauses, forcing per-literal scope branching.
 
 **Compact OR expressions via operators.** Many CNF-shaped intents map to a single operator in DNF. For example, `recipient == A OR recipient == B` becomes one `OP_IN(recipient, {A, B})` rule. This keeps AND-groups small and contiguous.
 

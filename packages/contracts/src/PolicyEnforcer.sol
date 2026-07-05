@@ -112,7 +112,7 @@ library PolicyEnforcer {
     }
 
     /// @notice Returns true if `callData` complies with `policy`.
-    /// @dev Reverts for malformed policies; returns false for violations.
+    /// @dev Reverts for malformed policies and abort violations; returns false for group-local violations.
     /// @param policy The policy blob with embedded descriptor.
     /// @param callData The calldata to validate.
     /// @return ok True if calldata complies with the policy.

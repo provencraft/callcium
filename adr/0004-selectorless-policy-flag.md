@@ -6,7 +6,7 @@ Accepted.
 
 ## Context
 
-Policies were locked to function calldata: the binary format embeds a 4-byte selector, the enforcer validates it before any rule runs, and the descriptor spec defines the initial read state as `head = 4, base = 4`. Yet `CalldataReader.Config.baseOffset` already accepts `0` as a valid value, meaning the traversal engine is ABI-generic but the policy layer above it restricts it to selector-prefixed calldata only.
+Policies were locked to function calldata: the binary format embeds a 4-byte selector, the enforcer validates it before any rule runs, and the descriptor spec defined the initial read state as `head = 4, base = 4` (since generalized to a caller-supplied `baseOffset`, descriptor spec Section 6.2). Yet `CalldataReader.Config.baseOffset` already accepts `0` as a valid value, meaning the traversal engine is ABI-generic but the policy layer above it restricts it to selector-prefixed calldata only.
 
 This creates a missed capability. Governance proposals, bridge payloads, and stored parameters are all plain `abi.encode(...)` blobs without a selector prefix. The descriptor traversal engine can already handle them, but there is no way to express a policy that targets raw ABI data.
 
