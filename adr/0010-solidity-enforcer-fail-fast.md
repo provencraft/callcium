@@ -16,6 +16,8 @@ The Solidity enforcer's fail-fast revert behaviour on calldata-relative failures
 
 The two runtimes share **semantic alignment** — identical violation vocabulary, identical classification of what counts as a violation, identical policy language — but not **operational alignment**. Control flow differs where the execution environment demands it. The design goal is **shared semantics, runtime-appropriate control flow**, not identical implementation mechanics.
 
+Verdict alignment is normative: the Policy Spec (§9.3) assigns each violation code an effect — group-local (the group fails, evaluation continues) or abort (evaluation stops, later groups are not consulted) — and requires identical accept/reject verdicts from every enforcer. The SDK enforcer honours the abort effect for `CALLDATA_OUT_OF_BOUNDS`, `ARRAY_INDEX_OUT_OF_BOUNDS`, and `QUANTIFIER_LIMIT_EXCEEDED`, matching the Solidity enforcer's fail-fast verdict while retaining collect-all reporting for group-local violations.
+
 ### Rationale
 
 - **Gas cost**: Converting `CalldataReader` from reverting to returning result types would add memory allocation, conditional checks, and struct packing overhead throughout the hot path. The enforcer is called on every guarded transaction — gas matters.
@@ -27,10 +29,10 @@ The two runtimes share **semantic alignment** — identical violation vocabulary
 | Concern | Solidity | TypeScript SDK |
 |---|---|---|
 | Violation vocabulary | Shared (ADR-0009). | Shared (ADR-0009). |
-| Control flow on violation | Revert (fail-fast). | Collect violation, try next group. |
+| Control flow on violation | Revert (fail-fast). | Group-local: collect violation, try next group. Abort: stop evaluation. |
 | `check()` return on violation | `false` (no group/rule detail). | `{ ok: false, violations: [...] }`. |
 | `enforce()` on violation | `revert PolicyViolation(group, rule)`. | `throw PolicyViolationError`. |
-| Calldata-relative reader failure | Revert (kills evaluation). | Return violation code, continue. |
+| Calldata-relative reader failure | Revert (kills evaluation). | Report the violation and abort (spec §9.3). |
 
 ## Alternatives Considered
 
@@ -38,6 +40,6 @@ The two runtimes share **semantic alignment** — identical violation vocabulary
 
 ## Consequences
 
-- The runtimes are **interchangeable in the common case** but not identical in every failure path. The guarantee is one-directional: a policy that passes on-chain will always pass in the SDK, but an SDK pass does not guarantee on-chain pass when calldata-relative failures interact with multi-group DNF evaluation.
-- The spec must document that implementations share semantics but may differ in control flow, and that on-chain enforcement is strictly more conservative.
-- Developers testing multi-group policies in the SDK should be aware that edge cases involving calldata-relative failures (truncated calldata, short dynamic arrays) may produce different outcomes on-chain. This should be documented in SDK usage guidance.
+- The runtimes produce **identical accept/reject verdicts** for identical policy, calldata, and context (Policy Spec §9.3). Control flow and reporting remain implementation-specific.
+- The SDK keeps richer diagnostics — one violation per evaluated failing group — while the Solidity enforcer reports only the first failure.
+- Multi-group conformance vectors pin the abort and group-local effects across both implementations.

@@ -8,6 +8,7 @@ import { CalldataReader } from "src/CalldataReader.sol";
 import { arg, msgSender, msgValue } from "src/Constraint.sol";
 import { Path } from "src/Path.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
+import { PolicyEnforcer } from "src/PolicyEnforcer.sol";
 import { PolicyEnforcerHarness } from "test/harnesses/PolicyEnforcerHarness.sol";
 
 /// @dev Generates enforcement conformance vectors for the TypeScript SDK.
@@ -144,6 +145,14 @@ contract EnforcementVectorGenerator is Script {
         _vectorCanonBoolTwoFail();
         _vectorCanonAddressDirtyPass();
         _vectorCanonFunctionDirtyPass();
+
+        // Violation effects across groups: abort violations reject without consulting later
+        // groups; group-local violations fail only their group (spec 10.3).
+        _vectorAbortArrayIndexMultiGroup();
+        _vectorAbortQuantifierLimitMultiGroup();
+        _vectorAbortCalldataOutOfBoundsMultiGroup();
+        _vectorGroupLocalValueMismatchMultiGroup();
+        _vectorGroupLocalEmptyArrayMultiGroup();
 
         // Finalize: write the top-level object to disk.
         vm.writeJson(lastJson, "test/vectors/enforcement.json");
@@ -392,7 +401,9 @@ contract EnforcementVectorGenerator is Script {
             "length-array-inflated-error",
             "LENGTH_GTE uint256[]: inflated length word not backed by calldata",
             policy,
-            callData
+            callData,
+            CalldataReader.CalldataOutOfBounds.selector,
+            "CALLDATA_OUT_OF_BOUNDS"
         );
     }
 
@@ -854,6 +865,109 @@ contract EnforcementVectorGenerator is Script {
     }
 
     /*/////////////////////////////////////////////////////////////////////////
+                          Violation effects across groups
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev OR of [arg0[5] == 1] and [arg1 == 42]: calldata has 3 elements, so the missing
+    ///      index aborts evaluation even though the other group would pass.
+    function _vectorAbortArrayIndexMultiGroup() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
+            .add(arg(0, 5).eq(uint256(1)))
+            .or()
+            .add(arg(1).eq(uint256(42)))
+            .build();
+        uint256[] memory values = new uint256[](3);
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(42));
+        _addErrorVector(
+            "abort-array-index-multi-group",
+            "Array index out of bounds aborts evaluation before a later passing group",
+            policy,
+            callData,
+            CalldataReader.ArrayIndexOutOfBounds.selector,
+            "ARRAY_INDEX_OUT_OF_BOUNDS"
+        );
+    }
+
+    /// @dev OR of [ALL(arg0) == 0 over 257 elements] and [arg1 == 42]: the quantifier limit
+    ///      aborts evaluation even though the other group would pass.
+    function _vectorAbortQuantifierLimitMultiGroup() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
+            .add(arg(0, Path.ALL).eq(uint256(0)))
+            .or()
+            .add(arg(1).eq(uint256(42)))
+            .build();
+        uint256[] memory values = new uint256[](257);
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(42));
+        _addErrorVector(
+            "abort-quantifier-limit-multi-group",
+            "Quantifier limit exceeded aborts evaluation before a later passing group",
+            policy,
+            callData,
+            PolicyEnforcer.QuantifierLimitExceeded.selector,
+            "QUANTIFIER_LIMIT_EXCEEDED"
+        );
+    }
+
+    /// @dev OR of [length(arg0) >= 10] and [arg1 == 42]: the inflated length word is not backed
+    ///      by calldata, so the out-of-bounds read aborts evaluation even though the other group
+    ///      would pass.
+    function _vectorAbortCalldataOutOfBoundsMultiGroup() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
+            .add(arg(0).lengthGte(uint256(10)))
+            .or()
+            .add(arg(1).eq(uint256(42)))
+            .build();
+        // Head: offset to array (0x40), arg1 = 42; tail: length word claims 10 elements, only 2 follow.
+        bytes memory callData = abi.encodePacked(
+            bytes4(keccak256("foo(uint256[],uint256)")), uint256(0x40), uint256(42), uint256(10), uint256(1), uint256(2)
+        );
+        _addErrorVector(
+            "abort-calldata-oob-multi-group",
+            "Calldata out of bounds aborts evaluation before a later passing group",
+            policy,
+            callData,
+            CalldataReader.CalldataOutOfBounds.selector,
+            "CALLDATA_OUT_OF_BOUNDS"
+        );
+    }
+
+    /// @dev OR of [arg0 == 1] and [arg0 == 2]: value mismatch is group-local, the other group passes.
+    function _vectorGroupLocalValueMismatchMultiGroup() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).eq(uint256(1)))
+            .or()
+            .add(arg(0).eq(uint256(2)))
+            .build();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(2));
+        _addVector(
+            "group-local-value-mismatch-multi-group",
+            "Value mismatch fails only its group; another group can pass",
+            policy,
+            callData,
+            true
+        );
+    }
+
+    /// @dev OR of [ALL(arg0) == 1] and [arg1 == 42] over an empty array: the empty ALL fails
+    ///      only its group, the other group passes.
+    function _vectorGroupLocalEmptyArrayMultiGroup() private {
+        bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
+            .add(arg(0, Path.ALL).eq(uint256(1)))
+            .or()
+            .add(arg(1).eq(uint256(42)))
+            .build();
+        uint256[] memory values = new uint256[](0);
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(42));
+        _addVector(
+            "group-local-empty-array-multi-group",
+            "Empty array under ALL fails only its group; another group can pass",
+            policy,
+            callData,
+            true
+        );
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
                                HELPERS
     /////////////////////////////////////////////////////////////////////////*/
 
@@ -880,13 +994,15 @@ contract EnforcementVectorGenerator is Script {
         vectorCount++;
     }
 
-    /// @dev Adds a vector whose calldata is malformed: the onchain enforcer reverts
-    ///      CalldataOutOfBounds and the SDK reports a CALLDATA_OUT_OF_BOUNDS violation.
+    /// @dev Adds a vector on which the onchain enforcer aborts with `expectedSelector` and the
+    ///      SDK reports the `violationCode` violation.
     function _addErrorVector(
         string memory id,
         string memory description,
         bytes memory policy,
-        bytes memory callData
+        bytes memory callData,
+        bytes4 expectedSelector,
+        string memory violationCode
     ) private {
         // Verify the on-chain enforcer reverts with the expected error.
         try harness.check(policy, callData) returns (bool) {
@@ -894,10 +1010,7 @@ contract EnforcementVectorGenerator is Script {
         } catch (bytes memory err) {
             // Truncating to the selector is the point: compare the revert reason's first four bytes.
             // forge-lint: disable-next-item(unsafe-typecast)
-            require(
-                bytes4(err) == CalldataReader.CalldataOutOfBounds.selector,
-                string.concat("Vector reverted with unexpected error: ", id)
-            );
+            require(bytes4(err) == expectedSelector, string.concat("Vector reverted with unexpected error: ", id));
         }
 
         string memory key = _nextKey();
@@ -905,7 +1018,7 @@ contract EnforcementVectorGenerator is Script {
         vm.serializeString(key, "description", description);
         vm.serializeBytes(key, "policy", policy);
         vm.serializeBytes(key, "callData", callData);
-        string memory vectorJson = vm.serializeString(key, "expectedError", "CALLDATA_OUT_OF_BOUNDS");
+        string memory vectorJson = vm.serializeString(key, "expectedError", violationCode);
         lastJson = vm.serializeString(OBJ, id, vectorJson);
 
         vectorCount++;

@@ -13,11 +13,18 @@ import { decodePolicy } from "./policy-coder";
 import { locate, arrayShape, arrayElementAt, loadScalar, loadSlice, descendPath } from "./reader";
 
 import type { Location } from "./reader";
-import type { Context, DescNode, EnforceResult, Hex, NavigationViolationCode, Violation } from "./types";
+import type { Context, DescNode, EnforceResult, Hex, NavigationViolationCode, Violation, ViolationCode } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers
 ///////////////////////////////////////////////////////////////////////////
+
+/** Violations that abort evaluation instead of failing only their group (spec §10.3). */
+const ABORT_VIOLATION_CODES: ReadonlySet<ViolationCode> = new Set<ViolationCode>([
+  "CALLDATA_OUT_OF_BOUNDS",
+  "ARRAY_INDEX_OUT_OF_BOUNDS",
+  "QUANTIFIER_LIMIT_EXCEEDED",
+]);
 
 /** Convert a hex address to a 256-bit bigint (zero-padded to 32 bytes). */
 function addressToBigInt(hex: string): bigint {
@@ -62,7 +69,7 @@ function resolveLeafTypeCode(elementNode: DescNode, remainingPath: Uint8Array): 
  * @param policy - Binary policy blob as 0x-prefixed hex string.
  * @param callData - ABI-encoded call data as 0x-prefixed hex string.
  * @param context - Optional execution context for context-scoped rules.
- * @returns Pass with matched group index, or fail with one violation per failed group.
+ * @returns Pass with matched group index, or fail with one violation per evaluated failing group.
  * @throws {CallciumError} If the policy blob is structurally malformed.
  */
 function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
@@ -107,6 +114,10 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
       const violation = evaluateRule(rule, tree, callDataBytes, baseOffset, groupIndex, ruleIndex, context);
       if (violation !== null) {
         allViolations.push(violation);
+        if (ABORT_VIOLATION_CODES.has(violation.code)) {
+          // Abort violations reject the policy outright; later groups are not consulted (spec §10.3).
+          return { ok: false, violations: allViolations };
+        }
         groupFailed = true;
         break;
       }
