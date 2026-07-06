@@ -170,13 +170,6 @@ function evaluateRule(
   const opCode = rule.opCode.value;
   const operandData = hexToBytes(rule.data.value);
 
-  if (pathBytes.length / 2 > Limits.MAX_PATH_DEPTH) {
-    throw new CallciumError(
-      "INVALID_PATH",
-      `Path depth ${pathBytes.length / 2} exceeds maximum ${Limits.MAX_PATH_DEPTH}.`,
-    );
-  }
-
   if (scope === Scope.CONTEXT) {
     return evaluateContextRule(pathBytes, opCode, operandData, groupIndex, ruleIndex, rule.path.value, context);
   }
