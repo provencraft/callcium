@@ -1,5 +1,5 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
@@ -47,16 +47,6 @@ function stringify(tree: Root): string {
   return serializer.stringify(tree);
 }
 
-/** Extract the text content of the first h1 heading. */
-function extractTitle(tree: Root): string | undefined {
-  for (const node of tree.children) {
-    if (node.type === "heading" && node.depth === 1) {
-      return serializer.stringify({ type: "root", children: node.children } as Root).trim();
-    }
-  }
-  return undefined;
-}
-
 /** Remove the first h1 heading from the tree (title goes into frontmatter). */
 function stripH1(tree: Root): void {
   let found = false;
@@ -84,17 +74,8 @@ function escapeBracesOutsideCodeBlocks(text: string): string {
 async function main() {
   await mkdir(OUTPUT_DIR, { recursive: true });
 
-  const files = (await readdir(SPEC_DIR)).filter((f) => f.endsWith(".md"));
-  const pages: string[] = [];
-
-  for (const file of files) {
-    const slug = basename(file, ".md");
-    const raw = await readFile(join(SPEC_DIR, file), "utf-8");
-    const tree = parse(raw);
-
-    const meta = SPECS[slug];
-    const title = meta?.title ?? extractTitle(tree) ?? slug;
-    const description = meta?.description ?? "";
+  for (const [slug, { title, description }] of Object.entries(SPECS)) {
+    const tree = parse(await readFile(join(SPEC_DIR, `${slug}.md`), "utf-8"));
     stripH1(tree);
 
     const frontmatter = [
@@ -108,14 +89,11 @@ async function main() {
     // Escape curly braces outside fenced code blocks for MDX compatibility.
     const md = escapeBracesOutsideCodeBlocks(stringify(tree));
     await writeFile(join(OUTPUT_DIR, `${slug}.mdx`), frontmatter + md);
-    pages.push(slug);
   }
 
-  // Generate meta.json for sidebar ordering.
-  const meta = {
-    title: "Specifications",
-    pages,
-  };
+  // Sidebar order follows the SPECS declaration order.
+  const pages = Object.keys(SPECS);
+  const meta = { title: "Specifications", pages };
   await writeFile(join(OUTPUT_DIR, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`);
 
   console.log(`Synced ${pages.length} spec pages.`);
