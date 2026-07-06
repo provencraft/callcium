@@ -267,10 +267,7 @@ export class ConstraintBuilder implements Constraint {
  * Target a calldata argument by path.
  * Each argument is a big-endian uint16 step; multiple steps navigate into nested types.
  */
-export function arg(p0: number): ConstraintBuilder;
-export function arg(p0: number, p1: number): ConstraintBuilder;
-export function arg(p0: number, p1: number, p2: number): ConstraintBuilder;
-export function arg(p0: number, p1: number, p2: number, p3: number): ConstraintBuilder;
+export function arg(p0: number, ...rest: number[]): ConstraintBuilder;
 export function arg(...steps: number[]): ConstraintBuilder {
   return new ConstraintBuilder(Scope.CALLDATA, encodePath(steps));
 }
