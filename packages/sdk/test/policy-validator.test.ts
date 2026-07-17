@@ -336,6 +336,14 @@ describe("PolicyValidator - length domain", () => {
     expect(findIssue(issues, "IMPOSSIBLE_LENGTH_RANGE")).toBeDefined();
   });
 
+  test("negated lengthBetween(5, 10) is satisfiable, no IMPOSSIBLE_LENGTH_RANGE", () => {
+    // !lengthBetween(5, 10) is (len < 5 OR len > 10), satisfiable at e.g. 3 or 11.
+    const issues = PolicyValidator.validate(
+      rawPolicy("bytes", Scope.CALLDATA, "0x0000", [rangeOp(Op.LENGTH_BETWEEN | Op.NOT, 5n, 10n)]),
+    );
+    expect(findIssue(issues, "IMPOSSIBLE_LENGTH_RANGE")).toBeUndefined();
+  });
+
   test("negated lengthEq produces no crash and correct issues", () => {
     // No lengthNeq() method on builder — use raw operator hex.
     const issues = PolicyValidator.validate(
@@ -383,6 +391,15 @@ describe("PolicyValidator - between", () => {
       rawPolicy("uint256", Scope.CALLDATA, "0x0000", [rangeOp(Op.BETWEEN, 100n, 50n)]),
     );
     expect(findIssue(issues, "IMPOSSIBLE_RANGE")).toBeDefined();
+  });
+
+  test("negated between(5, 10) is satisfiable, no IMPOSSIBLE_RANGE", () => {
+    // !between(5, 10) is (x < 5 OR x > 10), satisfiable at e.g. 3 or 11. The negation
+    // must not distribute over the decomposed bounds as (x < 5 AND x > 10).
+    const issues = PolicyValidator.validate(
+      rawPolicy("uint256", Scope.CALLDATA, "0x0000", [rangeOp(Op.BETWEEN | Op.NOT, 5n, 10n)]),
+    );
+    expect(findIssue(issues, "IMPOSSIBLE_RANGE")).toBeUndefined();
   });
 });
 

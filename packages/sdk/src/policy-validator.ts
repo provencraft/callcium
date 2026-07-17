@@ -745,9 +745,14 @@ function validateConstraint(
     if (isValueOp(base)) {
       if (base >= Op.EQ && base <= Op.BETWEEN) {
         if (base === Op.BETWEEN) {
-          const { low, high } = readPair(opHex);
-          updateBound(ctx.numeric, Op.GTE, isNegated, low, boundIssues(false), groupIndex, constraintIndex, issues);
-          updateBound(ctx.numeric, Op.LTE, isNegated, high, boundIssues(false), groupIndex, constraintIndex, issues);
+          // A negated range is a disjunction (value < low OR value > high); distributing the
+          // negation over the decomposed bounds would conjoin the complement halves into a
+          // spurious contradiction. Leave it un-analyzed, like a neq hole.
+          if (!isNegated) {
+            const { low, high } = readPair(opHex);
+            updateBound(ctx.numeric, Op.GTE, false, low, boundIssues(false), groupIndex, constraintIndex, issues);
+            updateBound(ctx.numeric, Op.LTE, false, high, boundIssues(false), groupIndex, constraintIndex, issues);
+          }
         } else {
           const value = readValue(opHex);
           const holesBefore = ctx.numeric.holes.length;
@@ -769,9 +774,12 @@ function validateConstraint(
       }
     } else if (isLengthOp(base)) {
       if (base === Op.LENGTH_BETWEEN) {
-        const { low, high } = readPair(opHex);
-        updateBound(ctx.length, Op.GTE, isNegated, low, boundIssues(true), groupIndex, constraintIndex, issues);
-        updateBound(ctx.length, Op.LTE, isNegated, high, boundIssues(true), groupIndex, constraintIndex, issues);
+        // Same disjunction reasoning as the negated value-range above.
+        if (!isNegated) {
+          const { low, high } = readPair(opHex);
+          updateBound(ctx.length, Op.GTE, false, low, boundIssues(true), groupIndex, constraintIndex, issues);
+          updateBound(ctx.length, Op.LTE, false, high, boundIssues(true), groupIndex, constraintIndex, issues);
+        }
       } else {
         const value = readValue(opHex);
         updateBound(

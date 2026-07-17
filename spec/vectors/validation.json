@@ -662,6 +662,30 @@
     "builds": false
   },
   {
+    "id": "negated-between-satisfiable",
+    "description": "notBetween(5,10) is a satisfiable disjunction, no issues",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x860000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000a"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
+  },
+  {
     "id": "set-excludes-equality",
     "description": "eq(5) then isIn(1,2,3)",
     "policy": {
@@ -966,6 +990,30 @@
       }
     ],
     "builds": false
+  },
+  {
+    "id": "negated-length-between-satisfiable",
+    "description": "negated lengthBetween(5,10) is a satisfiable disjunction, no issues",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x010170",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0xa50000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000a"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
   },
   {
     "id": "out-of-physical-length-bounds",

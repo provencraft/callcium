@@ -327,6 +327,36 @@ contract ImpossibleRangeTest is PolicyValidatorTest {
 
         _assertIssue(issues, IssueCode.IMPOSSIBLE_RANGE);
     }
+
+    function test_NegatedBetween_Satisfiable_NoImpossibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // !between(5, 10) is (x < 5 OR x > 10), a disjunction satisfiable at e.g. 3 or 11.
+        // The negation must not be modeled as (x > 10 AND x < 5), a spurious contradiction.
+        Constraint memory c = arg(0);
+        c.operators = _appendOp(c.operators, OpCode.BETWEEN | OpCode.NOT, abi.encodePacked(uint256(5), uint256(10)));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertNoIssue(issues, IssueCode.IMPOSSIBLE_RANGE);
+    }
+
+    function test_NegatedLengthBetween_Satisfiable_NoImpossibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytes_()).build();
+
+        // !lengthBetween(5, 10) is (len < 5 OR len > 10), a disjunction satisfiable at e.g. 3 or 11.
+        Constraint memory c = arg(0);
+        // forgefmt: disable-next-item
+        c.operators = _appendOp(
+            c.operators, OpCode.LENGTH_BETWEEN | OpCode.NOT, abi.encodePacked(uint256(5), uint256(10))
+        );
+
+        PolicyData memory data = _createPolicyData("foo(bytes)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertNoIssue(issues, IssueCode.IMPOSSIBLE_LENGTH_RANGE);
+    }
 }
 
 contract ConflictingEqualityTest is PolicyValidatorTest {

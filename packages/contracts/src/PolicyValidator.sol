@@ -256,29 +256,35 @@ library PolicyValidator {
             if (OpRule.isValueOp(base)) {
                 if (base >= OpCode.EQ && base <= OpCode.BETWEEN) {
                     if (base == OpCode.BETWEEN) {
-                        (uint256 low, uint256 high) = _readPair(op);
-                        issueCount = _updateBound(
-                            ctx.numeric,
-                            OpCode.GTE,
-                            isNegated,
-                            low,
-                            false,
-                            groupIndex,
-                            constraintIndex,
-                            issues,
-                            issueCount
-                        );
-                        issueCount = _updateBound(
-                            ctx.numeric,
-                            OpCode.LTE,
-                            isNegated,
-                            high,
-                            false,
-                            groupIndex,
-                            constraintIndex,
-                            issues,
-                            issueCount
-                        );
+                        // A negated range is a disjunction (value < low OR value > high); the
+                        // single-interval accumulator cannot represent it, so leave it un-analyzed
+                        // rather than mismodel it as two AND-ed bounds, which falsely reports a
+                        // contradiction. Positive between decomposes into a lower and an upper bound.
+                        if (!isNegated) {
+                            (uint256 low, uint256 high) = _readPair(op);
+                            issueCount = _updateBound(
+                                ctx.numeric,
+                                OpCode.GTE,
+                                false,
+                                low,
+                                false,
+                                groupIndex,
+                                constraintIndex,
+                                issues,
+                                issueCount
+                            );
+                            issueCount = _updateBound(
+                                ctx.numeric,
+                                OpCode.LTE,
+                                false,
+                                high,
+                                false,
+                                groupIndex,
+                                constraintIndex,
+                                issues,
+                                issueCount
+                            );
+                        }
                     } else {
                         uint256 value = _readValue(op);
                         uint8 holesBefore = ctx.numeric.holeCount;
@@ -306,13 +312,16 @@ library PolicyValidator {
                 }
             } else if (OpRule.isLengthOp(base)) {
                 if (base == OpCode.LENGTH_BETWEEN) {
-                    (uint256 low, uint256 high) = _readPair(op);
-                    issueCount = _updateBound(
-                        ctx.length, OpCode.GTE, isNegated, low, true, groupIndex, constraintIndex, issues, issueCount
-                    );
-                    issueCount = _updateBound(
-                        ctx.length, OpCode.LTE, isNegated, high, true, groupIndex, constraintIndex, issues, issueCount
-                    );
+                    // A negated length range is a disjunction; see the value-between note above.
+                    if (!isNegated) {
+                        (uint256 low, uint256 high) = _readPair(op);
+                        issueCount = _updateBound(
+                            ctx.length, OpCode.GTE, false, low, true, groupIndex, constraintIndex, issues, issueCount
+                        );
+                        issueCount = _updateBound(
+                            ctx.length, OpCode.LTE, false, high, true, groupIndex, constraintIndex, issues, issueCount
+                        );
+                    }
                 } else {
                     uint256 value = _readValue(op);
                     issueCount = _updateBound(
