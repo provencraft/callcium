@@ -24,7 +24,9 @@ uint8 internal constant MAX_PATH_DEPTH = 32
 
 Reverts when `callData` violates `policy`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L110)
+Requires a structurally validated policy blob; behavior on an unvalidated blob is undefined.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L111)
 
 ```solidity
 function enforce(bytes memory policy, bytes calldata callData) internal view;
@@ -41,9 +43,10 @@ function enforce(bytes memory policy, bytes calldata callData) internal view;
 
 Returns true if `callData` complies with `policy`.
 
-Reverts for malformed policies and abort violations; returns false for group-local violations.
+Requires a structurally validated policy blob; behavior on an unvalidated blob is undefined.
+Reverts on abort violations and integrity errors; returns false for group-local violations.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L120)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L122)
 
 ```solidity
 function check(bytes memory policy, bytes calldata callData) internal view returns (bool ok);

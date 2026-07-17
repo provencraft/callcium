@@ -105,6 +105,7 @@ library PolicyEnforcer {
     ////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Reverts when `callData` violates `policy`.
+    /// @dev Requires a structurally validated policy blob; behavior on an unvalidated blob is undefined.
     /// @param policy The policy blob with embedded descriptor.
     /// @param callData The calldata to validate.
     function enforce(bytes memory policy, bytes calldata callData) internal view {
@@ -113,7 +114,8 @@ library PolicyEnforcer {
     }
 
     /// @notice Returns true if `callData` complies with `policy`.
-    /// @dev Reverts for malformed policies and abort violations; returns false for group-local violations.
+    /// @dev Requires a structurally validated policy blob; behavior on an unvalidated blob is undefined.
+    /// Reverts on abort violations and integrity errors; returns false for group-local violations.
     /// @param policy The policy blob with embedded descriptor.
     /// @param callData The calldata to validate.
     /// @return ok True if calldata complies with the policy.
