@@ -435,6 +435,23 @@ describe("enforce - quantifier edge cases", () => {
     assertPassed(result);
   });
 
+  test("NOT under ALL binds per element, not to the aggregate", () => {
+    // ALL neq(1) over [1, 2]: element 1 fails 1 != 1, so ALL rejects.
+    // Aggregate binding would compute !(ALL eq 1) and wrongly accept.
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).neq(1n)).build();
+    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n]));
+    firstViolation(result, "VALUE_MISMATCH");
+  });
+
+  test("NOT under ANY binds per element, not to the aggregate", () => {
+    // ANY neq(1) over [1, 2]: element 2 satisfies 2 != 1, so ANY accepts.
+    // Aggregate binding would compute !(ANY eq 1) and wrongly reject.
+    // buildUnsafe: strict build rejects any().neq() as an authoring anti-pattern.
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ANY).neq(1n)).buildUnsafe();
+    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n]));
+    assertPassed(result);
+  });
+
   test("ALL on empty dynamic array fails with QUANTIFIER_EMPTY_ARRAY", () => {
     const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gt(0n)).build();
     const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([]));
