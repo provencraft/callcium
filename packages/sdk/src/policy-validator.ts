@@ -1,6 +1,7 @@
 import { bigintToHex, hexToBytes } from "./bytes";
 import {
   classifyTypeCode,
+  isValidOperatorData,
   Limits,
   lookupContextProperty,
   MAX_CONTEXT_PROPERTY_ID,
@@ -739,6 +740,21 @@ function validateConstraint(
     const opCode = parseInt(opHex.slice(2, 4), 16);
     const base = opCode & ~Op.NOT;
     const isNegated = (opCode & Op.NOT) !== 0;
+
+    // An unassigned opcode or mismatched payload size has no defined semantics to analyze.
+    const dataLength = (opHex.length - 4) / 2;
+    if (dataLength > 0xffff || !isValidOperatorData(base, dataLength)) {
+      issues.push(
+        Issues.fromOpRule(
+          "UNKNOWN_OPERATOR",
+          "Unknown operator code",
+          groupIndex,
+          constraintIndex,
+          bigintToHex(BigInt(opCode)),
+        ),
+      );
+      continue;
+    }
 
     // A negated operator under any() is satisfied by a single decoy element.
     if (underAny && isNegated) {

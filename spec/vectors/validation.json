@@ -387,7 +387,7 @@
   },
   {
     "id": "unassigned-value-range-opcode",
-    "description": "unassigned opcode 0x0f passes semantic validation (classified as value op); blob-level Policy.validate rejects it at store",
+    "description": "unassigned opcode at the upper edge of the gap is rejected",
     "policy": {
       "isSelectorless": true,
       "selector": "0x00000000",
@@ -406,8 +406,15 @@
         }
       ]
     },
-    "issues": [],
-    "builds": true
+    "issues": [
+      {
+        "code": "UNKNOWN_OPERATOR",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
   },
   {
     "id": "eq-neq-contradiction",
@@ -1937,28 +1944,28 @@
               "scope": 0,
               "path": "0x0001",
               "operators": [
-                "0x0400000000000000000000000000000000000000000000000000000000000001"
+                "0x040000000000000000000000000000000000000000000000000000000000000001"
               ]
             },
             {
               "scope": 0,
               "path": "0x0002",
               "operators": [
-                "0x0400000000000000000000000000000000000000000000000000000000000001"
+                "0x040000000000000000000000000000000000000000000000000000000000000001"
               ]
             },
             {
               "scope": 0,
               "path": "0x0003",
               "operators": [
-                "0x0400000000000000000000000000000000000000000000000000000000000001"
+                "0x040000000000000000000000000000000000000000000000000000000000000001"
               ]
             },
             {
               "scope": 0,
               "path": "0x0004",
               "operators": [
-                "0x0400000000000000000000000000000000000000000000000000000000000001"
+                "0x040000000000000000000000000000000000000000000000000000000000000001"
               ]
             },
             {
@@ -1972,14 +1979,14 @@
               "scope": 0,
               "path": "0x0006",
               "operators": [
-                "0x0400000000000000000000000000000000000000000000000000000000000001"
+                "0x040000000000000000000000000000000000000000000000000000000000000001"
               ]
             },
             {
               "scope": 0,
               "path": "0x0007",
               "operators": [
-                "0x0400000000000000000000000000000000000000000000000000000000000001"
+                "0x040000000000000000000000000000000000000000000000000000000000000001"
               ]
             }
           ]
@@ -2123,6 +2130,68 @@
     "issues": [
       {
         "code": "NON_CANONICAL_OPERAND",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "unassigned-opcode",
+    "description": "operator byte in the unassigned opcode gap is rejected",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x080000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "UNKNOWN_OPERATOR",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "mismatched-payload-size",
+    "description": "eq with a two-word payload is rejected",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x0100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "UNKNOWN_OPERATOR",
         "severity": "error",
         "groupIndex": 0,
         "constraintIndex": 0

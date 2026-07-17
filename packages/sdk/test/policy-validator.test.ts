@@ -522,6 +522,24 @@ describe("PolicyValidator - unknown operator", () => {
     const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(0x30, 0n)]));
     expect(findIssue(issues, "UNKNOWN_OPERATOR")).toBeDefined();
   });
+
+  test("reports UNKNOWN_OPERATOR for unassigned gap opcode", () => {
+    // First opcode in the unassigned gap between the set-membership and bitmask ranges.
+    const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(Op.IN + 1, 0n)]));
+    expect(findIssue(issues, "UNKNOWN_OPERATOR")).toBeDefined();
+  });
+
+  test("reports UNKNOWN_OPERATOR for mismatched payload size", () => {
+    // A single-operand opcode carrying a two-word payload.
+    const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0000", [rangeOp(Op.EQ, 0n, 0n)]));
+    expect(findIssue(issues, "UNKNOWN_OPERATOR")).toBeDefined();
+  });
+
+  test("reports UNKNOWN_OPERATOR for IN payload that is not a word multiple", () => {
+    const truncatedIn: Hex = `0x${Op.IN.toString(16).padStart(2, "0")}${"00".repeat(48)}`;
+    const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0000", [truncatedIn]));
+    expect(findIssue(issues, "UNKNOWN_OPERATOR")).toBeDefined();
+  });
 });
 
 ///////////////////////////////////////////////////////////////////////////

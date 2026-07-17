@@ -247,6 +247,48 @@ contract NonCanonicalOperandTest is PolicyValidatorTest {
     }
 }
 
+contract UnknownOperatorTest is PolicyValidatorTest {
+    function test_UnassignedOpcode_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // First opcode in the unassigned gap between the set-membership and bitmask ranges.
+        Constraint memory c = arg(0).addOp(OpCode.IN + 1, new bytes(32));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].severity, IssueSeverity.Error);
+        assertEq(issues[0].category, IssueCategory.TypeMismatch);
+        assertEq(issues[0].code, IssueCode.UNKNOWN_OPERATOR);
+    }
+
+    function test_MismatchedPayloadSize_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // A single-operand opcode carrying a two-word payload.
+        Constraint memory c = arg(0).addOp(OpCode.EQ, new bytes(64));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.UNKNOWN_OPERATOR);
+    }
+
+    function test_InPayloadNotWordMultiple_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        Constraint memory c = arg(0).addOp(OpCode.IN, new bytes(48));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.UNKNOWN_OPERATOR);
+    }
+}
+
 contract ValidPolicyTest is PolicyValidatorTest {
     function test_ValidEqOnUint256_NoIssues() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();

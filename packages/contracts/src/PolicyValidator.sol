@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import { Constraint } from "./Constraint.sol";
 import { Descriptor } from "./Descriptor.sol";
+import { IssueCode } from "./IssueCode.sol";
 import { OpCode } from "./OpCode.sol";
 import { OpRule } from "./OpRule.sol";
 import { Path } from "./Path.sol";
@@ -233,6 +234,20 @@ library PolicyValidator {
             uint8 opCode = uint8(op[0]);
             uint8 base = opCode & ~OpCode.NOT;
             bool isNegated = (opCode & OpCode.NOT) != 0;
+
+            // An unassigned opcode or mismatched payload size has no defined semantics to analyze.
+            uint256 dataLength = op.length - 1;
+            // forge-lint: disable-next-line(unsafe-typecast) guarded by the preceding bound check.
+            if (dataLength > type(uint16).max || !OpRule.isValidPayloadSize(base, uint16(dataLength))) {
+                issues[issueCount++] = ValidationIssue.fromOpRule(
+                    IssueCode.UNKNOWN_OPERATOR,
+                    OpRule.compatibilityMessage(IssueCode.UNKNOWN_OPERATOR),
+                    groupIndex,
+                    constraintIndex,
+                    opCode
+                );
+                continue;
+            }
 
             // A negated operator under any() is satisfied by a single decoy element.
             if (underAny && isNegated) {
