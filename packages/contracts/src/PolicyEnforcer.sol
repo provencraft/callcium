@@ -155,32 +155,35 @@ library PolicyEnforcer {
         require(formatVersion == DF.VERSION, Descriptor.UnsupportedVersion(formatVersion));
 
         uint8 groups = Policy.groupCount(policy);
+        if (groups == 0) return (false, 0, 0);
 
         // Evaluate groups with OR semantics: first passing group succeeds.
+        uint256 groupOffset = Policy.groupAt(policy, 0);
         for (uint32 groupIndex; groupIndex < groups; ++groupIndex) {
-            (bool groupOk, uint32 failingRuleIndex) = _evalGroup(state, callData, groupIndex);
+            (bool groupOk, uint32 failingRuleIndex, uint256 groupEnd) = _evalGroup(state, callData, groupOffset);
             if (groupOk) return (true, 0, 0);
             failingGroup = groupIndex;
             failingRule = failingRuleIndex;
+            groupOffset = groupEnd;
         }
 
         return (false, failingGroup, failingRule);
     }
 
-    /// @dev Evaluates a single group. Returns (true, 0) if group passes, (false, failingRule) otherwise.
+    /// @dev Evaluates the group at `groupOffset`. Returns the verdict, the failing rule index
+    /// (zero when the group passes), and the offset one past the group's last rule.
     function _evalGroup(
         EvalState memory state,
         bytes calldata callData,
-        uint32 groupIndex
+        uint256 groupOffset
     )
         private
         view
-        returns (bool groupOk, uint32 failingRule)
+        returns (bool groupOk, uint32 failingRule, uint256 groupEnd)
     {
-        uint256 groupOffset = Policy.groupAt(state.policy, groupIndex);
         uint32 groupSize = Policy.groupSize(state.policy, groupOffset);
         uint16 ruleCount = Policy.ruleCount(state.policy, groupOffset);
-        uint256 groupEnd = groupOffset + PF.GROUP_HEADER_SIZE + groupSize;
+        groupEnd = groupOffset + PF.GROUP_HEADER_SIZE + groupSize;
 
         uint256 ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
 
@@ -188,7 +191,7 @@ library PolicyEnforcer {
             uint16 ruleSize = Policy.ruleSize(state.policy, ruleOffset);
 
             bool ruleOk = _evalRule(state, callData, ruleOffset);
-            if (!ruleOk) return (false, ruleIndex);
+            if (!ruleOk) return (false, ruleIndex, groupEnd);
 
             unchecked {
                 ruleOffset += ruleSize;
@@ -196,7 +199,7 @@ library PolicyEnforcer {
         }
 
         require(ruleOffset == groupEnd, Policy.UnexpectedEnd());
-        return (true, 0);
+        return (true, 0, groupEnd);
     }
 
     /// @dev Reads all rule fields from the policy blob in a single pass.
