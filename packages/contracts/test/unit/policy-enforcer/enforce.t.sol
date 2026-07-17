@@ -23,6 +23,7 @@ import { PolicyBuilder } from "src/PolicyBuilder.sol";
 import { PolicyCoder, PolicyData } from "src/PolicyCoder.sol";
 import { PolicyEnforcer } from "src/PolicyEnforcer.sol";
 import { PolicyFormat as PF } from "src/PolicyFormat.sol";
+import { TypeCode } from "src/TypeCode.sol";
 
 import { LibBytes } from "solady/utils/LibBytes.sol";
 
@@ -627,6 +628,14 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
         vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
         harness.enforce(policy, callData);
     }
+
+    function test_RevertWhen_ValueOpOnDynamicTarget() public {
+        bytes memory policy = PolicyBuilder.create("foo(bytes)").add(arg(0).eq(uint256(0))).buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(bytes)", bytes(hex"1122"));
+
+        vm.expectRevert(abi.encodeWithSelector(CalldataReader.NotScalar.selector, TypeCode.BYTES));
+        harness.enforce(policy, callData);
+    }
 }
 
 /// @dev Tests for context constraints (msg.sender, msg.value, block.*, etc.)
@@ -1134,6 +1143,29 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
 
         bytes memory callData = abi.encodeWithSignature("foo(uint256[][])", arr);
         vm.expectRevert(PolicyEnforcer.NestedQuantifiersUnsupported.selector);
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_ValueOpOnDynamicElement() public {
+        bytes memory policy =
+            PolicyBuilder.create("foo(bytes[])").add(arg(0, Path.ALL).eq(uint256(0))).buildUnsafe();
+        bytes[] memory arr = new bytes[](1);
+        arr[0] = hex"1122";
+        bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
+
+        vm.expectRevert(abi.encodeWithSelector(CalldataReader.NotScalar.selector, TypeCode.BYTES));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_ValueOpOnDynamicSuffixTarget() public {
+        bytes memory policy =
+            PolicyBuilder.create("foo(bytes[][])").add(arg(0, Path.ALL, 0).eq(uint256(0))).buildUnsafe();
+        bytes[][] memory arr = new bytes[][](1);
+        arr[0] = new bytes[](1);
+        arr[0][0] = hex"1122";
+        bytes memory callData = abi.encodeWithSignature("foo(bytes[][])", arr);
+
+        vm.expectRevert(abi.encodeWithSelector(CalldataReader.NotScalar.selector, TypeCode.BYTES));
         harness.enforce(policy, callData);
     }
 }

@@ -305,6 +305,11 @@ function applyLeafOperator(
     return { passed, resolvedValue: bigintToHex(BigInt(valueLength)) };
   }
 
+  // A value operator needs a 32-byte elementary scalar; no other node shape carries one.
+  if (node.isDynamic || node.type !== "elementary") {
+    throw new CallciumError("NOT_SCALAR", "Value operator on a target without a scalar word.");
+  }
+
   const result = loadScalar(callDataBytes, location);
   if (!result.ok) return { error: result.code };
 

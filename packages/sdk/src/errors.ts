@@ -29,6 +29,7 @@ export type CallciumErrorCode =
   | "UNKNOWN_TYPE"
   | "DESCRIPTOR_TOO_LARGE"
   | "INVALID_PATH"
+  | "NOT_SCALAR"
   | "PATH_TOO_DEEP"
   | "DUPLICATE_PATH"
   | "INVALID_CONSTRAINT"

@@ -7,6 +7,7 @@ import { CalldataReader } from "./CalldataReader.sol";
 import { Descriptor } from "./Descriptor.sol";
 import { DescriptorFormat as DF } from "./DescriptorFormat.sol";
 import { OpCode } from "./OpCode.sol";
+import { OpRule } from "./OpRule.sol";
 import { Path } from "./Path.sol";
 import { Policy } from "./Policy.sol";
 import { PolicyFormat as PF } from "./PolicyFormat.sol";
@@ -299,6 +300,7 @@ library PolicyEnforcer {
             value = TypeRule.canonicalize(CalldataReader.loadScalar(loc, callData), typeCode);
             valueLength = 32;
         } else {
+            require(!OpRule.isValueOp(opBase), CalldataReader.NotScalar(typeCode));
             value = bytes32(0);
             valueLength = CalldataReader.loadSlice(state.desc, loc, callData).length;
         }
@@ -360,8 +362,9 @@ library PolicyEnforcer {
 
             if (params.hasSuffix) {
                 // Descend through suffix path.
-                (loop.value, loop.valueLength, loop.typeCode) =
-                    _descendAndLoad(state, callData, rule.pathStart, elemLoc, quantifierIndex + 1, rule.depth);
+                (loop.value, loop.valueLength, loop.typeCode) = _descendAndLoad(
+                    state, callData, rule.pathStart, elemLoc, quantifierIndex + 1, rule.depth, params.opBase
+                );
             } else {
                 // Element is the target.
                 loop.typeCode = elemTypeInfo.code;
@@ -369,6 +372,7 @@ library PolicyEnforcer {
                     loop.value = TypeRule.canonicalize(CalldataReader.loadScalar(elemLoc, callData), loop.typeCode);
                     loop.valueLength = 32;
                 } else {
+                    require(!OpRule.isValueOp(params.opBase), CalldataReader.NotScalar(loop.typeCode));
                     loop.value = bytes32(0);
                     loop.valueLength = CalldataReader.loadSlice(state.desc, elemLoc, callData).length;
                 }
@@ -403,7 +407,8 @@ library PolicyEnforcer {
         uint256 pathStart,
         CalldataReader.Location memory startLoc,
         uint8 startStep,
-        uint8 endDepth
+        uint8 endDepth,
+        uint8 opBase
     )
         private
         pure
@@ -430,6 +435,7 @@ library PolicyEnforcer {
             value = TypeRule.canonicalize(CalldataReader.loadScalar(loc, callData), typeCode);
             valueLength = 32;
         } else {
+            require(!OpRule.isValueOp(opBase), CalldataReader.NotScalar(typeCode));
             valueLength = CalldataReader.loadSlice(state.desc, loc, callData).length;
             value = bytes32(0);
         }

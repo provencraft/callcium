@@ -71,6 +71,12 @@ function encodeRawUint256(value: bigint): Hex {
   return bigintToHex(value);
 }
 
+/** Encode a selectorless calldata blob containing a single `bytes` argument. */
+function encodeBytesArg(dataHex: string): Hex {
+  const padded = dataHex.padEnd(64, "0");
+  return `0x${word(32n)}${word(BigInt(dataHex.length / 2))}${padded}`;
+}
+
 /** Encode a selectorless calldata blob containing a single dynamic uint256 array. */
 function encodeDynamicUint256Array(elements: bigint[]): Hex {
   let body = word(32n) + word(BigInt(elements.length));
@@ -793,5 +799,40 @@ describe("enforce - context numeric properties", () => {
       txOrigin: "0x0000000000000000000000000000000000000001",
     });
     assertPassed(result);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Value operator on non-scalar target
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyEnforcer - value operator on non-scalar target", () => {
+  test("throws NOT_SCALAR for value op on dynamic target", () => {
+    // buildUnsafe: strict build rejects value operators on dynamic targets.
+    const policy = PolicyBuilder.createRaw("bytes").add(arg(0).eq(0n)).buildUnsafe();
+    try {
+      PolicyEnforcer.check(policy, encodeBytesArg("1122"));
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CallciumError);
+      if (err instanceof CallciumError) {
+        expect(err.code).toBe("NOT_SCALAR");
+      }
+    }
+  });
+
+  test("throws NOT_SCALAR for value op on dynamic array element", () => {
+    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).eq(0n)).buildUnsafe();
+    // bytes[] with one 2-byte element: outer offset, length 1, element offset, element.
+    const callData: Hex = `0x${word(32n)}${word(1n)}${word(32n)}${word(2n)}${"1122".padEnd(64, "0")}`;
+    try {
+      PolicyEnforcer.check(policy, callData);
+      expect.unreachable("should have thrown");
+    } catch (err) {
+      expect(err).toBeInstanceOf(CallciumError);
+      if (err instanceof CallciumError) {
+        expect(err.code).toBe("NOT_SCALAR");
+      }
+    }
   });
 });
