@@ -538,16 +538,3 @@ export function removeGroup(session: BuilderSession, groupIndex: number): Builde
   const { hex, issues, errors } = rebuild(next);
   return { ...next, hex, issues, errors };
 }
-
-/** Move a constraint from one group to another. Returns a new session. */
-export function moveConstraint(
-  session: BuilderSession,
-  fromGroup: number,
-  constraintIndex: number,
-  toGroup: number,
-): BuilderSession {
-  const constraint = session.groups[fromGroup].constraints[constraintIndex];
-  if (!constraint) return session;
-  const after = removeConstraint(session, fromGroup, constraintIndex);
-  return addConstraint(after, toGroup, constraint);
-}

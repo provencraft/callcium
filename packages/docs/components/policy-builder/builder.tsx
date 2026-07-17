@@ -16,7 +16,7 @@ import { PillToggle } from "@/components/ui/pill-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { lookup4byte, descriptorToTypes } from "@/lib/abi";
 import { parseAbiJson } from "@/lib/abi";
-import { CONTEXT_PROPERTY_COUNT, contextPropertyType, formatPath } from "@/lib/format-path";
+import { CONTEXT_PROPERTIES, CONTEXT_PROPERTY_COUNT, contextPropertyType, formatPath } from "@/lib/format-path";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
 import {
@@ -448,19 +448,49 @@ function isLeafNode(node: ParamNode): boolean {
   return !node.children && !node.element;
 }
 
+/** Descend a ParamNode tree by tuple-field/array-element steps. Null if a step runs off the tree. */
+function walkParamPath(root: ParamNode, steps: number[]): ParamNode | null {
+  let node: ParamNode | undefined = root;
+  for (const step of steps) {
+    if (node.children) node = node.children[step];
+    else if (node.element) node = node.element;
+    else return null;
+    if (!node) return null;
+  }
+  return node;
+}
+
+/** A single validation issue line, severity-styled. */
+function IssueLine({ issue, className }: { issue: Issue; className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-1.5 text-xs",
+        className,
+        issue.severity === "error" && "text-red-700 dark:text-red-300",
+        issue.severity === "warning" && "text-fd-secondary-foreground",
+        issue.severity === "info" && "text-fd-info-foreground",
+      )}
+    >
+      {issue.severity === "warning" ? (
+        <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+      ) : (
+        <InfoIcon className="mt-0.5 size-3 shrink-0" />
+      )}
+      <span>{issue.message}</span>
+    </div>
+  );
+}
+
 /** Resolve the Solidity type string for a constraint's target. */
 function resolveTargetType(config: ConstraintConfig, params: ParamNode[]): string | null {
   if (config.scope === "context") {
     return config.contextProperty ? contextPropertyType(config.contextProperty) : null;
   }
   if (!config.path || config.path.length === 0) return null;
-  let node: ParamNode | undefined = params[config.path[0]];
-  for (let i = 1; i < config.path.length && node; i++) {
-    if (node.children) node = node.children[config.path[i]];
-    else if (node.element) node = node.element;
-    else return null;
-  }
-  return node?.type ?? null;
+  const root = params[config.path[0]];
+  if (!root) return null;
+  return walkParamPath(root, config.path.slice(1))?.type ?? null;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -526,23 +556,8 @@ function ConstraintRow({
           </div>
         ))}
       {issues.map((issue, i) => (
-        <div
-          // oxlint-disable-next-line react/no-array-index-key
-          key={i}
-          className={cn(
-            "mt-0.5 flex items-start gap-1.5 text-xs",
-            issue.severity === "error" && "text-red-700 dark:text-red-300",
-            issue.severity === "warning" && "text-fd-secondary-foreground",
-            issue.severity === "info" && "text-fd-info-foreground",
-          )}
-        >
-          {issue.severity === "warning" ? (
-            <AlertTriangle className="mt-0.5 size-3 shrink-0" />
-          ) : (
-            <InfoIcon className="mt-0.5 size-3 shrink-0" />
-          )}
-          <span>{issue.message}</span>
-        </div>
+        // oxlint-disable-next-line react/no-array-index-key
+        <IssueLine key={i} issue={issue} className="mt-0.5" />
       ))}
     </div>
   );
@@ -680,13 +695,8 @@ function AddConstraintForm({
 
   const arrayNode = useMemo(() => {
     if (scope !== "calldata" || selectedParam === null) return null;
-    let node: ParamNode = session.params[selectedParam];
-    for (const fieldIndex of selectedField) {
-      if (node.children) node = node.children[fieldIndex];
-      else if (node.element) node = node.element;
-      if (!node) return null;
-    }
-    return node.element ? node : null;
+    const node = walkParamPath(session.params[selectedParam], selectedField);
+    return node?.element ? node : null;
   }, [scope, selectedParam, selectedField, session.params]);
 
   const staticArrayLength = useMemo(() => (arrayNode ? parseStaticArrayLength(arrayNode.type) : null), [arrayNode]);
@@ -701,18 +711,12 @@ function AddConstraintForm({
   const targetTypeInfo = useMemo<TypeInfo | null>(() => {
     if (scope === "context") {
       if (!contextProperty) return null;
-      return contextProperty === "msgSender" || contextProperty === "txOrigin" ? CTX_ADDRESS : CTX_UINT256;
+      const prop = CONTEXT_PROPERTIES.find((p) => p.contextKey === contextProperty);
+      return prop?.typeCode === TypeCode.ADDRESS ? CTX_ADDRESS : CTX_UINT256;
     }
     if (selectedParam === null || !session.params[selectedParam]) return null;
-    let node: ParamNode = session.params[selectedParam];
-    for (const fieldIndex of selectedField) {
-      if (node.children) {
-        node = node.children[fieldIndex];
-      } else if (node.element) {
-        node = node.element;
-      }
-      if (!node) return null;
-    }
+    const node = walkParamPath(session.params[selectedParam], selectedField);
+    if (!node) return null;
     // When array access targets elements (quantified or indexed), resolve through element and post-array fields.
     if (node.element) {
       const hasArrayAccess =
@@ -926,16 +930,14 @@ function AddConstraintForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {!usedContextProps.has("msgSender") && <SelectItem value="msgSender">msg.sender</SelectItem>}
-                {!usedContextProps.has("msgValue") && <SelectItem value="msgValue">msg.value</SelectItem>}
-                {!usedContextProps.has("blockTimestamp") && (
-                  <SelectItem value="blockTimestamp">block.timestamp</SelectItem>
+                {CONTEXT_PROPERTIES.map(
+                  (prop) =>
+                    !usedContextProps.has(prop.contextKey) && (
+                      <SelectItem key={prop.contextKey} value={prop.contextKey}>
+                        {prop.label}
+                      </SelectItem>
+                    ),
                 )}
-                {!usedContextProps.has("blockNumber") && <SelectItem value="blockNumber">block.number</SelectItem>}
-                {!usedContextProps.has("chainId") && <SelectItem value="chainId">chain.id</SelectItem>}
-                {!usedContextProps.has("txOrigin") && <SelectItem value="txOrigin">tx.origin</SelectItem>}
-                {!usedContextProps.has("baseFee") && <SelectItem value="baseFee">block.basefee</SelectItem>}
-                {!usedContextProps.has("gasPrice") && <SelectItem value="gasPrice">tx.gasprice</SelectItem>}
               </SelectContent>
             </Select>
           )}
@@ -1156,23 +1158,8 @@ function AddConstraintForm({
             </div>
           ))}
           {previewResult.issues.map((issue, i) => (
-            <div
-              // oxlint-disable-next-line react/no-array-index-key
-              key={`i-${i}`}
-              className={cn(
-                "flex items-start gap-1.5 text-xs",
-                issue.severity === "error" && "text-red-700 dark:text-red-300",
-                issue.severity === "warning" && "text-fd-secondary-foreground",
-                issue.severity === "info" && "text-fd-info-foreground",
-              )}
-            >
-              {issue.severity === "warning" ? (
-                <AlertTriangle className="mt-0.5 size-3 shrink-0" />
-              ) : (
-                <InfoIcon className="mt-0.5 size-3 shrink-0" />
-              )}
-              <span>{issue.message}</span>
-            </div>
+            // oxlint-disable-next-line react/no-array-index-key
+            <IssueLine key={`i-${i}`} issue={issue} />
           ))}
         </div>
       )}

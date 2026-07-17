@@ -6,7 +6,6 @@ import {
   removeConstraint,
   addGroup,
   removeGroup,
-  moveConstraint,
   type ConstraintInput,
 } from "../builder-engine";
 
@@ -249,19 +248,5 @@ describe("group management", () => {
     const s2 = addGroup(s1);
     const s3 = removeGroup(s2, 1);
     expect(s3.groups).toHaveLength(1);
-  });
-
-  it("moves a constraint between groups", () => {
-    const s1 = createSession("approve(address,uint256)");
-    const constraint: ConstraintInput = {
-      scope: "calldata",
-      path: [0],
-      rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
-    };
-    const s2 = addConstraint(s1, 0, constraint);
-    const s3 = addGroup(s2);
-    const s4 = moveConstraint(s3, 0, 0, 1);
-    expect(s4.groups[0].constraints).toHaveLength(0);
-    expect(s4.groups[1].constraints).toHaveLength(1);
   });
 });

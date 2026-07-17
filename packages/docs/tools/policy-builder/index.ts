@@ -14,7 +14,6 @@ export {
   removeConstraint,
   addGroup,
   removeGroup,
-  moveConstraint,
   getOperatorOptions,
   getOperatorLabel,
   parseDescriptor,

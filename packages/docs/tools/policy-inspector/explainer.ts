@@ -3,12 +3,14 @@ import {
   type DecodedRule,
   Descriptor,
   type Hex,
+  type Operands,
   Op,
   Scope,
   type Span,
   TypeCode,
   hexToBytes,
   lookupContextProperty,
+  lookupOp,
   lookupScope,
   lookupTypeCode,
   parsePathSteps,
@@ -55,6 +57,7 @@ export type ExplainedRule = {
   operator: string;
   negated: boolean;
   operands: string[];
+  arity: Operands;
 };
 
 export type ExplainedFlatRule = {
@@ -71,11 +74,10 @@ export function flattenGroup(group: ExplainedGroup): ExplainedFlatRule[] {
   return group.constraints.flatMap((c) => c.rules.map((r) => ({ constraint: c, rule: r })));
 }
 
-/** Render a rule's operands as a display string, bracketed by operand shape (set vs range). */
+/** Render a rule's operands as a display string, bracketed by operator arity (set vs range vs single). */
 export function formatOperands(rule: ExplainedRule): string {
-  const op = rule.operator;
-  if (op === "in" || op === "not in") return `{${rule.operands.join(", ")}}`;
-  if (op.includes("between")) return `[${rule.operands.join(", ")}]`;
+  if (rule.arity === "variadic") return `{${rule.operands.join(", ")}}`;
+  if (rule.arity === "range") return `[${rule.operands.join(", ")}]`;
   return rule.operands.join(", ");
 }
 
@@ -205,6 +207,7 @@ function explainConstraint(rules: DecodedRule[], descBytes: Uint8Array, paramNod
       operator,
       negated,
       operands: decodeOperandsFromData(rule.data.value, decodeTypeCode, opBase),
+      arity: lookupOp(opBase).operands,
     };
   });
 

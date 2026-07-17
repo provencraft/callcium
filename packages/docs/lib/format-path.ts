@@ -8,20 +8,19 @@ import {
 } from "@callcium/sdk";
 import type { ParamNode } from "@/tools/policy-builder";
 
+/** Canonical, SDK-derived list of context properties: code, camelCase key, display label, ABI type code. */
+export const CONTEXT_PROPERTIES = Object.values(ContextProperty).map((code) => ({
+  code,
+  ...lookupContextProperty(code),
+}));
+
 /** Map from camelCase context property keys to SDK property codes. */
-export const CONTEXT_IDS: Record<string, number> = {
-  msgSender: ContextProperty.MSG_SENDER,
-  msgValue: ContextProperty.MSG_VALUE,
-  blockTimestamp: ContextProperty.BLOCK_TIMESTAMP,
-  blockNumber: ContextProperty.BLOCK_NUMBER,
-  chainId: ContextProperty.CHAIN_ID,
-  txOrigin: ContextProperty.TX_ORIGIN,
-  baseFee: ContextProperty.BASE_FEE,
-  gasPrice: ContextProperty.GAS_PRICE,
-};
+export const CONTEXT_IDS: Record<string, number> = Object.fromEntries(
+  CONTEXT_PROPERTIES.map((p) => [p.contextKey, p.code]),
+);
 
 /** Total number of context properties (derived from SDK). */
-export const CONTEXT_PROPERTY_COUNT = Object.keys(ContextProperty).length;
+export const CONTEXT_PROPERTY_COUNT = CONTEXT_PROPERTIES.length;
 
 /** Resolve the Solidity type label for a context property key (e.g. "msgSender" → "address"). */
 export function contextPropertyType(key: string): string | null {

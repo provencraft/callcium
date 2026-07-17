@@ -1,5 +1,6 @@
 "use client";
 
+import { TypeCode } from "@callcium/sdk";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui/components/ui/collapsible";
 import { ChevronDown, ArrowRight, ShieldCheck, ShieldX, ShieldQuestion } from "lucide-react";
 import Link from "next/link";
@@ -9,6 +10,7 @@ import type { Context, Hex } from "@callcium/sdk";
 import { ErrorBox } from "@/components/ui/error-box";
 import { MonoInput } from "@/components/ui/mono-input";
 import { MonoTextarea } from "@/components/ui/mono-textarea";
+import { CONTEXT_PROPERTIES } from "@/lib/format-path";
 import { formatViolation } from "@/lib/format-violation";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
@@ -24,6 +26,18 @@ function tryParseBigInt(value: string): bigint | undefined {
   }
 }
 
+/** Field-specific placeholder text, keyed by context property (not derivable from ABI type alone). */
+const CONTEXT_PLACEHOLDERS: Record<string, string> = {
+  msgSender: "0x...",
+  msgValue: "wei amount",
+  blockTimestamp: "unix timestamp",
+  blockNumber: "block number",
+  chainId: "chain ID",
+  txOrigin: "0x...",
+  baseFee: "wei amount",
+  gasPrice: "wei amount",
+};
+
 ///////////////////////////////////////////////////////////////////////////
 // Main component
 ///////////////////////////////////////////////////////////////////////////
@@ -33,14 +47,7 @@ export function Enforcer() {
   const [policyInput, setPolicyInput] = useState("");
   const [calldataInput, setCalldataInput] = useState("");
   const [contextOpen, setContextOpen] = useState(false);
-  const [ctxMsgSender, setCtxMsgSender] = useState("");
-  const [ctxMsgValue, setCtxMsgValue] = useState("");
-  const [ctxBlockTimestamp, setCtxBlockTimestamp] = useState("");
-  const [ctxBlockNumber, setCtxBlockNumber] = useState("");
-  const [ctxChainId, setCtxChainId] = useState("");
-  const [ctxTxOrigin, setCtxTxOrigin] = useState("");
-  const [ctxBaseFee, setCtxBaseFee] = useState("");
-  const [ctxGasPrice, setCtxGasPrice] = useState("");
+  const [ctxValues, setCtxValues] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const policyHex = searchParams.get("policy");
@@ -51,23 +58,19 @@ export function Enforcer() {
   const debouncedCalldata = useDebounce(calldataInput, 300);
 
   const context = useMemo((): Context | undefined => {
-    const ctx: Context = {};
-    if (ctxMsgSender.trim()) ctx.msgSender = ctxMsgSender.trim() as `0x${string}`;
-    const msgValue = tryParseBigInt(ctxMsgValue);
-    if (msgValue !== undefined) ctx.msgValue = msgValue;
-    const blockTs = tryParseBigInt(ctxBlockTimestamp);
-    if (blockTs !== undefined) ctx.blockTimestamp = blockTs;
-    const blockNum = tryParseBigInt(ctxBlockNumber);
-    if (blockNum !== undefined) ctx.blockNumber = blockNum;
-    const chain = tryParseBigInt(ctxChainId);
-    if (chain !== undefined) ctx.chainId = chain;
-    if (ctxTxOrigin.trim()) ctx.txOrigin = ctxTxOrigin.trim() as `0x${string}`;
-    const base = tryParseBigInt(ctxBaseFee);
-    if (base !== undefined) ctx.baseFee = base;
-    const gas = tryParseBigInt(ctxGasPrice);
-    if (gas !== undefined) ctx.gasPrice = gas;
-    return Object.keys(ctx).length > 0 ? ctx : undefined;
-  }, [ctxMsgSender, ctxMsgValue, ctxBlockTimestamp, ctxBlockNumber, ctxChainId, ctxTxOrigin, ctxBaseFee, ctxGasPrice]);
+    const ctx: Record<string, Hex | bigint> = {};
+    for (const prop of CONTEXT_PROPERTIES) {
+      const raw = ctxValues[prop.contextKey]?.trim();
+      if (!raw) continue;
+      if (prop.typeCode === TypeCode.ADDRESS) {
+        ctx[prop.contextKey] = raw as Hex;
+      } else {
+        const parsed = tryParseBigInt(raw);
+        if (parsed !== undefined) ctx[prop.contextKey] = parsed;
+      }
+    }
+    return Object.keys(ctx).length > 0 ? (ctx as Context) : undefined;
+  }, [ctxValues]);
 
   const result = useMemo((): EnforceOutput | null => {
     const policy = debouncedPolicy.trim();
@@ -124,28 +127,27 @@ export function Enforcer() {
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            <ContextField label="msg.sender" placeholder="0x..." value={ctxMsgSender} onChange={setCtxMsgSender} />
-            <ContextField label="msg.value" placeholder="wei amount" value={ctxMsgValue} onChange={setCtxMsgValue} />
-            <ContextField
-              label="block.timestamp"
-              placeholder="unix timestamp"
-              value={ctxBlockTimestamp}
-              onChange={setCtxBlockTimestamp}
-              action={{
-                label: "Now",
-                onClick: () => setCtxBlockTimestamp(String(Math.floor(Date.now() / 1000))),
-              }}
-            />
-            <ContextField
-              label="block.number"
-              placeholder="block number"
-              value={ctxBlockNumber}
-              onChange={setCtxBlockNumber}
-            />
-            <ContextField label="chain.id" placeholder="chain ID" value={ctxChainId} onChange={setCtxChainId} />
-            <ContextField label="tx.origin" placeholder="0x..." value={ctxTxOrigin} onChange={setCtxTxOrigin} />
-            <ContextField label="block.basefee" placeholder="wei amount" value={ctxBaseFee} onChange={setCtxBaseFee} />
-            <ContextField label="tx.gasprice" placeholder="wei amount" value={ctxGasPrice} onChange={setCtxGasPrice} />
+            {CONTEXT_PROPERTIES.map((prop) => (
+              <ContextField
+                key={prop.contextKey}
+                label={prop.label}
+                placeholder={CONTEXT_PLACEHOLDERS[prop.contextKey]}
+                value={ctxValues[prop.contextKey] ?? ""}
+                onChange={(v) => setCtxValues((prev) => ({ ...prev, [prop.contextKey]: v }))}
+                action={
+                  prop.contextKey === "blockTimestamp"
+                    ? {
+                        label: "Now",
+                        onClick: () =>
+                          setCtxValues((prev) => ({
+                            ...prev,
+                            blockTimestamp: String(Math.floor(Date.now() / 1000)),
+                          })),
+                      }
+                    : undefined
+                }
+              />
+            ))}
           </div>
         </CollapsibleContent>
       </Collapsible>
