@@ -200,6 +200,24 @@ describe("DescriptorCoder.fromTypes", () => {
     expectErrorCode(() => DescriptorCoder.fromTypes("bytesXX"), "UNKNOWN_TYPE");
   });
 
+  test("uint width of 2**256 + 8 is rejected, never a valid narrow width", () => {
+    expectErrorCode(
+      () =>
+        DescriptorCoder.fromTypes("uint115792089237316195423570985008687907853269984665640564039457584007913129639944"),
+      "INVALID_TYPE_STRING",
+    );
+  });
+
+  test("array length of 2**256 + 1 is rejected, never a valid small length", () => {
+    expectErrorCode(
+      () =>
+        DescriptorCoder.fromTypes(
+          "uint256[115792089237316195423570985008687907853269984665640564039457584007913129639937]",
+        ),
+      "INVALID_ARRAY_LENGTH",
+    );
+  });
+
   test("non-numeric intN 'intXX' throws UNKNOWN_TYPE", () => {
     expectErrorCode(() => DescriptorCoder.fromTypes("intXX"), "UNKNOWN_TYPE");
   });

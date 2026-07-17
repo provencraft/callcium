@@ -255,6 +255,15 @@ contract FromTypesTest is DescriptorBuilderTest {
         DescriptorBuilder.fromTypes("bytes33");
     }
 
+    function test_RevertWhen_UintWidthOverflows() public {
+        // The width literal is 2**256 + 8: it must be rejected as malformed,
+        // not wrap modulo 2**256 into a valid uint8 width.
+        vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
+        DescriptorBuilder.fromTypes(
+            "uint115792089237316195423570985008687907853269984665640564039457584007913129639944"
+        );
+    }
+
     function test_RevertWhen_UnmatchedParenthesis() public {
         vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
         DescriptorBuilder.fromTypes("(address,uint256");
