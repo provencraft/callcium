@@ -1,28 +1,10 @@
-import type { Hex, Issue, IssueCategory, IssueSeverity } from "./types";
+import type { Hex, Issue } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Constants
 ///////////////////////////////////////////////////////////////////////////
 
 export const ZERO: Hex = `0x${"0".repeat(64)}`;
-
-///////////////////////////////////////////////////////////////////////////
-// Internal helper
-///////////////////////////////////////////////////////////////////////////
-
-/** Construct a fully populated Issue. */
-function makeIssue(
-  severity: IssueSeverity,
-  category: IssueCategory,
-  groupIndex: number,
-  constraintIndex: number,
-  code: string,
-  value1: Hex,
-  value2: Hex,
-  message: string,
-): Issue {
-  return { severity, category, groupIndex, constraintIndex, code, value1, value2, message };
-}
 
 ///////////////////////////////////////////////////////////////////////////
 // Type mismatch
@@ -36,500 +18,398 @@ export function fromOpRule(
   constraintIndex: number,
   opCode: Hex,
 ): Issue {
-  return makeIssue("error", "typeMismatch", groupIndex, constraintIndex, code, opCode, ZERO, message);
+  return {
+    severity: "error",
+    category: "typeMismatch",
+    groupIndex,
+    constraintIndex,
+    code,
+    value1: opCode,
+    value2: ZERO,
+    message,
+  };
 }
 
 /** Issue for an operand that is not canonically encoded for the declared type. */
 export function nonCanonicalOperand(groupIndex: number, constraintIndex: number, operand: Hex, canonical: Hex): Issue {
-  return makeIssue(
-    "error",
-    "typeMismatch",
+  return {
+    severity: "error",
+    category: "typeMismatch",
     groupIndex,
     constraintIndex,
-    "NON_CANONICAL_OPERAND",
-    operand,
-    canonical,
-    "Operand is not the canonical encoding for the declared type",
-  );
+    code: "NON_CANONICAL_OPERAND",
+    value1: operand,
+    value2: canonical,
+    message: "Operand is not the canonical encoding for the declared type",
+  };
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Contradiction
 ///////////////////////////////////////////////////////////////////////////
 
-/** eq(v) and neq(v) on same path. */
-export function eqNeqContradiction(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+/** eq(v)/neq(v) or lengthEq(v)/lengthNeq(v) on the same path. */
+export function eqNeqContradiction(isLength: boolean, groupIndex: number, constraintIndex: number, value: Hex): Issue {
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "EQ_NEQ_CONTRADICTION",
-    value,
-    ZERO,
-    "eq(v) and neq(v) on same path",
-  );
+    code: isLength ? "LENGTH_EQ_NEQ_CONTRADICTION" : "EQ_NEQ_CONTRADICTION",
+    value1: value,
+    value2: ZERO,
+    message: isLength ? "lengthEq(v) and lengthNeq(v) on same path" : "eq(v) and neq(v) on same path",
+  };
 }
 
-/** Multiple eq() operators with different values. */
-export function conflictingEquality(groupIndex: number, constraintIndex: number, existing: Hex, newValue: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+/** Multiple eq()/lengthEq() operators with different values. */
+export function conflictingEquality(
+  isLength: boolean,
+  groupIndex: number,
+  constraintIndex: number,
+  existing: Hex,
+  newValue: Hex,
+): Issue {
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "CONFLICTING_EQUALITY",
-    existing,
-    newValue,
-    "Multiple eq() operators with different values",
-  );
+    code: isLength ? "CONFLICTING_LENGTH" : "CONFLICTING_EQUALITY",
+    value1: existing,
+    value2: newValue,
+    message: isLength
+      ? "Multiple lengthEq() operators with different values"
+      : "Multiple eq() operators with different values",
+  };
 }
 
-/** Value is outside the physical range of the type. */
-export function outOfPhysicalBounds(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+/** Value/length is outside the physical range of its type. */
+export function outOfPhysicalBounds(isLength: boolean, groupIndex: number, constraintIndex: number, value: Hex): Issue {
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "OUT_OF_PHYSICAL_BOUNDS",
-    value,
-    ZERO,
-    "Value is outside the physical range of the type",
-  );
+    code: isLength ? "OUT_OF_PHYSICAL_LENGTH_BOUNDS" : "OUT_OF_PHYSICAL_BOUNDS",
+    value1: value,
+    value2: ZERO,
+    message: isLength
+      ? "Length value is outside the physical range"
+      : "Value is outside the physical range of the type",
+  };
 }
 
-/** gt() on type maximum is impossible. */
-export function impossibleGt(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+/** gt()/lengthGt() on the maximum is impossible. */
+export function impossibleGt(isLength: boolean, groupIndex: number, constraintIndex: number, value: Hex): Issue {
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "IMPOSSIBLE_GT",
-    value,
-    ZERO,
-    "gt() on type maximum is impossible",
-  );
+    code: isLength ? "IMPOSSIBLE_LENGTH_GT" : "IMPOSSIBLE_GT",
+    value1: value,
+    value2: ZERO,
+    message: isLength ? "lengthGt() on maximum length is impossible" : "gt() on type maximum is impossible",
+  };
 }
 
-/** lt() on type minimum is impossible. */
-export function impossibleLt(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+/** lt()/lengthLt() on the minimum is impossible. */
+export function impossibleLt(isLength: boolean, groupIndex: number, constraintIndex: number, value: Hex): Issue {
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "IMPOSSIBLE_LT",
-    value,
-    ZERO,
-    "lt() on type minimum is impossible",
-  );
+    code: isLength ? "IMPOSSIBLE_LENGTH_LT" : "IMPOSSIBLE_LT",
+    value1: value,
+    value2: ZERO,
+    message: isLength ? "lengthLt() on minimum length is impossible" : "lt() on type minimum is impossible",
+  };
 }
 
-/** eq() value is excluded by bound. */
-export function boundsExcludeEquality(groupIndex: number, constraintIndex: number, eq: Hex, bound: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+/** eq()/lengthEq() value is excluded by a bound. */
+export function boundsExcludeEquality(
+  isLength: boolean,
+  groupIndex: number,
+  constraintIndex: number,
+  eq: Hex,
+  bound: Hex,
+): Issue {
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "BOUNDS_EXCLUDE_EQUALITY",
-    eq,
-    bound,
-    "eq() value is excluded by bound",
-  );
+    code: isLength ? "BOUNDS_EXCLUDE_LENGTH" : "BOUNDS_EXCLUDE_EQUALITY",
+    value1: eq,
+    value2: bound,
+    message: isLength ? "lengthEq() value is excluded by bound" : "eq() value is excluded by bound",
+  };
 }
 
-/** Lower bound exceeds upper bound. */
-export function impossibleRange(groupIndex: number, constraintIndex: number, lower: Hex, upper: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+/** Lower bound/length exceeds the upper bound. */
+export function impossibleRange(
+  isLength: boolean,
+  groupIndex: number,
+  constraintIndex: number,
+  lower: Hex,
+  upper: Hex,
+): Issue {
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "IMPOSSIBLE_RANGE",
-    lower,
-    upper,
-    "Lower bound exceeds upper bound",
-  );
+    code: isLength ? "IMPOSSIBLE_LENGTH_RANGE" : "IMPOSSIBLE_RANGE",
+    value1: lower,
+    value2: upper,
+    message: isLength ? "Lower length bound exceeds upper bound" : "Lower bound exceeds upper bound",
+  };
 }
 
 /** Set operation excludes existing eq() value. */
 export function setExcludesEquality(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "SET_EXCLUDES_EQUALITY",
-    value,
-    ZERO,
-    "Set operation excludes existing eq() value",
-  );
+    code: "SET_EXCLUDES_EQUALITY",
+    value1: value,
+    value2: ZERO,
+    message: "Set operation excludes existing eq() value",
+  };
 }
 
 /** Multiple isIn() sets have no intersection. */
 export function emptySetIntersection(groupIndex: number, constraintIndex: number): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "EMPTY_SET_INTERSECTION",
-    ZERO,
-    ZERO,
-    "Multiple isIn() sets have no intersection",
-  );
+    code: "EMPTY_SET_INTERSECTION",
+    value1: ZERO,
+    value2: ZERO,
+    message: "Multiple isIn() sets have no intersection",
+  };
 }
 
 /** All values in isIn() set are excluded by neq/notIn. */
 export function setFullyExcluded(groupIndex: number, constraintIndex: number): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "SET_FULLY_EXCLUDED",
-    ZERO,
-    ZERO,
-    "All values in isIn() set are excluded by neq/notIn",
-  );
-}
-
-/** lengthEq(v) and lengthNeq(v) on same path. */
-export function lengthEqNeqContradiction(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
-    groupIndex,
-    constraintIndex,
-    "LENGTH_EQ_NEQ_CONTRADICTION",
-    value,
-    ZERO,
-    "lengthEq(v) and lengthNeq(v) on same path",
-  );
-}
-
-/** Multiple lengthEq() operators with different values. */
-export function conflictingLength(groupIndex: number, constraintIndex: number, existing: Hex, newValue: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
-    groupIndex,
-    constraintIndex,
-    "CONFLICTING_LENGTH",
-    existing,
-    newValue,
-    "Multiple lengthEq() operators with different values",
-  );
-}
-
-/** lengthEq() value is excluded by bound. */
-export function boundsExcludeLength(groupIndex: number, constraintIndex: number, eq: Hex, bound: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
-    groupIndex,
-    constraintIndex,
-    "BOUNDS_EXCLUDE_LENGTH",
-    eq,
-    bound,
-    "lengthEq() value is excluded by bound",
-  );
-}
-
-/** Lower length bound exceeds upper bound. */
-export function impossibleLengthRange(groupIndex: number, constraintIndex: number, lower: Hex, upper: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
-    groupIndex,
-    constraintIndex,
-    "IMPOSSIBLE_LENGTH_RANGE",
-    lower,
-    upper,
-    "Lower length bound exceeds upper bound",
-  );
-}
-
-/** Length value is outside the physical range. */
-export function outOfPhysicalLengthBounds(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
-    groupIndex,
-    constraintIndex,
-    "OUT_OF_PHYSICAL_LENGTH_BOUNDS",
-    value,
-    ZERO,
-    "Length value is outside the physical range",
-  );
-}
-
-/** lengthGt() on maximum length is impossible. */
-export function impossibleLengthGt(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
-    groupIndex,
-    constraintIndex,
-    "IMPOSSIBLE_LENGTH_GT",
-    value,
-    ZERO,
-    "lengthGt() on maximum length is impossible",
-  );
-}
-
-/** lengthLt() on minimum length is impossible. */
-export function impossibleLengthLt(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
-    groupIndex,
-    constraintIndex,
-    "IMPOSSIBLE_LENGTH_LT",
-    value,
-    ZERO,
-    "lengthLt() on minimum length is impossible",
-  );
+    code: "SET_FULLY_EXCLUDED",
+    value1: ZERO,
+    value2: ZERO,
+    message: "All values in isIn() set are excluded by neq/notIn",
+  };
 }
 
 /** Bitmask operators conflict. */
 export function bitmaskContradiction(groupIndex: number, constraintIndex: number, mask: Hex, conflicting: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "BITMASK_CONTRADICTION",
-    mask,
-    conflicting,
-    "Bitmask operators conflict",
-  );
+    code: "BITMASK_CONTRADICTION",
+    value1: mask,
+    value2: conflicting,
+    message: "Bitmask operators conflict",
+  };
 }
 
 /** bitmaskAny is impossible because all bits are forbidden. */
 export function bitmaskAnyImpossible(groupIndex: number, constraintIndex: number, mask: Hex, mustBeZero: Hex): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "BITMASK_ANY_IMPOSSIBLE",
-    mask,
-    mustBeZero,
-    "bitmaskAny is impossible because all bits are forbidden",
-  );
+    code: "BITMASK_ANY_IMPOSSIBLE",
+    value1: mask,
+    value2: mustBeZero,
+    message: "bitmaskAny is impossible because all bits are forbidden",
+  };
 }
 
 /** isIn/notIn set is not strictly sorted and deduplicated. */
 export function unsortedInSet(groupIndex: number, constraintIndex: number): Issue {
-  return makeIssue(
-    "error",
-    "contradiction",
+  return {
+    severity: "error",
+    category: "contradiction",
     groupIndex,
     constraintIndex,
-    "UNSORTED_IN_SET",
-    ZERO,
-    ZERO,
-    "isIn/notIn set is not strictly sorted and deduplicated.",
-  );
+    code: "UNSORTED_IN_SET",
+    value1: ZERO,
+    value2: ZERO,
+    message: "isIn/notIn set is not strictly sorted and deduplicated.",
+  };
 }
 
 /** Group contains zero constraints. */
 export function emptyGroup(groupIndex: number): Issue {
-  return makeIssue("error", "vacuity", groupIndex, 0, "EMPTY_GROUP", ZERO, ZERO, "Group contains zero constraints.");
+  return {
+    severity: "error",
+    category: "vacuity",
+    groupIndex,
+    constraintIndex: 0,
+    code: "EMPTY_GROUP",
+    value1: ZERO,
+    value2: ZERO,
+    message: "Group contains zero constraints.",
+  };
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Redundancy
 ///////////////////////////////////////////////////////////////////////////
 
-/** Numeric bound is dominated by a stricter bound. */
-export function dominatedBound(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "redundancy",
+/** Numeric/length bound dominated by a stricter bound. */
+export function dominatedBound(isLength: boolean, groupIndex: number, constraintIndex: number, value: Hex): Issue {
+  return {
+    severity: "warning",
+    category: "redundancy",
     groupIndex,
     constraintIndex,
-    "DOMINATED_BOUND",
-    value,
-    ZERO,
-    "Numeric bound is dominated by a stricter bound",
-  );
+    code: isLength ? "DOMINATED_LENGTH_BOUND" : "DOMINATED_BOUND",
+    value1: value,
+    value2: ZERO,
+    message: isLength
+      ? "Length bound is dominated by a stricter bound"
+      : "Numeric bound is dominated by a stricter bound",
+  };
 }
 
-/** Bound is redundant because eq() is set. */
-export function redundantBound(groupIndex: number, constraintIndex: number, bound: Hex, eq: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "redundancy",
+/** Bound redundant because eq()/lengthEq() is set. */
+export function redundantBound(
+  isLength: boolean,
+  groupIndex: number,
+  constraintIndex: number,
+  bound: Hex,
+  eq: Hex,
+): Issue {
+  return {
+    severity: "warning",
+    category: "redundancy",
     groupIndex,
     constraintIndex,
-    "REDUNDANT_BOUND",
-    bound,
-    eq,
-    "Bound is redundant because eq() is set",
-  );
+    code: isLength ? "REDUNDANT_LENGTH_BOUND" : "REDUNDANT_BOUND",
+    value1: bound,
+    value2: eq,
+    message: isLength
+      ? "Length bound is redundant because lengthEq() is set"
+      : "Bound is redundant because eq() is set",
+  };
 }
 
 /** notIn() value was present in isIn() set. */
 export function setReduction(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "redundancy",
+  return {
+    severity: "warning",
+    category: "redundancy",
     groupIndex,
     constraintIndex,
-    "SET_REDUCTION",
-    value,
-    ZERO,
-    "notIn() value was present in isIn() set",
-  );
+    code: "SET_REDUCTION",
+    value1: value,
+    value2: ZERO,
+    message: "notIn() value was present in isIn() set",
+  };
 }
 
 /** isIn() sets partially overlap. */
 export function setRedundancy(groupIndex: number, constraintIndex: number, intersectionCount: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "redundancy",
+  return {
+    severity: "warning",
+    category: "redundancy",
     groupIndex,
     constraintIndex,
-    "SET_REDUNDANCY",
-    intersectionCount,
-    ZERO,
-    "isIn() sets partially overlap",
-  );
+    code: "SET_REDUNDANCY",
+    value1: intersectionCount,
+    value2: ZERO,
+    message: "isIn() sets partially overlap",
+  };
 }
 
 /** Some values in isIn() set are excluded by neq/notIn. */
 export function setPartiallyExcluded(groupIndex: number, constraintIndex: number, excludedCount: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "redundancy",
+  return {
+    severity: "warning",
+    category: "redundancy",
     groupIndex,
     constraintIndex,
-    "SET_PARTIALLY_EXCLUDED",
-    excludedCount,
-    ZERO,
-    "Some values in isIn() set are excluded by neq/notIn",
-  );
-}
-
-/** Length bound is dominated by a stricter bound. */
-export function dominatedLengthBound(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "redundancy",
-    groupIndex,
-    constraintIndex,
-    "DOMINATED_LENGTH_BOUND",
-    value,
-    ZERO,
-    "Length bound is dominated by a stricter bound",
-  );
-}
-
-/** Length bound is redundant because lengthEq() is set. */
-export function redundantLengthBound(groupIndex: number, constraintIndex: number, bound: Hex, eq: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "redundancy",
-    groupIndex,
-    constraintIndex,
-    "REDUNDANT_LENGTH_BOUND",
-    bound,
-    eq,
-    "Length bound is redundant because lengthEq() is set",
-  );
+    code: "SET_PARTIALLY_EXCLUDED",
+    value1: excludedCount,
+    value2: ZERO,
+    message: "Some values in isIn() set are excluded by neq/notIn",
+  };
 }
 
 /** Bitmask operation is redundant. */
 export function redundantBitmask(groupIndex: number, constraintIndex: number, mask: Hex, existing: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "redundancy",
+  return {
+    severity: "warning",
+    category: "redundancy",
     groupIndex,
     constraintIndex,
-    "REDUNDANT_BITMASK",
-    mask,
-    existing,
-    "Bitmask operation is redundant",
-  );
+    code: "REDUNDANT_BITMASK",
+    value1: mask,
+    value2: existing,
+    message: "Bitmask operation is redundant",
+  };
 }
 
 /** Duplicate operator in constraint. */
 export function duplicateConstraint(groupIndex: number, constraintIndex: number): Issue {
-  return makeIssue(
-    "warning",
-    "redundancy",
+  return {
+    severity: "warning",
+    category: "redundancy",
     groupIndex,
     constraintIndex,
-    "DUPLICATE_CONSTRAINT",
-    ZERO,
-    ZERO,
-    "Duplicate operator in constraint",
-  );
+    code: "DUPLICATE_CONSTRAINT",
+    value1: ZERO,
+    value2: ZERO,
+    message: "Duplicate operator in constraint",
+  };
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Vacuity
 ///////////////////////////////////////////////////////////////////////////
 
-/** gte() bound equals type minimum (always true). */
-export function vacuousGte(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "info",
-    "vacuity",
+/** gte(min)/lengthGte(0) is always true. */
+export function vacuousGte(isLength: boolean, groupIndex: number, constraintIndex: number, value: Hex): Issue {
+  return {
+    severity: "info",
+    category: "vacuity",
     groupIndex,
     constraintIndex,
-    "VACUOUS_GTE",
-    value,
-    ZERO,
-    "gte() bound equals type minimum (always true)",
-  );
+    code: isLength ? "VACUOUS_LENGTH_GTE" : "VACUOUS_GTE",
+    value1: value,
+    value2: ZERO,
+    message: isLength ? "lengthGte(0) is always true" : "gte() bound equals type minimum (always true)",
+  };
 }
 
-/** lte() bound equals type maximum (always true). */
-export function vacuousLte(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "info",
-    "vacuity",
+/** lte(max)/lengthLte(max) is always true. */
+export function vacuousLte(isLength: boolean, groupIndex: number, constraintIndex: number, value: Hex): Issue {
+  return {
+    severity: "info",
+    category: "vacuity",
     groupIndex,
     constraintIndex,
-    "VACUOUS_LTE",
-    value,
-    ZERO,
-    "lte() bound equals type maximum (always true)",
-  );
-}
-
-/** lengthGte(0) is always true. */
-export function vacuousLengthGte(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "info",
-    "vacuity",
-    groupIndex,
-    constraintIndex,
-    "VACUOUS_LENGTH_GTE",
-    value,
-    ZERO,
-    "lengthGte(0) is always true",
-  );
-}
-
-/** lengthLte() bound equals maximum (always true). */
-export function vacuousLengthLte(groupIndex: number, constraintIndex: number, value: Hex): Issue {
-  return makeIssue(
-    "info",
-    "vacuity",
-    groupIndex,
-    constraintIndex,
-    "VACUOUS_LENGTH_LTE",
-    value,
-    ZERO,
-    "lengthLte() bound equals maximum (always true)",
-  );
+    code: isLength ? "VACUOUS_LENGTH_LTE" : "VACUOUS_LTE",
+    value1: value,
+    value2: ZERO,
+    message: isLength
+      ? "lengthLte() bound equals maximum (always true)"
+      : "lte() bound equals type maximum (always true)",
+  };
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -538,16 +418,16 @@ export function vacuousLengthLte(groupIndex: number, constraintIndex: number, va
 
 /** Path deeper than the reference enforcer's cap. */
 export function pathDepthExceeded(groupIndex: number, constraintIndex: number, depth: Hex, maxDepth: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "compatibility",
+  return {
+    severity: "warning",
+    category: "compatibility",
     groupIndex,
     constraintIndex,
-    "PATH_DEPTH_EXCEEDED",
-    depth,
-    maxDepth,
-    "Path depth exceeds the reference enforcer cap",
-  );
+    code: "PATH_DEPTH_EXCEEDED",
+    value1: depth,
+    value2: maxDepth,
+    message: "Path depth exceeds the reference enforcer cap",
+  };
 }
 
 /** Quantifier over a static array beyond the reference enforcer's iteration cap. */
@@ -557,16 +437,16 @@ export function quantifierOverStaticLimit(
   arrayLength: Hex,
   maxLength: Hex,
 ): Issue {
-  return makeIssue(
-    "warning",
-    "compatibility",
+  return {
+    severity: "warning",
+    category: "compatibility",
     groupIndex,
     constraintIndex,
-    "QUANTIFIER_OVER_STATIC_LIMIT",
-    arrayLength,
-    maxLength,
-    "Quantifier over static array exceeds the reference enforcer cap",
-  );
+    code: "QUANTIFIER_OVER_STATIC_LIMIT",
+    value1: arrayLength,
+    value2: maxLength,
+    message: "Quantifier over static array exceeds the reference enforcer cap",
+  };
 }
 
 /** Context property ID outside the assigned set. */
@@ -576,52 +456,28 @@ export function unknownContextProperty(
   contextId: Hex,
   maxContextId: Hex,
 ): Issue {
-  return makeIssue(
-    "warning",
-    "compatibility",
+  return {
+    severity: "warning",
+    category: "compatibility",
     groupIndex,
     constraintIndex,
-    "UNKNOWN_CONTEXT_PROPERTY",
-    contextId,
-    maxContextId,
-    "Unknown context property ID",
-  );
+    code: "UNKNOWN_CONTEXT_PROPERTY",
+    value1: contextId,
+    value2: maxContextId,
+    message: "Unknown context property ID",
+  };
 }
 
 /** Negated operator under the existential quantifier. */
 export function negationUnderAny(groupIndex: number, constraintIndex: number, opCode: Hex): Issue {
-  return makeIssue(
-    "warning",
-    "compatibility",
+  return {
+    severity: "warning",
+    category: "compatibility",
     groupIndex,
     constraintIndex,
-    "NEGATION_UNDER_ANY",
-    opCode,
-    ZERO,
-    "Negated operator under any() passes when a decoy element differs",
-  );
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Bound issue factory set
-///////////////////////////////////////////////////////////////////////////
-
-/** Pre-select value or length issue factories for a bound domain. */
-export function boundIssues(isLength: boolean) {
-  return {
-    eqNeqContradiction: isLength ? lengthEqNeqContradiction : eqNeqContradiction,
-    conflicting: isLength ? conflictingLength : conflictingEquality,
-    outOfPhysicalBounds: isLength ? outOfPhysicalLengthBounds : outOfPhysicalBounds,
-    impossibleGt: isLength ? impossibleLengthGt : impossibleGt,
-    impossibleLt: isLength ? impossibleLengthLt : impossibleLt,
-    boundsExcludeEquality: isLength ? boundsExcludeLength : boundsExcludeEquality,
-    impossibleRange: isLength ? impossibleLengthRange : impossibleRange,
-    dominated: isLength ? dominatedLengthBound : dominatedBound,
-    redundant: isLength ? redundantLengthBound : redundantBound,
-    vacuousGte: isLength ? vacuousLengthGte : vacuousGte,
-    vacuousLte: isLength ? vacuousLengthLte : vacuousLte,
+    code: "NEGATION_UNDER_ANY",
+    value1: opCode,
+    value2: ZERO,
+    message: "Negated operator under any() passes when a decoy element differs",
   };
 }
-
-/** Issue factory set returned by {@link boundIssues}. */
-export type BoundIssueSet = ReturnType<typeof boundIssues>;

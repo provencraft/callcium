@@ -402,7 +402,8 @@ library PolicyValidator {
             if (base == OpCode.EQ) {
                 // CHECK: EQ_NEQ_CONTRADICTION / LENGTH_EQ_NEQ_CONTRADICTION - eq(v) and neq(v) on same path.
                 if (domain.hasEq && domain.eq == value) {
-                    issues[issueCount++] = _issueEqNeqContradiction(isLength, groupIndex, constraintIndex, value);
+                    issues[issueCount++] =
+                        ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value);
                 }
                 // Add to holes if not already present.
                 bool alreadyHole = false;
@@ -434,25 +435,25 @@ library PolicyValidator {
         // Vacuity checks.
         // CHECK: VACUOUS_GTE / VACUOUS_LENGTH_GTE - gte(min) is always true.
         if (base == OpCode.GTE && value == domain.min) {
-            issues[issueCount++] = _issueVacuousGte(isLength, groupIndex, constraintIndex, value);
+            issues[issueCount++] = ValidationIssue.vacuousGte(isLength, groupIndex, constraintIndex, value);
         }
         // CHECK: VACUOUS_LTE / VACUOUS_LENGTH_LTE - lte(max) is always true.
         else if (base == OpCode.LTE && value == domain.max) {
-            issues[issueCount++] = _issueVacuousLte(isLength, groupIndex, constraintIndex, value);
+            issues[issueCount++] = ValidationIssue.vacuousLte(isLength, groupIndex, constraintIndex, value);
         }
 
         // Physical bounds and impossibility.
         // CHECK: OUT_OF_PHYSICAL_BOUNDS / OUT_OF_PHYSICAL_LENGTH_BOUNDS - value outside type range.
         if (_isLt(value, domain.min, domain.isSigned) || _isGt(value, domain.max, domain.isSigned)) {
-            issues[issueCount++] = _issueOutOfPhysicalBounds(isLength, groupIndex, constraintIndex, value);
+            issues[issueCount++] = ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, value);
         }
         // CHECK: IMPOSSIBLE_GT / IMPOSSIBLE_LENGTH_GT - gt(max) is impossible.
         else if (base == OpCode.GT && value == domain.max) {
-            issues[issueCount++] = _issueImpossibleGt(isLength, groupIndex, constraintIndex, value);
+            issues[issueCount++] = ValidationIssue.impossibleGt(isLength, groupIndex, constraintIndex, value);
         }
         // CHECK: IMPOSSIBLE_LT / IMPOSSIBLE_LENGTH_LT - lt(min) is impossible.
         else if (base == OpCode.LT && value == domain.min) {
-            issues[issueCount++] = _issueImpossibleLt(isLength, groupIndex, constraintIndex, value);
+            issues[issueCount++] = ValidationIssue.impossibleLt(isLength, groupIndex, constraintIndex, value);
         }
 
         // Equality handling.
@@ -462,7 +463,7 @@ library PolicyValidator {
             if (domain.hasEq) {
                 if (domain.eq != value) {
                     // forgefmt: disable-next-item
-                    issues[issueCount++] = _issueConflictingEquality(
+                    issues[issueCount++] = ValidationIssue.conflictingEquality(
                         isLength, groupIndex, constraintIndex, domain.eq, value
                     );
                 }
@@ -470,7 +471,8 @@ library PolicyValidator {
             // CHECK: EQ_NEQ_CONTRADICTION / LENGTH_EQ_NEQ_CONTRADICTION - eq matches an existing hole.
             for (uint8 j; j < domain.holeCount; ++j) {
                 if (domain.holes[j] == value) {
-                    issues[issueCount++] = _issueEqNeqContradiction(isLength, groupIndex, constraintIndex, value);
+                    issues[issueCount++] =
+                        ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value);
                 }
             }
             domain.hasEq = true;
@@ -501,12 +503,13 @@ library PolicyValidator {
 
                 // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - new bound weaker than existing.
                 if (redundant) {
-                    issues[issueCount++] = _issueDominatedBound(isLength, groupIndex, constraintIndex, value);
+                    issues[issueCount++] = ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, value);
                 }
 
                 // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - existing bound superseded by stricter new bound.
                 if (strictlyBetter) {
-                    issues[issueCount++] = _issueDominatedBound(isLength, groupIndex, constraintIndex, domain.lower);
+                    issues[issueCount++] =
+                        ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, domain.lower);
                     domain.lower = value;
                     domain.lowerInclusive = inclusive;
                     changedLower = true;
@@ -542,12 +545,13 @@ library PolicyValidator {
 
                 // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - new bound weaker than existing.
                 if (redundant) {
-                    issues[issueCount++] = _issueDominatedBound(isLength, groupIndex, constraintIndex, value);
+                    issues[issueCount++] = ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, value);
                 }
 
                 // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - existing bound superseded by stricter new bound.
                 if (strictlyBetter) {
-                    issues[issueCount++] = _issueDominatedBound(isLength, groupIndex, constraintIndex, domain.upper);
+                    issues[issueCount++] =
+                        ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, domain.upper);
                     domain.upper = value;
                     domain.upperInclusive = inclusive;
                     changedUpper = true;
@@ -572,11 +576,11 @@ library PolicyValidator {
                     ? _isLt(domain.eq, domain.lower, domain.isSigned)
                     : _isLte(domain.eq, domain.lower, domain.isSigned);
                 if (contradiction) {
-                    issues[issueCount++] = _issueBoundsExcludeEquality(
+                    issues[issueCount++] = ValidationIssue.boundsExcludeEquality(
                         isLength, groupIndex, constraintIndex, domain.eq, domain.lower
                     );
                 } else {
-                    issues[issueCount++] = _issueRedundantBound(
+                    issues[issueCount++] = ValidationIssue.redundantBound(
                         isLength, groupIndex, constraintIndex, domain.lower, domain.eq
                     );
                 }
@@ -592,11 +596,11 @@ library PolicyValidator {
                     ? _isGt(domain.eq, domain.upper, domain.isSigned)
                     : _isGte(domain.eq, domain.upper, domain.isSigned);
                 if (contradiction) {
-                    issues[issueCount++] = _issueBoundsExcludeEquality(
+                    issues[issueCount++] = ValidationIssue.boundsExcludeEquality(
                         isLength, groupIndex, constraintIndex, domain.eq, domain.upper
                     );
                 } else {
-                    issues[issueCount++] = _issueRedundantBound(
+                    issues[issueCount++] = ValidationIssue.redundantBound(
                         isLength, groupIndex, constraintIndex, domain.upper, domain.eq
                     );
                 }
@@ -612,7 +616,7 @@ library PolicyValidator {
                 bool impossible = _isGt(domain.lower, domain.upper, domain.isSigned)
                     || (domain.lower == domain.upper && (!domain.lowerInclusive || !domain.upperInclusive));
                 if (impossible) {
-                    issues[issueCount++] = _issueImpossibleRange(
+                    issues[issueCount++] = ValidationIssue.impossibleRange(
                         isLength, groupIndex, constraintIndex, domain.lower, domain.upper
                     );
                 }
@@ -965,190 +969,6 @@ library PolicyValidator {
         if (base == OpCode.LT) return OpCode.GTE;
         if (base == OpCode.LTE) return OpCode.GT;
         return base;
-    }
-
-    /*/////////////////////////////////////////////////////////////////////////
-                              ISSUE DISPATCH HELPERS
-    /////////////////////////////////////////////////////////////////////////*/
-
-    /// @dev Routes to the correct eq/neq contradiction factory based on domain kind.
-    function _issueEqNeqContradiction(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.lengthEqNeqContradiction(groupIndex, constraintIndex, value)
-            : ValidationIssue.eqNeqContradiction(groupIndex, constraintIndex, value);
-    }
-
-    /// @dev Routes to the correct conflicting equality factory based on domain kind.
-    function _issueConflictingEquality(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 existing,
-        uint256 newValue
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.conflictingLength(groupIndex, constraintIndex, existing, newValue)
-            : ValidationIssue.conflictingEquality(groupIndex, constraintIndex, existing, newValue);
-    }
-
-    /// @dev Routes to the correct out-of-physical-bounds factory based on domain kind.
-    function _issueOutOfPhysicalBounds(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.outOfPhysicalLengthBounds(groupIndex, constraintIndex, value)
-            : ValidationIssue.outOfPhysicalBounds(groupIndex, constraintIndex, value);
-    }
-
-    /// @dev Routes to the correct impossible-gt factory based on domain kind.
-    function _issueImpossibleGt(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.impossibleLengthGt(groupIndex, constraintIndex, value)
-            : ValidationIssue.impossibleGt(groupIndex, constraintIndex, value);
-    }
-
-    /// @dev Routes to the correct impossible-lt factory based on domain kind.
-    function _issueImpossibleLt(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.impossibleLengthLt(groupIndex, constraintIndex, value)
-            : ValidationIssue.impossibleLt(groupIndex, constraintIndex, value);
-    }
-
-    /// @dev Routes to the correct vacuous-gte factory based on domain kind.
-    function _issueVacuousGte(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.vacuousLengthGte(groupIndex, constraintIndex, value)
-            : ValidationIssue.vacuousGte(groupIndex, constraintIndex, value);
-    }
-
-    /// @dev Routes to the correct vacuous-lte factory based on domain kind.
-    function _issueVacuousLte(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.vacuousLengthLte(groupIndex, constraintIndex, value)
-            : ValidationIssue.vacuousLte(groupIndex, constraintIndex, value);
-    }
-
-    /// @dev Routes to the correct dominated-bound factory based on domain kind.
-    function _issueDominatedBound(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.dominatedLengthBound(groupIndex, constraintIndex, value)
-            : ValidationIssue.dominatedBound(groupIndex, constraintIndex, value);
-    }
-
-    /// @dev Routes to the correct bounds-exclude-equality factory based on domain kind.
-    function _issueBoundsExcludeEquality(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 eqValue,
-        uint256 bound
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.boundsExcludeLength(groupIndex, constraintIndex, eqValue, bound)
-            : ValidationIssue.boundsExcludeEquality(groupIndex, constraintIndex, eqValue, bound);
-    }
-
-    /// @dev Routes to the correct redundant-bound factory based on domain kind.
-    function _issueRedundantBound(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 bound,
-        uint256 eqValue
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.redundantLengthBound(groupIndex, constraintIndex, bound, eqValue)
-            : ValidationIssue.redundantBound(groupIndex, constraintIndex, bound, eqValue);
-    }
-
-    /// @dev Routes to the correct impossible-range factory based on domain kind.
-    function _issueImpossibleRange(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 lower,
-        uint256 upper
-    )
-        private
-        pure
-        returns (Issue memory)
-    {
-        return isLength
-            ? ValidationIssue.impossibleLengthRange(groupIndex, constraintIndex, lower, upper)
-            : ValidationIssue.impossibleRange(groupIndex, constraintIndex, lower, upper);
     }
 
     /*/////////////////////////////////////////////////////////////////////////

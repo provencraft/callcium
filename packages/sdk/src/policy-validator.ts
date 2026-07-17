@@ -14,7 +14,6 @@ import { Descriptor, type TypeInfo } from "./descriptor";
 import { canonicalize, isLeftAligned, isSigned, isLengthOp, isLengthValidType } from "./operators";
 import { parsePathSteps } from "./policy-coder";
 import * as Issues from "./validation-issue";
-import { boundIssues, type BoundIssueSet } from "./validation-issue";
 
 import type { Constraint, Hex, Issue, PolicyData } from "./types";
 
@@ -351,7 +350,7 @@ function updateBound(
   base: number,
   isNegated: boolean,
   value: bigint,
-  emit: BoundIssueSet,
+  isLength: boolean,
   groupIndex: number,
   constraintIndex: number,
   issues: Issue[],
@@ -364,7 +363,7 @@ function updateBound(
   if (isNegated) {
     if (base === Op.EQ) {
       if (domain.hasEq && domain.eq === value) {
-        issues.push(emit.eqNeqContradiction(groupIndex, constraintIndex, bigintToHex(value)));
+        issues.push(Issues.eqNeqContradiction(isLength, groupIndex, constraintIndex, bigintToHex(value)));
       }
       let alreadyHole = false;
       for (let j = 0; j < domain.holes.length; j++) {
@@ -377,25 +376,25 @@ function updateBound(
         domain.holes.push(value);
       }
     } else {
-      updateBound(domain, negateBoundOp(base), false, value, emit, groupIndex, constraintIndex, issues);
+      updateBound(domain, negateBoundOp(base), false, value, isLength, groupIndex, constraintIndex, issues);
     }
     return;
   }
 
   // Vacuity checks.
   if (base === Op.GTE && value === domain.min) {
-    issues.push(emit.vacuousGte(groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(Issues.vacuousGte(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   } else if (base === Op.LTE && value === domain.max) {
-    issues.push(emit.vacuousLte(groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(Issues.vacuousLte(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   }
 
   // Physical bounds and impossibility.
   if (isLt(value, domain.min, domain.isSigned) || isGt(value, domain.max, domain.isSigned)) {
-    issues.push(emit.outOfPhysicalBounds(groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(Issues.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   } else if (base === Op.GT && value === domain.max) {
-    issues.push(emit.impossibleGt(groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(Issues.impossibleGt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   } else if (base === Op.LT && value === domain.min) {
-    issues.push(emit.impossibleLt(groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(Issues.impossibleLt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   }
 
   // Equality handling.
@@ -403,12 +402,14 @@ function updateBound(
     if (!domain.hasEq || domain.eq !== value) changedEq = true;
     if (domain.hasEq) {
       if (domain.eq !== value) {
-        issues.push(emit.conflicting(groupIndex, constraintIndex, bigintToHex(domain.eq), bigintToHex(value)));
+        issues.push(
+          Issues.conflictingEquality(isLength, groupIndex, constraintIndex, bigintToHex(domain.eq), bigintToHex(value)),
+        );
       }
     }
     for (let j = 0; j < domain.holes.length; j++) {
       if (domain.holes[j] === value) {
-        issues.push(emit.eqNeqContradiction(groupIndex, constraintIndex, bigintToHex(value)));
+        issues.push(Issues.eqNeqContradiction(isLength, groupIndex, constraintIndex, bigintToHex(value)));
       }
     }
     domain.hasEq = true;
@@ -433,11 +434,11 @@ function updateBound(
       }
 
       if (redundant) {
-        issues.push(emit.dominated(groupIndex, constraintIndex, bigintToHex(value)));
+        issues.push(Issues.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(value)));
       }
 
       if (strictlyBetter) {
-        issues.push(emit.dominated(groupIndex, constraintIndex, bigintToHex(domain.lower)));
+        issues.push(Issues.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(domain.lower)));
         domain.lower = value;
         domain.lowerInclusive = inclusive;
         changedLower = true;
@@ -468,11 +469,11 @@ function updateBound(
       }
 
       if (redundant) {
-        issues.push(emit.dominated(groupIndex, constraintIndex, bigintToHex(value)));
+        issues.push(Issues.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(value)));
       }
 
       if (strictlyBetter) {
-        issues.push(emit.dominated(groupIndex, constraintIndex, bigintToHex(domain.upper)));
+        issues.push(Issues.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(domain.upper)));
         domain.upper = value;
         domain.upperInclusive = inclusive;
         changedUpper = true;
@@ -493,10 +494,24 @@ function updateBound(
         : isLte(domain.eq, domain.lower, domain.isSigned);
       if (contradiction) {
         issues.push(
-          emit.boundsExcludeEquality(groupIndex, constraintIndex, bigintToHex(domain.eq), bigintToHex(domain.lower)),
+          Issues.boundsExcludeEquality(
+            isLength,
+            groupIndex,
+            constraintIndex,
+            bigintToHex(domain.eq),
+            bigintToHex(domain.lower),
+          ),
         );
       } else {
-        issues.push(emit.redundant(groupIndex, constraintIndex, bigintToHex(domain.lower), bigintToHex(domain.eq)));
+        issues.push(
+          Issues.redundantBound(
+            isLength,
+            groupIndex,
+            constraintIndex,
+            bigintToHex(domain.lower),
+            bigintToHex(domain.eq),
+          ),
+        );
       }
     }
   }
@@ -509,10 +524,24 @@ function updateBound(
         : isGte(domain.eq, domain.upper, domain.isSigned);
       if (contradiction) {
         issues.push(
-          emit.boundsExcludeEquality(groupIndex, constraintIndex, bigintToHex(domain.eq), bigintToHex(domain.upper)),
+          Issues.boundsExcludeEquality(
+            isLength,
+            groupIndex,
+            constraintIndex,
+            bigintToHex(domain.eq),
+            bigintToHex(domain.upper),
+          ),
         );
       } else {
-        issues.push(emit.redundant(groupIndex, constraintIndex, bigintToHex(domain.upper), bigintToHex(domain.eq)));
+        issues.push(
+          Issues.redundantBound(
+            isLength,
+            groupIndex,
+            constraintIndex,
+            bigintToHex(domain.upper),
+            bigintToHex(domain.eq),
+          ),
+        );
       }
     }
   }
@@ -525,7 +554,13 @@ function updateBound(
         (domain.lower === domain.upper && (!domain.lowerInclusive || !domain.upperInclusive));
       if (impossible) {
         issues.push(
-          emit.impossibleRange(groupIndex, constraintIndex, bigintToHex(domain.lower), bigintToHex(domain.upper)),
+          Issues.impossibleRange(
+            isLength,
+            groupIndex,
+            constraintIndex,
+            bigintToHex(domain.lower),
+            bigintToHex(domain.upper),
+          ),
         );
       }
     }
@@ -797,13 +832,13 @@ function validateConstraint(
           // spurious contradiction. Leave it un-analyzed, like a neq hole.
           if (!isNegated) {
             const { low, high } = readPair(opHex);
-            updateBound(ctx.numeric, Op.GTE, false, low, boundIssues(false), groupIndex, constraintIndex, issues);
-            updateBound(ctx.numeric, Op.LTE, false, high, boundIssues(false), groupIndex, constraintIndex, issues);
+            updateBound(ctx.numeric, Op.GTE, false, low, false, groupIndex, constraintIndex, issues);
+            updateBound(ctx.numeric, Op.LTE, false, high, false, groupIndex, constraintIndex, issues);
           }
         } else {
           const value = readValue(opHex);
           const holesBefore = ctx.numeric.holes.length;
-          updateBound(ctx.numeric, base, isNegated, value, boundIssues(false), groupIndex, constraintIndex, issues);
+          updateBound(ctx.numeric, base, isNegated, value, false, groupIndex, constraintIndex, issues);
           if (ctx.numeric.holes.length > holesBefore) {
             checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
           }
@@ -824,21 +859,12 @@ function validateConstraint(
         // Same disjunction reasoning as the negated value-range above.
         if (!isNegated) {
           const { low, high } = readPair(opHex);
-          updateBound(ctx.length, Op.GTE, false, low, boundIssues(true), groupIndex, constraintIndex, issues);
-          updateBound(ctx.length, Op.LTE, false, high, boundIssues(true), groupIndex, constraintIndex, issues);
+          updateBound(ctx.length, Op.GTE, false, low, true, groupIndex, constraintIndex, issues);
+          updateBound(ctx.length, Op.LTE, false, high, true, groupIndex, constraintIndex, issues);
         }
       } else {
         const value = readValue(opHex);
-        updateBound(
-          ctx.length,
-          normalizeLengthOp(base),
-          isNegated,
-          value,
-          boundIssues(true),
-          groupIndex,
-          constraintIndex,
-          issues,
-        );
+        updateBound(ctx.length, normalizeLengthOp(base), isNegated, value, true, groupIndex, constraintIndex, issues);
       }
     }
   }

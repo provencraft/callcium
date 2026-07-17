@@ -76,8 +76,10 @@ library ValidationIssue {
     }
 
     /// @notice Creates an issue for eq(v) and neq(v) on the same path.
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
     function eqNeqContradiction(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 value
@@ -91,16 +93,18 @@ library ValidationIssue {
             category: IssueCategory.Contradiction,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.EQ_NEQ_CONTRADICTION,
+            code: isLength ? IssueCode.LENGTH_EQ_NEQ_CONTRADICTION : IssueCode.EQ_NEQ_CONTRADICTION,
             value1: bytes32(value),
             value2: bytes32(0),
-            message: "eq(v) and neq(v) on same path"
+            message: isLength ? "lengthEq(v) and lengthNeq(v) on same path" : "eq(v) and neq(v) on same path"
         });
     }
 
     /// @notice Creates an issue for multiple eq() operators with different values.
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
     function conflictingEquality(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 existing,
@@ -115,16 +119,20 @@ library ValidationIssue {
             category: IssueCategory.Contradiction,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.CONFLICTING_EQUALITY,
+            code: isLength ? IssueCode.CONFLICTING_LENGTH : IssueCode.CONFLICTING_EQUALITY,
             value1: bytes32(existing),
             value2: bytes32(newValue),
-            message: "Multiple eq() operators with different values"
+            message: isLength
+                ? "Multiple lengthEq() operators with different values"
+                : "Multiple eq() operators with different values"
         });
     }
 
     /// @notice Creates an issue for a value outside the physical range of its type.
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
     function outOfPhysicalBounds(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 value
@@ -138,16 +146,20 @@ library ValidationIssue {
             category: IssueCategory.Contradiction,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.OUT_OF_PHYSICAL_BOUNDS,
+            code: isLength ? IssueCode.OUT_OF_PHYSICAL_LENGTH_BOUNDS : IssueCode.OUT_OF_PHYSICAL_BOUNDS,
             value1: bytes32(value),
             value2: bytes32(0),
-            message: "Value is outside the physical range of the type"
+            message: isLength
+                ? "Length value is outside the physical range"
+                : "Value is outside the physical range of the type"
         });
     }
 
     /// @notice Creates an issue for gt() on the type maximum.
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
     function impossibleGt(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 value
@@ -161,16 +173,18 @@ library ValidationIssue {
             category: IssueCategory.Contradiction,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.IMPOSSIBLE_GT,
+            code: isLength ? IssueCode.IMPOSSIBLE_LENGTH_GT : IssueCode.IMPOSSIBLE_GT,
             value1: bytes32(value),
             value2: bytes32(0),
-            message: "gt() on type maximum is impossible"
+            message: isLength ? "lengthGt() on maximum length is impossible" : "gt() on type maximum is impossible"
         });
     }
 
     /// @notice Creates an issue for lt() on the type minimum.
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
     function impossibleLt(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 value
@@ -184,16 +198,18 @@ library ValidationIssue {
             category: IssueCategory.Contradiction,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.IMPOSSIBLE_LT,
+            code: isLength ? IssueCode.IMPOSSIBLE_LENGTH_LT : IssueCode.IMPOSSIBLE_LT,
             value1: bytes32(value),
             value2: bytes32(0),
-            message: "lt() on type minimum is impossible"
+            message: isLength ? "lengthLt() on minimum length is impossible" : "lt() on type minimum is impossible"
         });
     }
 
     /// @notice Creates an issue when an eq() value is excluded by a bound.
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
     function boundsExcludeEquality(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 eq,
@@ -208,16 +224,18 @@ library ValidationIssue {
             category: IssueCategory.Contradiction,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.BOUNDS_EXCLUDE_EQUALITY,
+            code: isLength ? IssueCode.BOUNDS_EXCLUDE_LENGTH : IssueCode.BOUNDS_EXCLUDE_EQUALITY,
             value1: bytes32(eq),
             value2: bytes32(bound),
-            message: "eq() value is excluded by bound"
+            message: isLength ? "lengthEq() value is excluded by bound" : "eq() value is excluded by bound"
         });
     }
 
     /// @notice Creates an issue when a lower bound exceeds the upper bound.
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
     function impossibleRange(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 lower,
@@ -232,10 +250,10 @@ library ValidationIssue {
             category: IssueCategory.Contradiction,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.IMPOSSIBLE_RANGE,
+            code: isLength ? IssueCode.IMPOSSIBLE_LENGTH_RANGE : IssueCode.IMPOSSIBLE_RANGE,
             value1: bytes32(lower),
             value2: bytes32(upper),
-            message: "Lower bound exceeds upper bound"
+            message: isLength ? "Lower length bound exceeds upper bound" : "Lower bound exceeds upper bound"
         });
     }
 
@@ -292,170 +310,6 @@ library ValidationIssue {
         });
     }
 
-    /// @notice Creates an issue for lengthEq(v) and lengthNeq(v) on the same path.
-    /// @return The constructed validation issue.
-    function lengthEqNeqContradiction(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.LENGTH_EQ_NEQ_CONTRADICTION,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: "lengthEq(v) and lengthNeq(v) on same path"
-        });
-    }
-
-    /// @notice Creates an issue for multiple lengthEq() operators with different values.
-    /// @return The constructed validation issue.
-    function conflictingLength(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 existing,
-        uint256 newValue
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.CONFLICTING_LENGTH,
-            value1: bytes32(existing),
-            value2: bytes32(newValue),
-            message: "Multiple lengthEq() operators with different values"
-        });
-    }
-
-    /// @notice Creates an issue when a lengthEq() value is excluded by a bound.
-    /// @return The constructed validation issue.
-    function boundsExcludeLength(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 eq,
-        uint256 bound
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.BOUNDS_EXCLUDE_LENGTH,
-            value1: bytes32(eq),
-            value2: bytes32(bound),
-            message: "lengthEq() value is excluded by bound"
-        });
-    }
-
-    /// @notice Creates an issue when a lower length bound exceeds the upper bound.
-    /// @return The constructed validation issue.
-    function impossibleLengthRange(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 lower,
-        uint256 upper
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.IMPOSSIBLE_LENGTH_RANGE,
-            value1: bytes32(lower),
-            value2: bytes32(upper),
-            message: "Lower length bound exceeds upper bound"
-        });
-    }
-
-    /// @notice Creates an issue for a length value outside the physical range.
-    /// @return The constructed validation issue.
-    function outOfPhysicalLengthBounds(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.OUT_OF_PHYSICAL_LENGTH_BOUNDS,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: "Length value is outside the physical range"
-        });
-    }
-
-    /// @notice Creates an issue for lengthGt() on the maximum length.
-    /// @return The constructed validation issue.
-    function impossibleLengthGt(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.IMPOSSIBLE_LENGTH_GT,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: "lengthGt() on maximum length is impossible"
-        });
-    }
-
-    /// @notice Creates an issue for lengthLt(0) which is impossible.
-    /// @return The constructed validation issue.
-    function impossibleLengthLt(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.IMPOSSIBLE_LENGTH_LT,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: "lengthLt() on minimum length is impossible"
-        });
-    }
-
     /// @notice Creates an issue for conflicting bitmask operators.
     /// @return The constructed validation issue.
     function bitmaskContradiction(
@@ -505,8 +359,10 @@ library ValidationIssue {
     }
 
     /// @notice Creates a warning for a numeric bound dominated by a stricter bound.
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
     function dominatedBound(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 value
@@ -520,16 +376,20 @@ library ValidationIssue {
             category: IssueCategory.Redundancy,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.DOMINATED_BOUND,
+            code: isLength ? IssueCode.DOMINATED_LENGTH_BOUND : IssueCode.DOMINATED_BOUND,
             value1: bytes32(value),
             value2: bytes32(0),
-            message: "Numeric bound is dominated by a stricter bound"
+            message: isLength
+                ? "Length bound is dominated by a stricter bound"
+                : "Numeric bound is dominated by a stricter bound"
         });
     }
 
     /// @notice Creates a warning for a bound that is redundant because eq() is set.
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
     function redundantBound(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 bound,
@@ -544,10 +404,12 @@ library ValidationIssue {
             category: IssueCategory.Redundancy,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.REDUNDANT_BOUND,
+            code: isLength ? IssueCode.REDUNDANT_LENGTH_BOUND : IssueCode.REDUNDANT_BOUND,
             value1: bytes32(bound),
             value2: bytes32(eq),
-            message: "Bound is redundant because eq() is set"
+            message: isLength
+                ? "Length bound is redundant because lengthEq() is set"
+                : "Bound is redundant because eq() is set"
         });
     }
 
@@ -650,53 +512,6 @@ library ValidationIssue {
         });
     }
 
-    /// @notice Creates a warning for a length bound dominated by a stricter bound.
-    /// @return The constructed validation issue.
-    function dominatedLengthBound(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.DOMINATED_LENGTH_BOUND,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: "Length bound is dominated by a stricter bound"
-        });
-    }
-
-    /// @notice Creates a warning for a length bound that is redundant because lengthEq() is set.
-    /// @return The constructed validation issue.
-    function redundantLengthBound(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 bound,
-        uint256 eq
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.REDUNDANT_LENGTH_BOUND,
-            value1: bytes32(bound),
-            value2: bytes32(eq),
-            message: "Length bound is redundant because lengthEq() is set"
-        });
-    }
-
     /// @notice Creates a warning for a redundant bitmask operation.
     /// @return The constructed validation issue.
     function redundantBitmask(
@@ -737,38 +552,35 @@ library ValidationIssue {
     }
 
     /// @notice Creates an info issue for gte() on the type minimum (always true).
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
-    function vacuousGte(uint32 groupIndex, uint32 constraintIndex, uint256 value) internal pure returns (Issue memory) {
+    function vacuousGte(
+        bool isLength,
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        uint256 value
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
         return Issue({
             severity: IssueSeverity.Info,
             category: IssueCategory.Vacuity,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.VACUOUS_GTE,
+            code: isLength ? IssueCode.VACUOUS_LENGTH_GTE : IssueCode.VACUOUS_GTE,
             value1: bytes32(value),
             value2: bytes32(0),
-            message: "gte() bound equals type minimum (always true)"
+            message: isLength ? "lengthGte(0) is always true" : "gte() bound equals type minimum (always true)"
         });
     }
 
     /// @notice Creates an info issue for lte() on the type maximum (always true).
+    /// @param isLength True to report the length-domain variant of this issue.
     /// @return The constructed validation issue.
-    function vacuousLte(uint32 groupIndex, uint32 constraintIndex, uint256 value) internal pure returns (Issue memory) {
-        return Issue({
-            severity: IssueSeverity.Info,
-            category: IssueCategory.Vacuity,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.VACUOUS_LTE,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: "lte() bound equals type maximum (always true)"
-        });
-    }
-
-    /// @notice Creates an info issue for lengthGte(0) which is always true.
-    /// @return The constructed validation issue.
-    function vacuousLengthGte(
+    function vacuousLte(
+        bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
         uint256 value
@@ -782,33 +594,12 @@ library ValidationIssue {
             category: IssueCategory.Vacuity,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,
-            code: IssueCode.VACUOUS_LENGTH_GTE,
+            code: isLength ? IssueCode.VACUOUS_LENGTH_LTE : IssueCode.VACUOUS_LTE,
             value1: bytes32(value),
             value2: bytes32(0),
-            message: "lengthGte(0) is always true"
-        });
-    }
-
-    /// @notice Creates an info issue for lengthLte() on the maximum (always true).
-    /// @return The constructed validation issue.
-    function vacuousLengthLte(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Info,
-            category: IssueCategory.Vacuity,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.VACUOUS_LENGTH_LTE,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: "lengthLte() bound equals maximum (always true)"
+            message: isLength
+                ? "lengthLte() bound equals maximum (always true)"
+                : "lte() bound equals type maximum (always true)"
         });
     }
 
