@@ -208,6 +208,45 @@ contract BitmaskOnInvalidTest is PolicyValidatorTest {
     }
 }
 
+contract NonCanonicalOperandTest is PolicyValidatorTest {
+    function test_RightAlignedBytes4Operand_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytesN_(4)).build();
+
+        // A right-aligned word for a left-aligned type can never match a canonical value.
+        Constraint memory c = arg(0).eq(bytes32(uint256(0x11223344)));
+
+        PolicyData memory data = _createPolicyData("foo(bytes4)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues[0].code, IssueCode.NON_CANONICAL_OPERAND);
+    }
+
+    function test_LeftAlignedBytes4Operand_NoError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytesN_(4)).build();
+
+        Constraint memory c = arg(0).eq(bytes32(bytes4(0x11223344)));
+
+        PolicyData memory data = _createPolicyData("foo(bytes4)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 0);
+    }
+
+    function test_RightAlignedInMember_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytesN_(4)).build();
+
+        bytes32[] memory set = new bytes32[](2);
+        set[0] = bytes32(uint256(0x11223344));
+        set[1] = bytes32(bytes4(0x11223344));
+        Constraint memory c = arg(0).isIn(set);
+
+        PolicyData memory data = _createPolicyData("foo(bytes4)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues[0].code, IssueCode.NON_CANONICAL_OPERAND);
+    }
+}
+
 contract ValidPolicyTest is PolicyValidatorTest {
     function test_ValidEqOnUint256_NoIssues() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();

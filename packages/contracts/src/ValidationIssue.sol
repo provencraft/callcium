@@ -906,4 +906,28 @@ library ValidationIssue {
             message: "Negated operator under any() passes when a decoy element differs"
         });
     }
+
+    /// @notice Creates an issue for an operand that is not canonically encoded for the declared type.
+    /// @return The constructed validation issue.
+    function nonCanonicalOperand(
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        bytes32 operand,
+        bytes32 canonical
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return Issue({
+            severity: IssueSeverity.Error,
+            category: IssueCategory.TypeMismatch,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: IssueCode.NON_CANONICAL_OPERAND,
+            value1: operand,
+            value2: canonical,
+            message: "Operand is not the canonical encoding for the declared type"
+        });
+    }
 }

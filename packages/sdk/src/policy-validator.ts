@@ -10,7 +10,7 @@ import {
   TypeCode,
 } from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
-import { isSigned, isLengthOp, isLengthValidType } from "./operators";
+import { canonicalize, isLeftAligned, isSigned, isLengthOp, isLengthValidType } from "./operators";
 import { parsePathSteps } from "./policy-coder";
 import * as Issues from "./validation-issue";
 import { boundIssues, type BoundIssueSet } from "./validation-issue";
@@ -228,6 +228,17 @@ export function isOpAllowed(opCode: number, typeInfo: TypeInfo): boolean {
 /** Read a single uint256 from operator hex (bytes after the opcode byte). */
 function readValue(opHex: Hex): bigint {
   return BigInt(`0x${opHex.slice(4)}`);
+}
+
+/** First payload word deviating from the canonical encoding for the type, with its canonical form, or null. */
+function findNonCanonicalWord(opHex: Hex, typeCode: number): { word: bigint; canonical: bigint } | null {
+  const body = opHex.slice(4);
+  for (let i = 0; i + 64 <= body.length; i += 64) {
+    const word = BigInt(`0x${body.slice(i, i + 64)}`);
+    const canonical = canonicalize(word, typeCode);
+    if (canonical !== word) return { word, canonical };
+  }
+  return null;
 }
 
 /** Read a pair of uint256 values from a BETWEEN operator. */
@@ -743,6 +754,26 @@ function validateConstraint(
     }
 
     if (isValueOp(base)) {
+      // A non-canonical operand can never equal a canonicalized runtime value (PC-1, spec
+      // section 4.5), so the rule is unsatisfiable or vacuous; skip analyzing the garbage
+      // word. Scoped to the left-aligned types: numeric, address, and bool operands are
+      // already covered by the physical domain limits.
+      const typeCode = ctx.typeInfo.typeCode;
+      if (isLeftAligned(typeCode)) {
+        const nonCanonical = findNonCanonicalWord(opHex, typeCode);
+        if (nonCanonical !== null) {
+          issues.push(
+            Issues.nonCanonicalOperand(
+              groupIndex,
+              constraintIndex,
+              bigintToHex(nonCanonical.word),
+              bigintToHex(nonCanonical.canonical),
+            ),
+          );
+          continue;
+        }
+      }
+
       if (base >= Op.EQ && base <= Op.BETWEEN) {
         if (base === Op.BETWEEN) {
           // A negated range is a disjunction (value < low OR value > high); distributing the

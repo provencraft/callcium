@@ -254,6 +254,20 @@ library PolicyValidator {
 
             // Domain updates (contradiction, redundancy, and vacuity detection).
             if (OpRule.isValueOp(base)) {
+                // A non-canonical operand can never equal a canonicalized runtime value (PC-1, spec section 4.5),
+                // so the rule is unsatisfiable or vacuous; skip analyzing the garbage word.
+                // Scoped to the left-aligned types: numeric, address, and bool operands
+                // are already covered by the physical domain limits.
+                uint8 typeCode = ctx.typeInfo.code;
+                if (TypeRule.isLeftAligned(typeCode)) {
+                    (bool nonCanonical, bytes32 word, bytes32 canonical) = _findNonCanonicalWord(op, typeCode);
+                    if (nonCanonical) {
+                        issues[issueCount++] =
+                            ValidationIssue.nonCanonicalOperand(groupIndex, constraintIndex, word, canonical);
+                        continue;
+                    }
+                }
+
                 if (base >= OpCode.EQ && base <= OpCode.BETWEEN) {
                     if (base == OpCode.BETWEEN) {
                         // A negated range is a disjunction (value < low OR value > high); the
@@ -895,6 +909,23 @@ library PolicyValidator {
         assembly {
             low := mload(add(op, 33))
             high := mload(add(op, 65))
+        }
+    }
+
+    /// @dev Scans the operator's 32-byte payload words for one that deviates from the
+    /// canonical encoding of the declared type. Trailing partial words are not scanned.
+    function _findNonCanonicalWord(
+        bytes memory op,
+        uint8 typeCode
+    )
+        private
+        pure
+        returns (bool nonCanonical, bytes32 word, bytes32 canonical)
+    {
+        for (uint256 offset = 1; offset + 32 <= op.length; offset += 32) {
+            bytes32 candidate = LibBytes.load(op, offset);
+            bytes32 canonicalized = TypeRule.canonicalize(candidate, typeCode);
+            if (canonicalized != candidate) return (true, candidate, canonicalized);
         }
     }
 

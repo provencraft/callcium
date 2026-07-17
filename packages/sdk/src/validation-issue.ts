@@ -39,6 +39,20 @@ export function fromOpRule(
   return makeIssue("error", "typeMismatch", groupIndex, constraintIndex, code, opCode, ZERO, message);
 }
 
+/** Issue for an operand that is not canonically encoded for the declared type. */
+export function nonCanonicalOperand(groupIndex: number, constraintIndex: number, operand: Hex, canonical: Hex): Issue {
+  return makeIssue(
+    "error",
+    "typeMismatch",
+    groupIndex,
+    constraintIndex,
+    "NON_CANONICAL_OPERAND",
+    operand,
+    canonical,
+    "Operand is not the canonical encoding for the declared type",
+  );
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Contradiction
 ///////////////////////////////////////////////////////////////////////////

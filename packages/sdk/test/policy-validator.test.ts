@@ -126,6 +126,25 @@ describe("PolicyValidator - type compatibility", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
+// Canonical Operands
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyValidator - canonical operands", () => {
+  test("reports NON_CANONICAL_OPERAND for right-aligned bytes4 operand", () => {
+    // A right-aligned word for a left-aligned type can never match a canonical value.
+    const issues = PolicyValidator.validate(rawPolicy("bytes4", Scope.CALLDATA, "0x0000", [op(Op.EQ, 0x11223344n)]));
+    expect(findIssue(issues, "NON_CANONICAL_OPERAND")).toBeDefined();
+  });
+
+  test("accepts left-aligned bytes4 operand", () => {
+    const issues = PolicyValidator.validate(
+      rawPolicy("bytes4", Scope.CALLDATA, "0x0000", [op(Op.EQ, 0x11223344n << 224n)]),
+    );
+    expect(issues).toHaveLength(0);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
 // Bound Contradictions
 ///////////////////////////////////////////////////////////////////////////
 

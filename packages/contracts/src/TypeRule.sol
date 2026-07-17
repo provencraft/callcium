@@ -50,6 +50,14 @@ library TypeRule {
         return code >= TypeCode.INT8 && code <= TypeCode.INT256;
     }
 
+    /// @notice Returns true if `code` is a left-aligned type (fixed bytes or function),
+    /// whose value occupies the high bytes of the word with zero padding below.
+    /// @param code The code to test.
+    /// @return True if the code is a left-aligned type.
+    function isLeftAligned(uint8 code) internal pure returns (bool) {
+        return (code >= TypeCode.BYTES1 && code <= TypeCode.BYTES32) || code == TypeCode.FUNCTION;
+    }
+
     /// @notice Canonicalizes a raw 32-byte calldata word to its ABI value for the given type.
     /// @dev A scalar loaded from untrusted calldata may carry dirty bits outside the declared
     /// type width. Masking unsigned/address/bool to width, clearing the trailing padding of

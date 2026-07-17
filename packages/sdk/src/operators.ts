@@ -18,6 +18,16 @@ export function isSigned(typeCode: number): boolean {
 }
 
 /**
+ * Return true when the type code represents a left-aligned type (fixed bytes or function),
+ * whose value occupies the high bytes of the word with zero padding below.
+ */
+export function isLeftAligned(typeCode: number): boolean {
+  return (
+    (typeCode >= TypeCode.FIXED_BYTES_MIN && typeCode <= TypeCode.FIXED_BYTES_MAX) || typeCode === TypeCode.FUNCTION
+  );
+}
+
+/**
  * Canonicalize a raw 256-bit calldata word to its ABI value for the declared type (Policy Spec §7.8).
  * A scalar loaded from untrusted calldata may carry bits outside the declared width; masking
  * unsigned/address/bool/function/bytesN to width and sign-extending signed integers makes the

@@ -22,6 +22,8 @@ library IssueCode {
     bytes32 internal constant LENGTH_ON_STATIC = "LENGTH_ON_STATIC";
     /// Unrecognised operator code.
     bytes32 internal constant UNKNOWN_OPERATOR = "UNKNOWN_OPERATOR";
+    /// Operand word is not the canonical encoding for the declared type.
+    bytes32 internal constant NON_CANONICAL_OPERAND = "NON_CANONICAL_OPERAND";
 
     /*/////////////////////////////////////////////////////////////////////////
                                   CONTRADICTION
