@@ -272,8 +272,9 @@ library DescriptorBuilder {
             unchecked {
                 result = result * 10 + (uint8(char) - 48);
             }
-            // No parsed value is meaningful above the array-length bound; rejecting each
-            // iteration keeps the unchecked accumulation wrap-free for any input length.
+            // No caller consumes a value wider than the uint16 array-length downcast; rejecting
+            // above it each iteration keeps the unchecked accumulation wrap-free for any input
+            // length. Domain-specific limits stay with the callers, which produce typed errors.
             require(result <= type(uint16).max, MalformedTypeString());
         }
     }
