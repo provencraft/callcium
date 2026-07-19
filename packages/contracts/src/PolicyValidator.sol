@@ -932,6 +932,7 @@ library PolicyValidator {
             for (uint256 j = i + 1; j < operatorCount; ++j) {
                 if (LibBytes.eq(operators[i], operators[j])) {
                     issues[issueCount++] = ValidationIssue.duplicateConstraint(groupIndex, constraintIndex);
+                    return issueCount;
                 }
             }
         }
