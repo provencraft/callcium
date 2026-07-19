@@ -10,7 +10,7 @@
     },
     "packages/contracts": {
       "name": "@callcium/contracts",
-      "version": "0.1.0",
+      "version": "0.4.0",
     },
     "packages/docs": {
       "name": "@callcium/docs",
@@ -19,6 +19,7 @@
         "@icons-pack/react-simple-icons": "13.13.0",
         "@orama/orama": "3.1.18",
         "@radix-ui/react-select": "2.2.6",
+        "clsx": "2.1.1",
         "fumadocs-core": "16.8.2",
         "fumadocs-mdx": "14.3.1",
         "fumadocs-typescript": "5.2.6",
@@ -54,7 +55,7 @@
     },
     "packages/sdk": {
       "name": "@callcium/sdk",
-      "version": "0.1.0",
+      "version": "0.4.0",
       "dependencies": {
         "@noble/hashes": "1.8.0",
       },
