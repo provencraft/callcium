@@ -104,12 +104,8 @@ function readStep(pathBytes: Uint8Array, stepIndex: number): number {
 // Single-step descent
 ///////////////////////////////////////////////////////////////////////////
 
-type DescendResult =
-  | { type: "ok"; head: number; base: number; node: DescNode }
-  | { type: "violation"; code: NavigationViolationCode };
-
 /** Navigate one path step through a node (tuple field, array element, or quantifier). */
-function descend(node: DescNode, callData: Uint8Array, head: number, base: number, childIndex: number): DescendResult {
+function descend(node: DescNode, callData: Uint8Array, head: number, base: number, childIndex: number): LocationResult {
   if (node.type === "tuple") {
     return descendTuple(node, callData, head, base, childIndex);
   }
@@ -129,7 +125,7 @@ function descendTuple(
   head: number,
   base: number,
   childIndex: number,
-): DescendResult {
+): LocationResult {
   if (childIndex >= node.fields.length) {
     throw new CallciumError(
       "INVALID_PATH",
@@ -142,7 +138,7 @@ function descendTuple(
 
   if (node.isDynamic) {
     const ptrResult = readPointer(callData, head);
-    if (typeof ptrResult !== "number") return { type: "violation", code: ptrResult.code };
+    if (typeof ptrResult !== "number") return { ok: false, code: ptrResult.code };
     tupleBase = base + ptrResult;
     cursor = tupleBase;
   } else {
@@ -155,10 +151,8 @@ function descendTuple(
   }
 
   return {
-    type: "ok",
-    head: cursor,
-    base: tupleBase,
-    node: node.fields[childIndex]!,
+    ok: true,
+    location: { head: cursor, base: tupleBase, node: node.fields[childIndex]! },
   };
 }
 
@@ -169,34 +163,27 @@ function descendDynamicArray(
   head: number,
   base: number,
   childIndex: number,
-): DescendResult {
+): LocationResult {
   const arrayBaseResult = readPointer(callData, head);
-  if (typeof arrayBaseResult !== "number") return { type: "violation", code: arrayBaseResult.code };
+  if (typeof arrayBaseResult !== "number") return { ok: false, code: arrayBaseResult.code };
   const arrayBase = base + arrayBaseResult;
 
   const lengthResult = readPointer(callData, arrayBase);
-  if (typeof lengthResult !== "number") return { type: "violation", code: lengthResult.code };
+  if (typeof lengthResult !== "number") return { ok: false, code: lengthResult.code };
 
   if (childIndex >= lengthResult) {
-    return { type: "violation", code: "ARRAY_INDEX_OUT_OF_BOUNDS" };
+    return { ok: false, code: "ARRAY_INDEX_OUT_OF_BOUNDS" };
   }
 
   const headsBase = arrayBase + 32;
   const elem = node.element;
 
   if (elem.isDynamic) {
-    return {
-      type: "ok",
-      head: headsBase + childIndex * 32,
-      base: headsBase,
-      node: elem,
-    };
+    return { ok: true, location: { head: headsBase + childIndex * 32, base: headsBase, node: elem } };
   }
   return {
-    type: "ok",
-    head: headsBase + childIndex * elem.staticSize,
-    base: arrayBase,
-    node: elem,
+    ok: true,
+    location: { head: headsBase + childIndex * elem.staticSize, base: arrayBase, node: elem },
   };
 }
 
@@ -207,7 +194,7 @@ function descendStaticArray(
   head: number,
   base: number,
   childIndex: number,
-): DescendResult {
+): LocationResult {
   if (childIndex >= node.length) {
     throw new CallciumError("INVALID_PATH", `Static array index ${childIndex} out of range (length ${node.length}).`);
   }
@@ -216,20 +203,13 @@ function descendStaticArray(
 
   if (elem.isDynamic) {
     const ptrResult = readPointer(callData, head);
-    if (typeof ptrResult !== "number") return { type: "violation", code: ptrResult.code };
+    if (typeof ptrResult !== "number") return { ok: false, code: ptrResult.code };
     const arrayBase = base + ptrResult;
-    return {
-      type: "ok",
-      head: arrayBase + childIndex * 32,
-      base: arrayBase,
-      node: elem,
-    };
+    return { ok: true, location: { head: arrayBase + childIndex * 32, base: arrayBase, node: elem } };
   }
   return {
-    type: "ok",
-    head: head + childIndex * elem.staticSize,
-    base,
-    node: elem,
+    ok: true,
+    location: { head: head + childIndex * elem.staticSize, base, node: elem },
   };
 }
 
@@ -294,13 +274,45 @@ export function locate(
     }
 
     const result = descend(node, callData, head, base, step);
-    if (result.type === "violation") return { ok: false, code: result.code };
-    head = result.head;
-    base = result.base;
-    node = result.node;
+    if (!result.ok) return { ok: false, code: result.code };
+    head = result.location.head;
+    base = result.location.base;
+    node = result.location.node;
   }
 
   return { ok: true, type: "leaf", location: { head, base, node } };
+}
+
+/**
+ * Build the element-shape fields shared by dynamic- and static-array nodes, branching only on
+ * whether the element itself is dynamic.
+ */
+function makeArrayShape(
+  length: number,
+  elem: DescNode,
+  dynamicHeadsBase: number,
+  staticDataOffset: number,
+  staticCompositeBase: number,
+): ArrayShape {
+  return elem.isDynamic
+    ? {
+        length,
+        elementNode: elem,
+        elementIsDynamic: true,
+        elementStaticSize: 0,
+        headsBase: dynamicHeadsBase,
+        dataOffset: 0,
+        compositeBase: dynamicHeadsBase,
+      }
+    : {
+        length,
+        elementNode: elem,
+        elementIsDynamic: false,
+        elementStaticSize: elem.staticSize,
+        headsBase: 0,
+        dataOffset: staticDataOffset,
+        compositeBase: staticCompositeBase,
+      };
 }
 
 /** Extract array shape from a location pointing to an array node. */
@@ -315,69 +327,19 @@ export function arrayShape(callData: Uint8Array, location: Location): ArrayShape
     const lengthResult = readPointer(callData, arrayBase);
     if (typeof lengthResult !== "number") return { ok: false, code: lengthResult.code };
 
-    const elem = node.element;
     const headsBase = arrayBase + 32;
-
-    if (elem.isDynamic) {
-      return {
-        ok: true,
-        shape: {
-          length: lengthResult,
-          elementNode: elem,
-          elementIsDynamic: true,
-          elementStaticSize: 0,
-          headsBase,
-          dataOffset: 0,
-          compositeBase: headsBase,
-        },
-      };
-    }
-    return {
-      ok: true,
-      shape: {
-        length: lengthResult,
-        elementNode: elem,
-        elementIsDynamic: false,
-        elementStaticSize: elem.staticSize,
-        headsBase: 0,
-        dataOffset: headsBase,
-        compositeBase: arrayBase,
-      },
-    };
+    return { ok: true, shape: makeArrayShape(lengthResult, node.element, headsBase, headsBase, arrayBase) };
   }
 
   if (node.type === "staticArray") {
     const elem = node.element;
-
+    let dynamicHeadsBase = 0;
     if (elem.isDynamic) {
       const arrayBaseResult = readPointer(callData, head);
       if (typeof arrayBaseResult !== "number") return { ok: false, code: arrayBaseResult.code };
-      const arrayBase = base + arrayBaseResult;
-      return {
-        ok: true,
-        shape: {
-          length: node.length,
-          elementNode: elem,
-          elementIsDynamic: true,
-          elementStaticSize: 0,
-          headsBase: arrayBase,
-          dataOffset: 0,
-          compositeBase: arrayBase,
-        },
-      };
+      dynamicHeadsBase = base + arrayBaseResult;
     }
-    return {
-      ok: true,
-      shape: {
-        length: node.length,
-        elementNode: elem,
-        elementIsDynamic: false,
-        elementStaticSize: elem.staticSize,
-        headsBase: 0,
-        dataOffset: head,
-        compositeBase: base,
-      },
-    };
+    return { ok: true, shape: makeArrayShape(node.length, elem, dynamicHeadsBase, head, base) };
   }
 
   throw new CallciumError("INVALID_PATH", `Cannot compute array shape for non-array node (${node.type}).`);
@@ -449,10 +411,10 @@ export function descendPath(callData: Uint8Array, location: Location, pathBytes:
   for (let stepIndex = 0; stepIndex < stepCount; stepIndex++) {
     const step = readStep(pathBytes, stepIndex);
     const result = descend(node, callData, head, base, step);
-    if (result.type === "violation") return { ok: false, code: result.code };
-    head = result.head;
-    base = result.base;
-    node = result.node;
+    if (!result.ok) return { ok: false, code: result.code };
+    head = result.location.head;
+    base = result.location.base;
+    node = result.location.node;
   }
 
   return { ok: true, location: { head, base, node } };

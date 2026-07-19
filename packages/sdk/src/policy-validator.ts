@@ -86,29 +86,11 @@ const INT256_SIGN_BIT = 1n << 255n;
 // Signed-aware comparisons
 ///////////////////////////////////////////////////////////////////////////
 
-/** Reinterpret a uint256 bigint as a signed int256. */
-function toSigned(v: bigint): bigint {
-  return v >= INT256_SIGN_BIT ? v - (1n << 256n) : v;
-}
-
-/** a > b. */
-function isGt(a: bigint, b: bigint, signed: boolean): boolean {
-  return signed ? toSigned(a) > toSigned(b) : a > b;
-}
-
-/** a >= b. */
-function isGte(a: bigint, b: bigint, signed: boolean): boolean {
-  return signed ? toSigned(a) >= toSigned(b) : a >= b;
-}
-
-/** a < b. */
-function isLt(a: bigint, b: bigint, signed: boolean): boolean {
-  return signed ? toSigned(a) < toSigned(b) : a < b;
-}
-
-/** a <= b. */
-function isLte(a: bigint, b: bigint, signed: boolean): boolean {
-  return signed ? toSigned(a) <= toSigned(b) : a <= b;
+/** Signed-aware difference of two raw uint256 values: negative if a<b, zero if equal, positive if a>b. */
+function signedCompare(a: bigint, b: bigint, signed: boolean): bigint {
+  if (!signed) return a - b;
+  const toS = (v: bigint) => (v >= INT256_SIGN_BIT ? v - (1n << 256n) : v);
+  return toS(a) - toS(b);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -202,17 +184,6 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: string; messag
   return { code: "UNKNOWN_OPERATOR", message: "Unknown operator code" };
 }
 
-/** Check operator–type compatibility and return an issue descriptor on mismatch. */
-function checkCompatibility(
-  opBase: number,
-  typeCode: number,
-  isDynamic: boolean,
-  staticSize: number,
-): { compatible: boolean; code: string; message: string } {
-  const incompat = getIncompat(opBase, { typeCode, isDynamic, staticSize });
-  return incompat ? { compatible: false, ...incompat } : { compatible: true, code: "", message: "" };
-}
-
 /**
  * True if operator `opCode` is allowed on a target with the given type info.
  * Tolerates the NOT flag on `opCode`.
@@ -296,6 +267,24 @@ function negateBoundOp(base: number): number {
 // Context initialization
 ///////////////////////////////////////////////////////////////////////////
 
+/** Fresh bound domain with no constraints recorded yet. */
+function emptyBoundDomain(boundIsSigned: boolean, min: bigint, max: bigint): BoundDomain {
+  return {
+    isSigned: boundIsSigned,
+    min,
+    max,
+    hasEq: false,
+    eq: 0n,
+    hasLower: false,
+    lower: 0n,
+    lowerInclusive: false,
+    hasUpper: false,
+    upper: 0n,
+    upperInclusive: false,
+    holes: [],
+  };
+}
+
 /** Create a fresh constraint context with domain limits from the type. */
 function initContext(scope: number, path: Hex, typeInfo: TypeInfo): ConstraintContext {
   const { min, max } = getDomainLimits(typeInfo.typeCode);
@@ -303,35 +292,9 @@ function initContext(scope: number, path: Hex, typeInfo: TypeInfo): ConstraintCo
     scope,
     path,
     typeInfo,
-    numeric: {
-      isSigned: isSigned(typeInfo.typeCode),
-      min,
-      max,
-      hasEq: false,
-      eq: 0n,
-      hasLower: false,
-      lower: 0n,
-      lowerInclusive: false,
-      hasUpper: false,
-      upper: 0n,
-      upperInclusive: false,
-      holes: [],
-    },
+    numeric: emptyBoundDomain(isSigned(typeInfo.typeCode), min, max),
     bitmask: { mustBeOne: 0n, mustBeZero: 0n },
-    length: {
-      isSigned: false,
-      min: 0n,
-      max: LENGTH_MAX,
-      hasEq: false,
-      eq: 0n,
-      hasLower: false,
-      lower: 0n,
-      lowerInclusive: false,
-      hasUpper: false,
-      upper: 0n,
-      upperInclusive: false,
-      holes: [],
-    },
+    length: emptyBoundDomain(false, 0n, LENGTH_MAX),
     set: {
       hasIn: false,
       inValues: [],
@@ -389,7 +352,10 @@ function updateBound(
   }
 
   // Physical bounds and impossibility.
-  if (isLt(value, domain.min, domain.isSigned) || isGt(value, domain.max, domain.isSigned)) {
+  if (
+    signedCompare(value, domain.min, domain.isSigned) < 0n ||
+    signedCompare(value, domain.max, domain.isSigned) > 0n
+  ) {
     issues.push(Issues.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   } else if (base === Op.GT && value === domain.max) {
     issues.push(Issues.impossibleGt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
@@ -420,7 +386,7 @@ function updateBound(
       let redundant = false;
       let strictlyBetter = false;
 
-      if (isLt(value, domain.lower, domain.isSigned)) {
+      if (signedCompare(value, domain.lower, domain.isSigned) < 0n) {
         redundant = true;
       } else if (value === domain.lower) {
         if (domain.lowerInclusive) {
@@ -455,7 +421,7 @@ function updateBound(
       let redundant = false;
       let strictlyBetter = false;
 
-      if (isGt(value, domain.upper, domain.isSigned)) {
+      if (signedCompare(value, domain.upper, domain.isSigned) > 0n) {
         redundant = true;
       } else if (value === domain.upper) {
         if (domain.upperInclusive) {
@@ -490,8 +456,8 @@ function updateBound(
   if (changedEq || changedLower) {
     if (domain.hasEq && domain.hasLower) {
       const contradiction = domain.lowerInclusive
-        ? isLt(domain.eq, domain.lower, domain.isSigned)
-        : isLte(domain.eq, domain.lower, domain.isSigned);
+        ? signedCompare(domain.eq, domain.lower, domain.isSigned) < 0n
+        : signedCompare(domain.eq, domain.lower, domain.isSigned) <= 0n;
       if (contradiction) {
         issues.push(
           Issues.boundsExcludeEquality(
@@ -520,8 +486,8 @@ function updateBound(
   if (changedEq || changedUpper) {
     if (domain.hasEq && domain.hasUpper) {
       const contradiction = domain.upperInclusive
-        ? isGt(domain.eq, domain.upper, domain.isSigned)
-        : isGte(domain.eq, domain.upper, domain.isSigned);
+        ? signedCompare(domain.eq, domain.upper, domain.isSigned) > 0n
+        : signedCompare(domain.eq, domain.upper, domain.isSigned) >= 0n;
       if (contradiction) {
         issues.push(
           Issues.boundsExcludeEquality(
@@ -550,7 +516,7 @@ function updateBound(
   if (changedLower || changedUpper) {
     if (domain.hasLower && domain.hasUpper) {
       const impossible =
-        isGt(domain.lower, domain.upper, domain.isSigned) ||
+        signedCompare(domain.lower, domain.upper, domain.isSigned) > 0n ||
         (domain.lower === domain.upper && (!domain.lowerInclusive || !domain.upperInclusive));
       if (impossible) {
         issues.push(
@@ -796,10 +762,10 @@ function validateConstraint(
       issues.push(Issues.negationUnderAny(groupIndex, constraintIndex, bigintToHex(BigInt(opCode))));
     }
 
-    const compat = checkCompatibility(base, ctx.typeInfo.typeCode, ctx.typeInfo.isDynamic, ctx.typeInfo.staticSize);
-    if (!compat.compatible) {
+    const incompat = getIncompat(base, ctx.typeInfo);
+    if (incompat) {
       issues.push(
-        Issues.fromOpRule(compat.code, compat.message, groupIndex, constraintIndex, bigintToHex(BigInt(opCode))),
+        Issues.fromOpRule(incompat.code, incompat.message, groupIndex, constraintIndex, bigintToHex(BigInt(opCode))),
       );
       continue;
     }
