@@ -75,6 +75,16 @@ export function isLengthOp(opCode: number): boolean {
   return base >= Op.LENGTH_EQ && base <= Op.LENGTH_BETWEEN;
 }
 
+/** Map a LENGTH_* opcode base to its core value-comparison twin. */
+function lengthToValueOp(base: number): number {
+  if (base === Op.LENGTH_EQ) return Op.EQ;
+  if (base === Op.LENGTH_GT) return Op.GT;
+  if (base === Op.LENGTH_LT) return Op.LT;
+  if (base === Op.LENGTH_GTE) return Op.GTE;
+  if (base === Op.LENGTH_LTE) return Op.LTE;
+  return Op.BETWEEN;
+}
+
 /** Return true when LENGTH_* operators are valid for the given type code (bytes, string, or dynamic array). */
 export function isLengthValidType(typeCode: number): boolean {
   return typeCode === TypeCode.BYTES || typeCode === TypeCode.STRING || typeCode === TypeCode.DYNAMIC_ARRAY;
@@ -123,7 +133,16 @@ export function applyOperator(
   typeCode: number,
 ): boolean {
   const negate = (opCode & Op.NOT) !== 0;
-  const base = opCode & ~Op.NOT;
+  let base = opCode & ~Op.NOT;
+
+  // Length operators reuse the value-comparison core: the runtime count becomes the compared
+  // value and the opcode maps onto its EQ/GT/LT/GTE/LTE/BETWEEN twin. Counts are non-negative,
+  // so the comparison is always unsigned — force an unsigned type code regardless of the target.
+  if (isLengthOp(base)) {
+    value = BigInt(valueLength);
+    typeCode = TypeCode.UINT_MAX;
+    base = lengthToValueOp(base);
+  }
 
   let result: boolean;
 
@@ -174,34 +193,6 @@ export function applyOperator(
     case Op.BITMASK_NONE: {
       const mask = toBigInt(operandData, 0);
       result = (value & mask) === 0n;
-      break;
-    }
-
-    case Op.LENGTH_EQ:
-      result = BigInt(valueLength) === toBigInt(operandData, 0);
-      break;
-
-    case Op.LENGTH_GT:
-      result = BigInt(valueLength) > toBigInt(operandData, 0);
-      break;
-
-    case Op.LENGTH_LT:
-      result = BigInt(valueLength) < toBigInt(operandData, 0);
-      break;
-
-    case Op.LENGTH_GTE:
-      result = BigInt(valueLength) >= toBigInt(operandData, 0);
-      break;
-
-    case Op.LENGTH_LTE:
-      result = BigInt(valueLength) <= toBigInt(operandData, 0);
-      break;
-
-    case Op.LENGTH_BETWEEN: {
-      const length = BigInt(valueLength);
-      const min = toBigInt(operandData, 0);
-      const max = toBigInt(operandData, 32);
-      result = length >= min && length <= max;
       break;
     }
 
