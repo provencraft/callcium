@@ -102,18 +102,40 @@ export function lookupScope(code: number): ScopeInfo {
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Type code ranges
+///////////////////////////////////////////////////////////////////////////
+
+/** ABI type code ranges and sentinel values for the descriptor format. */
+export const TypeCode = {
+  UINT_MIN: 0x00,
+  UINT_MAX: 0x1f,
+  INT_MIN: 0x20,
+  INT_MAX: 0x3f,
+  ADDRESS: 0x40,
+  BOOL: 0x41,
+  FUNCTION: 0x42,
+  FIXED_BYTES_MIN: 0x50,
+  FIXED_BYTES_MAX: 0x6f,
+  BYTES: 0x70,
+  STRING: 0x71,
+  STATIC_ARRAY: 0x80,
+  DYNAMIC_ARRAY: 0x81,
+  TUPLE: 0x90,
+} as const satisfies Record<string, number>;
+
+///////////////////////////////////////////////////////////////////////////
 // Context property IDs
 ///////////////////////////////////////////////////////////////////////////
 
 const CTX_PROP_TABLE = [
-  { key: "MSG_SENDER", code: 0x0000, label: "msg.sender", typeCode: 0x40 },
-  { key: "MSG_VALUE", code: 0x0001, label: "msg.value", typeCode: 0x1f },
-  { key: "BLOCK_TIMESTAMP", code: 0x0002, label: "block.timestamp", typeCode: 0x1f },
-  { key: "BLOCK_NUMBER", code: 0x0003, label: "block.number", typeCode: 0x1f },
-  { key: "CHAIN_ID", code: 0x0004, label: "block.chainid", typeCode: 0x1f },
-  { key: "TX_ORIGIN", code: 0x0005, label: "tx.origin", typeCode: 0x40 },
-  { key: "BASE_FEE", code: 0x0006, label: "block.basefee", typeCode: 0x1f },
-  { key: "GAS_PRICE", code: 0x0007, label: "tx.gasprice", typeCode: 0x1f },
+  { key: "MSG_SENDER", code: 0x0000, label: "msg.sender", typeCode: TypeCode.ADDRESS },
+  { key: "MSG_VALUE", code: 0x0001, label: "msg.value", typeCode: TypeCode.UINT_MAX },
+  { key: "BLOCK_TIMESTAMP", code: 0x0002, label: "block.timestamp", typeCode: TypeCode.UINT_MAX },
+  { key: "BLOCK_NUMBER", code: 0x0003, label: "block.number", typeCode: TypeCode.UINT_MAX },
+  { key: "CHAIN_ID", code: 0x0004, label: "block.chainid", typeCode: TypeCode.UINT_MAX },
+  { key: "TX_ORIGIN", code: 0x0005, label: "tx.origin", typeCode: TypeCode.ADDRESS },
+  { key: "BASE_FEE", code: 0x0006, label: "block.basefee", typeCode: TypeCode.UINT_MAX },
+  { key: "GAS_PRICE", code: 0x0007, label: "tx.gasprice", typeCode: TypeCode.UINT_MAX },
 ] as const;
 
 /** Well-known context property IDs for context-scope rules. */
@@ -260,28 +282,6 @@ export function lookupQuantifier(code: number): QuantifierInfo {
   if (!info) throw new CallciumError("INVALID_QUANTIFIER", `Unknown quantifier step 0x${code.toString(16)}`);
   return info;
 }
-
-///////////////////////////////////////////////////////////////////////////
-// Type code ranges
-///////////////////////////////////////////////////////////////////////////
-
-/** ABI type code ranges and sentinel values for the descriptor format. */
-export const TypeCode = {
-  UINT_MIN: 0x00,
-  UINT_MAX: 0x1f,
-  INT_MIN: 0x20,
-  INT_MAX: 0x3f,
-  ADDRESS: 0x40,
-  BOOL: 0x41,
-  FUNCTION: 0x42,
-  FIXED_BYTES_MIN: 0x50,
-  FIXED_BYTES_MAX: 0x6f,
-  BYTES: 0x70,
-  STRING: 0x71,
-  STATIC_ARRAY: 0x80,
-  DYNAMIC_ARRAY: 0x81,
-  TUPLE: 0x90,
-} as const satisfies Record<string, number>;
 
 /** Structural category for a descriptor type code. */
 export type TypeClass = "elementary" | "tuple" | "staticArray" | "dynamicArray";
