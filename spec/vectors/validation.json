@@ -2198,5 +2198,101 @@
       }
     ],
     "builds": false
+  },
+  {
+    "id": "fusible-range",
+    "description": "gte(10) and lte(100) fuse into between",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x04000000000000000000000000000000000000000000000000000000000000000a",
+                "0x050000000000000000000000000000000000000000000000000000000000000064"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "FUSIBLE_RANGE",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "fusible-length-range",
+    "description": "lengthGte(2) and lengthLte(8) fuse into lengthBetween",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x010170",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x230000000000000000000000000000000000000000000000000000000000000002",
+                "0x240000000000000000000000000000000000000000000000000000000000000008"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "FUSIBLE_LENGTH_RANGE",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "negated-lower-bound-no-fusible",
+    "description": "negated gte with lte does not fuse",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x84000000000000000000000000000000000000000000000000000000000000000a",
+                "0x050000000000000000000000000000000000000000000000000000000000000064"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
   }
 ]

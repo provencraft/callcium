@@ -364,6 +364,28 @@ export function redundantBitmask(groupIndex: number, constraintIndex: number, ma
   };
 }
 
+/** gte/lte pair fusible into a single range operator. */
+export function fusibleRange(
+  isLength: boolean,
+  groupIndex: number,
+  constraintIndex: number,
+  low: Hex,
+  high: Hex,
+): Issue {
+  return {
+    severity: "warning",
+    category: "redundancy",
+    groupIndex,
+    constraintIndex,
+    code: isLength ? "FUSIBLE_LENGTH_RANGE" : "FUSIBLE_RANGE",
+    value1: low,
+    value2: high,
+    message: isLength
+      ? "lengthGte() and lengthLte() fuse into a single lengthBetween()"
+      : "gte() and lte() fuse into a single between()",
+  };
+}
+
 /** Duplicate operator in constraint. */
 export function duplicateConstraint(groupIndex: number, constraintIndex: number): Issue {
   return {

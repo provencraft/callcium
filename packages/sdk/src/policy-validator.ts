@@ -723,6 +723,70 @@ function checkDuplicates(issues: Issue[], operators: Hex[], groupIndex: number, 
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Fusible range detection
+///////////////////////////////////////////////////////////////////////////
+
+/**
+ * Report a lone unnegated gte/lte pair (value or length domain) as fusible into the
+ * corresponding single range operator. Fires only for a satisfiable pair on a compatible
+ * type; contradictions and dominated bounds are already reported by the domain checks.
+ */
+function checkFusibleRange(
+  ctx: ConstraintContext,
+  operators: Hex[],
+  groupIndex: number,
+  constraintIndex: number,
+  issues: Issue[],
+): void {
+  const numericPair = findLonePair(operators, Op.GTE, Op.LTE);
+  if (
+    numericPair &&
+    getIncompat(Op.GTE, ctx.typeInfo) === null &&
+    signedCompare(numericPair.low, numericPair.high, ctx.numeric.isSigned) <= 0n
+  ) {
+    issues.push(
+      Issues.fusibleRange(
+        false,
+        groupIndex,
+        constraintIndex,
+        bigintToHex(numericPair.low),
+        bigintToHex(numericPair.high),
+      ),
+    );
+  }
+
+  const lengthPair = findLonePair(operators, Op.LENGTH_GTE, Op.LENGTH_LTE);
+  if (lengthPair && getIncompat(Op.LENGTH_GTE, ctx.typeInfo) === null && lengthPair.low <= lengthPair.high) {
+    issues.push(
+      Issues.fusibleRange(true, groupIndex, constraintIndex, bigintToHex(lengthPair.low), bigintToHex(lengthPair.high)),
+    );
+  }
+}
+
+/** Return the operand pair when the operators contain exactly one of each unnegated bound opcode. */
+function findLonePair(operators: Hex[], lowerOp: number, upperOp: number): { low: bigint; high: bigint } | null {
+  let lowerCount = 0;
+  let upperCount = 0;
+  let low = 0n;
+  let high = 0n;
+
+  for (const opHex of operators) {
+    const opCode = parseInt(opHex.slice(2, 4), 16);
+    const dataLength = (opHex.length - 4) / 2;
+    if (dataLength > 0xffff || !isValidOperatorData(opCode & ~Op.NOT, dataLength)) continue;
+    if (opCode === lowerOp) {
+      lowerCount++;
+      low = readValue(opHex);
+    } else if (opCode === upperOp) {
+      upperCount++;
+      high = readValue(opHex);
+    }
+  }
+
+  return lowerCount === 1 && upperCount === 1 ? { low, high } : null;
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Constraint validation
 ///////////////////////////////////////////////////////////////////////////
 
@@ -911,6 +975,8 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
     }
 
     validateConstraint(ctx, constraint, groupIndex, constraintIndex, issues);
+
+    checkFusibleRange(ctx, constraint.operators, groupIndex, constraintIndex, issues);
   }
 }
 

@@ -440,6 +440,136 @@ contract ImpossibleRangeTest is PolicyValidatorTest {
     }
 }
 
+contract FusibleRangeTest is PolicyValidatorTest {
+    function test_GteLtePair_ReportsFusibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        Constraint memory c = arg(0).gte(uint256(10)).lte(uint256(100));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.FUSIBLE_RANGE);
+        assertEq(issues[0].severity, IssueSeverity.Warning);
+        assertEq(issues[0].category, IssueCategory.Redundancy);
+        assertEq(issues[0].value1, bytes32(uint256(10)));
+        assertEq(issues[0].value2, bytes32(uint256(100)));
+    }
+
+    function test_GteLtePair_EqualBounds_ReportsFusibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        Constraint memory c = arg(0).gte(uint256(50)).lte(uint256(50));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.FUSIBLE_RANGE);
+    }
+
+    function test_SignedGteLtePair_ReportsFusibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.int256_()).build();
+
+        Constraint memory c = arg(0).gte(int256(-5)).lte(int256(5));
+
+        PolicyData memory data = _createPolicyData("foo(int256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.FUSIBLE_RANGE);
+        assertEq(issues[0].value1, bytes32(uint256(int256(-5))));
+        assertEq(issues[0].value2, bytes32(uint256(int256(5))));
+    }
+
+    function test_LengthGteLtePair_ReportsFusibleLengthRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytes_()).build();
+
+        Constraint memory c = arg(0).lengthGte(2).lengthLte(8);
+
+        PolicyData memory data = _createPolicyData("foo(bytes)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.FUSIBLE_LENGTH_RANGE);
+        assertEq(issues[0].value1, bytes32(uint256(2)));
+        assertEq(issues[0].value2, bytes32(uint256(8)));
+    }
+
+    function test_Between_NoFusibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        Constraint memory c = arg(0).between(uint256(10), uint256(100));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 0);
+    }
+
+    function test_GtLtPair_NoFusibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // Strict bounds have no inclusive-range equivalent.
+        Constraint memory c = arg(0).gt(uint256(10)).lt(uint256(100));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertNoIssue(issues, IssueCode.FUSIBLE_RANGE);
+    }
+
+    function test_ImpossibleRange_NoFusibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        Constraint memory c = arg(0).gte(uint256(100)).lte(uint256(50));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.IMPOSSIBLE_RANGE);
+        _assertNoIssue(issues, IssueCode.FUSIBLE_RANGE);
+    }
+
+    function test_SignedImpossibleRange_NoFusibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.int256_()).build();
+
+        Constraint memory c = arg(0).gte(int256(5)).lte(int256(-5));
+
+        PolicyData memory data = _createPolicyData("foo(int256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.IMPOSSIBLE_RANGE);
+        _assertNoIssue(issues, IssueCode.FUSIBLE_RANGE);
+    }
+
+    function test_NegatedGte_NoFusibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        Constraint memory c = arg(0).lte(uint256(100));
+        c.operators = _appendOp(c.operators, OpCode.GTE | OpCode.NOT, abi.encode(uint256(10)));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertNoIssue(issues, IssueCode.FUSIBLE_RANGE);
+    }
+
+    function test_DuplicatedGte_NoFusibleRange() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        // Only a clean single pair is fusible; extra bounds are already flagged as dominated.
+        Constraint memory c = arg(0).gte(uint256(5)).gte(uint256(6)).lte(uint256(10));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.DOMINATED_BOUND);
+        _assertNoIssue(issues, IssueCode.FUSIBLE_RANGE);
+    }
+}
+
 contract ConflictingEqualityTest is PolicyValidatorTest {
     function test_MultipleEq_DifferentValues_ReturnsError() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();

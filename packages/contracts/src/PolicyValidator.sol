@@ -203,6 +203,12 @@ library PolicyValidator {
                 ctx, constraint, groupIndex, constraintIndex, state.tempIssues, state.issueCount
             );
 
+            // Fusible range detection.
+            // forgefmt: disable-next-item
+            state.issueCount = _checkFusibleRange(
+                ctx, constraint.operators, groupIndex, constraintIndex, state.tempIssues, state.issueCount
+            );
+
             // Write back so later constraints on the same path see accumulated state.
             contexts[ctxIdx] = ctx;
         }
@@ -372,6 +378,73 @@ library PolicyValidator {
         issueCount = _checkDuplicates(issues, issueCount, operators, groupIndex, constraintIndex);
 
         return issueCount;
+    }
+
+    /// @dev Reports a lone unnegated gte/lte pair (value or length domain) as fusible into the
+    /// corresponding single range operator. Fires only for a satisfiable pair on a compatible
+    /// type; contradictions and dominated bounds are already reported by the domain checks.
+    function _checkFusibleRange(
+        ConstraintContext memory ctx,
+        bytes[] memory operators,
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        Issue[] memory issues,
+        uint256 issueCount
+    )
+        private
+        pure
+        returns (uint256)
+    {
+        (bool hasPair, uint256 low, uint256 high) = _findLonePair(operators, OpCode.GTE, OpCode.LTE);
+        (bool compatible,) =
+            OpRule.checkCompatibility(OpCode.GTE, ctx.typeInfo.code, ctx.typeInfo.isDynamic, ctx.typeInfo.staticSize);
+        if (hasPair && compatible && _isLte(low, high, ctx.numeric.isSigned)) {
+            issues[issueCount++] = ValidationIssue.fusibleRange(false, groupIndex, constraintIndex, low, high);
+        }
+
+        (hasPair, low, high) = _findLonePair(operators, OpCode.LENGTH_GTE, OpCode.LENGTH_LTE);
+        (compatible,) = OpRule.checkCompatibility(
+            OpCode.LENGTH_GTE, ctx.typeInfo.code, ctx.typeInfo.isDynamic, ctx.typeInfo.staticSize
+        );
+        if (hasPair && compatible && low <= high) {
+            issues[issueCount++] = ValidationIssue.fusibleRange(true, groupIndex, constraintIndex, low, high);
+        }
+
+        return issueCount;
+    }
+
+    /// @dev Returns whether the operators contain exactly one of each unnegated bound opcode,
+    /// along with the two operand values.
+    function _findLonePair(
+        bytes[] memory operators,
+        uint8 lowerOp,
+        uint8 upperOp
+    )
+        private
+        pure
+        returns (bool hasPair, uint256 low, uint256 high)
+    {
+        uint256 lowerCount;
+        uint256 upperCount;
+
+        for (uint256 i; i < operators.length; ++i) {
+            bytes memory op = operators[i];
+            uint8 opCode = uint8(op[0]);
+            // forge-lint: disable-next-line(unsafe-typecast) guarded by the payload size check.
+            if (
+                op.length - 1 > type(uint16).max
+                    || !OpRule.isValidPayloadSize(opCode & ~OpCode.NOT, uint16(op.length - 1))
+            ) continue;
+            if (opCode == lowerOp) {
+                ++lowerCount;
+                low = _readValue(op);
+            } else if (opCode == upperOp) {
+                ++upperCount;
+                high = _readValue(op);
+            }
+        }
+
+        hasPair = lowerCount == 1 && upperCount == 1;
     }
 
     /// @dev Updates a bound domain with a new operator and detects contradictions/redundancies.
@@ -887,8 +960,9 @@ library PolicyValidator {
         }
         // Each operator can trigger multiple issues (contradiction, redundancy, vacuity, negation-
         // under-any), plus cross-constraint issues, decompositions (e.g., BETWEEN -> GTE + LTE),
-        // per-path compatibility warnings, and empty groups.
-        count = count * 4 + 20 + data.groups.length;
+        // per-path compatibility warnings, per-constraint fusible-range warnings (bounded by the
+        // operator count), and empty groups.
+        count = count * 6 + 20 + data.groups.length;
     }
 
     /// @dev Initializes a constraint context with domain limits for the given type.

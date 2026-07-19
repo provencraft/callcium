@@ -460,7 +460,7 @@ describe("PolicyValidator - valid policies", () => {
   });
 
   test("produces no issues for a valid range constraint", () => {
-    expect(validate("uint256", (b) => b.add(arg(0).gte(10n).lte(100n)))).toHaveLength(0);
+    expect(validate("uint256", (b) => b.add(arg(0).between(10n, 100n)))).toHaveLength(0);
   });
 
   test("produces no issues for a valid isIn set", () => {
@@ -473,6 +473,80 @@ describe("PolicyValidator - valid policies", () => {
 
   test("produces no issues for a valid length between", () => {
     expect(validate("bytes", (b) => b.add(arg(0).lengthBetween(10n, 100n)))).toHaveLength(0);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Fusible Ranges
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyValidator - fusible ranges", () => {
+  test("reports FUSIBLE_RANGE for gte(10) + lte(100)", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).gte(10n).lte(100n)));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      code: "FUSIBLE_RANGE",
+      severity: "warning",
+      category: "redundancy",
+      groupIndex: 0,
+      constraintIndex: 0,
+    });
+    expect(BigInt(issues[0].value1)).toBe(10n);
+    expect(BigInt(issues[0].value2)).toBe(100n);
+  });
+
+  test("reports FUSIBLE_RANGE for equal bounds gte(50) + lte(50)", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).gte(50n).lte(50n)));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].code).toBe("FUSIBLE_RANGE");
+  });
+
+  test("reports FUSIBLE_RANGE for a satisfiable signed pair", () => {
+    const issues = validate("int256", (b) => b.add(arg(0).gte(-5n).lte(5n)));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].code).toBe("FUSIBLE_RANGE");
+  });
+
+  test("reports FUSIBLE_LENGTH_RANGE for lengthGte(2) + lengthLte(8)", () => {
+    const issues = validate("bytes", (b) => b.add(arg(0).lengthGte(2n).lengthLte(8n)));
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatchObject({
+      code: "FUSIBLE_LENGTH_RANGE",
+      severity: "warning",
+      category: "redundancy",
+    });
+    expect(BigInt(issues[0].value1)).toBe(2n);
+    expect(BigInt(issues[0].value2)).toBe(8n);
+  });
+
+  test("does not fire for strict bounds gt + lt", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).gt(10n).lt(100n)));
+    expect(findIssue(issues, "FUSIBLE_RANGE")).toBeUndefined();
+  });
+
+  test("does not fire for an impossible range", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).gte(100n).lte(50n)));
+    expect(findIssue(issues, "IMPOSSIBLE_RANGE")).toBeDefined();
+    expect(findIssue(issues, "FUSIBLE_RANGE")).toBeUndefined();
+  });
+
+  test("does not fire for an impossible signed range", () => {
+    const issues = validate("int256", (b) => b.add(arg(0).gte(5n).lte(-5n)));
+    expect(findIssue(issues, "IMPOSSIBLE_RANGE")).toBeDefined();
+    expect(findIssue(issues, "FUSIBLE_RANGE")).toBeUndefined();
+  });
+
+  test("does not fire when the gte is negated", () => {
+    const issues = PolicyValidator.validate(
+      rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(Op.GTE | Op.NOT, 10n), op(Op.LTE, 100n)]),
+    );
+    expect(findIssue(issues, "FUSIBLE_RANGE")).toBeUndefined();
+  });
+
+  test("does not fire for a duplicated lower bound", () => {
+    const issues = validate("uint256", (b) => b.add(arg(0).gte(5n).gte(6n).lte(10n)));
+    expect(findIssue(issues, "DOMINATED_BOUND")).toBeDefined();
+    expect(findIssue(issues, "FUSIBLE_RANGE")).toBeUndefined();
   });
 });
 

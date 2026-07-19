@@ -94,6 +94,10 @@ library IssueCode {
     bytes32 internal constant REDUNDANT_BITMASK = "REDUNDANT_BITMASK";
     /// Duplicate operator in a constraint.
     bytes32 internal constant DUPLICATE_CONSTRAINT = "DUPLICATE_CONSTRAINT";
+    /// gte() and lte() bounds that fuse into a single between().
+    bytes32 internal constant FUSIBLE_RANGE = "FUSIBLE_RANGE";
+    /// lengthGte() and lengthLte() bounds that fuse into a single lengthBetween().
+    bytes32 internal constant FUSIBLE_LENGTH_RANGE = "FUSIBLE_LENGTH_RANGE";
 
     /*/////////////////////////////////////////////////////////////////////////
                                      VACUITY

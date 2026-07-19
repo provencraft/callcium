@@ -413,6 +413,34 @@ library ValidationIssue {
         });
     }
 
+    /// @notice Creates a warning for a gte/lte pair that fuses into a single range operator.
+    /// @param isLength True to report the length-domain variant of this issue.
+    /// @return The constructed validation issue.
+    function fusibleRange(
+        bool isLength,
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        uint256 low,
+        uint256 high
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return Issue({
+            severity: IssueSeverity.Warning,
+            category: IssueCategory.Redundancy,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: isLength ? IssueCode.FUSIBLE_LENGTH_RANGE : IssueCode.FUSIBLE_RANGE,
+            value1: bytes32(low),
+            value2: bytes32(high),
+            message: isLength
+                ? "lengthGte() and lengthLte() fuse into a single lengthBetween()"
+                : "gte() and lte() fuse into a single between()"
+        });
+    }
+
     /// @notice Creates a warning when a notIn() value was present in an isIn() set.
     /// @return The constructed validation issue.
     function setReduction(
