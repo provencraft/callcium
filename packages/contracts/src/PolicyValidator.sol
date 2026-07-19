@@ -865,7 +865,6 @@ library PolicyValidator {
         return issueCount;
     }
 
-    /// @dev Counts total operators across all constraints in the policy data.
     /// @dev Returns true if a calldata constraint's path contains the existential quantifier.
     function _hasAnyQuantifier(Constraint memory constraint) private pure returns (bool) {
         if (constraint.scope != PF.SCOPE_CALLDATA) return false;
@@ -876,6 +875,7 @@ library PolicyValidator {
         return false;
     }
 
+    /// @dev Counts total operators across all constraints in the policy data.
     function _countOperators(PolicyData memory data) private pure returns (uint256 count) {
         uint256 groupCount = data.groups.length;
         for (uint256 i; i < groupCount; ++i) {
