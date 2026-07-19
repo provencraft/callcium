@@ -191,28 +191,7 @@ library PolicyCoder {
 
             // Second pass: emit each rule.
             for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-                Rule memory rule = rules[ruleIndex];
-                bytes memory path = rule.path;
-                bytes memory operator = rule.operator;
-
-                // Extract rule metadata for encoding.
-                // forge-lint: disable-next-line(unsafe-typecast)
-                uint8 depth = uint8(path.length / PF.PATH_STEP_SIZE);
-                // forge-lint: disable-next-line(unsafe-typecast)
-                uint8 opCode = uint8(operator[0]);
-                // forge-lint: disable-next-line(unsafe-typecast)
-                uint16 dataLength = uint16(operator.length - 1);
-
-                // Pack the rule: size(2) | scope(1) | depth(1) | path(2*depth) | opCode(1) | dataLength(2) | data(N)
-                // forgefmt: disable-next-item
-                buffer = buffer
-                    .pUint16(ruleSizes[ruleIndex])
-                    .pUint8(rule.scope)
-                    .pUint8(depth)
-                    .p(path)
-                    .pUint8(opCode)
-                    .pUint16(dataLength)
-                    .p(LibBytes.slice(operator, 1, operator.length));
+                buffer = _emitRule(buffer, ruleSizes[ruleIndex], rules[ruleIndex]);
             }
         }
         return buffer.data;
@@ -317,28 +296,40 @@ library PolicyCoder {
 
         DynamicBufferLib.DynamicBuffer memory buffer;
         for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-            Rule memory rule = rules[ruleIndex];
-            bytes memory path = rule.path;
-            bytes memory operator = rule.operator;
+            bytes memory operator = rules[ruleIndex].operator;
             // forge-lint: disable-next-line(unsafe-typecast)
-            uint8 depth = uint8(path.length / PF.PATH_STEP_SIZE);
-            // forge-lint: disable-next-line(unsafe-typecast)
-            uint16 dataLength = uint16(operator.length - 1);
-            // forge-lint: disable-next-line(unsafe-typecast)
-            uint16 ruleSize = uint16(PF.RULE_FIXED_OVERHEAD + path.length + dataLength);
-
-            // Full wire encoding: size(2) | scope(1) | depth(1) | path | opCode(1) | dataLength(2) | data.
-            // forgefmt: disable-next-item
-            buffer = buffer
-                .pUint16(ruleSize)
-                .pUint8(rule.scope)
-                .pUint8(depth)
-                .p(path)
-                .pUint8(uint8(operator[0]))
-                .pUint16(dataLength)
-                .p(LibBytes.slice(operator, 1, operator.length));
+            uint16 ruleSize = uint16(PF.RULE_FIXED_OVERHEAD + rules[ruleIndex].path.length + (operator.length - 1));
+            buffer = _emitRule(buffer, ruleSize, rules[ruleIndex]);
         }
         return buffer.data.hash();
+    }
+
+    /// @dev Appends one rule's wire encoding to `buffer`:
+    /// size(2) | scope(1) | depth(1) | path | opCode(1) | dataLength(2) | data.
+    function _emitRule(
+        DynamicBufferLib.DynamicBuffer memory buffer,
+        uint16 ruleSize,
+        Rule memory rule
+    )
+        private
+        pure
+        returns (DynamicBufferLib.DynamicBuffer memory)
+    {
+        bytes memory path = rule.path;
+        bytes memory operator = rule.operator;
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint8 depth = uint8(path.length / PF.PATH_STEP_SIZE);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint16 dataLength = uint16(operator.length - 1);
+        // forgefmt: disable-next-item
+        return buffer
+            .pUint16(ruleSize)
+            .pUint8(rule.scope)
+            .pUint8(depth)
+            .p(path)
+            .pUint8(uint8(operator[0]))
+            .pUint16(dataLength)
+            .p(LibBytes.slice(operator, 1, operator.length));
     }
 
     /// @dev Decodes a single group from the policy blob into Constraints.

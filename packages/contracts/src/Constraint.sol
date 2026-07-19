@@ -491,39 +491,8 @@ library Operator {
         return bytes32(uint256(value));
     }
 
-    /// @dev Packs an address array into sorted, deduplicated 32-byte words.
-    function _packSet(address[] memory values) private pure returns (bytes memory out) {
-        require(values.length != 0, EmptySet());
-        LibSort.sort(values);
-        LibSort.uniquifySorted(values);
-        uint256 length = values.length;
-        require(length <= 2047, SetTooLarge());
-        out = new bytes(length * 32);
-        for (uint256 i; i < length; ++i) {
-            bytes32 word = _addr(values[i]);
-            assembly ("memory-safe") {
-                mstore(add(add(out, 32), mul(i, 32)), word)
-            }
-        }
-    }
-
-    /// @dev Packs a bytes32 array into sorted, deduplicated 32-byte words.
-    function _packSet(bytes32[] memory values) private pure returns (bytes memory out) {
-        require(values.length != 0, EmptySet());
-        LibSort.sort(values);
-        LibSort.uniquifySorted(values);
-        uint256 length = values.length;
-        require(length <= 2047, SetTooLarge());
-        out = new bytes(length * 32);
-        for (uint256 i; i < length; ++i) {
-            bytes32 word = values[i];
-            assembly ("memory-safe") {
-                mstore(add(add(out, 32), mul(i, 32)), word)
-            }
-        }
-    }
-
-    /// @dev Packs a uint256 array into sorted, deduplicated 32-byte words.
+    /// @dev Packs a uint256 array into sorted, deduplicated 32-byte words. Each 32-byte-wide value
+    /// type reinterprets its array to this core, since all four sort by unsigned byte order.
     function _packSet(uint256[] memory values) private pure returns (bytes memory out) {
         require(values.length != 0, EmptySet());
         LibSort.sort(values);
@@ -539,25 +508,32 @@ library Operator {
         }
     }
 
+    /// @dev Packs an address array into sorted, deduplicated 32-byte words.
+    function _packSet(address[] memory values) private pure returns (bytes memory) {
+        uint256[] memory words;
+        assembly ("memory-safe") {
+            words := values
+        }
+        return _packSet(words);
+    }
+
+    /// @dev Packs a bytes32 array into sorted, deduplicated 32-byte words.
+    function _packSet(bytes32[] memory values) private pure returns (bytes memory) {
+        uint256[] memory words;
+        assembly ("memory-safe") {
+            words := values
+        }
+        return _packSet(words);
+    }
+
     /// @dev Packs an int256 array into sorted, deduplicated 32-byte words.
     /// Sorts by unsigned byte representation (lexicographic), not signed value.
-    function _packSet(int256[] memory values) private pure returns (bytes memory out) {
-        require(values.length != 0, EmptySet());
-        uint256[] memory unsigned;
+    function _packSet(int256[] memory values) private pure returns (bytes memory) {
+        uint256[] memory words;
         assembly ("memory-safe") {
-            unsigned := values
+            words := values
         }
-        LibSort.sort(unsigned);
-        LibSort.uniquifySorted(unsigned);
-        uint256 length = unsigned.length;
-        require(length <= 2047, SetTooLarge());
-        out = new bytes(length * 32);
-        for (uint256 i; i < length; ++i) {
-            bytes32 word = bytes32(unsigned[i]);
-            assembly ("memory-safe") {
-                mstore(add(add(out, 32), mul(i, 32)), word)
-            }
-        }
+        return _packSet(words);
     }
 }
 
