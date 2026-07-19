@@ -266,4 +266,12 @@ describe("length operators", () => {
   test("rejects address with wrong length", () => {
     expect(() => arg(0).eq("0x1234")).toThrow(CallciumError);
   });
+
+  test(".isIn() rejects address with wrong length", () => {
+    expect(() => arg(0).isIn(["0x1234"])).toThrow(CallciumError);
+  });
+
+  test(".notIn() rejects address with wrong length", () => {
+    expect(() => arg(0).notIn(["0x1234"])).toThrow(CallciumError);
+  });
 });

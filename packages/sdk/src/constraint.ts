@@ -11,6 +11,15 @@ import type { Hex, Constraint } from "./types";
 /** Accepted scalar value types for operator arguments. */
 export type ScalarValue = bigint | number | boolean | string;
 
+/** Strip an optional 0x prefix and validate a 40-hex-char (20-byte) address body. */
+function addressBody(value: string): string {
+  const body = value.startsWith("0x") ? value.slice(2) : value;
+  if (body.length !== 40) {
+    throw new CallciumError("INVALID_CONSTRAINT", `Invalid address length: expected 40 hex chars, got ${body.length}`);
+  }
+  return body;
+}
+
 /** Convert a scalar value to a 32-byte big-endian word. */
 function encodeWord(value: ScalarValue): Uint8Array {
   const word = new Uint8Array(32);
@@ -22,13 +31,7 @@ function encodeWord(value: ScalarValue): Uint8Array {
 
   if (typeof value === "string") {
     // Address encoding: validate 20-byte hex and right-align into 32 bytes.
-    const body = value.startsWith("0x") ? value.slice(2) : value;
-    if (body.length !== 40) {
-      throw new CallciumError(
-        "INVALID_CONSTRAINT",
-        `Invalid address length: expected 40 hex chars, got ${body.length}`,
-      );
-    }
+    const body = addressBody(value);
     for (let i = 0; i < 20; i++) {
       const byte = parseInt(body.substring(i * 2, i * 2 + 2), 16);
       if (Number.isNaN(byte)) {
@@ -75,8 +78,7 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
     if (typeof v === "number") return BigInt(v);
     if (typeof v === "boolean") return v ? 1n : 0n;
     // String address.
-    const body = v.startsWith("0x") ? v.slice(2) : v;
-    return BigInt("0x" + (body || "0"));
+    return BigInt("0x" + addressBody(v));
   });
 
   bigs.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
