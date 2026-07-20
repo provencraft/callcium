@@ -1,6 +1,26 @@
 {
   "name": "@callcium/contracts",
-  "version": "0.4.0",
+  "version": "0.5.0",
+  "description": "Solidity implementation of the Callcium policy engine",
+  "keywords": [
+    "abi",
+    "callcium",
+    "ethereum",
+    "evm",
+    "policy",
+    "smart-contracts",
+    "solidity",
+    "web3"
+  ],
+  "homepage": "https://callcium.dev",
+  "bugs": "https://github.com/provencraft/callcium/issues",
+  "license": "MIT",
+  "author": "Seva Mihailov",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/provencraft/callcium.git",
+    "directory": "packages/contracts"
+  },
   "private": true,
   "type": "module",
   "scripts": {
