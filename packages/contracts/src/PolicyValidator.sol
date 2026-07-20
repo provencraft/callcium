@@ -18,6 +18,12 @@ import { LibBytes } from "solady/utils/LibBytes.sol";
 /// @title PolicyValidator
 /// @notice Semantic validation for policies - checks for type mismatches, contradictions, and redundancies.
 library PolicyValidator {
+    /// @dev Maximum tracked neq exclusions (holes) per bound domain; exclusion tracking is best-effort beyond this.
+    uint8 private constant MAX_HOLES = 8;
+
+    /// @dev Maximum tracked notIn exclusions per set domain; exclusion tracking is best-effort beyond this.
+    uint8 private constant MAX_NOT_IN = 8;
+
     /// @dev Internal struct to track bound state for numeric values or lengths.
     struct BoundDomain {
         /// True if the type is signed (always false for length domains).
@@ -43,7 +49,7 @@ library PolicyValidator {
         /// True if the upper bound is inclusive (<=).
         bool upperInclusive;
         /// Pragmatic hole tracking (neq values).
-        uint256[8] holes;
+        uint256[MAX_HOLES] holes;
         /// Number of holes tracked.
         uint8 holeCount;
     }
@@ -63,7 +69,7 @@ library PolicyValidator {
         /// The current allowed values from isIn() intersections.
         uint256[] inValues;
         /// Excluded values from notIn()/neq() operators.
-        uint256[8] notInValues;
+        uint256[MAX_NOT_IN] notInValues;
         /// Number of excluded values tracked.
         uint8 notInCount;
     }
@@ -166,8 +172,10 @@ library PolicyValidator {
                     // Compatibility warnings against the reference enforcer's limits (spec §9.1).
                     uint256 depth = constraint.path.length / 2;
                     if (depth > PF.MAX_PATH_DEPTH) {
-                        state.tempIssues[state.issueCount++] =
-                            ValidationIssue.pathDepthExceeded(groupIndex, constraintIndex, depth, PF.MAX_PATH_DEPTH);
+                        // forgefmt: disable-next-item
+                        state.tempIssues[state.issueCount++] = ValidationIssue.pathDepthExceeded(
+                            groupIndex, constraintIndex, depth, PF.MAX_PATH_DEPTH
+                        );
                     }
                     uint256 quantifiedLength;
                     (typeInfo, quantifiedLength) = Descriptor.walkPath(state.data.descriptor, constraint.path);
@@ -179,8 +187,10 @@ library PolicyValidator {
                 } else {
                     uint16 ctxId = Path.atUnchecked(constraint.path, 0);
                     if (ctxId > PF.CTX_MAX) {
-                        state.tempIssues[state.issueCount++] =
-                            ValidationIssue.unknownContextProperty(groupIndex, constraintIndex, ctxId, PF.CTX_MAX);
+                        // forgefmt: disable-next-item
+                        state.tempIssues[state.issueCount++] = ValidationIssue.unknownContextProperty(
+                            groupIndex, constraintIndex, ctxId, PF.CTX_MAX
+                        );
                     }
                     typeInfo = Descriptor.TypeInfo({
                         code: (ctxId == PF.CTX_MSG_SENDER || ctxId == PF.CTX_TX_ORIGIN)
@@ -283,8 +293,10 @@ library PolicyValidator {
                 if (TypeRule.isLeftAligned(typeCode)) {
                     (bool nonCanonical, bytes32 word, bytes32 canonical) = _findNonCanonicalWord(op, typeCode);
                     if (nonCanonical) {
-                        issues[issueCount++] =
-                            ValidationIssue.nonCanonicalOperand(groupIndex, constraintIndex, word, canonical);
+                        // forgefmt: disable-next-item
+                        issues[issueCount++] = ValidationIssue.nonCanonicalOperand(
+                            groupIndex, constraintIndex, word, canonical
+                        );
                         continue;
                     }
                 }
@@ -473,10 +485,11 @@ library PolicyValidator {
         // Negated equality (neq) is handled separately as a hole.
         if (isNegated) {
             if (base == OpCode.EQ) {
-                // CHECK: EQ_NEQ_CONTRADICTION / LENGTH_EQ_NEQ_CONTRADICTION - eq(v) and neq(v) on same path.
                 if (domain.hasEq && domain.eq == value) {
-                    issues[issueCount++] =
-                        ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value);
+                    // forgefmt: disable-next-item
+                    issues[issueCount++] = ValidationIssue.eqNeqContradiction(
+                        isLength, groupIndex, constraintIndex, value
+                    );
                 }
                 // Add to holes if not already present.
                 bool alreadyHole = false;
@@ -486,8 +499,7 @@ library PolicyValidator {
                         break;
                     }
                 }
-                // Bound tracked exclusions to 8; contradiction detection is best-effort beyond this.
-                if (!alreadyHole && domain.holeCount < 8) domain.holes[domain.holeCount++] = value;
+                if (!alreadyHole && domain.holeCount < MAX_HOLES) domain.holes[domain.holeCount++] = value;
             } else {
                 // Convert negated bound to positive equivalent and re-enter.
                 return _updateBound(
@@ -506,33 +518,24 @@ library PolicyValidator {
         }
 
         // Vacuity checks.
-        // CHECK: VACUOUS_GTE / VACUOUS_LENGTH_GTE - gte(min) is always true.
         if (base == OpCode.GTE && value == domain.min) {
             issues[issueCount++] = ValidationIssue.vacuousGte(isLength, groupIndex, constraintIndex, value);
-        }
-        // CHECK: VACUOUS_LTE / VACUOUS_LENGTH_LTE - lte(max) is always true.
-        else if (base == OpCode.LTE && value == domain.max) {
+        } else if (base == OpCode.LTE && value == domain.max) {
             issues[issueCount++] = ValidationIssue.vacuousLte(isLength, groupIndex, constraintIndex, value);
         }
 
         // Physical bounds and impossibility.
-        // CHECK: OUT_OF_PHYSICAL_BOUNDS / OUT_OF_PHYSICAL_LENGTH_BOUNDS - value outside type range.
         if (_isLt(value, domain.min, domain.isSigned) || _isGt(value, domain.max, domain.isSigned)) {
             issues[issueCount++] = ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, value);
-        }
-        // CHECK: IMPOSSIBLE_GT / IMPOSSIBLE_LENGTH_GT - gt(max) is impossible.
-        else if (base == OpCode.GT && value == domain.max) {
+        } else if (base == OpCode.GT && value == domain.max) {
             issues[issueCount++] = ValidationIssue.impossibleGt(isLength, groupIndex, constraintIndex, value);
-        }
-        // CHECK: IMPOSSIBLE_LT / IMPOSSIBLE_LENGTH_LT - lt(min) is impossible.
-        else if (base == OpCode.LT && value == domain.min) {
+        } else if (base == OpCode.LT && value == domain.min) {
             issues[issueCount++] = ValidationIssue.impossibleLt(isLength, groupIndex, constraintIndex, value);
         }
 
         // Equality handling.
         if (base == OpCode.EQ) {
             if (!domain.hasEq || domain.eq != value) changedEq = true;
-            // CHECK: CONFLICTING_EQUALITY / CONFLICTING_LENGTH - multiple eq() with different values.
             if (domain.hasEq) {
                 if (domain.eq != value) {
                     // forgefmt: disable-next-item
@@ -541,11 +544,12 @@ library PolicyValidator {
                     );
                 }
             }
-            // CHECK: EQ_NEQ_CONTRADICTION / LENGTH_EQ_NEQ_CONTRADICTION - eq matches an existing hole.
             for (uint8 j; j < domain.holeCount; ++j) {
                 if (domain.holes[j] == value) {
-                    issues[issueCount++] =
-                        ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value);
+                    // forgefmt: disable-next-item
+                    issues[issueCount++] = ValidationIssue.eqNeqContradiction(
+                        isLength, groupIndex, constraintIndex, value
+                    );
                 }
             }
             domain.hasEq = true;
@@ -574,15 +578,15 @@ library PolicyValidator {
                     strictlyBetter = true;
                 }
 
-                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - new bound weaker than existing.
                 if (redundant) {
                     issues[issueCount++] = ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, value);
                 }
 
-                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - existing bound superseded by stricter new bound.
                 if (strictlyBetter) {
-                    issues[issueCount++] =
-                        ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, domain.lower);
+                    // forgefmt: disable-next-item
+                    issues[issueCount++] = ValidationIssue.dominatedBound(
+                        isLength, groupIndex, constraintIndex, domain.lower
+                    );
                     domain.lower = value;
                     domain.lowerInclusive = inclusive;
                     changedLower = true;
@@ -616,15 +620,15 @@ library PolicyValidator {
                     strictlyBetter = true;
                 }
 
-                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - new bound weaker than existing.
                 if (redundant) {
                     issues[issueCount++] = ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, value);
                 }
 
-                // CHECK: DOMINATED_BOUND / DOMINATED_LENGTH_BOUND - existing bound superseded by stricter new bound.
                 if (strictlyBetter) {
-                    issues[issueCount++] =
-                        ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, domain.upper);
+                    // forgefmt: disable-next-item
+                    issues[issueCount++] = ValidationIssue.dominatedBound(
+                        isLength, groupIndex, constraintIndex, domain.upper
+                    );
                     domain.upper = value;
                     domain.upperInclusive = inclusive;
                     changedUpper = true;
@@ -638,8 +642,6 @@ library PolicyValidator {
         }
 
         // Cross-checks: equality vs bounds.
-        // CHECK: BOUNDS_EXCLUDE_EQUALITY / BOUNDS_EXCLUDE_LENGTH - eq excluded by lower bound.
-        // CHECK: REDUNDANT_BOUND / REDUNDANT_LENGTH_BOUND - bound redundant because eq is set.
         // When both eq and a bound exist, exactly one of two issues applies: either eq is
         // excluded by the bound (contradiction), or the bound is redundant because eq pins the value.
         // forgefmt: disable-next-item
@@ -660,8 +662,6 @@ library PolicyValidator {
             }
         }
 
-        // CHECK: BOUNDS_EXCLUDE_EQUALITY / BOUNDS_EXCLUDE_LENGTH - eq excluded by upper bound.
-        // CHECK: REDUNDANT_BOUND / REDUNDANT_LENGTH_BOUND - bound redundant because eq is set.
         // forgefmt: disable-next-item
         if (changedEq || changedUpper) {
             if (domain.hasEq && domain.hasUpper) {
@@ -681,7 +681,6 @@ library PolicyValidator {
         }
 
         // Cross-check: lower vs upper bound.
-        // CHECK: IMPOSSIBLE_RANGE / IMPOSSIBLE_LENGTH_RANGE - lower exceeds upper.
         // forgefmt: disable-next-item
         if (changedLower || changedUpper) {
             if (domain.hasLower && domain.hasUpper) {
@@ -715,24 +714,23 @@ library PolicyValidator {
     {
         if (isNegated) {
             for (uint256 i; i < values.length; ++i) {
-                uint256 val = values[i];
-                if (ctx.numeric.hasEq && ctx.numeric.eq == val) {
-                    issues[issueCount++] = ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, val);
+                uint256 value = values[i];
+                if (ctx.numeric.hasEq && ctx.numeric.eq == value) {
+                    issues[issueCount++] = ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, value);
                 }
 
                 if (ctx.set.hasIn) {
                     bool inSet = false;
                     for (uint256 j; j < ctx.set.inValues.length; ++j) {
-                        if (ctx.set.inValues[j] == val) {
+                        if (ctx.set.inValues[j] == value) {
                             inSet = true;
                             break;
                         }
                     }
-                    if (inSet) issues[issueCount++] = ValidationIssue.setReduction(groupIndex, constraintIndex, val);
+                    if (inSet) issues[issueCount++] = ValidationIssue.setReduction(groupIndex, constraintIndex, value);
                 }
 
-                // Bound tracked exclusions to 8; contradiction detection is best-effort beyond this.
-                if (ctx.set.notInCount < 8) ctx.set.notInValues[ctx.set.notInCount++] = val;
+                if (ctx.set.notInCount < MAX_NOT_IN) ctx.set.notInValues[ctx.set.notInCount++] = value;
             }
             issueCount = _checkSetEmpty(ctx, groupIndex, constraintIndex, issues, issueCount);
         } else {
@@ -805,17 +803,17 @@ library PolicyValidator {
         uint256 possibleCount = 0;
         uint256 inCount = ctx.set.inValues.length;
         for (uint256 i; i < inCount; ++i) {
-            uint256 val = ctx.set.inValues[i];
+            uint256 value = ctx.set.inValues[i];
             bool forbidden = false;
             for (uint8 k; k < ctx.numeric.holeCount; ++k) {
-                if (ctx.numeric.holes[k] == val) {
+                if (ctx.numeric.holes[k] == value) {
                     forbidden = true;
                     break;
                 }
             }
             if (!forbidden) {
                 for (uint8 k; k < ctx.set.notInCount; ++k) {
-                    if (ctx.set.notInValues[k] == val) {
+                    if (ctx.set.notInValues[k] == value) {
                         forbidden = true;
                         break;
                     }
@@ -842,11 +840,11 @@ library PolicyValidator {
         uint256 count = dataLength / 32;
         values = new uint256[](count);
         for (uint256 i; i < count; ++i) {
-            uint256 val;
+            uint256 value;
             assembly ("memory-safe") {
-                val := mload(add(add(op, 33), mul(i, 32)))
+                value := mload(add(add(op, 33), mul(i, 32)))
             }
-            values[i] = val;
+            values[i] = value;
         }
     }
 
