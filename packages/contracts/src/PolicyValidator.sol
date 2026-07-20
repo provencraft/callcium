@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import { Constraint } from "./Constraint.sol";
 import { Descriptor } from "./Descriptor.sol";
 import { IssueCode } from "./IssueCode.sol";
+import { IssueCollector } from "./IssueCollector.sol";
 import { OpCode } from "./OpCode.sol";
 import { OpRule } from "./OpRule.sol";
 import { Path } from "./Path.sol";
@@ -18,6 +19,8 @@ import { LibBytes } from "solady/utils/LibBytes.sol";
 /// @title PolicyValidator
 /// @notice Semantic validation for policies - checks for type mismatches, contradictions, and redundancies.
 library PolicyValidator {
+    using IssueCollector for IssueCollector.Buffer;
+
     /// @dev Maximum tracked neq exclusions (holes) per bound domain; exclusion tracking is best-effort beyond this.
     uint8 private constant MAX_HOLES = 8;
 
@@ -92,16 +95,6 @@ library PolicyValidator {
         SetDomain set;
     }
 
-    /// @dev Mutable state for the validating pass.
-    struct ValidationState {
-        /// The policy data being validated.
-        PolicyData data;
-        /// Pre-allocated array for collecting issues.
-        Issue[] tempIssues;
-        /// Number of issues collected so far.
-        uint256 issueCount;
-    }
-
     /*/////////////////////////////////////////////////////////////////////////
                                         ERRORS
     /////////////////////////////////////////////////////////////////////////*/
@@ -116,33 +109,36 @@ library PolicyValidator {
 
     /// @notice Validates policy data for semantic issues.
     /// @param data The policy data to validate.
-    /// @return issues All validation issues found.
-    function validate(PolicyData memory data) internal pure returns (Issue[] memory issues) {
-        // Estimate max issues (worst case: one per operator in all constraints).
+    /// @return All validation issues found.
+    function validate(PolicyData memory data) internal pure returns (Issue[] memory) {
+        // Estimate initial capacity (worst case: one per operator in all constraints); the buffer
+        // grows if a payload- or state-scaled path emits more.
         uint256 maxIssues = _countOperators(data);
-        ValidationState memory state =
-            ValidationState({ data: data, tempIssues: new Issue[](maxIssues), issueCount: 0 });
+        IssueCollector.Buffer memory issues;
+        issues.items = new Issue[](maxIssues);
 
         uint256 groupCount = data.groups.length;
         for (uint32 groupIndex; groupIndex < groupCount; ++groupIndex) {
             if (data.groups[groupIndex].length == 0) {
-                state.tempIssues[state.issueCount++] = ValidationIssue.emptyGroup(groupIndex);
+                issues.push(ValidationIssue.emptyGroup(groupIndex));
                 continue;
             }
-            _validateGroup(state, groupIndex);
+            _validateGroup(data, issues, groupIndex);
         }
 
-        // Trim worst-case array to actual length.
-        issues = state.tempIssues;
-        uint256 issueCount = state.issueCount;
-        assembly ("memory-safe") {
-            mstore(issues, issueCount)
-        }
+        return issues.toArray();
     }
 
     /// @dev Validates all constraints in a single group for cross-constraint analysis.
-    function _validateGroup(ValidationState memory state, uint32 groupIndex) private pure {
-        Constraint[] memory constraints = state.data.groups[groupIndex];
+    function _validateGroup(
+        PolicyData memory data,
+        IssueCollector.Buffer memory issues,
+        uint32 groupIndex
+    )
+        private
+        pure
+    {
+        Constraint[] memory constraints = data.groups[groupIndex];
         uint256 constraintCount = constraints.length;
 
         // Rules within a group are AND-ed, so constraints on the same path interact.
@@ -172,24 +168,24 @@ library PolicyValidator {
                     // Compatibility warnings against the reference enforcer's limits (spec §9.1).
                     uint256 depth = constraint.path.length / 2;
                     if (depth > PF.MAX_PATH_DEPTH) {
-                        // forgefmt: disable-next-item
-                        state.tempIssues[state.issueCount++] = ValidationIssue.pathDepthExceeded(
-                            groupIndex, constraintIndex, depth, PF.MAX_PATH_DEPTH
+                        issues.push(
+                            ValidationIssue.pathDepthExceeded(groupIndex, constraintIndex, depth, PF.MAX_PATH_DEPTH)
                         );
                     }
                     uint256 quantifiedLength;
-                    (typeInfo, quantifiedLength) = Descriptor.walkPath(state.data.descriptor, constraint.path);
+                    (typeInfo, quantifiedLength) = Descriptor.walkPath(data.descriptor, constraint.path);
                     if (quantifiedLength > PF.MAX_QUANTIFIED_ARRAY_LENGTH) {
-                        state.tempIssues[state.issueCount++] = ValidationIssue.quantifierOverStaticLimit(
-                            groupIndex, constraintIndex, quantifiedLength, PF.MAX_QUANTIFIED_ARRAY_LENGTH
+                        issues.push(
+                            ValidationIssue.quantifierOverStaticLimit(
+                                groupIndex, constraintIndex, quantifiedLength, PF.MAX_QUANTIFIED_ARRAY_LENGTH
+                            )
                         );
                     }
                 } else {
                     uint16 ctxId = Path.atUnchecked(constraint.path, 0);
                     if (ctxId > PF.CTX_MAX) {
-                        // forgefmt: disable-next-item
-                        state.tempIssues[state.issueCount++] = ValidationIssue.unknownContextProperty(
-                            groupIndex, constraintIndex, ctxId, PF.CTX_MAX
+                        issues.push(
+                            ValidationIssue.unknownContextProperty(groupIndex, constraintIndex, ctxId, PF.CTX_MAX)
                         );
                     }
                     typeInfo = Descriptor.TypeInfo({
@@ -208,16 +204,10 @@ library PolicyValidator {
             }
 
             // Validate operators and accumulate bound/set state into the context.
-            // forgefmt: disable-next-item
-            state.issueCount = _validateConstraint(
-                ctx, constraint, groupIndex, constraintIndex, state.tempIssues, state.issueCount
-            );
+            _validateConstraint(ctx, constraint, groupIndex, constraintIndex, issues);
 
             // Fusible range detection.
-            // forgefmt: disable-next-item
-            state.issueCount = _checkFusibleRange(
-                ctx, constraint.operators, groupIndex, constraintIndex, state.tempIssues, state.issueCount
-            );
+            _checkFusibleRange(ctx, constraint.operators, groupIndex, constraintIndex, issues);
 
             // Write back so later constraints on the same path see accumulated state.
             contexts[ctxIdx] = ctx;
@@ -234,12 +224,10 @@ library PolicyValidator {
         Constraint memory constraint,
         uint32 groupIndex,
         uint32 constraintIndex,
-        Issue[] memory issues,
-        uint256 issueCount
+        IssueCollector.Buffer memory issues
     )
         private
         pure
-        returns (uint256)
     {
         bytes[] memory operators = constraint.operators;
         uint256 operatorCount = operators.length;
@@ -255,19 +243,21 @@ library PolicyValidator {
             uint256 dataLength = op.length - 1;
             // forge-lint: disable-next-line(unsafe-typecast) guarded by the preceding bound check.
             if (dataLength > type(uint16).max || !OpRule.isValidPayloadSize(base, uint16(dataLength))) {
-                issues[issueCount++] = ValidationIssue.fromOpRule(
-                    IssueCode.UNKNOWN_OPERATOR,
-                    OpRule.compatibilityMessage(IssueCode.UNKNOWN_OPERATOR),
-                    groupIndex,
-                    constraintIndex,
-                    opCode
+                issues.push(
+                    ValidationIssue.fromOpRule(
+                        IssueCode.UNKNOWN_OPERATOR,
+                        OpRule.compatibilityMessage(IssueCode.UNKNOWN_OPERATOR),
+                        groupIndex,
+                        constraintIndex,
+                        opCode
+                    )
                 );
                 continue;
             }
 
             // A negated operator under any() is satisfied by a single decoy element.
             if (underAny && isNegated) {
-                issues[issueCount++] = ValidationIssue.negationUnderAny(groupIndex, constraintIndex, opCode);
+                issues.push(ValidationIssue.negationUnderAny(groupIndex, constraintIndex, opCode));
             }
 
             // Type compatibility check (delegates to OpRule).
@@ -277,8 +267,10 @@ library PolicyValidator {
             );
 
             if (!compatible) {
-                issues[issueCount++] = ValidationIssue.fromOpRule(
-                    code, OpRule.compatibilityMessage(code), groupIndex, constraintIndex, opCode
+                issues.push(
+                    ValidationIssue.fromOpRule(
+                        code, OpRule.compatibilityMessage(code), groupIndex, constraintIndex, opCode
+                    )
                 );
                 continue;
             }
@@ -293,10 +285,7 @@ library PolicyValidator {
                 if (TypeRule.isLeftAligned(typeCode)) {
                     (bool nonCanonical, bytes32 word, bytes32 canonical) = _findNonCanonicalWord(op, typeCode);
                     if (nonCanonical) {
-                        // forgefmt: disable-next-item
-                        issues[issueCount++] = ValidationIssue.nonCanonicalOperand(
-                            groupIndex, constraintIndex, word, canonical
-                        );
+                        issues.push(ValidationIssue.nonCanonicalOperand(groupIndex, constraintIndex, word, canonical));
                         continue;
                     }
                 }
@@ -309,52 +298,31 @@ library PolicyValidator {
                         // contradiction. Positive between decomposes into a lower and an upper bound.
                         if (!isNegated) {
                             (uint256 low, uint256 high) = _readPair(op);
-                            issueCount = _updateBound(
-                                ctx.numeric,
-                                OpCode.GTE,
-                                false,
-                                low,
-                                false,
-                                groupIndex,
-                                constraintIndex,
-                                issues,
-                                issueCount
+                            _updateBound(
+                                ctx.numeric, OpCode.GTE, false, low, false, groupIndex, constraintIndex, issues
                             );
-                            issueCount = _updateBound(
-                                ctx.numeric,
-                                OpCode.LTE,
-                                false,
-                                high,
-                                false,
-                                groupIndex,
-                                constraintIndex,
-                                issues,
-                                issueCount
+                            _updateBound(
+                                ctx.numeric, OpCode.LTE, false, high, false, groupIndex, constraintIndex, issues
                             );
                         }
                     } else {
                         uint256 value = _readValue(op);
                         uint8 holesBefore = ctx.numeric.holeCount;
-                        issueCount = _updateBound(
-                            ctx.numeric, base, isNegated, value, false, groupIndex, constraintIndex, issues, issueCount
-                        );
+                        _updateBound(ctx.numeric, base, isNegated, value, false, groupIndex, constraintIndex, issues);
                         // Cross-domain: neq holes can empty the isIn set.
                         if (ctx.numeric.holeCount > holesBefore) {
-                            issueCount = _checkSetEmpty(ctx, groupIndex, constraintIndex, issues, issueCount);
+                            _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
                         }
                     }
                 } else if (OpRule.isBitmaskOp(base)) {
                     uint256 mask = _readValue(op);
-                    // forgefmt: disable-next-item
-                    issueCount = _updateBitmask(
-                        ctx, base, isNegated, mask, groupIndex, constraintIndex, issues, issueCount
-                    );
+                    _updateBitmask(ctx, base, isNegated, mask, groupIndex, constraintIndex, issues);
                 } else if (base == OpCode.IN) {
                     uint256[] memory values = _unpackSet(op);
                     if (!_isStrictlyAscending(values)) {
-                        issues[issueCount++] = ValidationIssue.unsortedInSet(groupIndex, constraintIndex);
+                        issues.push(ValidationIssue.unsortedInSet(groupIndex, constraintIndex));
                     } else {
-                        issueCount = _updateSet(ctx, isNegated, values, groupIndex, constraintIndex, issues, issueCount);
+                        _updateSet(ctx, isNegated, values, groupIndex, constraintIndex, issues);
                     }
                 }
             } else if (OpRule.isLengthOp(base)) {
@@ -362,16 +330,12 @@ library PolicyValidator {
                     // A negated length range is a disjunction; see the value-between note above.
                     if (!isNegated) {
                         (uint256 low, uint256 high) = _readPair(op);
-                        issueCount = _updateBound(
-                            ctx.length, OpCode.GTE, false, low, true, groupIndex, constraintIndex, issues, issueCount
-                        );
-                        issueCount = _updateBound(
-                            ctx.length, OpCode.LTE, false, high, true, groupIndex, constraintIndex, issues, issueCount
-                        );
+                        _updateBound(ctx.length, OpCode.GTE, false, low, true, groupIndex, constraintIndex, issues);
+                        _updateBound(ctx.length, OpCode.LTE, false, high, true, groupIndex, constraintIndex, issues);
                     }
                 } else {
                     uint256 value = _readValue(op);
-                    issueCount = _updateBound(
+                    _updateBound(
                         ctx.length,
                         _normalizeLengthOp(base),
                         isNegated,
@@ -379,17 +343,14 @@ library PolicyValidator {
                         true,
                         groupIndex,
                         constraintIndex,
-                        issues,
-                        issueCount
+                        issues
                     );
                 }
             }
         }
 
         // Duplicate operator detection.
-        issueCount = _checkDuplicates(issues, issueCount, operators, groupIndex, constraintIndex);
-
-        return issueCount;
+        _checkDuplicates(issues, operators, groupIndex, constraintIndex);
     }
 
     /// @dev Reports a lone unnegated gte/lte pair (value or length domain) as fusible into the
@@ -400,18 +361,16 @@ library PolicyValidator {
         bytes[] memory operators,
         uint32 groupIndex,
         uint32 constraintIndex,
-        Issue[] memory issues,
-        uint256 issueCount
+        IssueCollector.Buffer memory issues
     )
         private
         pure
-        returns (uint256)
     {
         (bool hasPair, uint256 low, uint256 high) = _findLonePair(operators, OpCode.GTE, OpCode.LTE);
         (bool compatible,) =
             OpRule.checkCompatibility(OpCode.GTE, ctx.typeInfo.code, ctx.typeInfo.isDynamic, ctx.typeInfo.staticSize);
         if (hasPair && compatible && _isLte(low, high, ctx.numeric.isSigned)) {
-            issues[issueCount++] = ValidationIssue.fusibleRange(false, groupIndex, constraintIndex, low, high);
+            issues.push(ValidationIssue.fusibleRange(false, groupIndex, constraintIndex, low, high));
         }
 
         (hasPair, low, high) = _findLonePair(operators, OpCode.LENGTH_GTE, OpCode.LENGTH_LTE);
@@ -419,10 +378,8 @@ library PolicyValidator {
             OpCode.LENGTH_GTE, ctx.typeInfo.code, ctx.typeInfo.isDynamic, ctx.typeInfo.staticSize
         );
         if (hasPair && compatible && low <= high) {
-            issues[issueCount++] = ValidationIssue.fusibleRange(true, groupIndex, constraintIndex, low, high);
+            issues.push(ValidationIssue.fusibleRange(true, groupIndex, constraintIndex, low, high));
         }
-
-        return issueCount;
     }
 
     /// @dev Returns whether the operators contain exactly one of each unnegated bound opcode,
@@ -469,12 +426,10 @@ library PolicyValidator {
         bool isLength,
         uint32 groupIndex,
         uint32 constraintIndex,
-        Issue[] memory issues,
-        uint256 issueCount
+        IssueCollector.Buffer memory issues
     )
         private
         pure
-        returns (uint256)
     {
         bool changedEq = false;
         bool changedLower = false;
@@ -486,10 +441,7 @@ library PolicyValidator {
         if (isNegated) {
             if (base == OpCode.EQ) {
                 if (domain.hasEq && domain.eq == value) {
-                    // forgefmt: disable-next-item
-                    issues[issueCount++] = ValidationIssue.eqNeqContradiction(
-                        isLength, groupIndex, constraintIndex, value
-                    );
+                    issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value));
                 }
                 // Add to holes if not already present.
                 bool alreadyHole = false;
@@ -502,35 +454,25 @@ library PolicyValidator {
                 if (!alreadyHole && domain.holeCount < MAX_HOLES) domain.holes[domain.holeCount++] = value;
             } else {
                 // Convert negated bound to positive equivalent and re-enter.
-                return _updateBound(
-                    domain,
-                    _negateBoundOp(base),
-                    false,
-                    value,
-                    isLength,
-                    groupIndex,
-                    constraintIndex,
-                    issues,
-                    issueCount
-                );
+                _updateBound(domain, _negateBoundOp(base), false, value, isLength, groupIndex, constraintIndex, issues);
             }
-            return issueCount;
+            return;
         }
 
         // Vacuity checks.
         if (base == OpCode.GTE && value == domain.min) {
-            issues[issueCount++] = ValidationIssue.vacuousGte(isLength, groupIndex, constraintIndex, value);
+            issues.push(ValidationIssue.vacuousGte(isLength, groupIndex, constraintIndex, value));
         } else if (base == OpCode.LTE && value == domain.max) {
-            issues[issueCount++] = ValidationIssue.vacuousLte(isLength, groupIndex, constraintIndex, value);
+            issues.push(ValidationIssue.vacuousLte(isLength, groupIndex, constraintIndex, value));
         }
 
         // Physical bounds and impossibility.
         if (_isLt(value, domain.min, domain.isSigned) || _isGt(value, domain.max, domain.isSigned)) {
-            issues[issueCount++] = ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, value);
+            issues.push(ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, value));
         } else if (base == OpCode.GT && value == domain.max) {
-            issues[issueCount++] = ValidationIssue.impossibleGt(isLength, groupIndex, constraintIndex, value);
+            issues.push(ValidationIssue.impossibleGt(isLength, groupIndex, constraintIndex, value));
         } else if (base == OpCode.LT && value == domain.min) {
-            issues[issueCount++] = ValidationIssue.impossibleLt(isLength, groupIndex, constraintIndex, value);
+            issues.push(ValidationIssue.impossibleLt(isLength, groupIndex, constraintIndex, value));
         }
 
         // Equality handling.
@@ -538,18 +480,14 @@ library PolicyValidator {
             if (!domain.hasEq || domain.eq != value) changedEq = true;
             if (domain.hasEq) {
                 if (domain.eq != value) {
-                    // forgefmt: disable-next-item
-                    issues[issueCount++] = ValidationIssue.conflictingEquality(
-                        isLength, groupIndex, constraintIndex, domain.eq, value
+                    issues.push(
+                        ValidationIssue.conflictingEquality(isLength, groupIndex, constraintIndex, domain.eq, value)
                     );
                 }
             }
             for (uint8 j; j < domain.holeCount; ++j) {
                 if (domain.holes[j] == value) {
-                    // forgefmt: disable-next-item
-                    issues[issueCount++] = ValidationIssue.eqNeqContradiction(
-                        isLength, groupIndex, constraintIndex, value
-                    );
+                    issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value));
                 }
             }
             domain.hasEq = true;
@@ -579,14 +517,11 @@ library PolicyValidator {
                 }
 
                 if (redundant) {
-                    issues[issueCount++] = ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, value);
+                    issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, value));
                 }
 
                 if (strictlyBetter) {
-                    // forgefmt: disable-next-item
-                    issues[issueCount++] = ValidationIssue.dominatedBound(
-                        isLength, groupIndex, constraintIndex, domain.lower
-                    );
+                    issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, domain.lower));
                     domain.lower = value;
                     domain.lowerInclusive = inclusive;
                     changedLower = true;
@@ -621,14 +556,11 @@ library PolicyValidator {
                 }
 
                 if (redundant) {
-                    issues[issueCount++] = ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, value);
+                    issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, value));
                 }
 
                 if (strictlyBetter) {
-                    // forgefmt: disable-next-item
-                    issues[issueCount++] = ValidationIssue.dominatedBound(
-                        isLength, groupIndex, constraintIndex, domain.upper
-                    );
+                    issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, domain.upper));
                     domain.upper = value;
                     domain.upperInclusive = inclusive;
                     changedUpper = true;
@@ -644,58 +576,59 @@ library PolicyValidator {
         // Cross-checks: equality vs bounds.
         // When both eq and a bound exist, exactly one of two issues applies: either eq is
         // excluded by the bound (contradiction), or the bound is redundant because eq pins the value.
-        // forgefmt: disable-next-item
         if (changedEq || changedLower) {
             if (domain.hasEq && domain.hasLower) {
                 bool contradiction = domain.lowerInclusive
                     ? _isLt(domain.eq, domain.lower, domain.isSigned)
                     : _isLte(domain.eq, domain.lower, domain.isSigned);
                 if (contradiction) {
-                    issues[issueCount++] = ValidationIssue.boundsExcludeEquality(
-                        isLength, groupIndex, constraintIndex, domain.eq, domain.lower
+                    issues.push(
+                        ValidationIssue.boundsExcludeEquality(
+                            isLength, groupIndex, constraintIndex, domain.eq, domain.lower
+                        )
                     );
                 } else {
-                    issues[issueCount++] = ValidationIssue.redundantBound(
-                        isLength, groupIndex, constraintIndex, domain.lower, domain.eq
+                    issues.push(
+                        ValidationIssue.redundantBound(isLength, groupIndex, constraintIndex, domain.lower, domain.eq)
                     );
                 }
             }
         }
 
-        // forgefmt: disable-next-item
         if (changedEq || changedUpper) {
             if (domain.hasEq && domain.hasUpper) {
                 bool contradiction = domain.upperInclusive
                     ? _isGt(domain.eq, domain.upper, domain.isSigned)
                     : _isGte(domain.eq, domain.upper, domain.isSigned);
                 if (contradiction) {
-                    issues[issueCount++] = ValidationIssue.boundsExcludeEquality(
-                        isLength, groupIndex, constraintIndex, domain.eq, domain.upper
+                    issues.push(
+                        ValidationIssue.boundsExcludeEquality(
+                            isLength, groupIndex, constraintIndex, domain.eq, domain.upper
+                        )
                     );
                 } else {
-                    issues[issueCount++] = ValidationIssue.redundantBound(
-                        isLength, groupIndex, constraintIndex, domain.upper, domain.eq
+                    issues.push(
+                        ValidationIssue.redundantBound(isLength, groupIndex, constraintIndex, domain.upper, domain.eq)
                     );
                 }
             }
         }
 
         // Cross-check: lower vs upper bound.
-        // forgefmt: disable-next-item
         if (changedLower || changedUpper) {
             if (domain.hasLower && domain.hasUpper) {
                 // A range where lower == upper is only satisfiable if both bounds are inclusive.
                 bool impossible = _isGt(domain.lower, domain.upper, domain.isSigned)
                     || (domain.lower == domain.upper && (!domain.lowerInclusive || !domain.upperInclusive));
                 if (impossible) {
-                    issues[issueCount++] = ValidationIssue.impossibleRange(
-                        isLength, groupIndex, constraintIndex, domain.lower, domain.upper
+                    issues.push(
+                        ValidationIssue.impossibleRange(
+                            isLength, groupIndex, constraintIndex, domain.lower, domain.upper
+                        )
                     );
                 }
             }
         }
-
-        return issueCount;
     }
 
     /// @dev Updates the set membership domain with new values and detects contradictions/redundancies.
@@ -705,18 +638,16 @@ library PolicyValidator {
         uint256[] memory values,
         uint32 groupIndex,
         uint32 constraintIndex,
-        Issue[] memory issues,
-        uint256 issueCount
+        IssueCollector.Buffer memory issues
     )
         private
         pure
-        returns (uint256)
     {
         if (isNegated) {
             for (uint256 i; i < values.length; ++i) {
                 uint256 value = values[i];
                 if (ctx.numeric.hasEq && ctx.numeric.eq == value) {
-                    issues[issueCount++] = ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, value);
+                    issues.push(ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, value));
                 }
 
                 if (ctx.set.hasIn) {
@@ -727,12 +658,12 @@ library PolicyValidator {
                             break;
                         }
                     }
-                    if (inSet) issues[issueCount++] = ValidationIssue.setReduction(groupIndex, constraintIndex, value);
+                    if (inSet) issues.push(ValidationIssue.setReduction(groupIndex, constraintIndex, value));
                 }
 
                 if (ctx.set.notInCount < MAX_NOT_IN) ctx.set.notInValues[ctx.set.notInCount++] = value;
             }
-            issueCount = _checkSetEmpty(ctx, groupIndex, constraintIndex, issues, issueCount);
+            _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
         } else {
             if (ctx.numeric.hasEq) {
                 bool found = false;
@@ -743,10 +674,7 @@ library PolicyValidator {
                     }
                 }
                 if (!found) {
-                    // forgefmt: disable-next-item
-                    issues[issueCount++] = ValidationIssue.setExcludesEquality(
-                        groupIndex, constraintIndex, ctx.numeric.eq
-                    );
+                    issues.push(ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, ctx.numeric.eq));
                 }
             }
 
@@ -769,9 +697,9 @@ library PolicyValidator {
                 }
 
                 if (intersectionCount == 0) {
-                    issues[issueCount++] = ValidationIssue.emptySetIntersection(groupIndex, constraintIndex);
+                    issues.push(ValidationIssue.emptySetIntersection(groupIndex, constraintIndex));
                 } else if (intersectionCount < values.length || intersectionCount < ctx.set.inValues.length) {
-                    issues[issueCount++] = ValidationIssue.setRedundancy(groupIndex, constraintIndex, intersectionCount);
+                    issues.push(ValidationIssue.setRedundancy(groupIndex, constraintIndex, intersectionCount));
                 }
                 ctx.set.inValues = intersection;
             } else {
@@ -779,9 +707,8 @@ library PolicyValidator {
                 ctx.set.inValues = values;
             }
 
-            issueCount = _checkSetEmpty(ctx, groupIndex, constraintIndex, issues, issueCount);
+            _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
         }
-        return issueCount;
     }
 
     /// @dev Checks if the isIn() set has been fully excluded by neq/notIn values.
@@ -789,14 +716,12 @@ library PolicyValidator {
         ConstraintContext memory ctx,
         uint32 groupIndex,
         uint32 constraintIndex,
-        Issue[] memory issues,
-        uint256 issueCount
+        IssueCollector.Buffer memory issues
     )
         private
         pure
-        returns (uint256)
     {
-        if (!ctx.set.hasIn) return issueCount;
+        if (!ctx.set.hasIn) return;
 
         // Count isIn members not excluded by neq (holes) or notIn values.
         // Both sources exclude independently, so holes are checked first as a fast path.
@@ -824,14 +749,10 @@ library PolicyValidator {
 
         // Zero survivors is a contradiction (error); partial exclusion is a warning.
         if (possibleCount == 0) {
-            issues[issueCount++] = ValidationIssue.setFullyExcluded(groupIndex, constraintIndex);
+            issues.push(ValidationIssue.setFullyExcluded(groupIndex, constraintIndex));
         } else if (possibleCount < inCount) {
-            // forgefmt: disable-next-item
-            issues[issueCount++] = ValidationIssue.setPartiallyExcluded(
-                groupIndex, constraintIndex, inCount - possibleCount
-            );
+            issues.push(ValidationIssue.setPartiallyExcluded(groupIndex, constraintIndex, inCount - possibleCount));
         }
-        return issueCount;
     }
 
     /// @dev Unpacks an IN operator's payload into an array of uint256 values.
@@ -864,77 +785,64 @@ library PolicyValidator {
         uint256 mask,
         uint32 groupIndex,
         uint32 constraintIndex,
-        Issue[] memory issues,
-        uint256 issueCount
+        IssueCollector.Buffer memory issues
     )
         private
         pure
-        returns (uint256)
     {
-        if (isNegated) return issueCount;
+        if (isNegated) return;
 
-        // forgefmt: disable-next-item
         if (base == OpCode.BITMASK_ALL) {
             if ((ctx.bitmask.mustBeZero & mask) != 0) {
-                issues[issueCount++] = ValidationIssue.bitmaskContradiction(
-                    groupIndex, constraintIndex, mask, ctx.bitmask.mustBeZero
+                issues.push(
+                    ValidationIssue.bitmaskContradiction(groupIndex, constraintIndex, mask, ctx.bitmask.mustBeZero)
                 );
             }
             if ((ctx.bitmask.mustBeOne & mask) == mask) {
-                issues[issueCount++] = ValidationIssue.redundantBitmask(
-                    groupIndex, constraintIndex, mask, ctx.bitmask.mustBeOne
-                );
+                issues.push(ValidationIssue.redundantBitmask(groupIndex, constraintIndex, mask, ctx.bitmask.mustBeOne));
             }
             ctx.bitmask.mustBeOne |= mask;
         } else if (base == OpCode.BITMASK_NONE) {
             if ((ctx.bitmask.mustBeOne & mask) != 0) {
-                issues[issueCount++] = ValidationIssue.bitmaskContradiction(
-                    groupIndex, constraintIndex, mask, ctx.bitmask.mustBeOne
+                issues.push(
+                    ValidationIssue.bitmaskContradiction(groupIndex, constraintIndex, mask, ctx.bitmask.mustBeOne)
                 );
             }
             if ((ctx.bitmask.mustBeZero & mask) == mask) {
-                issues[issueCount++] = ValidationIssue.redundantBitmask(
-                    groupIndex, constraintIndex, mask, ctx.bitmask.mustBeZero
-                );
+                issues.push(ValidationIssue.redundantBitmask(groupIndex, constraintIndex, mask, ctx.bitmask.mustBeZero));
             }
             ctx.bitmask.mustBeZero |= mask;
         } else if (base == OpCode.BITMASK_ANY) {
             if (mask != 0 && (ctx.bitmask.mustBeZero & mask) == mask) {
-                issues[issueCount++] = ValidationIssue.bitmaskAnyImpossible(
-                    groupIndex, constraintIndex, mask, ctx.bitmask.mustBeZero
+                issues.push(
+                    ValidationIssue.bitmaskAnyImpossible(groupIndex, constraintIndex, mask, ctx.bitmask.mustBeZero)
                 );
             }
             if ((ctx.bitmask.mustBeOne & mask) != 0) {
-                issues[issueCount++] = ValidationIssue.redundantBitmask(
-                    groupIndex, constraintIndex, mask, ctx.bitmask.mustBeOne
-                );
+                issues.push(ValidationIssue.redundantBitmask(groupIndex, constraintIndex, mask, ctx.bitmask.mustBeOne));
             }
         }
-        return issueCount;
     }
 
     /// @dev Checks for duplicate operators in a constraint.
     function _checkDuplicates(
-        Issue[] memory issues,
-        uint256 issueCount,
+        IssueCollector.Buffer memory issues,
         bytes[] memory operators,
         uint32 groupIndex,
         uint32 constraintIndex
     )
         private
         pure
-        returns (uint256)
     {
         uint256 operatorCount = operators.length;
         for (uint256 i; i < operatorCount; ++i) {
             for (uint256 j = i + 1; j < operatorCount; ++j) {
                 if (LibBytes.eq(operators[i], operators[j])) {
-                    issues[issueCount++] = ValidationIssue.duplicateConstraint(groupIndex, constraintIndex);
-                    return issueCount;
+                    issues.push(ValidationIssue.duplicateConstraint(groupIndex, constraintIndex));
+                    return;
                 }
             }
         }
-        return issueCount;
     }
 
     /// @dev Returns true if a calldata constraint's path contains the existential quantifier.

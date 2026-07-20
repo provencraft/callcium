@@ -1038,6 +1038,28 @@ contract SetContradictionTest is PolicyValidatorTest {
 
         _assertNoIssue(issues, IssueCode.SET_REDUCTION);
     }
+
+    function test_ManyReductions_NoOverflow() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        // A large isIn/notIn overlap emits one SET_REDUCTION per element — far more issues than the
+        // per-operator capacity estimate, so the issue buffer must grow rather than overflow.
+        uint256 count = 64;
+        uint256[] memory set = new uint256[](count);
+        for (uint256 i; i < count; ++i) {
+            set[i] = i + 1;
+        }
+        Constraint memory c = arg(0).isIn(set).notIn(set);
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        // Must not revert with Panic(0x32); every reduction is returned, none truncated.
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        uint256 reductions;
+        for (uint256 i; i < issues.length; ++i) {
+            if (issues[i].code == IssueCode.SET_REDUCTION) ++reductions;
+        }
+        assertEq(reductions, count);
+    }
 }
 
 contract BitmaskRedundancyTest is PolicyValidatorTest {

@@ -136,6 +136,7 @@ contract PolicyCoderConformanceTest is BaseTest {
         string memory id
     )
         private
+        view
     {
         string memory decodedPath = string.concat(".[", indexString, "].spec.decoded");
         assertEq(data.isSelectorless, vm.parseJsonBool(json, string.concat(decodedPath, ".isSelectorless")), id);
@@ -230,7 +231,7 @@ contract PolicyCoderConformanceTest is BaseTest {
         }
     }
 
-    function test_EncodesConformWithSpecification() public {
+    function test_EncodesConformWithSpecification() public view {
         (string memory json, PolicyFixture[] memory fixtures) = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             PolicyFixture memory f = fixtures[i];

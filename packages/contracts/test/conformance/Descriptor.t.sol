@@ -98,7 +98,7 @@ contract DescriptorConformanceTest is BaseTest {
         }
     }
 
-    function test_ParamCountConformsWithSpecification() public {
+    function test_ParamCountConformsWithSpecification() public view {
         DescriptorFixture[] memory fixtures = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             DescriptorFixture memory f = fixtures[i];
@@ -107,7 +107,7 @@ contract DescriptorConformanceTest is BaseTest {
         }
     }
 
-    function test_TypeAtConformsWithSpecification() public {
+    function test_TypeAtConformsWithSpecification() public view {
         DescriptorFixture[] memory fixtures = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             DescriptorFixture memory f = fixtures[i];

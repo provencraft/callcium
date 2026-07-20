@@ -475,29 +475,35 @@ library PolicyEnforcer {
         uint8 base = opCode & ~OpCode.NOT;
         bool result;
 
+        // forgefmt: disable-next-item
         if (base == OpCode.EQ) {
             result = value == LibBytes.load(policy, dataOffset);
+
         } else if (base == OpCode.GT) {
             bytes32 operandRaw = LibBytes.load(policy, dataOffset);
             // int256 cast produces slt/sgt; required for correct two's complement ordering of signed integers.
             result = TypeRule.isSigned(typeCode)
                 ? int256(uint256(value)) > int256(uint256(operandRaw))
                 : uint256(value) > uint256(operandRaw);
+
         } else if (base == OpCode.LT) {
             bytes32 operandRaw = LibBytes.load(policy, dataOffset);
             result = TypeRule.isSigned(typeCode)
                 ? int256(uint256(value)) < int256(uint256(operandRaw))
                 : uint256(value) < uint256(operandRaw);
+
         } else if (base == OpCode.GTE) {
             bytes32 operandRaw = LibBytes.load(policy, dataOffset);
             result = TypeRule.isSigned(typeCode)
                 ? int256(uint256(value)) >= int256(uint256(operandRaw))
                 : uint256(value) >= uint256(operandRaw);
+
         } else if (base == OpCode.LTE) {
             bytes32 operandRaw = LibBytes.load(policy, dataOffset);
             result = TypeRule.isSigned(typeCode)
                 ? int256(uint256(value)) <= int256(uint256(operandRaw))
                 : uint256(value) <= uint256(operandRaw);
+
         } else if (base == OpCode.BETWEEN) {
             bytes32 lowerRaw;
             bytes32 upperRaw;
@@ -518,32 +524,42 @@ library PolicyEnforcer {
                 uint256 upper = uint256(upperRaw);
                 result = val >= lower && val <= upper;
             }
+
         } else if (base == OpCode.IN) {
             result = _checkIn(value, policy, dataOffset, dataLength);
+
         } else if (base == OpCode.BITMASK_ALL) {
             bytes32 mask = LibBytes.load(policy, dataOffset);
             result = (value & mask) == mask;
+
         } else if (base == OpCode.BITMASK_ANY) {
             bytes32 mask = LibBytes.load(policy, dataOffset);
             result = (value & mask) != bytes32(0);
+
         } else if (base == OpCode.BITMASK_NONE) {
             bytes32 mask = LibBytes.load(policy, dataOffset);
             result = (value & mask) == bytes32(0);
+
         } else if (base == OpCode.LENGTH_EQ) {
             uint256 operand = uint256(LibBytes.load(policy, dataOffset));
             result = valueLength == operand;
+
         } else if (base == OpCode.LENGTH_GT) {
             uint256 operand = uint256(LibBytes.load(policy, dataOffset));
             result = valueLength > operand;
+
         } else if (base == OpCode.LENGTH_LT) {
             uint256 operand = uint256(LibBytes.load(policy, dataOffset));
             result = valueLength < operand;
+
         } else if (base == OpCode.LENGTH_GTE) {
             uint256 operand = uint256(LibBytes.load(policy, dataOffset));
             result = valueLength >= operand;
+
         } else if (base == OpCode.LENGTH_LTE) {
             uint256 operand = uint256(LibBytes.load(policy, dataOffset));
             result = valueLength <= operand;
+
         } else if (base == OpCode.LENGTH_BETWEEN) {
             uint256 lower;
             uint256 upper;
@@ -553,6 +569,7 @@ library PolicyEnforcer {
                 upper := mload(add(ptr, 32))
             }
             result = valueLength >= lower && valueLength <= upper;
+
         } else {
             revert UnknownOperator(base);
         }

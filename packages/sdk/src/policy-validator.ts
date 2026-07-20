@@ -13,7 +13,7 @@ import {
 import { Descriptor, type TypeInfo } from "./descriptor";
 import { canonicalize, isLeftAligned, isSigned, isLengthOp, isLengthValidType } from "./operators";
 import { parsePathSteps } from "./policy-coder";
-import * as Issues from "./validation-issue";
+import * as ValidationIssue from "./validation-issue";
 
 import type { Constraint, Hex, Issue, PolicyData } from "./types";
 
@@ -326,7 +326,7 @@ function updateBound(
   if (isNegated) {
     if (base === Op.EQ) {
       if (domain.hasEq && domain.eq === value) {
-        issues.push(Issues.eqNeqContradiction(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+        issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, bigintToHex(value)));
       }
       let alreadyHole = false;
       for (let j = 0; j < domain.holes.length; j++) {
@@ -346,9 +346,9 @@ function updateBound(
 
   // Vacuity checks.
   if (base === Op.GTE && value === domain.min) {
-    issues.push(Issues.vacuousGte(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(ValidationIssue.vacuousGte(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   } else if (base === Op.LTE && value === domain.max) {
-    issues.push(Issues.vacuousLte(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(ValidationIssue.vacuousLte(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   }
 
   // Physical bounds and impossibility.
@@ -356,11 +356,11 @@ function updateBound(
     signedCompare(value, domain.min, domain.isSigned) < 0n ||
     signedCompare(value, domain.max, domain.isSigned) > 0n
   ) {
-    issues.push(Issues.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   } else if (base === Op.GT && value === domain.max) {
-    issues.push(Issues.impossibleGt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(ValidationIssue.impossibleGt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   } else if (base === Op.LT && value === domain.min) {
-    issues.push(Issues.impossibleLt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+    issues.push(ValidationIssue.impossibleLt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   }
 
   // Equality handling.
@@ -369,13 +369,19 @@ function updateBound(
     if (domain.hasEq) {
       if (domain.eq !== value) {
         issues.push(
-          Issues.conflictingEquality(isLength, groupIndex, constraintIndex, bigintToHex(domain.eq), bigintToHex(value)),
+          ValidationIssue.conflictingEquality(
+            isLength,
+            groupIndex,
+            constraintIndex,
+            bigintToHex(domain.eq),
+            bigintToHex(value),
+          ),
         );
       }
     }
     for (let j = 0; j < domain.holes.length; j++) {
       if (domain.holes[j] === value) {
-        issues.push(Issues.eqNeqContradiction(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+        issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, bigintToHex(value)));
       }
     }
     domain.hasEq = true;
@@ -400,11 +406,11 @@ function updateBound(
       }
 
       if (redundant) {
-        issues.push(Issues.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+        issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(value)));
       }
 
       if (strictlyBetter) {
-        issues.push(Issues.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(domain.lower)));
+        issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(domain.lower)));
         domain.lower = value;
         domain.lowerInclusive = inclusive;
         changedLower = true;
@@ -435,11 +441,11 @@ function updateBound(
       }
 
       if (redundant) {
-        issues.push(Issues.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+        issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(value)));
       }
 
       if (strictlyBetter) {
-        issues.push(Issues.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(domain.upper)));
+        issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(domain.upper)));
         domain.upper = value;
         domain.upperInclusive = inclusive;
         changedUpper = true;
@@ -460,7 +466,7 @@ function updateBound(
         : signedCompare(domain.eq, domain.lower, domain.isSigned) <= 0n;
       if (contradiction) {
         issues.push(
-          Issues.boundsExcludeEquality(
+          ValidationIssue.boundsExcludeEquality(
             isLength,
             groupIndex,
             constraintIndex,
@@ -470,7 +476,7 @@ function updateBound(
         );
       } else {
         issues.push(
-          Issues.redundantBound(
+          ValidationIssue.redundantBound(
             isLength,
             groupIndex,
             constraintIndex,
@@ -490,7 +496,7 @@ function updateBound(
         : signedCompare(domain.eq, domain.upper, domain.isSigned) >= 0n;
       if (contradiction) {
         issues.push(
-          Issues.boundsExcludeEquality(
+          ValidationIssue.boundsExcludeEquality(
             isLength,
             groupIndex,
             constraintIndex,
@@ -500,7 +506,7 @@ function updateBound(
         );
       } else {
         issues.push(
-          Issues.redundantBound(
+          ValidationIssue.redundantBound(
             isLength,
             groupIndex,
             constraintIndex,
@@ -520,7 +526,7 @@ function updateBound(
         (domain.lower === domain.upper && (!domain.lowerInclusive || !domain.upperInclusive));
       if (impossible) {
         issues.push(
-          Issues.impossibleRange(
+          ValidationIssue.impossibleRange(
             isLength,
             groupIndex,
             constraintIndex,
@@ -552,7 +558,7 @@ function updateBitmask(
   if (base === Op.BITMASK_ALL) {
     if ((ctx.bitmask.mustBeZero & mask) !== 0n) {
       issues.push(
-        Issues.bitmaskContradiction(
+        ValidationIssue.bitmaskContradiction(
           groupIndex,
           constraintIndex,
           bigintToHex(mask),
@@ -562,26 +568,41 @@ function updateBitmask(
     }
     if ((ctx.bitmask.mustBeOne & mask) === mask) {
       issues.push(
-        Issues.redundantBitmask(groupIndex, constraintIndex, bigintToHex(mask), bigintToHex(ctx.bitmask.mustBeOne)),
+        ValidationIssue.redundantBitmask(
+          groupIndex,
+          constraintIndex,
+          bigintToHex(mask),
+          bigintToHex(ctx.bitmask.mustBeOne),
+        ),
       );
     }
     ctx.bitmask.mustBeOne |= mask;
   } else if (base === Op.BITMASK_NONE) {
     if ((ctx.bitmask.mustBeOne & mask) !== 0n) {
       issues.push(
-        Issues.bitmaskContradiction(groupIndex, constraintIndex, bigintToHex(mask), bigintToHex(ctx.bitmask.mustBeOne)),
+        ValidationIssue.bitmaskContradiction(
+          groupIndex,
+          constraintIndex,
+          bigintToHex(mask),
+          bigintToHex(ctx.bitmask.mustBeOne),
+        ),
       );
     }
     if ((ctx.bitmask.mustBeZero & mask) === mask) {
       issues.push(
-        Issues.redundantBitmask(groupIndex, constraintIndex, bigintToHex(mask), bigintToHex(ctx.bitmask.mustBeZero)),
+        ValidationIssue.redundantBitmask(
+          groupIndex,
+          constraintIndex,
+          bigintToHex(mask),
+          bigintToHex(ctx.bitmask.mustBeZero),
+        ),
       );
     }
     ctx.bitmask.mustBeZero |= mask;
   } else if (base === Op.BITMASK_ANY) {
     if (mask !== 0n && (ctx.bitmask.mustBeZero & mask) === mask) {
       issues.push(
-        Issues.bitmaskAnyImpossible(
+        ValidationIssue.bitmaskAnyImpossible(
           groupIndex,
           constraintIndex,
           bigintToHex(mask),
@@ -591,7 +612,12 @@ function updateBitmask(
     }
     if ((ctx.bitmask.mustBeOne & mask) !== 0n) {
       issues.push(
-        Issues.redundantBitmask(groupIndex, constraintIndex, bigintToHex(mask), bigintToHex(ctx.bitmask.mustBeOne)),
+        ValidationIssue.redundantBitmask(
+          groupIndex,
+          constraintIndex,
+          bigintToHex(mask),
+          bigintToHex(ctx.bitmask.mustBeOne),
+        ),
       );
     }
   }
@@ -628,9 +654,11 @@ function checkSetEmpty(ctx: ConstraintContext, groupIndex: number, constraintInd
   }
 
   if (possibleCount === 0) {
-    issues.push(Issues.setFullyExcluded(groupIndex, constraintIndex));
+    issues.push(ValidationIssue.setFullyExcluded(groupIndex, constraintIndex));
   } else if (possibleCount < inCount) {
-    issues.push(Issues.setPartiallyExcluded(groupIndex, constraintIndex, bigintToHex(BigInt(inCount - possibleCount))));
+    issues.push(
+      ValidationIssue.setPartiallyExcluded(groupIndex, constraintIndex, bigintToHex(BigInt(inCount - possibleCount))),
+    );
   }
 }
 
@@ -646,7 +674,7 @@ function updateSet(
   if (isNegated) {
     for (const value of values) {
       if (ctx.numeric.hasEq && ctx.numeric.eq === value) {
-        issues.push(Issues.setExcludesEquality(groupIndex, constraintIndex, bigintToHex(value)));
+        issues.push(ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, bigintToHex(value)));
       }
       if (ctx.set.hasIn) {
         let inSet = false;
@@ -657,7 +685,7 @@ function updateSet(
           }
         }
         if (inSet) {
-          issues.push(Issues.setReduction(groupIndex, constraintIndex, bigintToHex(value)));
+          issues.push(ValidationIssue.setReduction(groupIndex, constraintIndex, bigintToHex(value)));
         }
       }
       if (ctx.set.notInValues.length < MAX_NOT_IN) {
@@ -675,7 +703,7 @@ function updateSet(
         }
       }
       if (!found) {
-        issues.push(Issues.setExcludesEquality(groupIndex, constraintIndex, bigintToHex(ctx.numeric.eq)));
+        issues.push(ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, bigintToHex(ctx.numeric.eq)));
       }
     }
 
@@ -691,9 +719,11 @@ function updateSet(
       }
 
       if (intersection.length === 0) {
-        issues.push(Issues.emptySetIntersection(groupIndex, constraintIndex));
+        issues.push(ValidationIssue.emptySetIntersection(groupIndex, constraintIndex));
       } else if (intersection.length < values.length || intersection.length < ctx.set.inValues.length) {
-        issues.push(Issues.setRedundancy(groupIndex, constraintIndex, bigintToHex(BigInt(intersection.length))));
+        issues.push(
+          ValidationIssue.setRedundancy(groupIndex, constraintIndex, bigintToHex(BigInt(intersection.length))),
+        );
       }
       ctx.set.inValues = intersection;
     } else {
@@ -715,7 +745,7 @@ function checkDuplicates(issues: Issue[], operators: Hex[], groupIndex: number, 
   for (const op of operators) {
     const key = op.toLowerCase();
     if (seen.has(key)) {
-      issues.push(Issues.duplicateConstraint(groupIndex, constraintIndex));
+      issues.push(ValidationIssue.duplicateConstraint(groupIndex, constraintIndex));
       return;
     }
     seen.add(key);
@@ -745,7 +775,7 @@ function checkFusibleRange(
     signedCompare(numericPair.low, numericPair.high, ctx.numeric.isSigned) <= 0n
   ) {
     issues.push(
-      Issues.fusibleRange(
+      ValidationIssue.fusibleRange(
         false,
         groupIndex,
         constraintIndex,
@@ -758,7 +788,13 @@ function checkFusibleRange(
   const lengthPair = findLonePair(operators, Op.LENGTH_GTE, Op.LENGTH_LTE);
   if (lengthPair && getIncompat(Op.LENGTH_GTE, ctx.typeInfo) === null && lengthPair.low <= lengthPair.high) {
     issues.push(
-      Issues.fusibleRange(true, groupIndex, constraintIndex, bigintToHex(lengthPair.low), bigintToHex(lengthPair.high)),
+      ValidationIssue.fusibleRange(
+        true,
+        groupIndex,
+        constraintIndex,
+        bigintToHex(lengthPair.low),
+        bigintToHex(lengthPair.high),
+      ),
     );
   }
 }
@@ -810,7 +846,7 @@ function validateConstraint(
     const dataLength = (opHex.length - 4) / 2;
     if (dataLength > 0xffff || !isValidOperatorData(base, dataLength)) {
       issues.push(
-        Issues.fromOpRule(
+        ValidationIssue.fromOpRule(
           "UNKNOWN_OPERATOR",
           "Unknown operator code",
           groupIndex,
@@ -823,13 +859,19 @@ function validateConstraint(
 
     // A negated operator under any() is satisfied by a single decoy element.
     if (underAny && isNegated) {
-      issues.push(Issues.negationUnderAny(groupIndex, constraintIndex, bigintToHex(BigInt(opCode))));
+      issues.push(ValidationIssue.negationUnderAny(groupIndex, constraintIndex, bigintToHex(BigInt(opCode))));
     }
 
     const incompat = getIncompat(base, ctx.typeInfo);
     if (incompat) {
       issues.push(
-        Issues.fromOpRule(incompat.code, incompat.message, groupIndex, constraintIndex, bigintToHex(BigInt(opCode))),
+        ValidationIssue.fromOpRule(
+          incompat.code,
+          incompat.message,
+          groupIndex,
+          constraintIndex,
+          bigintToHex(BigInt(opCode)),
+        ),
       );
       continue;
     }
@@ -844,7 +886,7 @@ function validateConstraint(
         const nonCanonical = findNonCanonicalWord(opHex, typeCode);
         if (nonCanonical !== null) {
           issues.push(
-            Issues.nonCanonicalOperand(
+            ValidationIssue.nonCanonicalOperand(
               groupIndex,
               constraintIndex,
               bigintToHex(nonCanonical.word),
@@ -879,7 +921,7 @@ function validateConstraint(
       } else if (base === Op.IN) {
         const values = unpackSet(opHex);
         if (!isStrictlyAscending(values)) {
-          issues.push(Issues.unsortedInSet(groupIndex, constraintIndex));
+          issues.push(ValidationIssue.unsortedInSet(groupIndex, constraintIndex));
         } else {
           updateSet(ctx, isNegated, values, groupIndex, constraintIndex, issues);
         }
@@ -931,7 +973,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
         // Compatibility warnings against the reference enforcer's limits (spec §9.1).
         if (steps.length > Limits.MAX_PATH_DEPTH) {
           issues.push(
-            Issues.pathDepthExceeded(
+            ValidationIssue.pathDepthExceeded(
               groupIndex,
               constraintIndex,
               bigintToHex(BigInt(steps.length)),
@@ -942,7 +984,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
         const walk = Descriptor.walkPath(descBytes, steps);
         if (walk.quantifiedStaticLength > Limits.MAX_QUANTIFIED_ARRAY_LENGTH) {
           issues.push(
-            Issues.quantifierOverStaticLimit(
+            ValidationIssue.quantifierOverStaticLimit(
               groupIndex,
               constraintIndex,
               bigintToHex(BigInt(walk.quantifiedStaticLength)),
@@ -957,7 +999,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
         if (ctxId > MAX_CONTEXT_PROPERTY_ID) {
           // Mirror the Solidity validator: warn and fall back to uint256 typing.
           issues.push(
-            Issues.unknownContextProperty(
+            ValidationIssue.unknownContextProperty(
               groupIndex,
               constraintIndex,
               bigintToHex(BigInt(ctxId)),
@@ -995,7 +1037,7 @@ function validate(data: PolicyData): Issue[] {
 
   for (let groupIndex = 0; groupIndex < data.groups.length; groupIndex++) {
     if (data.groups[groupIndex]!.length === 0) {
-      issues.push(Issues.emptyGroup(groupIndex));
+      issues.push(ValidationIssue.emptyGroup(groupIndex));
       continue;
     }
     validateGroup(data, descBytes, groupIndex, issues);
