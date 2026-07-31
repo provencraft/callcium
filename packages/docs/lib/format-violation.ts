@@ -103,6 +103,8 @@ export function formatViolation(v: Violation, params?: ParamNode[]): string {
       return `${formatPath(v.path, v.scope, params)}: array length ${BigInt(v.resolvedValue).toString(10)} exceeds maximum`;
     case "QUANTIFIER_EMPTY_ARRAY":
       return `${formatPath(v.path, v.scope, params)}: quantifier applied to empty array`;
+    case "NON_CANONICAL_VALUE":
+      return `${formatPath(v.path, v.scope, params)}: ${v.resolvedValue} is not a canonical encoding`;
     case "CALLDATA_OUT_OF_BOUNDS":
     case "ARRAY_INDEX_OUT_OF_BOUNDS": {
       const path = formatPath(v.path, v.scope, params);

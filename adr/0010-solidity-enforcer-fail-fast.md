@@ -16,7 +16,7 @@ The Solidity enforcer's fail-fast revert behaviour on calldata-relative failures
 
 The two runtimes share **semantic alignment** — identical violation vocabulary, identical classification of what counts as a violation, identical policy language — but not **operational alignment**. Control flow differs where the execution environment demands it. The design goal is **shared semantics, runtime-appropriate control flow**, not identical implementation mechanics.
 
-Verdict alignment is normative: the Policy Spec (§9.3) assigns each violation code an effect — group-local (the group fails, evaluation continues) or abort (evaluation stops, later groups are not consulted) — and requires identical accept/reject verdicts from every enforcer. The SDK enforcer honours the abort effect for `CALLDATA_OUT_OF_BOUNDS`, `ARRAY_INDEX_OUT_OF_BOUNDS`, and `QUANTIFIER_LIMIT_EXCEEDED`, matching the Solidity enforcer's fail-fast verdict while retaining collect-all reporting for group-local violations.
+Verdict alignment is normative: the Policy Spec (§9.3) assigns each violation code an effect — group-local (the group fails, evaluation continues) or abort (evaluation stops, later groups are not consulted) — and requires identical accept/reject verdicts from every enforcer. The SDK enforcer honours every abort effect that section assigns, matching the Solidity enforcer's fail-fast verdict while retaining collect-all reporting for group-local violations.
 
 ### Rationale
 

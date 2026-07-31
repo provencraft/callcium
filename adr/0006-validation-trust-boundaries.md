@@ -29,6 +29,7 @@ IN operand ordering (PWF-21) deserves emphasis: operands must be strictly ascend
 - Array length cap for quantifier iteration (DoS protection).
 - Nested quantifier rejection.
 - Path depth <= 32 (self-shielding duplicate of the storage-time check; see ADR-0005).
+- Canonical encoding of each resolved scalar (spec Section 7.4).
 - Unknown context property ID (inherent to the assembly switch structure; also checked at storage time).
 
 ## Alternatives Considered

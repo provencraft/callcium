@@ -19,10 +19,11 @@ import type { Context, DescNode, EnforceResult, Hex, NavigationViolationCode, Vi
 // Helpers
 ///////////////////////////////////////////////////////////////////////////
 
-/** Violations that abort evaluation instead of failing only their group (spec §10.3). */
+/** Violations that abort evaluation instead of failing only their group (spec §9.3). */
 const ABORT_VIOLATION_CODES: ReadonlySet<ViolationCode> = new Set<ViolationCode>([
   "CALLDATA_OUT_OF_BOUNDS",
   "ARRAY_INDEX_OUT_OF_BOUNDS",
+  "NON_CANONICAL_VALUE",
   "QUANTIFIER_LIMIT_EXCEEDED",
 ]);
 
@@ -273,7 +274,10 @@ function evaluateContextRule(
 // Core leaf operator
 ///////////////////////////////////////////////////////////////////////////
 
-type LeafResult = { passed: boolean; resolvedValue: Hex } | { error: NavigationViolationCode };
+type LeafResult =
+  | { passed: boolean; resolvedValue: Hex }
+  | { error: NavigationViolationCode }
+  | { error: "NON_CANONICAL_VALUE"; resolvedValue: Hex };
 
 /**
  * Load a value from calldata at the given location and apply the operator.
@@ -313,7 +317,11 @@ function applyLeafOperator(
   const result = loadScalar(callDataBytes, location);
   if (!result.ok) return { error: result.code };
 
-  const value = canonicalize(toBigInt(result.value, 0), node.typeCode);
+  const value = toBigInt(result.value, 0);
+  if (canonicalize(value, node.typeCode) !== value) {
+    return { error: "NON_CANONICAL_VALUE", resolvedValue: bigintToHex(value) };
+  }
+
   const passed = applyOperator(opCode, value, 32, operandData, node.typeCode);
   return { passed, resolvedValue: bigintToHex(value) };
 }
@@ -336,6 +344,20 @@ function evaluateLeaf(
   const typeCode = location.node.typeCode;
 
   if ("error" in result) {
+    if (result.error === "NON_CANONICAL_VALUE") {
+      return {
+        group: groupIndex,
+        rule: ruleIndex,
+        code: result.error,
+        scope: Scope.CALLDATA,
+        path: pathHex,
+        opCode,
+        operandData: bytesToHex(operandData),
+        typeCode,
+        resolvedValue: result.resolvedValue,
+      };
+    }
+
     return {
       group: groupIndex,
       rule: ruleIndex,
@@ -486,6 +508,23 @@ function evaluateQuantifier(
     const applied = applyLeafOperator(callDataBytes, leafLocation, opCode, operandData);
 
     if ("error" in applied) {
+      // An abort-effect violation ends evaluation whatever the quantifier; a later element
+      // cannot rescue calldata the enforcer cannot read.
+      if (applied.error === "NON_CANONICAL_VALUE") {
+        return {
+          group: groupIndex,
+          rule: ruleIndex,
+          code: applied.error,
+          scope: Scope.CALLDATA,
+          path: pathHex,
+          opCode,
+          operandData: operandHex,
+          typeCode: leafTypeCode,
+          elementIndex: elemIndex,
+          resolvedValue: applied.resolvedValue,
+        };
+      }
+
       if (isUniversal) {
         return {
           group: groupIndex,

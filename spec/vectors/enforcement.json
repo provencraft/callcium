@@ -76,81 +76,88 @@
     "id": "bitmask-none-pass",
     "policy": "0x012fbebd38000301011f010001000000290029010100001200200000000000000000000000000000000000000000000000000000000000000006"
   },
-  "canon-address-dirty-pass": {
-    "callData": "0xfdf80bda00000000000001000000000000000000000000000000000000000000000004d2",
-    "description": "Canonicalize address: dirty high bits cleared, canonical address matches",
+  "canon-address-canonical-pass": {
+    "callData": "0xfdf80bda00000000000000000000000000000000000000000000000000000000000004d2",
+    "description": "Canonical address matches the operand",
     "expected": true,
-    "id": "canon-address-dirty-pass",
+    "id": "canon-address-canonical-pass",
     "policy": "0x01fdf80bda00030101400100010000002900290101000001002000000000000000000000000000000000000000000000000000000000000004d2"
   },
-  "canon-bool-dirty-true-pass": {
-    "callData": "0x455575780000000000000100000000000000000000000000000000000000000000000001",
-    "description": "Canonicalize bool: dirty word with low bit set is true",
+  "canon-address-dirty-reject": {
+    "callData": "0xfdf80bda00000000000001000000000000000000000000000000000000000000000004d2",
+    "description": "address word with bits above 160 is rejected",
+    "expectedError": "NON_CANONICAL_VALUE",
+    "id": "canon-address-dirty-reject",
+    "policy": "0x01fdf80bda00030101400100010000002900290101000001002000000000000000000000000000000000000000000000000000000000000004d2"
+  },
+  "canon-bool-canonical-pass": {
+    "callData": "0x455575780000000000000000000000000000000000000000000000000000000000000001",
+    "description": "Canonical bool 1 satisfies == true",
     "expected": true,
-    "id": "canon-bool-dirty-true-pass",
+    "id": "canon-bool-canonical-pass",
     "policy": "0x01455575780003010141010001000000290029010100000100200000000000000000000000000000000000000000000000000000000000000001"
   },
-  "canon-bool-two-fail": {
+  "canon-bool-two-reject": {
     "callData": "0x455575780000000000000000000000000000000000000000000000000000000000000002",
-    "description": "Canonicalize bool: word 0x02 masks to false, not true",
-    "expected": false,
-    "id": "canon-bool-two-fail",
+    "description": "bool word outside 0 and 1 is rejected",
+    "expectedError": "NON_CANONICAL_VALUE",
+    "id": "canon-bool-two-reject",
     "policy": "0x01455575780003010141010001000000290029010100000100200000000000000000000000000000000000000000000000000000000000000001"
   },
-  "canon-bytesn-dirty-pass": {
-    "callData": "0x580526ee1122334400000000000000000000000000000000000000000000000000abcdef",
-    "description": "Canonicalize bytes4: dirty padding cleared, canonical value matches",
+  "canon-bytesn-canonical-pass": {
+    "callData": "0x580526ee1122334400000000000000000000000000000000000000000000000000000000",
+    "description": "Canonical bytes4 matches the operand",
     "expected": true,
-    "id": "canon-bytesn-dirty-pass",
+    "id": "canon-bytesn-canonical-pass",
     "policy": "0x01580526ee0003010153010001000000290029010100000100201122334400000000000000000000000000000000000000000000000000000000"
   },
-  "canon-function-dirty-pass": {
-    "callData": "0x76d479090102030405060708090a0b0c0d0e0f1011121314151617180123456789abcdef",
-    "description": "Canonicalize function: dirty low padding cleared, canonical value matches",
+  "canon-bytesn-dirty-reject": {
+    "callData": "0x580526ee1122334400000000000000000000000000000000000000000000000000abcdef",
+    "description": "bytes4 word with non-zero padding is rejected",
+    "expectedError": "NON_CANONICAL_VALUE",
+    "id": "canon-bytesn-dirty-reject",
+    "policy": "0x01580526ee0003010153010001000000290029010100000100201122334400000000000000000000000000000000000000000000000000000000"
+  },
+  "canon-function-canonical-pass": {
+    "callData": "0x76d479090102030405060708090a0b0c0d0e0f1011121314151617180000000000000000",
+    "description": "Canonical function value matches the operand",
     "expected": true,
-    "id": "canon-function-dirty-pass",
+    "id": "canon-function-canonical-pass",
     "policy": "0x0176d479090003010142010001000000290029010100000100200102030405060708090a0b0c0d0e0f1011121314151617180000000000000000"
   },
-  "canon-negated-dirty-fail": {
-    "callData": "0xdecb0da18000000000000000000000000000000000000000000000000000000000000007",
-    "description": "Canonicalize uint64: dirty word, canonical 7 is excluded",
-    "expected": false,
-    "id": "canon-negated-dirty-fail",
-    "policy": "0x01decb0da10003010107010001000000290029010100008100200000000000000000000000000000000000000000000000000000000000000007"
+  "canon-function-dirty-reject": {
+    "callData": "0x76d479090102030405060708090a0b0c0d0e0f1011121314151617180123456789abcdef",
+    "description": "function word with non-zero padding is rejected",
+    "expectedError": "NON_CANONICAL_VALUE",
+    "id": "canon-function-dirty-reject",
+    "policy": "0x0176d479090003010142010001000000290029010100000100200102030405060708090a0b0c0d0e0f1011121314151617180000000000000000"
   },
-  "canon-negated-dirty-pass": {
-    "callData": "0xdecb0da18000000000000000000000000000000000000000000000000000000000000008",
-    "description": "Canonicalize uint64: dirty word, canonical 8 not excluded",
+  "canon-signed-canonical-pass": {
+    "callData": "0x368e4a7f0000000000000000000000000000000000000000000000000000000000000005",
+    "description": "Canonical int64 5 satisfies >= 0",
     "expected": true,
-    "id": "canon-negated-dirty-pass",
-    "policy": "0x01decb0da10003010107010001000000290029010100008100200000000000000000000000000000000000000000000000000000000000000007"
+    "id": "canon-signed-canonical-pass",
+    "policy": "0x01368e4a7f0003010127010001000000290029010100000400200000000000000000000000000000000000000000000000000000000000000000"
   },
-  "canon-signed-dirty-pass": {
+  "canon-signed-noext-reject": {
     "callData": "0x368e4a7f0000000000000100000000000000000000000000000000000000000000000005",
-    "description": "Canonicalize int64: dirty word, canonical 5 >= 0",
+    "description": "int64 word that is not sign-extended is rejected",
+    "expectedError": "NON_CANONICAL_VALUE",
+    "id": "canon-signed-noext-reject",
+    "policy": "0x01368e4a7f0003010127010001000000290029010100000400200000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "canon-uint-canonical-pass": {
+    "callData": "0xdecb0da100000000000000000000000000000000000000000000000000000000000007d0",
+    "description": "Canonical uint64 2000 satisfies >= 1000",
     "expected": true,
-    "id": "canon-signed-dirty-pass",
-    "policy": "0x01368e4a7f0003010127010001000000290029010100000400200000000000000000000000000000000000000000000000000000000000000000"
-  },
-  "canon-signed-noext-fail": {
-    "callData": "0x368e4a7f000000000000000000000000000000000000000000000000ffffffffffffffff",
-    "description": "Canonicalize int64: non-extended word, canonical -1 not >= 0",
-    "expected": false,
-    "id": "canon-signed-noext-fail",
-    "policy": "0x01368e4a7f0003010127010001000000290029010100000400200000000000000000000000000000000000000000000000000000000000000000"
-  },
-  "canon-uint-dirty-fail": {
-    "callData": "0xdecb0da10000000000000000000000000000000000000000000000010000000000000001",
-    "description": "Canonicalize uint64: dirty word, canonical 1 not >= 1000",
-    "expected": false,
-    "id": "canon-uint-dirty-fail",
+    "id": "canon-uint-canonical-pass",
     "policy": "0x01decb0da100030101070100010000002900290101000004002000000000000000000000000000000000000000000000000000000000000003e8"
   },
-  "canon-uint-dirty-pass": {
+  "canon-uint-dirty-reject": {
     "callData": "0xdecb0da180000000000000000000000000000000000000000000000000000000000007d0",
-    "description": "Canonicalize uint64: dirty word, canonical 2000 >= 1000",
-    "expected": true,
-    "id": "canon-uint-dirty-pass",
+    "description": "uint64 word with bits above the width is rejected",
+    "expectedError": "NON_CANONICAL_VALUE",
+    "id": "canon-uint-dirty-reject",
     "policy": "0x01decb0da100030101070100010000002900290101000004002000000000000000000000000000000000000000000000000000000000000003e8"
   },
   "context-basefee-fail": {

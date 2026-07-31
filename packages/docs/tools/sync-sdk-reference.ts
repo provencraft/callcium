@@ -139,6 +139,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
         "MissingContextViolation",
         "ValueMismatchViolation",
         "CalldataNavigationViolation",
+        "NonCanonicalValueViolation",
         "QuantifierLimitExceededViolation",
         "QuantifierEmptyArrayViolation",
       ],

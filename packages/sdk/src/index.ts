@@ -91,6 +91,7 @@ export type {
   MissingContextViolation,
   ValueMismatchViolation,
   CalldataNavigationViolation,
+  NonCanonicalValueViolation,
   QuantifierLimitExceededViolation,
   QuantifierEmptyArrayViolation,
 } from "./types";

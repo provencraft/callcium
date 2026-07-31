@@ -106,6 +106,14 @@ library TypeRule {
         return value;
     }
 
+    /// @notice Returns whether a raw 32-byte word is the canonical encoding of the given type.
+    /// @param value The raw 32-byte word.
+    /// @param typeCode The type code of the value.
+    /// @return True if the word carries no bits outside the type's declared encoding.
+    function isCanonical(bytes32 value, uint8 typeCode) internal pure returns (bool) {
+        return canonicalize(value, typeCode) == value;
+    }
+
     /// @notice Returns the physical limits of a numeric type.
     /// @param typeCode The type code to check.
     /// @return min The minimum possible value (raw bits).

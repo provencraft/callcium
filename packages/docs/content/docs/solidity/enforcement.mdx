@@ -9,7 +9,7 @@ description: Enforce policies against calldata at runtime.
 
 Two functions expose the enforcer. `enforce(policy, callData)` reverts with `PolicyViolation` when the data fails. `check(policy, callData)` returns `true` when the data is valid against the policy and `false` otherwise.
 
-Both revert on a malformed policy. Only `enforce` reverts on a violation.
+Both revert on a malformed policy, and both revert on a violation that aborts evaluation. Only `enforce` reverts on a violation that merely fails its group.
 
 ```solidity
 import { PolicyEnforcer } from "callcium/PolicyEnforcer.sol";
@@ -149,6 +149,7 @@ For creating selectorless policies, see [Selectorless Policies](/docs/solidity/b
 | `PolicyViolation`              | Calldata fails all groups.                               |
 | `SelectorMismatch`             | Calldata selector doesn't match the policy.              |
 | `MissingSelector`              | Calldata too short to contain a selector.                |
+| `NonCanonicalValue`            | A resolved word is not the canonical encoding of its type. |
 | `UnknownOperator`              | Policy contains an unrecognized operator code.           |
 | `UnknownContextProperty`       | Policy references an unknown context property ID.        |
 | `NestedQuantifiersUnsupported` | Policy path contains nested quantifiers.                 |

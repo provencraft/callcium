@@ -1356,32 +1356,42 @@ contract EnforceSelectorlessTest is PolicyEnforcerTest {
                             VALUE CANONICALIZATION
     /////////////////////////////////////////////////////////////////////////*/
 
-    // The enforcer must interpret a resolved scalar by its canonical ABI value, i.e.
-    // masked to the declared width for unsigned/bytes types and sign-extended for signed
-    // types. A word with dirty bits outside the type width must be evaluated by its
-    // canonical value, not the raw 32 bytes, or non-canonical calldata bypasses the rule.
+    // A resolved scalar must already carry the canonical encoding of its declared type. A word
+    // with bits outside that encoding is rejected rather than masked, so the operator always
+    // applies to the same bytes a consumer decoding the same type would read.
 
-    /// @dev uint64 `>= 1000`: canonical value 1 must be rejected despite a high dirty bit.
-    function test_CanonicalizesUintAboveWidth() public view {
+    /// @dev uint64: bit set above the declared width.
+    function test_RevertWhen_UintCarriesBitsAboveWidth() public {
         bytes memory policy = PolicyBuilder.create("foo(uint64)").add(arg(0).gte(uint256(1000))).buildUnsafe();
-        // Low 64 bits = 1 (canonical value), bit 64 set so the raw word reads >= 1000.
-        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), bytes32((uint256(1) << 64) | 1));
-        assertFalse(harness.check(policy, callData), "canonical value 1 violates >= 1000");
+        bytes32 word = bytes32((uint256(1) << 64) | 1);
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), word);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.NonCanonicalValue.selector, TypeCode.UINT64, word));
+        harness.check(policy, callData);
     }
 
-    /// @dev int64 `>= 0`: non-sign-extended low bits encode -1 and must be rejected.
-    function test_CanonicalizesSignedWithoutSignExtension() public view {
+    /// @dev int64: low bits encode a negative value without the matching sign extension.
+    function test_RevertWhen_SignedLacksSignExtension() public {
         bytes memory policy = PolicyBuilder.create("foo(int64)").add(arg(0).gte(int256(0))).buildUnsafe();
-        // Low 64 bits all set, high bits zero: canonical int64 value is -1.
-        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(int64)")), bytes32(uint256(type(uint64).max)));
-        assertFalse(harness.check(policy, callData), "canonical value -1 violates >= 0");
+        bytes32 word = bytes32(uint256(type(uint64).max));
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(int64)")), word);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.NonCanonicalValue.selector, TypeCode.INT64, word));
+        harness.check(policy, callData);
     }
 
-    /// @dev uint64 `!= 7` (blocklist): canonical value 7 must fail despite dirty high bits.
-    function test_CanonicalizesUintForNegatedEquality() public view {
+    /// @dev The rejection precedes the operator, so a negated rule is no exception.
+    function test_RevertWhen_NegatedEqualityReceivesDirtyWord() public {
         bytes memory policy = PolicyBuilder.create("foo(uint64)").add(arg(0).neq(uint256(7))).buildUnsafe();
-        // Low 64 bits = 7 (the forbidden value), high dirty bit set.
-        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), bytes32((uint256(1) << 255) | 7));
-        assertFalse(harness.check(policy, callData), "canonical value 7 is the forbidden value");
+        bytes32 word = bytes32((uint256(1) << 255) | 7);
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint64)")), word);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.NonCanonicalValue.selector, TypeCode.UINT64, word));
+        harness.check(policy, callData);
+    }
+
+    /// @dev Control: the same policies discriminate normally on canonically encoded words.
+    function test_CanonicalWordsStillDiscriminate() public view {
+        bytes memory policy = PolicyBuilder.create("foo(uint64)").add(arg(0).gte(uint256(1000))).buildUnsafe();
+        bytes4 selector = bytes4(keccak256("foo(uint64)"));
+        assertTrue(harness.check(policy, abi.encodePacked(selector, bytes32(uint256(2000)))), "2000 satisfies >= 1000");
+        assertFalse(harness.check(policy, abi.encodePacked(selector, bytes32(uint256(1)))), "1 violates >= 1000");
     }
 }

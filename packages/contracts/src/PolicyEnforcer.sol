@@ -100,6 +100,11 @@ library PolicyEnforcer {
     /// @notice Thrown when array exceeds max length for quantified iteration.
     error QuantifierLimitExceeded(uint256 length, uint256 maxLength);
 
+    /// @notice Thrown when a resolved word is not the canonical encoding of its declared type.
+    /// @param typeCode The declared type of the target.
+    /// @param value The raw 32-byte word.
+    error NonCanonicalValue(uint8 typeCode, bytes32 value);
+
     /*/////////////////////////////////////////////////////////////////////////
                                       FUNCTIONS
     ////////////////////////////////////////////////////////////////////////*/
@@ -299,7 +304,8 @@ library PolicyEnforcer {
         // Load the value: scalars (32-byte static) get the actual value,
         // dynamic types (bytes, string, arrays) get length only.
         if (!loc.isDynamic && loc.staticSize == 32) {
-            value = TypeRule.canonicalize(CalldataReader.loadScalar(loc, callData), typeCode);
+            value = CalldataReader.loadScalar(loc, callData);
+            require(TypeRule.isCanonical(value, typeCode), NonCanonicalValue(typeCode, value));
             valueLength = 32;
         } else {
             require(!OpRule.isValueOp(opBase), CalldataReader.NotScalar(typeCode));
@@ -371,7 +377,10 @@ library PolicyEnforcer {
                 // Element is the target.
                 loop.typeCode = elemTypeInfo.code;
                 if (!elemTypeInfo.isDynamic && elemTypeInfo.staticSize == 32) {
-                    loop.value = TypeRule.canonicalize(CalldataReader.loadScalar(elemLoc, callData), loop.typeCode);
+                    loop.value = CalldataReader.loadScalar(elemLoc, callData);
+                    require(
+                        TypeRule.isCanonical(loop.value, loop.typeCode), NonCanonicalValue(loop.typeCode, loop.value)
+                    );
                     loop.valueLength = 32;
                 } else {
                     require(!OpRule.isValueOp(params.opBase), CalldataReader.NotScalar(loop.typeCode));
@@ -434,7 +443,8 @@ library PolicyEnforcer {
 
         typeCode = loc.typeCode;
         if (!loc.isDynamic && loc.staticSize == 32) {
-            value = TypeRule.canonicalize(CalldataReader.loadScalar(loc, callData), typeCode);
+            value = CalldataReader.loadScalar(loc, callData);
+            require(TypeRule.isCanonical(value, typeCode), NonCanonicalValue(typeCode, value));
             valueLength = 32;
         } else {
             require(!OpRule.isValueOp(opBase), CalldataReader.NotScalar(typeCode));

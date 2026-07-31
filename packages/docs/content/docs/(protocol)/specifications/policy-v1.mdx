@@ -4,7 +4,7 @@ description: Binary encoding format for onchain calldata policies.
 ---
 ## 1. Document Control
 
-- Version: 1.2
+- Version: 1.3
 - Status: Normative
 
 ***
@@ -171,7 +171,7 @@ Length operators apply to dynamic arrays (element count) and `bytes`/`string` (b
 
 ### 4.5 Type-Specific Encoding
 
-The encodings in this section define the canonical 32-byte form for operator operands and for resolved calldata values after canonicalization (§7.4).
+The encodings in this section define the canonical 32-byte form for operator operands and the form required of resolved calldata values (§7.4).
 
 **Address (typeCode = 0x40):**
 
@@ -429,7 +429,7 @@ Lexicographic comparison of byte arrays: compare byte-by-byte from index 0. At t
 
 - Context rules (`scope == 0`) resolve the value from the execution environment using the context property ID in `path[0]`.
 - Calldata rules (`scope == 1`) resolve the value by traversing calldata using the descriptor and path (see Callcium Descriptor Spec, Section 6) and loading the scalar at the resolved location.
-- The resolved value is canonicalized to its declared type per §7.4, then the canonical value and type code are checked against the operator and data.
+- The resolved value is checked against the canonical encoding of its declared type per §7.4, then the value and type code are checked against the operator and data.
 - For `LENGTH_*` operators, the resolved value is the declared length read at the target's payload base: the element count for dynamic arrays, the byte length for `bytes` and `string`. Enforcers MUST verify that the declared payload extent — `length × stride` bytes, where the stride is 1 for `bytes`/`string`, 32 for arrays of dynamic elements (one offset word per element), and the element's ABI head size (`elemStaticWords × 32`; Callcium Descriptor Spec, Section 4.4) for arrays of static elements — lies within calldata bounds before applying the operator; an overrun is a `CALLDATA_OUT_OF_BOUNDS` violation.
 
 ### 7.3 Quantifier Handling
@@ -438,18 +438,16 @@ When a path contains `ALL_OR_EMPTY`, `ALL`, or `ANY`, the enforcer expands the q
 
 Sentinels (`ALL_OR_EMPTY`, `ALL`, `ANY`) are enforcer-level markers and MUST NOT be passed into calldata traversal functions. Enforcers MUST pre-process quantified paths by expanding them into concrete element paths.
 
-### 7.4 Value Canonicalization
+### 7.4 Canonical Value Encoding
 
-Before applying an operator, an enforcer MUST canonicalize the resolved calldata value to the encoding defined in §4.5 for its declared type. The declared type is the type code resolved by descriptor navigation (Callcium Descriptor Spec, Section 6). Given the raw 32-byte word loaded at the resolved location:
+Before applying an operator, an enforcer MUST verify that the resolved calldata value carries the encoding defined in §4.5 for its declared type. The declared type is the type code resolved by descriptor navigation (Callcium Descriptor Spec, Section 6). For the raw 32-byte word loaded at the resolved location, that encoding requires:
 
-- **Unsigned integers (`0x00`–`0x1F`), `address`, `bool`**: zero all bits above the type's value width — `N * 8` bits for `uintN`, 160 for `address`, 1 for `bool`.
-- **Signed integers (`0x20`–`0x3F`)**: sign-extend from the type's most-significant byte (EVM `SIGNEXTEND`).
-- **Fixed bytes (`0x50`–`0x6F`) and `function` (`0x42`)**: zero the low `(32 − N)` padding bytes (the value is left-aligned in the high `N` bytes; `N = 24` for `function`, encoded identical to `bytes24`).
-- **`uint256`, `int256`, `bytes32`**: no change; the value occupies the full word.
+- **Unsigned integers (`0x00`–`0x1F`), `address`, `bool`**: all bits above the type's value width are zero — `N * 8` bits for `uintN`, 160 for `address`, 1 for `bool`.
+- **Signed integers (`0x20`–`0x3F`)**: the word is sign-extended from the type's most-significant byte (EVM `SIGNEXTEND`).
+- **Fixed bytes (`0x50`–`0x6F`) and `function` (`0x42`)**: the low `(32 − N)` padding bytes are zero (the value is left-aligned in the high `N` bytes; `N = 24` for `function`, encoded identical to `bytes24`).
+- **`uint256`, `int256`, `bytes32`**: unconstrained; the value occupies the full word.
 
-Canonicalization normalizes the value; it MUST NOT reject non-canonical calldata. A word carrying bits outside the declared width is evaluated by its canonical value, not its raw bytes.
-
-`bool` is canonicalized by masking to the low bit (`value & 1`): a word whose low bit is clear is `false`, otherwise `true`. This is deliberate and matches an assembly consumer computing `and(x, 1)`; it is not an `x != 0` test. No canonically-encoded `bool` (0 or 1) is affected.
+A word that does not meet the requirement for its declared type is a `NON_CANONICAL_VALUE` violation.
 
 Context values (`scope == 0`) are exempt: per §5.4 they are evaluated as raw 32-byte words.
 
@@ -543,6 +541,7 @@ Violations are calldata-dependent failures: different calldata could change the 
 | Code                        | Description                                                                                |
 | :-------------------------- | :----------------------------------------------------------------------------------------- |
 | `VALUE_MISMATCH`            | Logical operator not satisfied on the resolved value.                                      |
+| `NON_CANONICAL_VALUE`       | Resolved word is not the canonical encoding of its declared type (§7.4).                   |
 | `SELECTOR_MISMATCH`         | Calldata selector does not match the policy header.                                        |
 | `MISSING_SELECTOR`          | Calldata too short to contain a 4-byte selector.                                           |
 | `CALLDATA_OUT_OF_BOUNDS`    | Runtime calldata read failure: calldata truncated or offset points beyond available bytes. |
@@ -562,6 +561,7 @@ Each violation code has a normative effect on evaluation:
 | Code                        | Effect      |
 | :-------------------------- | :---------- |
 | `VALUE_MISMATCH`            | Group-local |
+| `NON_CANONICAL_VALUE`       | Abort       |
 | `SELECTOR_MISMATCH`         | Abort       |
 | `MISSING_SELECTOR`          | Abort       |
 | `CALLDATA_OUT_OF_BOUNDS`    | Abort       |
@@ -588,6 +588,7 @@ Enforcers MUST produce the same accept/reject verdict for identical policy, call
 
 ## Appendix A. Changelog
 
+- v1.3 (2026-07-31): Non-canonical calldata words rejected rather than normalized; added `NON_CANONICAL_VALUE` (Sections 7.4, 9.1, 9.3).
 - v1.2 (2026-07-05): Added `basefee` and `gasprice` context property IDs (Section 5.4).
 - v1.1 (2026-07-04): Sections 7–9 restructured into labeled well-formedness, validity, and canonical-form invariants; violation effects made normative (Section 9.3).
 - v1.0 (2026-02-22): Initial specification.

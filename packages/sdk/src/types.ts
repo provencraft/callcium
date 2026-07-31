@@ -177,6 +177,26 @@ export type QuantifierLimitExceededViolation = {
   resolvedValue: Hex;
 };
 
+/**
+ * A resolved word is not the canonical encoding of its declared type (spec §7.4).
+ *
+ * `resolvedValue` is the raw 32-byte word as it appeared in calldata, before any masking.
+ */
+export type NonCanonicalValueViolation = {
+  code: "NON_CANONICAL_VALUE";
+  group: number;
+  rule: number;
+  scope: number;
+  path: Hex;
+  /** Type code of the target whose encoding was violated. */
+  typeCode: number;
+  /** Raw 32-byte word as it appeared in calldata, before any masking. */
+  resolvedValue: Hex;
+  opCode?: number;
+  operandData?: Hex;
+  elementIndex?: number;
+};
+
 /** A quantifier (`ANY` or `ALL`) was applied to an empty array. */
 export type QuantifierEmptyArrayViolation = {
   code: "QUANTIFIER_EMPTY_ARRAY";
@@ -198,6 +218,7 @@ export type Violation =
   | MissingContextViolation
   | ValueMismatchViolation
   | CalldataNavigationViolation
+  | NonCanonicalValueViolation
   | QuantifierLimitExceededViolation
   | QuantifierEmptyArrayViolation;
 

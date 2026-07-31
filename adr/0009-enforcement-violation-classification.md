@@ -16,7 +16,7 @@ Enforcement failures are classified by the **"different calldata" test**: if dif
 
 ### Enforcement violations (calldata-dependent)
 
-These are part of the shared `ViolationCode` vocabulary — runtime mismatches between valid policy expectations and specific input data. The eight codes and their triggers are normative in the policy spec (Section 9.1).
+These are part of the shared `ViolationCode` vocabulary — runtime mismatches between valid policy expectations and specific input data. The codes and their triggers are normative in the policy spec (Section 9.1).
 
 ### Integrity errors (descriptor/policy-fixed)
 
@@ -36,7 +36,7 @@ These are **not** part of the shared violation vocabulary. They are caught by `P
 
 ## Consequences
 
-- The shared enforcement vocabulary stays small and stable (8 codes).
+- The shared enforcement vocabulary stays small and stable.
 - SDK reader functions must distinguish descriptor-relative failures (throw `CallciumError`) from calldata-relative failures (return violation codes). This is a classification cleanup, not just string renaming.
 - Future implementors in other languages have a clear principle for categorising new failure modes.
 - Integrity errors remain implementation-specific — Solidity uses custom error reverts, TypeScript uses `CallciumError` throws. No cross-language alignment required for these.

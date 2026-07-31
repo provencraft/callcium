@@ -75,6 +75,7 @@ if (violation.code === "VALUE_MISMATCH") {
 | `VALUE_MISMATCH`            | A constraint did not hold for the value at its target path.         |
 | `SELECTOR_MISMATCH`         | Calldata selector differs from the one embedded in the policy.      |
 | `MISSING_SELECTOR`          | Calldata is shorter than 4 bytes and the policy is function-bound.  |
+| `NON_CANONICAL_VALUE`       | A resolved word is not the canonical encoding of its declared type. |
 | `CALLDATA_OUT_OF_BOUNDS`    | A rule targeted a byte range outside the calldata.                  |
 | `ARRAY_INDEX_OUT_OF_BOUNDS` | A rule indexed an array element that does not exist.                |
 | `MISSING_CONTEXT`           | The policy references a context property the caller did not supply. |
