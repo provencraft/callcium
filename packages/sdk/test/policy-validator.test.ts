@@ -939,25 +939,23 @@ describe("PolicyValidator - out of physical length bounds", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
-// NEQ / NOT_IN Cap At 8
+// Unbounded Exclusion Tracking
 ///////////////////////////////////////////////////////////////////////////
 
-describe("PolicyValidator - exclusion caps", () => {
-  test("silently drops neq holes beyond MAX_HOLES (8)", () => {
+describe("PolicyValidator - unbounded exclusion tracking", () => {
+  test("detects SET_FULLY_EXCLUDED with many neq holes", () => {
     const issues = validate("uint256", (b) => {
       const c = arg(0).isIn([1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n, 10n]);
-      for (let i = 1; i <= 9; i++) c.neq(BigInt(i));
+      for (let i = 1; i <= 10; i++) c.neq(BigInt(i));
       b.add(c);
     });
-    expect(findIssue(issues, "SET_FULLY_EXCLUDED")).toBeUndefined();
-    expect(findIssue(issues, "SET_PARTIALLY_EXCLUDED")).toBeDefined();
+    expect(findIssue(issues, "SET_FULLY_EXCLUDED")).toBeDefined();
   });
 
-  test("silently drops notIn values beyond MAX_NOT_IN (8)", () => {
+  test("detects SET_FULLY_EXCLUDED with a large notIn set", () => {
     const issues = validate("uint256", (b) => {
-      b.add(arg(0).isIn([1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n, 10n]).notIn([1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n]));
+      b.add(arg(0).isIn([1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n, 10n]).notIn([1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n, 10n]));
     });
-    expect(findIssue(issues, "SET_FULLY_EXCLUDED")).toBeUndefined();
-    expect(findIssue(issues, "SET_PARTIALLY_EXCLUDED")).toBeDefined();
+    expect(findIssue(issues, "SET_FULLY_EXCLUDED")).toBeDefined();
   });
 });

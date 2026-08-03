@@ -838,6 +838,92 @@
     "builds": false
   },
   {
+    "id": "set-fully-excluded-large-exclusion-set",
+    "description": "isIn(1..9) + notIn(1..9), every member excluded",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000009",
+                "0x87000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000009"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "SET_REDUCTION",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "SET_REDUCTION",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "SET_REDUCTION",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "SET_REDUCTION",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "SET_REDUCTION",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "SET_REDUCTION",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "SET_REDUCTION",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "SET_REDUCTION",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "SET_REDUCTION",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "SET_FULLY_EXCLUDED",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
     "id": "unsorted-in-set",
     "description": "isIn payload descending",
     "policy": {
@@ -1838,8 +1924,8 @@
     "builds": false
   },
   {
-    "id": "hole-cap-best-effort",
-    "description": "9 neq holes then eq of the 9th: cap drops it, no contradiction",
+    "id": "eq-neq-contradiction-many-holes",
+    "description": "9 neq holes then eq of an excluded value: contradiction detected",
     "policy": {
       "isSelectorless": true,
       "selector": "0x00000000",
@@ -1867,8 +1953,15 @@
         }
       ]
     },
-    "issues": [],
-    "builds": true
+    "issues": [
+      {
+        "code": "EQ_NEQ_CONTRADICTION",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
   },
   {
     "id": "path-depth-exceeded",

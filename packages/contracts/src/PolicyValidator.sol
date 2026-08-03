@@ -21,12 +21,6 @@ import { LibBytes } from "solady/utils/LibBytes.sol";
 library PolicyValidator {
     using IssueCollector for IssueCollector.Buffer;
 
-    /// @dev Maximum tracked neq exclusions (holes) per bound domain; exclusion tracking is best-effort beyond this.
-    uint8 private constant MAX_HOLES = 8;
-
-    /// @dev Maximum tracked notIn exclusions per set domain; exclusion tracking is best-effort beyond this.
-    uint8 private constant MAX_NOT_IN = 8;
-
     /// @dev Internal struct to track bound state for numeric values or lengths.
     struct BoundDomain {
         /// True if the type is signed (always false for length domains).
@@ -51,10 +45,10 @@ library PolicyValidator {
         uint256 upper;
         /// True if the upper bound is inclusive (<=).
         bool upperInclusive;
-        /// Pragmatic hole tracking (neq values).
-        uint256[MAX_HOLES] holes;
+        /// Excluded values (neq holes); the length is a capacity hint, grown as needed.
+        uint256[] holes;
         /// Number of holes tracked.
-        uint8 holeCount;
+        uint256 holeCount;
     }
 
     /// @dev Internal struct to track bitmask state.
@@ -71,10 +65,10 @@ library PolicyValidator {
         bool hasIn;
         /// The current allowed values from isIn() intersections.
         uint256[] inValues;
-        /// Excluded values from notIn()/neq() operators.
-        uint256[MAX_NOT_IN] notInValues;
+        /// Excluded values from notIn() operators; the length is a capacity hint, grown as needed.
+        uint256[] notInValues;
         /// Number of excluded values tracked.
-        uint8 notInCount;
+        uint256 notInCount;
     }
 
     /// @dev Context for validating a single constraint or a set of constraints on the same path.
@@ -307,7 +301,7 @@ library PolicyValidator {
                         }
                     } else {
                         uint256 value = _readValue(op);
-                        uint8 holesBefore = ctx.numeric.holeCount;
+                        uint256 holesBefore = ctx.numeric.holeCount;
                         _updateBound(ctx.numeric, base, isNegated, value, false, groupIndex, constraintIndex, issues);
                         // Cross-domain: neq holes can empty the isIn set.
                         if (ctx.numeric.holeCount > holesBefore) {
@@ -445,13 +439,16 @@ library PolicyValidator {
                 }
                 // Add to holes if not already present.
                 bool alreadyHole = false;
-                for (uint8 j; j < domain.holeCount; ++j) {
+                for (uint256 j; j < domain.holeCount; ++j) {
                     if (domain.holes[j] == value) {
                         alreadyHole = true;
                         break;
                     }
                 }
-                if (!alreadyHole && domain.holeCount < MAX_HOLES) domain.holes[domain.holeCount++] = value;
+                if (!alreadyHole) {
+                    domain.holes = _appendTracked(domain.holes, domain.holeCount, value);
+                    domain.holeCount++;
+                }
             } else {
                 // Convert negated bound to positive equivalent and re-enter.
                 _updateBound(domain, _negateBoundOp(base), false, value, isLength, groupIndex, constraintIndex, issues);
@@ -485,7 +482,7 @@ library PolicyValidator {
                     );
                 }
             }
-            for (uint8 j; j < domain.holeCount; ++j) {
+            for (uint256 j; j < domain.holeCount; ++j) {
                 if (domain.holes[j] == value) {
                     issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value));
                 }
@@ -661,7 +658,8 @@ library PolicyValidator {
                     if (inSet) issues.push(ValidationIssue.setReduction(groupIndex, constraintIndex, value));
                 }
 
-                if (ctx.set.notInCount < MAX_NOT_IN) ctx.set.notInValues[ctx.set.notInCount++] = value;
+                ctx.set.notInValues = _appendTracked(ctx.set.notInValues, ctx.set.notInCount, value);
+                ctx.set.notInCount++;
             }
             _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
         } else {
@@ -738,14 +736,14 @@ library PolicyValidator {
         for (uint256 i; i < inCount; ++i) {
             uint256 value = ctx.set.inValues[i];
             bool forbidden = false;
-            for (uint8 k; k < ctx.numeric.holeCount; ++k) {
+            for (uint256 k; k < ctx.numeric.holeCount; ++k) {
                 if (ctx.numeric.holes[k] == value) {
                     forbidden = true;
                     break;
                 }
             }
             if (!forbidden) {
-                for (uint8 k; k < ctx.set.notInCount; ++k) {
+                for (uint256 k; k < ctx.set.notInCount; ++k) {
                     if (ctx.set.notInValues[k] == value) {
                         forbidden = true;
                         break;
@@ -761,6 +759,23 @@ library PolicyValidator {
         } else if (possibleCount < inCount) {
             issues.push(ValidationIssue.setPartiallyExcluded(groupIndex, constraintIndex, inCount - possibleCount));
         }
+    }
+
+    /// @dev Writes a value at the count offset of a capacity-hinted buffer, doubling it when full.
+    function _appendTracked(uint256[] memory buf, uint256 count, uint256 value)
+        private
+        pure
+        returns (uint256[] memory)
+    {
+        if (count == buf.length) {
+            uint256[] memory grown = new uint256[](count == 0 ? 4 : count * 2);
+            for (uint256 i; i < count; ++i) {
+                grown[i] = buf[i];
+            }
+            buf = grown;
+        }
+        buf[count] = value;
+        return buf;
     }
 
     /// @dev Unpacks an IN operator's payload into an array of uint256 values.

@@ -62,20 +62,8 @@ type ConstraintContext = {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Maximum number of tracked "holes" (neq exclusions) and notIn values per
- * domain. A hole is a single value excluded via a negated equality (neq).
- * During cross-operator analysis, holes punch values out of isIn sets — if
- * every member of an isIn set is excluded by holes or notIn, the constraint
- * is unsatisfiable (SET_FULLY_EXCLUDED). When only some are excluded, the
- * validator emits SET_PARTIALLY_EXCLUDED.
- *
- * Both caps are protocol-defined limits. Beyond these limits,
- * additional exclusions are silently ignored — the validator becomes
- * best-effort for set-reduction diagnostics but never produces false
- * positives, only potential false negatives (missed redundancy warnings).
+ * Maximum length value for dynamic types.
  */
-const MAX_HOLES = 8;
-const MAX_NOT_IN = 8;
 const LENGTH_MAX = 0xffffffffn;
 
 // Mask for reinterpreting uint256 as int256 (two's complement).
@@ -335,7 +323,7 @@ function updateBound(
           break;
         }
       }
-      if (!alreadyHole && domain.holes.length < MAX_HOLES) {
+      if (!alreadyHole) {
         domain.holes.push(value);
       }
     } else {
@@ -688,9 +676,7 @@ function updateSet(
           issues.push(ValidationIssue.setReduction(groupIndex, constraintIndex, bigintToHex(value)));
         }
       }
-      if (ctx.set.notInValues.length < MAX_NOT_IN) {
-        ctx.set.notInValues.push(value);
-      }
+      ctx.set.notInValues.push(value);
     }
     checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
   } else {

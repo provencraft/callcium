@@ -1062,6 +1062,39 @@ contract SetContradictionTest is PolicyValidatorTest {
         assertEq(issue.severity, IssueSeverity.Error);
     }
 
+    function test_FullyExcludedByManyNeqHoles_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        uint256[] memory set = new uint256[](10);
+        for (uint256 i; i < 10; ++i) {
+            set[i] = i + 1;
+        }
+
+        Constraint memory c = arg(0).isIn(set);
+        for (uint256 i; i < 10; ++i) {
+            c = c.neq(i + 1);
+        }
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.SET_FULLY_EXCLUDED);
+    }
+
+    function test_FullyExcludedByLargeNotInSet_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        uint256[] memory set = new uint256[](10);
+        for (uint256 i; i < 10; ++i) {
+            set[i] = i + 1;
+        }
+
+        Constraint memory c = arg(0).isIn(set).notIn(set);
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.SET_FULLY_EXCLUDED);
+    }
+
     function test_IntersectionPreserved_NoReduction() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
         uint256[] memory set1 = new uint256[](3);

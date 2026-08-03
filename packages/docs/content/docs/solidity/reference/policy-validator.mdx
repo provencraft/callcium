@@ -11,7 +11,7 @@ description: "Semantic validation for policies - checks for type mismatches, con
 
 Validates policy data for semantic issues.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L113)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L107)
 
 ```solidity
 function validate(PolicyData memory data) internal pure returns (Issue[] memory);
@@ -35,7 +35,7 @@ function validate(PolicyData memory data) internal pure returns (Issue[] memory)
 
 Thrown when validate finds errors and the caller wants to revert.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L104)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L98)
 
 ```solidity
 error ValidationError(Issue[] issues);
