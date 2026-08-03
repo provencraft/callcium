@@ -5,6 +5,7 @@ import { arg } from "src/Constraint.sol";
 import { Policy } from "src/Policy.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 import { PolicyManager } from "src/PolicyManager.sol";
+import { PolicyRegistry } from "src/PolicyRegistry.sol";
 
 import { PolicyManagerTest } from "../PolicyManager.t.sol";
 
@@ -21,12 +22,39 @@ contract StoreAndBindTest is PolicyManagerTest {
         vm.expectEmit(true, false, false, false);
         emit PolicyManager.PolicyStored(keccak256(policy), address(0));
         vm.expectEmit(true, true, true, true);
-        emit PolicyManager.PolicyBound(TARGET1, SELECTOR, keccak256(policy));
+        emit PolicyManager.PolicyBindingChanged(TARGET1, SELECTOR, bytes32(0), keccak256(policy));
         bytes32 hash = harness.storeAndBind(targets, policy);
 
         assertTrue(harness.exists(hash));
         assertEq(harness.hashFor(TARGET1, SELECTOR), hash);
         assertEq(harness.resolve(TARGET1, SELECTOR), policy);
+    }
+
+    function test_RevertWhen_EmptyTargets() public {
+        bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
+        address[] memory targets = new address[](0);
+
+        vm.expectRevert(PolicyRegistry.EmptyTargets.selector);
+        harness.storeAndBind(targets, policy);
+    }
+
+    function test_RebindEmitsPreviousHash() public {
+        bytes memory policy1 = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
+        bytes memory policy2 = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(43))).buildUnsafe();
+        address[] memory targets = new address[](2);
+        targets[0] = TARGET1;
+        targets[1] = TARGET2;
+
+        bytes32 hash1 = harness.storeAndBind(targets, policy1);
+
+        // TARGET2 unbound between the two calls: the second call rebinds TARGET1 and freshly binds TARGET2.
+        harness.unbind(TARGET2, SELECTOR);
+
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBindingChanged(TARGET1, SELECTOR, hash1, keccak256(policy2));
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBindingChanged(TARGET2, SELECTOR, bytes32(0), keccak256(policy2));
+        harness.storeAndBind(targets, policy2);
     }
 
     function test_MultipleTargets() public {
@@ -39,11 +67,11 @@ contract StoreAndBindTest is PolicyManagerTest {
         vm.expectEmit(true, false, false, false);
         emit PolicyManager.PolicyStored(keccak256(policy), address(0));
         vm.expectEmit(true, true, true, true);
-        emit PolicyManager.PolicyBound(TARGET1, SELECTOR, keccak256(policy));
+        emit PolicyManager.PolicyBindingChanged(TARGET1, SELECTOR, bytes32(0), keccak256(policy));
         vm.expectEmit(true, true, true, true);
-        emit PolicyManager.PolicyBound(TARGET2, SELECTOR, keccak256(policy));
+        emit PolicyManager.PolicyBindingChanged(TARGET2, SELECTOR, bytes32(0), keccak256(policy));
         vm.expectEmit(true, true, true, true);
-        emit PolicyManager.PolicyBound(TARGET3, SELECTOR, keccak256(policy));
+        emit PolicyManager.PolicyBindingChanged(TARGET3, SELECTOR, bytes32(0), keccak256(policy));
         bytes32 hash = harness.storeAndBind(targets, policy);
 
         assertTrue(harness.exists(hash));
@@ -130,11 +158,24 @@ contract StoreAndBindTest is PolicyManagerTest {
     function test_SingleTargetOverload() public {
         bytes memory policy = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
 
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBindingChanged(TARGET1, SELECTOR, bytes32(0), keccak256(policy));
         bytes32 hash = harness.storeAndBind(TARGET1, policy);
 
         assertTrue(harness.exists(hash));
         assertEq(harness.hashFor(TARGET1, SELECTOR), hash);
         assertEq(harness.resolve(TARGET1, SELECTOR), policy);
+    }
+
+    function test_SingleTargetOverload_RebindEmitsPreviousHash() public {
+        bytes memory policy1 = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
+        bytes memory policy2 = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(43))).buildUnsafe();
+
+        bytes32 hash1 = harness.storeAndBind(TARGET1, policy1);
+
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBindingChanged(TARGET1, SELECTOR, hash1, keccak256(policy2));
+        harness.storeAndBind(TARGET1, policy2);
     }
 
     function test_SingleTargetOverload_Default() public {

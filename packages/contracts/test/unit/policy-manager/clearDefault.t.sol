@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import { arg } from "src/Constraint.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
+import { PolicyRegistry } from "src/PolicyRegistry.sol";
 
 import { PolicyManagerTest } from "../PolicyManager.t.sol";
 
@@ -20,9 +21,8 @@ contract UnbindDefaultTest is PolicyManagerTest {
         assertEq(harness.hashFor(TARGET, SELECTOR), bytes32(0));
     }
 
-    function test_NoOpWhenNotSet() public {
-        // Should not revert when clearing non-existent default.
+    function test_RevertWhen_NotSet() public {
+        vm.expectRevert(abi.encodeWithSelector(PolicyRegistry.BindingNotFound.selector, address(0), SELECTOR));
         harness.unbind(address(0), SELECTOR);
-        assertEq(harness.hashFor(TARGET, SELECTOR), bytes32(0));
     }
 }

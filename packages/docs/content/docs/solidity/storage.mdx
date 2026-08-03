@@ -95,13 +95,13 @@ The old blob remains in storage permanently. Only the binding changes.
 _unbindPolicy(address(this), IVault.withdraw.selector);
 ```
 
-After unbinding, resolution falls back to the global default or returns empty bytes.
+Unbinding a pair with no binding reverts with `BindingNotFound` — a mis-keyed unbind surfaces as an error instead of silently succeeding. After unbinding, resolution falls back to the global default or returns empty bytes.
 
 ## Events
 
-`PolicyManager` emits an event for every storage mutation: `PolicyStored(policyHash, pointer)`, `PolicyBound(target, selector, policyHash)`, and `PolicyUnbound(target, selector)`. Binding and unbinding change what the enforcer accepts — the events make that configuration indexable and monitorable offchain.
+`PolicyManager` emits an event for every storage mutation: `PolicyStored(policyHash, pointer)` and `PolicyBindingChanged(target, selector, previousHash, newHash)`. Binding and unbinding change what the enforcer accepts — the events make that configuration indexable and monitorable offchain.
 
-`PolicyStored` fires on every store call, including deduplicated stores of an already-known blob. `PolicyBound` carries the selector derived from the policy. Custom managers built directly on `PolicyRegistry` define their own events; the library emits nothing.
+`PolicyStored` fires on every store call, including deduplicated stores of an already-known blob. `PolicyBindingChanged` records every binding transition: a bind carries `previousHash = 0`, a rebind carries the replaced hash, and an unbind carries `newHash = 0`. The selector is derived from the policy. Custom managers built directly on `PolicyRegistry` define their own events; the library emits nothing.
 
 ## Resolving policies
 

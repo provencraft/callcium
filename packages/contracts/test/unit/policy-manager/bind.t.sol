@@ -16,7 +16,7 @@ contract BindTest is PolicyManagerTest {
         (bytes32 hash,) = harness.store(policy);
 
         vm.expectEmit(true, true, true, true);
-        emit PolicyManager.PolicyBound(TARGET, SELECTOR, hash);
+        emit PolicyManager.PolicyBindingChanged(TARGET, SELECTOR, bytes32(0), hash);
         harness.bind(TARGET, hash);
 
         assertEq(harness.hashFor(TARGET, SELECTOR), hash);
@@ -28,7 +28,7 @@ contract BindTest is PolicyManagerTest {
         (bytes32 hash,) = harness.store(policy);
 
         vm.expectEmit(true, true, true, true);
-        emit PolicyManager.PolicyBound(TARGET, bytes4(0), hash);
+        emit PolicyManager.PolicyBindingChanged(TARGET, bytes4(0), bytes32(0), hash);
         harness.bind(TARGET, hash);
 
         assertEq(harness.resolve(TARGET, bytes4(0)), policy);
@@ -43,6 +43,8 @@ contract BindTest is PolicyManagerTest {
         harness.bind(TARGET, hash1);
         assertEq(harness.hashFor(TARGET, SELECTOR), hash1);
 
+        vm.expectEmit(true, true, true, true);
+        emit PolicyManager.PolicyBindingChanged(TARGET, SELECTOR, hash1, hash2);
         harness.bind(TARGET, hash2);
         assertEq(harness.hashFor(TARGET, SELECTOR), hash2);
         assertEq(harness.resolve(TARGET, SELECTOR), policy2);

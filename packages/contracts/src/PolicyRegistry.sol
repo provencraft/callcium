@@ -36,6 +36,12 @@ library PolicyRegistry {
     /// @notice Thrown when policy blob exceeds SSTORE2 size limit.
     error PolicyTooLarge(uint256 size);
 
+    /// @notice Thrown when unbinding a (target, selector) pair that has no binding.
+    error BindingNotFound(address target, bytes4 selector);
+
+    /// @notice Thrown when binding to an empty target array.
+    error EmptyTargets();
+
     /*/////////////////////////////////////////////////////////////////////////
                                      FUNCTIONS
     /////////////////////////////////////////////////////////////////////////*/
@@ -68,7 +74,15 @@ library PolicyRegistry {
     /// @param target The contract address to bind the policy to.
     /// @param policyHash The policy hash (must already be stored).
     /// @return selector The derived bind selector.
-    function bind(Store storage self, address target, bytes32 policyHash) internal returns (bytes4 selector) {
+    /// @return previousHash The hash previously bound under the pair, or zero when none.
+    function bind(
+        Store storage self,
+        address target,
+        bytes32 policyHash
+    )
+        internal
+        returns (bytes4 selector, bytes32 previousHash)
+    {
         require(policyHash != bytes32(0), InvalidPolicyHash());
         address pointer = self.policyOf[policyHash];
         require(pointer != address(0), PolicyNotFound(policyHash));
@@ -76,38 +90,49 @@ library PolicyRegistry {
         bytes memory prefix = SSTORE2.read(pointer, 0, PF.POLICY_HEADER_PREFIX);
         selector = Policy.isSelectorless(prefix) ? bytes4(0) : Policy.selector(prefix);
 
+        previousHash = self.policyFor[target][selector];
         self.policyFor[target][selector] = policyHash;
     }
 
     /// @notice Unbinds a policy from a (target, selector) pair.
+    /// @dev Reverts when the pair has no binding.
     /// @param self The policy store.
     /// @param target The contract address.
     /// @param selector The function selector.
-    function unbind(Store storage self, address target, bytes4 selector) internal {
+    /// @return previousHash The hash that was bound under the pair.
+    function unbind(Store storage self, address target, bytes4 selector) internal returns (bytes32 previousHash) {
+        previousHash = self.policyFor[target][selector];
+        require(previousHash != bytes32(0), BindingNotFound(target, selector));
         delete self.policyFor[target][selector];
     }
 
     /// @notice Stores a policy and binds it to targets in one call.
+    /// @dev Reverts when the target array is empty.
     /// @param self The policy store.
     /// @param targets Target addresses to bind to. Use `address(0)` for default.
     /// @param policy The encoded policy blob.
     /// @return policyHash The policy hash.
     /// @return pointer The SSTORE2 pointer address.
     /// @return selector The derived bind selector.
+    /// @return previousHashes The hash previously bound under each target, or zero when none.
     function storeAndBind(
         Store storage self,
         address[] calldata targets,
         bytes memory policy
     )
         internal
-        returns (bytes32 policyHash, address pointer, bytes4 selector)
+        returns (bytes32 policyHash, address pointer, bytes4 selector, bytes32[] memory previousHashes)
     {
+        require(targets.length != 0, EmptyTargets());
+
         (policyHash, pointer) = store(self, policy);
 
         selector = Policy.isSelectorless(policy) ? bytes4(0) : Policy.selector(policy);
 
         uint256 targetCount = targets.length;
+        previousHashes = new bytes32[](targetCount);
         for (uint256 i; i < targetCount; ++i) {
+            previousHashes[i] = self.policyFor[targets[i]][selector];
             self.policyFor[targets[i]][selector] = policyHash;
         }
     }
@@ -119,18 +144,20 @@ library PolicyRegistry {
     /// @return policyHash The policy hash.
     /// @return pointer The SSTORE2 pointer address.
     /// @return selector The derived bind selector.
+    /// @return previousHash The hash previously bound under the pair, or zero when none.
     function storeAndBind(
         Store storage self,
         address target,
         bytes memory policy
     )
         internal
-        returns (bytes32 policyHash, address pointer, bytes4 selector)
+        returns (bytes32 policyHash, address pointer, bytes4 selector, bytes32 previousHash)
     {
         (policyHash, pointer) = store(self, policy);
 
         selector = Policy.isSelectorless(policy) ? bytes4(0) : Policy.selector(policy);
 
+        previousHash = self.policyFor[target][selector];
         self.policyFor[target][selector] = policyHash;
     }
 
