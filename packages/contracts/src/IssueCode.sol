@@ -111,6 +111,10 @@ library IssueCode {
     bytes32 internal constant VACUOUS_LENGTH_GTE = "VACUOUS_LENGTH_GTE";
     /// lengthLte() bound equals the maximum (always true).
     bytes32 internal constant VACUOUS_LENGTH_LTE = "VACUOUS_LENGTH_LTE";
+    /// Negated between() with low > high excludes nothing (always true).
+    bytes32 internal constant VACUOUS_NEGATED_RANGE = "VACUOUS_NEGATED_RANGE";
+    /// Negated lengthBetween() with low > high excludes nothing (always true).
+    bytes32 internal constant VACUOUS_NEGATED_LENGTH_RANGE = "VACUOUS_NEGATED_LENGTH_RANGE";
 
     /*/////////////////////////////////////////////////////////////////////////
                                   COMPATIBILITY

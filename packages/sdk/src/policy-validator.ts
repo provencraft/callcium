@@ -897,11 +897,22 @@ function validateConstraint(
         if (base === Op.BETWEEN) {
           // A negated range is a disjunction (value < low OR value > high); distributing the
           // negation over the decomposed bounds would conjoin the complement halves into a
-          // spurious contradiction. Leave it un-analyzed, like a neq hole.
+          // spurious contradiction. Leave it un-analyzed, like a neq hole. Inverted bounds
+          // still surface: negating an empty range excludes nothing.
+          const { low, high } = readPair(opHex);
           if (!isNegated) {
-            const { low, high } = readPair(opHex);
             updateBound(ctx.numeric, Op.GTE, false, low, false, groupIndex, constraintIndex, issues);
             updateBound(ctx.numeric, Op.LTE, false, high, false, groupIndex, constraintIndex, issues);
+          } else if (signedCompare(low, high, ctx.numeric.isSigned) > 0n) {
+            issues.push(
+              ValidationIssue.vacuousNegatedRange(
+                false,
+                groupIndex,
+                constraintIndex,
+                bigintToHex(low),
+                bigintToHex(high),
+              ),
+            );
           }
         } else {
           const value = readValue(opHex);
@@ -925,10 +936,14 @@ function validateConstraint(
     } else if (isLengthOp(base)) {
       if (base === Op.LENGTH_BETWEEN) {
         // Same disjunction reasoning as the negated value-range above.
+        const { low, high } = readPair(opHex);
         if (!isNegated) {
-          const { low, high } = readPair(opHex);
           updateBound(ctx.length, Op.GTE, false, low, true, groupIndex, constraintIndex, issues);
           updateBound(ctx.length, Op.LTE, false, high, true, groupIndex, constraintIndex, issues);
+        } else if (low > high) {
+          issues.push(
+            ValidationIssue.vacuousNegatedRange(true, groupIndex, constraintIndex, bigintToHex(low), bigintToHex(high)),
+          );
         }
       } else {
         const value = readValue(opHex);

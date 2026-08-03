@@ -289,14 +289,20 @@ library PolicyValidator {
                         // A negated range is a disjunction (value < low OR value > high); the
                         // single-interval accumulator cannot represent it, so leave it un-analyzed
                         // rather than mismodel it as two AND-ed bounds, which falsely reports a
-                        // contradiction. Positive between decomposes into a lower and an upper bound.
+                        // contradiction. Inverted bounds still surface: negating an empty range
+                        // excludes nothing. Positive between decomposes into a lower and an upper
+                        // bound.
+                        (uint256 low, uint256 high) = _readPair(op);
                         if (!isNegated) {
-                            (uint256 low, uint256 high) = _readPair(op);
                             _updateBound(
                                 ctx.numeric, OpCode.GTE, false, low, false, groupIndex, constraintIndex, issues
                             );
                             _updateBound(
                                 ctx.numeric, OpCode.LTE, false, high, false, groupIndex, constraintIndex, issues
+                            );
+                        } else if (_isGt(low, high, ctx.numeric.isSigned)) {
+                            issues.push(
+                                ValidationIssue.vacuousNegatedRange(false, groupIndex, constraintIndex, low, high)
                             );
                         }
                     } else {
@@ -322,10 +328,12 @@ library PolicyValidator {
             } else if (OpRule.isLengthOp(base)) {
                 if (base == OpCode.LENGTH_BETWEEN) {
                     // A negated length range is a disjunction; see the value-between note above.
+                    (uint256 low, uint256 high) = _readPair(op);
                     if (!isNegated) {
-                        (uint256 low, uint256 high) = _readPair(op);
                         _updateBound(ctx.length, OpCode.GTE, false, low, true, groupIndex, constraintIndex, issues);
                         _updateBound(ctx.length, OpCode.LTE, false, high, true, groupIndex, constraintIndex, issues);
+                    } else if (low > high) {
+                        issues.push(ValidationIssue.vacuousNegatedRange(true, groupIndex, constraintIndex, low, high));
                     }
                 } else {
                     uint256 value = _readValue(op);

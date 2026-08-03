@@ -1750,6 +1750,37 @@
     "builds": false
   },
   {
+    "id": "vacuous-negated-range",
+    "description": "negated between(100, 10): inverted bounds exclude nothing",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x860000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000000a"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "VACUOUS_NEGATED_RANGE",
+        "severity": "info",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
     "id": "vacuous-gte-int8",
     "description": "gte(-128) on int8 (signed edge)",
     "policy": {

@@ -434,6 +434,28 @@ export function vacuousLte(isLength: boolean, groupIndex: number, constraintInde
   };
 }
 
+/** Negated range with inverted bounds excludes nothing (always true). */
+export function vacuousNegatedRange(
+  isLength: boolean,
+  groupIndex: number,
+  constraintIndex: number,
+  low: Hex,
+  high: Hex,
+): Issue {
+  return {
+    severity: "info",
+    category: "vacuity",
+    groupIndex,
+    constraintIndex,
+    code: isLength ? "VACUOUS_NEGATED_LENGTH_RANGE" : "VACUOUS_NEGATED_RANGE",
+    value1: low,
+    value2: high,
+    message: isLength
+      ? "Negated lengthBetween() with low > high excludes nothing (always true)"
+      : "Negated between() with low > high excludes nothing (always true)",
+  };
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Compatibility
 ///////////////////////////////////////////////////////////////////////////

@@ -631,6 +631,32 @@ library ValidationIssue {
         });
     }
 
+    /// @notice Creates an info issue for a negated range with inverted bounds (always true).
+    function vacuousNegatedRange(
+        bool isLength,
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        uint256 low,
+        uint256 high
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return Issue({
+            severity: IssueSeverity.Info,
+            category: IssueCategory.Vacuity,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: isLength ? IssueCode.VACUOUS_NEGATED_LENGTH_RANGE : IssueCode.VACUOUS_NEGATED_RANGE,
+            value1: bytes32(low),
+            value2: bytes32(high),
+            message: isLength
+                ? "Negated lengthBetween() with low > high excludes nothing (always true)"
+                : "Negated between() with low > high excludes nothing (always true)"
+        });
+    }
+
     /// @notice Creates a warning for a path deeper than the reference enforcer's cap.
     /// @return The constructed validation issue.
     function pathDepthExceeded(

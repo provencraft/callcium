@@ -1026,6 +1026,50 @@ contract VacuousConstraintTest is PolicyValidatorTest {
         Issue memory issue = _findIssue(issues, IssueCode.VACUOUS_LTE);
         assertEq(issue.severity, IssueSeverity.Info);
     }
+
+    function test_NegatedRangeInvertedBounds_ReturnsInfo() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        Constraint memory c = arg(0).addOp(OpCode.BETWEEN | OpCode.NOT, abi.encodePacked(uint256(100), uint256(10)));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        Issue memory issue = _findIssue(issues, IssueCode.VACUOUS_NEGATED_RANGE);
+        assertEq(issue.severity, IssueSeverity.Info);
+        assertEq(issue.category, IssueCategory.Vacuity);
+    }
+
+    function test_NegatedRangeInvertedSignedBounds_ReturnsInfo() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.int256_()).build();
+        Constraint memory c =
+            arg(0).addOp(OpCode.BETWEEN | OpCode.NOT, abi.encodePacked(uint256(10), uint256(int256(-10))));
+
+        PolicyData memory data = _createPolicyData("foo(int256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.VACUOUS_NEGATED_RANGE);
+    }
+
+    function test_NegatedLengthRangeInvertedBounds_ReturnsInfo() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytes_()).build();
+        Constraint memory c =
+            arg(0).addOp(OpCode.LENGTH_BETWEEN | OpCode.NOT, abi.encodePacked(uint256(100), uint256(10)));
+
+        PolicyData memory data = _createPolicyData("foo(bytes)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.VACUOUS_NEGATED_LENGTH_RANGE);
+    }
+
+    function test_NegatedRangeOrderedBounds_NoIssue() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        Constraint memory c = arg(0).addOp(OpCode.BETWEEN | OpCode.NOT, abi.encodePacked(uint256(10), uint256(100)));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 0);
+    }
 }
 
 contract SetContradictionTest is PolicyValidatorTest {
