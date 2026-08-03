@@ -512,6 +512,37 @@
     "builds": false
   },
   {
+    "id": "out-of-physical-bounds-in-member",
+    "description": "isIn(5, 1000) on uint8",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x010100",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x07000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000003e8"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "OUT_OF_PHYSICAL_BOUNDS",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
     "id": "impossible-gt",
     "description": "gt(255) on uint8",
     "policy": {

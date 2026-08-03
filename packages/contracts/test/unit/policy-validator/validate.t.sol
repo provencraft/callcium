@@ -937,6 +937,49 @@ contract PhysicalBoundsTest is PolicyValidatorTest {
         assertGt(issues.length, 0);
     }
 
+    function test_Uint8_SetMemberOutOfRange_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uintN_(8)).build();
+
+        uint256[] memory set = new uint256[](2);
+        set[0] = 5;
+        set[1] = 1000;
+        Constraint memory c = arg(0).isIn(set);
+
+        PolicyData memory data = _createPolicyData("foo(uint8)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        Issue memory issue = _findIssue(issues, IssueCode.OUT_OF_PHYSICAL_BOUNDS);
+        assertEq(issue.severity, IssueSeverity.Error);
+    }
+
+    function test_Int8_NegativeSetMemberOutOfRange_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.intN_(8)).build();
+
+        int256[] memory set = new int256[](2);
+        set[0] = -5;
+        set[1] = -129;
+        Constraint memory c = arg(0).isIn(set);
+
+        PolicyData memory data = _createPolicyData("foo(int8)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.OUT_OF_PHYSICAL_BOUNDS);
+    }
+
+    function test_Uint8_SetMembersWithinRange_NoError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uintN_(8)).build();
+
+        uint256[] memory set = new uint256[](2);
+        set[0] = 0;
+        set[1] = 255;
+        Constraint memory c = arg(0).isIn(set);
+
+        PolicyData memory data = _createPolicyData("foo(uint8)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 0);
+    }
+
     function test_Uint8_WithinRange_NoError() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uintN_(8)).build();
 

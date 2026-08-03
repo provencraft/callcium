@@ -694,6 +694,16 @@ function updateSet(
     }
     checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
   } else {
+    // Physical bounds: a member outside the type's domain can never be matched.
+    for (const value of values) {
+      if (
+        signedCompare(value, ctx.numeric.min, ctx.numeric.isSigned) < 0n ||
+        signedCompare(value, ctx.numeric.max, ctx.numeric.isSigned) > 0n
+      ) {
+        issues.push(ValidationIssue.outOfPhysicalBounds(false, groupIndex, constraintIndex, bigintToHex(value)));
+      }
+    }
+
     if (ctx.numeric.hasEq) {
       let found = false;
       for (const candidate of values) {

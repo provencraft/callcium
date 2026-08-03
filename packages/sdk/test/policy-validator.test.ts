@@ -184,6 +184,21 @@ describe("PolicyValidator - bound contradictions", () => {
     const issues = validate("uint8", (b) => b.add(arg(0).eq(256n)));
     expect(findIssue(issues, "OUT_OF_PHYSICAL_BOUNDS")).toBeDefined();
   });
+
+  test("reports OUT_OF_PHYSICAL_BOUNDS for uint8 isIn member > 255", () => {
+    const issues = validate("uint8", (b) => b.add(arg(0).isIn([5n, 1000n])));
+    expect(findIssue(issues, "OUT_OF_PHYSICAL_BOUNDS")).toBeDefined();
+  });
+
+  test("reports OUT_OF_PHYSICAL_BOUNDS for int8 isIn member below min", () => {
+    const issues = validate("int8", (b) => b.add(arg(0).isIn([-129n, -5n])));
+    expect(findIssue(issues, "OUT_OF_PHYSICAL_BOUNDS")).toBeDefined();
+  });
+
+  test("no issue for uint8 isIn members within range", () => {
+    const issues = validate("uint8", (b) => b.add(arg(0).isIn([0n, 255n])));
+    expect(issues).toHaveLength(0);
+  });
 });
 
 ///////////////////////////////////////////////////////////////////////////

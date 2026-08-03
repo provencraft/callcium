@@ -665,6 +665,14 @@ library PolicyValidator {
             }
             _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
         } else {
+            // Physical bounds: a member outside the type's domain can never be matched.
+            for (uint256 i; i < values.length; ++i) {
+                if (
+                    _isLt(values[i], ctx.numeric.min, ctx.numeric.isSigned)
+                        || _isGt(values[i], ctx.numeric.max, ctx.numeric.isSigned)
+                ) issues.push(ValidationIssue.outOfPhysicalBounds(false, groupIndex, constraintIndex, values[i]));
+            }
+
             if (ctx.numeric.hasEq) {
                 bool found = false;
                 for (uint256 i; i < values.length; ++i) {
