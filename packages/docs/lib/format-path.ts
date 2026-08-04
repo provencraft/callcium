@@ -62,13 +62,16 @@ export function formatOpLabel(opCode: number, negated: boolean): string {
 export function formatCalldataPath(path: number[], quantifier: number | undefined, params?: ParamNode[]): string {
   if (path.length === 0) return "arg(?)";
 
-  const argIndex = path[0];
+  // Encoding places a separate quantifier right after the base arg index; mirror it.
+  const steps = quantifier === undefined ? path : [path[0], quantifier, ...path.slice(1)];
+
+  const argIndex = steps[0];
   let node: ParamNode | undefined = params?.[argIndex];
   let label = node?.name ?? `arg(${argIndex})`;
 
   let step = 1;
-  while (step < path.length) {
-    const stepValue = path[step];
+  while (step < steps.length) {
+    const stepValue = steps[step];
 
     if (isQuantifier(stepValue)) {
       label += `[${lookupQuantifier(stepValue).label}]`;
@@ -97,17 +100,6 @@ export function formatCalldataPath(path: number[], quantifier: number | undefine
     // No node info — fall back to generic notation.
     label += `.field(${stepValue})`;
     step++;
-  }
-
-  // Separate quantifier (builder pattern) — insert after the base param.
-  if (quantifier !== undefined) {
-    const quantLabel = lookupQuantifier(quantifier).label;
-    const dotIndex = label.indexOf(".");
-    if (dotIndex === -1) {
-      label += `[${quantLabel}]`;
-    } else {
-      label = label.slice(0, dotIndex) + `[${quantLabel}]` + label.slice(dotIndex);
-    }
   }
 
   return label;

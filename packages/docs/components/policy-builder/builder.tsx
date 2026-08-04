@@ -490,7 +490,9 @@ function resolveTargetType(config: ConstraintConfig, params: ParamNode[]): strin
   if (!config.path || config.path.length === 0) return null;
   const root = params[config.path[0]];
   if (!root) return null;
-  return walkParamPath(root, config.path.slice(1))?.type ?? null;
+  // A quantifier consumes the array level, so the remaining steps address the element.
+  const base = config.quantifier === undefined ? root : root.element;
+  return base ? (walkParamPath(base, config.path.slice(1))?.type ?? null) : null;
 }
 
 ///////////////////////////////////////////////////////////////////////////
