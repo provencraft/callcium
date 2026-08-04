@@ -80,6 +80,8 @@ _bindPolicy(address(vaultC), policyHash);
 
 The bind key is derived from the stored policy — its embedded selector, or `bytes4(0)` for selectorless policies. A policy binds only under the selector it declares; a mismatched binding cannot be created. `_bindPolicy` requires the hash to already exist in storage; it reverts with `PolicyNotFound` otherwise.
 
+The guarantee covers the selector alone. The embedded descriptor is a type tree with no function name, so the selector and the descriptor's declared types are related only by the signature string given to the builder — they are not cross-checked at storage or enforcement time.
+
 **Updating a policy** means storing a new blob and rebinding. The new policy declares the same selector, so the new binding replaces the old one:
 
 ```solidity
@@ -88,6 +90,12 @@ _bindPolicy(address(this), newHash);
 ```
 
 The old blob remains in storage permanently. Only the binding changes.
+
+<Callout type="warn" title="Signature changes strand bindings">
+  Changing a function's signature changes its selector. The existing binding stays keyed under the old selector, and the
+  changed function resolves no policy — with a [skip-when-unbound integration](./enforcement), it runs unguarded and
+  produces no signal. Rebind under the new selector as part of any upgrade that changes a guarded signature.
+</Callout>
 
 **Unbinding** removes the `(target, selector)` mapping. The blob itself is not removed — SSTORE2 storage is permanent:
 

@@ -658,6 +658,8 @@ library ValidationIssue {
     }
 
     /// @notice Creates an issue for a calldata path that does not navigate the descriptor.
+    /// @param groupIndex Group index where the issue was found.
+    /// @param constraintIndex Constraint index within the group.
     /// @return The constructed validation issue.
     function unnavigablePath(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
         return Issue({

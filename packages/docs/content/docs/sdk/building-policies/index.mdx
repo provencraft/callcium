@@ -144,6 +144,10 @@ The following context properties are available as constraint targets:
 
 Context values are supplied explicitly to the enforcer alongside calldata; they are not inferred from any runtime environment. See [Policy Enforcement](./enforcement) for the exact shape of the context object.
 
+Onchain, `msgSender` resolves in the frame that runs enforcement: a router or aggregator that reaches the enforcing contract with `call` is the sender, while `delegatecall` preserves the original caller. Simulate flows that pass through an intermediate contract with `msgSender` set to that contract's address.
+
+`baseFee` and `gasPrice` are constraints on network state: the same data is valid or invalid against the policy as gas prices move. The gas price is additionally chosen by the transaction sender, bounded below by the base fee.
+
 Context targets are imported alongside `arg`:
 
 ```ts

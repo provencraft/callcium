@@ -87,3 +87,5 @@ bytes memory policy = PolicyBuilder
   A single quantified traversal evaluates at most 256 elements — enforcement reverts with `QuantifierLimitExceeded` when
   exceeded. Only one quantifier is allowed per path; `add()` rejects paths that contain more than one.
 </Callout>
+
+Quantified rules dominate enforcement gas. Each quantified rule traverses its array once, so cost grows with the product of quantified rule count and array length, and path steps below the quantifier multiply the per-element work. Benchmark policies that stack many quantified rules on the target chain — opcode costs and block limits are chain-specific.

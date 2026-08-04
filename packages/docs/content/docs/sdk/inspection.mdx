@@ -24,6 +24,8 @@ for (const group of data.groups) {
 }
 ```
 
+`groups` is in the policy's canonical order — `build()` sorts groups by hash — so array indices do not correspond to `.or()` authoring order.
+
 `PolicyData` has the following shape:
 
 ```ts

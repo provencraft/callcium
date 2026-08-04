@@ -41,6 +41,8 @@ For selector-bound policies, the enforcer validates the first 4 bytes of calldat
 
 Selector matching is a precondition, not a constraint. It runs before group and rule evaluation. A `SelectorMismatch` is not a `PolicyViolation`.
 
+The match covers the selector alone. The embedded descriptor carries argument types but no function name, so a policy's selector and its descriptor are related only by the signature string given to `create()` — the enforcer cannot detect a descriptor authored for a different function with the same argument types.
+
 The standard pattern is to pass `msg.data` directly — the function's own selector is already present:
 
 ```solidity
@@ -57,17 +59,7 @@ How enforcement is wired into a contract's call flow is left to the integrator. 
 
 ### Modifier
 
-**Skip when unbound.** If `_resolvePolicy` returns empty bytes, enforcement is skipped and the function runs unguarded.
-
-```solidity
-modifier withPolicy() {
-    bytes memory policy = _resolvePolicy(address(this), msg.sig);
-    if (policy.length > 0) PolicyEnforcer.enforce(policy, msg.data);
-    _;
-}
-```
-
-**Revert when unbound.** If `_resolvePolicy` returns empty bytes, the call is blocked.
+**Revert when unbound.** If `_resolvePolicy` returns empty bytes, the call is blocked. A missing, unbound, or mis-keyed policy surfaces as a revert instead of running the function unguarded.
 
 ```solidity
 error PolicyNotBound();
@@ -76,6 +68,16 @@ modifier withPolicy() {
     bytes memory policy = _resolvePolicy(address(this), msg.sig);
     if (policy.length == 0) revert PolicyNotBound();
     PolicyEnforcer.enforce(policy, msg.data);
+    _;
+}
+```
+
+**Skip when unbound.** If `_resolvePolicy` returns empty bytes, enforcement is skipped and the function runs unguarded. An absent guard produces no signal; use this only where unguarded execution is the intended default.
+
+```solidity
+modifier withPolicy() {
+    bytes memory policy = _resolvePolicy(address(this), msg.sig);
+    if (policy.length > 0) PolicyEnforcer.enforce(policy, msg.data);
     _;
 }
 ```
@@ -104,13 +106,13 @@ fallback() external payable {
 
 Callcium's evaluation model has two levels.
 
-**Groups use OR semantics.** The enforcer evaluates groups in order starting from group 0. The first group that passes ends evaluation — the data is valid against the policy. If every group fails, `PolicyViolation` is thrown.
+**Groups use OR semantics.** The enforcer evaluates groups in canonical order — `build()` sorts groups by group hash, so the evaluation order is deterministic but independent of authoring order. The first group that passes ends evaluation — the data is valid against the policy. If every group fails, `PolicyViolation` is thrown.
 
 **Rules within a group use AND semantics.** All rules in a group must pass for the group to pass. Evaluation short-circuits on the first failing rule.
 
 A policy with two groups is satisfied if the calldata passes all rules in either group. Both groups can fail for entirely different reasons — the enforcer tries each candidate in sequence.
 
-This is the runtime expression of `.or()` in the builder: each call to `.or()` starts a new group.
+Each call to `.or()` in the builder starts a new group, but group order on the wire is canonical, not authored: a group written first can evaluate last. Ordering does not affect the verdict — it determines which group an error reports, and where evaluation stops when a group aborts on malformed calldata.
 
 ## Handling violations
 
@@ -126,7 +128,7 @@ Both indices are zero-indexed.
 
 **`ruleIndex`** is the index of the first rule within that group that failed; evaluation short-circuits, so no subsequent rules in that group were checked.
 
-The error reflects a single point of failure, not a complete trace. If a policy has multiple groups, the indices only reflect the failure in the final group; earlier group failures are discarded as the enforcer advances.
+The error reflects a single point of failure, not a complete trace. If a policy has multiple groups, the indices only reflect the failure in the final group; earlier group failures are discarded as the enforcer advances. Group indices follow the canonical group order, not `.or()` authoring order.
 
 ## Selectorless policies
 

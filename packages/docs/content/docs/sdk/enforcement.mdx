@@ -37,7 +37,7 @@ PolicyEnforcer.enforce(policy, calldata);
 type EnforceResult = { ok: true; matchedGroup: number } | { ok: false; violations: Violation[] };
 ```
 
-- On pass, `matchedGroup` is the zero-based index of the constraint group that matched. A policy with a single group matches as group `0`; policies using `.or()` may match any of several groups.
+- On pass, `matchedGroup` is the zero-based index of the constraint group that matched. A policy with a single group matches as group `0`; policies using `.or()` may match any of several groups. Group indices follow the policy's canonical group order — `build()` sorts groups by hash — not `.or()` authoring order.
 - On fail, `violations` contains one entry per failed group plus any pre-group failures (selector mismatch, malformed calldata).
 
 ## Violation
@@ -134,6 +134,8 @@ For function-bound policies, the enforcer validates the first 4 bytes of calldat
 - Missing: calldata shorter than 4 bytes emits `MISSING_SELECTOR`.
 
 Selector failures are distinct from argument-level `VALUE_MISMATCH` violations: they happen before any group is evaluated.
+
+The match covers the selector alone. The embedded descriptor carries argument types but no function name, so a policy's selector and its descriptor are related only by the signature string given to `create()` — the enforcer cannot detect a descriptor authored for a different function with the same argument types.
 
 For selectorless policies (see [Selectorless Policies](./building-policies/selectorless-policies)), the enforcer reads from byte 0. No selector check runs.
 

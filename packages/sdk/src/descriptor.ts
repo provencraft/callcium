@@ -90,7 +90,7 @@ function inspect(desc: Uint8Array, offset: number): TypeInfo {
  * @param desc - Raw descriptor bytes.
  * @param steps - Path steps, length >= 1.
  * @returns TypeInfo for the node at the resolved path.
- * @throws {CallciumError} On empty steps, out-of-bounds param, or descent into elementary type.
+ * @throws {CallciumError} On empty steps, out-of-bounds param or array index, or descent into elementary type.
  */
 function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
   return walkPath(desc, steps).typeInfo;
@@ -103,7 +103,7 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
  * @param desc - Raw descriptor bytes.
  * @param steps - Path steps, length >= 1.
  * @returns TypeInfo at the resolved path and the quantified static array length.
- * @throws {CallciumError} On empty steps, out-of-bounds param, or descent into elementary type.
+ * @throws {CallciumError} On empty steps, out-of-bounds param or array index, or descent into elementary type.
  */
 function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quantifiedStaticLength: number } {
   if (steps.length === 0) {

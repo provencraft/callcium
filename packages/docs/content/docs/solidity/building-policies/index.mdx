@@ -158,6 +158,10 @@ The following context properties are available as constraint targets:
 
 When enforced via a static call, `msgSender()` reflects the `from` address of the call — set it explicitly to simulate the intended caller. `msgValue()` always resolves to 0; static calls cannot forward value.
 
+`msgSender()` resolves in the frame that runs enforcement. A router or aggregator that reaches the enforcing contract with `call` is the sender; `delegatecall` preserves the original caller. A `msgSender()` constraint describes the immediate caller, not the transaction originator — `txOrigin()` targets the latter.
+
+`baseFee()` and `gasPrice()` are constraints on network state: the same data is valid or invalid against the policy as gas prices move. `tx.gasprice` is additionally chosen by the transaction sender, bounded below by the base fee.
+
 Context targets are imported alongside `arg`:
 
 ```solidity
