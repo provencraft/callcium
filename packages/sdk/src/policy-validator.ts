@@ -11,6 +11,7 @@ import {
   TypeCode,
 } from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
+import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError } from "./errors";
 import { canonicalize, isLeftAligned, isSigned, isLengthOp, isLengthValidType } from "./operators";
 import { parsePathSteps } from "./policy-coder";
@@ -1052,10 +1053,13 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
  * Validate a policy for type mismatches, contradictions, redundancies, and vacuities.
  * @param data - The canonical policy data to validate.
  * @returns All validation issues found, ordered by group and constraint index.
+ * @throws {CallciumError} If the descriptor is not well-formed; semantic validation is
+ * defined only over a well-formed descriptor.
  */
 function validate(data: PolicyData): Issue[] {
   const issues: Issue[] = [];
   const descBytes = hexToBytes(data.descriptor);
+  decodeDescriptor(descBytes);
 
   for (let groupIndex = 0; groupIndex < data.groups.length; groupIndex++) {
     if (data.groups[groupIndex]!.length === 0) {

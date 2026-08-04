@@ -4,12 +4,14 @@ pragma solidity ^0.8.28;
 import { PolicyValidatorHarness } from "../../harnesses/PolicyValidatorHarness.sol";
 import { PolicyValidatorTest } from "../PolicyValidator.t.sol";
 import { Constraint, arg, msgSender } from "src/Constraint.sol";
+import { Descriptor } from "src/Descriptor.sol";
 import { DescriptorBuilder } from "src/DescriptorBuilder.sol";
 import { IssueCode } from "src/IssueCode.sol";
 import { OpCode } from "src/OpCode.sol";
 import { Path } from "src/Path.sol";
 import { PolicyData } from "src/PolicyCoder.sol";
 import { PolicyValidator } from "src/PolicyValidator.sol";
+import { TypeCode } from "src/TypeCode.sol";
 import { TypeDesc } from "src/TypeDesc.sol";
 import { Issue, IssueCategory, IssueSeverity } from "src/ValidationIssue.sol";
 
@@ -1431,5 +1433,26 @@ contract UnnavigablePathTest is PolicyValidatorTest {
         assertEq(issues.length, 2);
         _assertIssue(issues, IssueCode.LENGTH_ON_STATIC);
         _assertIssue(issues, IssueCode.UNNAVIGABLE_PATH);
+    }
+}
+
+contract MalformedDescriptorTest is PolicyValidatorTest {
+    function test_RevertWhen_UnknownTypeCode() public {
+        bytes memory desc = bytes.concat(hex"0101", bytes1(TypeCode.TUPLE + 1));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, arg(0).eq(uint256(1)));
+
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.UnknownTypeCode.selector, TypeCode.TUPLE + 1));
+        PolicyValidator.validate(data);
+    }
+
+    function test_RevertWhen_TrailingDescriptorBytes() public {
+        // One declared param, two encoded address nodes.
+        bytes memory desc = hex"01014040";
+
+        PolicyData memory data = _createPolicyData("foo(address)", desc, arg(0).eq(uint256(1)));
+
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.ParamCountMismatch.selector, 1, 2));
+        PolicyValidator.validate(data);
     }
 }

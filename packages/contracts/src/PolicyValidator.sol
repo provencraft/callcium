@@ -102,9 +102,13 @@ library PolicyValidator {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Validates policy data for semantic issues.
+    /// @dev Reverts when the descriptor is not well-formed; semantic validation is defined
+    /// only over a well-formed descriptor.
     /// @param data The policy data to validate.
     /// @return All validation issues found.
     function validate(PolicyData memory data) internal pure returns (Issue[] memory) {
+        Descriptor.validate(data.descriptor);
+
         // Estimate initial capacity (worst case: one per operator in all constraints); the buffer
         // grows if a payload- or state-scaled path emits more.
         uint256 maxIssues = _countOperators(data);

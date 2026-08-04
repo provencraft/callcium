@@ -11,7 +11,10 @@ description: "Semantic validation for policies - checks for type mismatches, con
 
 Validates policy data for semantic issues.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L107)
+Reverts when the descriptor is not well-formed; semantic validation is defined
+only over a well-formed descriptor.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L109)
 
 ```solidity
 function validate(PolicyData memory data) internal pure returns (Issue[] memory);

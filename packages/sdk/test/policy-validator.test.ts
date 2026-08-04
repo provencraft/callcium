@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
 
-import { PolicyBuilder, arg, msgSender, msgValue, Op, Scope } from "../src";
+import { CallciumError, PolicyBuilder, arg, msgSender, msgValue, Op, Scope, TypeCode } from "../src";
 import { bytesToHex } from "../src/bytes";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { PolicyValidator } from "../src/policy-validator";
 import { op, rangeOp, inOp } from "./helpers";
 
-import type { Hex, Issue, PolicyData } from "../src/types";
+import type { Constraint, Hex, Issue, PolicyData } from "../src/types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Test helpers
@@ -999,5 +999,34 @@ describe("PolicyValidator - unnavigable paths", () => {
     expect(issues).toHaveLength(2);
     expect(findIssue(issues, "LENGTH_ON_STATIC")).toBeDefined();
     expect(findIssue(issues, "UNNAVIGABLE_PATH")).toBeDefined();
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Malformed descriptors
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyValidator - malformed descriptors", () => {
+  const constraint: Constraint = { scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.EQ, 1n)] };
+
+  test("throws on an unassigned type code", () => {
+    const unassigned = (TypeCode.TUPLE + 1).toString(16).padStart(2, "0");
+    const data: PolicyData = {
+      isSelectorless: true,
+      selector: "0x00000000",
+      descriptor: `0x0101${unassigned}`,
+      groups: [[constraint]],
+    };
+    expect(() => PolicyValidator.validate(data)).toThrow(CallciumError);
+  });
+
+  test("throws on trailing descriptor bytes", () => {
+    const data: PolicyData = {
+      isSelectorless: true,
+      selector: "0x00000000",
+      descriptor: "0x01014040",
+      groups: [[constraint]],
+    };
+    expect(() => PolicyValidator.validate(data)).toThrow(CallciumError);
   });
 });
