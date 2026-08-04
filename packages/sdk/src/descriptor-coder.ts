@@ -40,6 +40,8 @@ function commaPositions(input: string, start: number, end: number): number[] {
  */
 function parseUint(input: string, start: number, end: number): number {
   if (start >= end) return -1;
+  // A leading zero is never canonical ABI spelling (uint08, bytes01, [03]).
+  if (end - start > 1 && input.charCodeAt(start) === 48) return -1;
   let value = 0;
   for (let i = start; i < end; i++) {
     const code = input.charCodeAt(i);

@@ -221,6 +221,31 @@ describe("DescriptorCoder.fromTypes", () => {
   test("non-numeric intN 'intXX' throws UNKNOWN_TYPE", () => {
     expectErrorCode(() => DescriptorCoder.fromTypes("intXX"), "UNKNOWN_TYPE");
   });
+
+  test("zero-padded uint width 'uint08' throws UNKNOWN_TYPE", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint08"), "UNKNOWN_TYPE");
+  });
+
+  test("zero-padded uint width 'uint008' throws UNKNOWN_TYPE", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint008"), "UNKNOWN_TYPE");
+  });
+
+  test("zero-padded int width 'int08' throws UNKNOWN_TYPE", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("int08"), "UNKNOWN_TYPE");
+  });
+
+  test("zero-padded bytes size 'bytes01' throws UNKNOWN_TYPE", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("bytes01"), "UNKNOWN_TYPE");
+  });
+
+  test("zero-padded array length 'uint256[03]' throws INVALID_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[03]"), "INVALID_TYPE_STRING");
+  });
+
+  test("canonical spellings of the zero-padded rejections parse and round-trip", () => {
+    const typesCsv = "uint8,int8,bytes1,uint256[3]";
+    expect(DescriptorCoder.toTypes(DescriptorCoder.fromTypes(typesCsv))).toBe(typesCsv);
+  });
 });
 
 ///////////////////////////////////////////////////////////////////////////

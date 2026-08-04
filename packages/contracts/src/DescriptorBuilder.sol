@@ -266,6 +266,8 @@ library DescriptorBuilder {
     /// @dev Parses an unsigned integer from `input[start:end]`.
     function _parseUint(bytes memory input, uint256 start, uint256 end) private pure returns (uint256 result) {
         require(end > start, MalformedTypeString());
+        // A leading zero is never canonical ABI spelling (uint08, bytes01, [03]).
+        require(input[start] != "0" || end - start == 1, MalformedTypeString());
         for (uint256 i = start; i < end; i++) {
             bytes1 char = input[i];
             require(char >= "0" && char <= "9", MalformedTypeString());

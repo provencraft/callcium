@@ -264,6 +264,39 @@ contract FromTypesTest is DescriptorBuilderTest {
         );
     }
 
+    function test_RevertWhen_ZeroPaddedUintWidth() public {
+        vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
+        DescriptorBuilder.fromTypes("uint08");
+    }
+
+    function test_RevertWhen_DoubleZeroPaddedUintWidth() public {
+        vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
+        DescriptorBuilder.fromTypes("uint008");
+    }
+
+    function test_RevertWhen_ZeroPaddedIntWidth() public {
+        vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
+        DescriptorBuilder.fromTypes("int08");
+    }
+
+    function test_RevertWhen_ZeroPaddedBytesSize() public {
+        vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
+        DescriptorBuilder.fromTypes("bytes01");
+    }
+
+    function test_RevertWhen_ZeroPaddedArrayLength() public {
+        vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
+        DescriptorBuilder.fromTypes("uint256[03]");
+    }
+
+    function test_CanonicalWidthsParse() public pure {
+        // Control: the canonical spellings of the zero-padded rejections above.
+        bytes memory desc = DescriptorBuilder.fromTypes("uint8,int8,bytes1,uint256[3]");
+        bytes memory expected = DescriptorBuilder.create().add(TypeDesc.uintN_(8)).add(TypeDesc.intN_(8))
+            .add(TypeDesc.bytesN_(1)).add(TypeDesc.array_(TypeDesc.uint256_(), 3)).build();
+        assertEq(desc, expected);
+    }
+
     function test_RevertWhen_UnmatchedParenthesis() public {
         vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
         DescriptorBuilder.fromTypes("(address,uint256");
