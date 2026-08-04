@@ -959,3 +959,45 @@ describe("PolicyValidator - unbounded exclusion tracking", () => {
     expect(findIssue(issues, "SET_FULLY_EXCLUDED")).toBeDefined();
   });
 });
+
+///////////////////////////////////////////////////////////////////////////
+// Unnavigable paths
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyValidator - unnavigable paths", () => {
+  test("reports UNNAVIGABLE_PATH for an out-of-bounds arg index", () => {
+    const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0002", [op(Op.EQ, 1n)]));
+    expect(issues).toHaveLength(1);
+    const issue = issues[0];
+    expect(issue.code).toBe("UNNAVIGABLE_PATH");
+    expect(issue.severity).toBe("error");
+    expect(issue.category).toBe("typeMismatch");
+  });
+
+  test("reports UNNAVIGABLE_PATH for an out-of-bounds tuple field", () => {
+    const issues = PolicyValidator.validate(rawPolicy("(uint256)", Scope.CALLDATA, "0x00000005", [op(Op.EQ, 1n)]));
+    expect(findIssue(issues, "UNNAVIGABLE_PATH")).toBeDefined();
+  });
+
+  test("reports UNNAVIGABLE_PATH for an out-of-bounds static array index", () => {
+    const issues = PolicyValidator.validate(rawPolicy("uint256[3]", Scope.CALLDATA, "0x00000003", [op(Op.EQ, 1n)]));
+    expect(findIssue(issues, "UNNAVIGABLE_PATH")).toBeDefined();
+  });
+
+  test("reports UNNAVIGABLE_PATH for a descent into an elementary type", () => {
+    const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x00000000", [op(Op.EQ, 1n)]));
+    expect(findIssue(issues, "UNNAVIGABLE_PATH")).toBeDefined();
+  });
+
+  test("collects other issues alongside UNNAVIGABLE_PATH", () => {
+    const issues = PolicyValidator.validate(
+      multiConstraintPolicy("uint256", [
+        { scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.LENGTH_EQ, 5n)] },
+        { scope: Scope.CALLDATA, path: "0x0002", operators: [op(Op.EQ, 1n)] },
+      ]),
+    );
+    expect(issues).toHaveLength(2);
+    expect(findIssue(issues, "LENGTH_ON_STATIC")).toBeDefined();
+    expect(findIssue(issues, "UNNAVIGABLE_PATH")).toBeDefined();
+  });
+});

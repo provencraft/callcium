@@ -166,8 +166,13 @@ library PolicyValidator {
                             ValidationIssue.pathDepthExceeded(groupIndex, constraintIndex, depth, PF.MAX_PATH_DEPTH)
                         );
                     }
+                    Descriptor.PathFault fault;
                     uint256 quantifiedLength;
-                    (typeInfo, quantifiedLength) = Descriptor.walkPath(data.descriptor, constraint.path);
+                    (fault,,, typeInfo, quantifiedLength) = Descriptor.tryWalkPath(data.descriptor, constraint.path);
+                    if (fault != Descriptor.PathFault.None) {
+                        issues.push(ValidationIssue.unnavigablePath(groupIndex, constraintIndex));
+                        continue;
+                    }
                     if (quantifiedLength > PF.MAX_QUANTIFIED_ARRAY_LENGTH) {
                         issues.push(
                             ValidationIssue.quantifierOverStaticLimit(

@@ -30,6 +30,20 @@ export function fromOpRule(
   };
 }
 
+/** Issue for a calldata path that does not navigate the descriptor. */
+export function unnavigablePath(groupIndex: number, constraintIndex: number): Issue {
+  return {
+    severity: "error",
+    category: "typeMismatch",
+    groupIndex,
+    constraintIndex,
+    code: "UNNAVIGABLE_PATH",
+    value1: ZERO,
+    value2: ZERO,
+    message: "Path does not navigate the descriptor",
+  };
+}
+
 /** Issue for an operand that is not canonically encoded for the declared type. */
 export function nonCanonicalOperand(groupIndex: number, constraintIndex: number, operand: Hex, canonical: Hex): Issue {
   return {

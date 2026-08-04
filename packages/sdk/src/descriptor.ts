@@ -130,8 +130,17 @@ function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quan
       }
       cursor = tupleFieldOffset(desc, cursor, step);
     } else if (typeCode === TypeCode.STATIC_ARRAY || typeCode === TypeCode.DYNAMIC_ARRAY) {
-      if (typeCode === TypeCode.STATIC_ARRAY && isQuantifier(step)) {
-        quantifiedStaticLength = staticArrayLength(desc, cursor);
+      // Quantifier sentinels descend into the element type; only concrete
+      // indices are bounds-checked against the declared array length.
+      if (typeCode === TypeCode.STATIC_ARRAY) {
+        if (isQuantifier(step)) {
+          quantifiedStaticLength = staticArrayLength(desc, cursor);
+        } else {
+          const length = staticArrayLength(desc, cursor);
+          if (step >= length) {
+            throw new CallciumError("INVALID_PATH", `Array index ${step} out of range (length=${length}).`);
+          }
+        }
       }
       cursor = arrayElementOffset(cursor);
     } else {

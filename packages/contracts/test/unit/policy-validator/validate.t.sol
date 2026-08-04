@@ -1364,3 +1364,72 @@ contract EmptyGroupTest is PolicyValidatorTest {
         assertEq(issues[1].groupIndex, 1);
     }
 }
+
+contract UnnavigablePathTest is PolicyValidatorTest {
+    function test_ArgIndexOutOfBounds_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        Constraint memory c = arg(2).eq(uint256(1));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].severity, IssueSeverity.Error);
+        assertEq(issues[0].category, IssueCategory.TypeMismatch);
+        assertEq(issues[0].code, IssueCode.UNNAVIGABLE_PATH);
+        assertEq(issues[0].groupIndex, 0);
+        assertEq(issues[0].constraintIndex, 0);
+    }
+
+    function test_TupleFieldOutOfBounds_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.tuple_(TypeDesc.uint256_())).build();
+
+        Constraint memory c = arg(0, 5).eq(uint256(1));
+
+        PolicyData memory data = _createPolicyData("foo((uint256))", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.UNNAVIGABLE_PATH);
+    }
+
+    function test_StaticArrayIndexOutOfBounds_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.array_(TypeDesc.uint256_(), 3)).build();
+
+        Constraint memory c = arg(0, 3).eq(uint256(1));
+
+        PolicyData memory data = _createPolicyData("foo(uint256[3])", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.UNNAVIGABLE_PATH);
+    }
+
+    function test_DescentIntoElementary_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        Constraint memory c = arg(0, 0).eq(uint256(1));
+
+        PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].code, IssueCode.UNNAVIGABLE_PATH);
+    }
+
+    function test_OtherIssuesSurviveUnnavigablePath() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+
+        Constraint[] memory constraints = new Constraint[](2);
+        constraints[0] = arg(0).lengthEq(5);
+        constraints[1] = arg(2).eq(uint256(1));
+
+        PolicyData memory data = _createPolicyDataMulti("foo(uint256)", desc, constraints);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        assertEq(issues.length, 2);
+        _assertIssue(issues, IssueCode.LENGTH_ON_STATIC);
+        _assertIssue(issues, IssueCode.UNNAVIGABLE_PATH);
+    }
+}

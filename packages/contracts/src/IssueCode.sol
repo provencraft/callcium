@@ -24,6 +24,8 @@ library IssueCode {
     bytes32 internal constant UNKNOWN_OPERATOR = "UNKNOWN_OPERATOR";
     /// Operand word is not the canonical encoding for the declared type.
     bytes32 internal constant NON_CANONICAL_OPERAND = "NON_CANONICAL_OPERAND";
+    /// Calldata path does not navigate the descriptor.
+    bytes32 internal constant UNNAVIGABLE_PATH = "UNNAVIGABLE_PATH";
 
     /*/////////////////////////////////////////////////////////////////////////
                                   CONTRADICTION

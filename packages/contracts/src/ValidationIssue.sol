@@ -657,6 +657,21 @@ library ValidationIssue {
         });
     }
 
+    /// @notice Creates an issue for a calldata path that does not navigate the descriptor.
+    /// @return The constructed validation issue.
+    function unnavigablePath(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
+        return Issue({
+            severity: IssueSeverity.Error,
+            category: IssueCategory.TypeMismatch,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: IssueCode.UNNAVIGABLE_PATH,
+            value1: bytes32(0),
+            value2: bytes32(0),
+            message: "Path does not navigate the descriptor"
+        });
+    }
+
     /// @notice Creates a warning for a path deeper than the reference enforcer's cap.
     /// @return The constructed validation issue.
     function pathDepthExceeded(

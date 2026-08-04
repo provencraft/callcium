@@ -11,6 +11,7 @@ import {
   TypeCode,
 } from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
+import { CallciumError } from "./errors";
 import { canonicalize, isLeftAligned, isSigned, isLengthOp, isLengthValidType } from "./operators";
 import { parsePathSteps } from "./policy-coder";
 import * as ValidationIssue from "./validation-issue";
@@ -992,7 +993,17 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
             ),
           );
         }
-        const walk = Descriptor.walkPath(descBytes, steps);
+        let walk: ReturnType<typeof Descriptor.walkPath>;
+        try {
+          walk = Descriptor.walkPath(descBytes, steps);
+        } catch (error) {
+          // Navigability faults become issues; anything else propagates.
+          if (error instanceof CallciumError && error.code === "INVALID_PATH") {
+            issues.push(ValidationIssue.unnavigablePath(groupIndex, constraintIndex));
+            continue;
+          }
+          throw error;
+        }
         if (walk.quantifiedStaticLength > Limits.MAX_QUANTIFIED_ARRAY_LENGTH) {
           issues.push(
             ValidationIssue.quantifierOverStaticLimit(

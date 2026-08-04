@@ -231,6 +231,68 @@
     "builds": false
   },
   {
+    "id": "unnavigable-path-arg-out-of-bounds",
+    "description": "eq on an arg index past the descriptor's param count",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0002",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "UNNAVIGABLE_PATH",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "unnavigable-path-descends-elementary",
+    "description": "eq on a path that descends into an elementary type",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x01011f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x00000000",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "UNNAVIGABLE_PATH",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
     "id": "numeric-op-on-address",
     "description": "gt on address",
     "policy": {

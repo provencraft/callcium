@@ -11,6 +11,15 @@ import { TypeRule } from "./TypeRule.sol";
 /// @title Descriptor
 /// @notice Validation and lightweight views for parameter descriptors.
 library Descriptor {
+    /// @notice Navigability fault detected while walking a path against a descriptor.
+    enum PathFault {
+        None,
+        ArgIndexOutOfBounds,
+        TupleFieldOutOfBounds,
+        ArrayIndexOutOfBounds,
+        NotComposite
+    }
+
     /// @notice Minimal type view at a resolved descriptor node.
     struct TypeInfo {
         /// TypeCode at the node (elementary or composite).
@@ -282,12 +291,47 @@ library Descriptor {
         pure
         returns (TypeInfo memory typeInfo, uint256 quantifiedStaticLength)
     {
+        PathFault fault;
+        uint256 faultValue1;
+        uint256 faultValue2;
+        (fault, faultValue1, faultValue2, typeInfo, quantifiedStaticLength) = tryWalkPath(self, path);
+        if (fault == PathFault.ArgIndexOutOfBounds) revert ArgIndexOutOfBounds(faultValue1, faultValue2);
+        if (fault == PathFault.TupleFieldOutOfBounds) revert TupleFieldOutOfBounds(faultValue1, faultValue2);
+        if (fault == PathFault.ArrayIndexOutOfBounds) revert ArrayIndexOutOfBounds(faultValue1, faultValue2);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        if (fault == PathFault.NotComposite) revert NotComposite(uint8(faultValue1));
+    }
+
+    /// @notice Resolves the type at path, reporting navigability faults through the return value.
+    /// @dev Reverts on structural faults (unsupported version, malformed nodes); navigability
+    /// faults are reported through the fault return.
+    /// @param self The descriptor bytes.
+    /// @param path Path encoded as big-endian uint16 steps.
+    /// @return fault The navigability fault, or none on success.
+    /// @return faultValue1 The offending index or type code; zero on success.
+    /// @return faultValue2 The violated bound; zero when the fault carries none.
+    /// @return typeInfo The type info at the resolved path; zeroed on fault.
+    /// @return quantifiedStaticLength The declared static array length under the quantifier, or zero.
+    function tryWalkPath(
+        bytes memory self,
+        bytes memory path
+    )
+        internal
+        pure
+        returns (
+            PathFault fault,
+            uint256 faultValue1,
+            uint256 faultValue2,
+            TypeInfo memory typeInfo,
+            uint256 quantifiedStaticLength
+        )
+    {
         // Validate descriptor version and resolve top-level argument.
         uint8 formatVersion = version(self);
         require(formatVersion == DF.VERSION, UnsupportedVersion(formatVersion));
         uint256 argIndex = Path.atUnchecked(path, 0);
         uint256 argCount = paramCount(self);
-        require(argIndex < argCount, ArgIndexOutOfBounds(argIndex, argCount));
+        if (argIndex >= argCount) return (PathFault.ArgIndexOutOfBounds, argIndex, argCount, typeInfo, 0);
         uint256 descOffset = atUnchecked(self, argIndex);
 
         // Descend through subsequent path steps.
@@ -298,7 +342,9 @@ library Descriptor {
 
             if (code == TypeCode.TUPLE) {
                 uint256 fieldCount = tupleFieldCount(self, descOffset);
-                require(childIndex < fieldCount, TupleFieldOutOfBounds(childIndex, fieldCount));
+                if (childIndex >= fieldCount) {
+                    return (PathFault.TupleFieldOutOfBounds, childIndex, fieldCount, typeInfo, quantifiedStaticLength);
+                }
                 // forge-lint: disable-next-line(unsafe-typecast)
                 descOffset = tupleFieldOffset(self, descOffset, uint16(childIndex));
             } else if (code == TypeCode.STATIC_ARRAY) {
@@ -306,7 +352,10 @@ library Descriptor {
                 // indices are bounds-checked against the declared array length.
                 if (childIndex < Path.ANY) {
                     uint256 arrayLength = staticArrayLength(self, descOffset);
-                    require(childIndex < arrayLength, ArrayIndexOutOfBounds(childIndex, arrayLength));
+                    if (childIndex >= arrayLength) {
+                        return
+                            (PathFault.ArrayIndexOutOfBounds, childIndex, arrayLength, typeInfo, quantifiedStaticLength);
+                    }
                 } else {
                     quantifiedStaticLength = staticArrayLength(self, descOffset);
                 }
@@ -314,7 +363,7 @@ library Descriptor {
             } else if (code == TypeCode.DYNAMIC_ARRAY) {
                 descOffset += DF.ARRAY_HEADER_SIZE;
             } else {
-                revert NotComposite(code);
+                return (PathFault.NotComposite, code, 0, typeInfo, quantifiedStaticLength);
             }
         }
 
