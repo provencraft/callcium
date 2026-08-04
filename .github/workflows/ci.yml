@@ -26,6 +26,9 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Install dependencies
         run: forge soldeer install
 
@@ -48,9 +51,7 @@ jobs:
         id: test
 
       - name: Check enforcement vector freshness
-        run: |
-          forge script script/EnforcementVectorGenerator.s.sol -v
-          git diff --exit-code ../../spec/vectors/enforcement.json
+        run: bun run vectors:check
         id: vectors
 
   docs:
