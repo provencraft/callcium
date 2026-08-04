@@ -71,10 +71,6 @@ library PolicyEnforcer {
         uint8 typeCode;
     }
 
-    /// @dev Path scratch capacity in steps (be16 per step). Must equal `PF.MAX_PATH_DEPTH`;
-    /// a local literal is required because cross-library constants cannot size fixed arrays.
-    uint8 internal constant MAX_PATH_DEPTH = 32;
-
     /*/////////////////////////////////////////////////////////////////////////
                                         ERRORS
     ////////////////////////////////////////////////////////////////////////*/
@@ -233,7 +229,7 @@ library PolicyEnforcer {
         returns (bool)
     {
         RuleView memory rule = _parseRule(state.policy, ruleOffset);
-        require(rule.depth <= MAX_PATH_DEPTH, CalldataReader.PathTooDeep(rule.depth, MAX_PATH_DEPTH));
+        require(rule.depth <= PF.MAX_PATH_DEPTH, CalldataReader.PathTooDeep(rule.depth, PF.MAX_PATH_DEPTH));
 
         uint8 opBase = rule.opCode & ~OpCode.NOT;
 
@@ -282,7 +278,7 @@ library PolicyEnforcer {
 
             if (step >= Path.ANY) {
                 require(quantifierType == 0, NestedQuantifiersUnsupported());
-                // forge-lint: disable-next-line(unsafe-typecast) i <= MAX_PATH_DEPTH (32)
+                // forge-lint: disable-next-line(unsafe-typecast) i < rule.depth <= PF.MAX_PATH_DEPTH
                 quantifierIndex = uint8(i);
                 quantifierType = step;
             }

@@ -10,7 +10,7 @@ The policy format allows `pathDepth` up to 255 (1-byte field). `CalldataReader` 
 
 ## Decision
 
-`MAX_PATH_DEPTH` is an operational cap on the reference enforcer, not a wire-format rule. The default cap is 32 steps (64-byte scratch path buffer). The constant is declared in `PolicyFormat` alongside the other spec Section 8.4 normative limits.
+`MAX_PATH_DEPTH` is an operational cap on the reference enforcer, not a wire-format rule. The default cap is 32 steps. The constant is declared in `PolicyFormat` alongside the other spec Section 8.4 normative limits.
 
 **Separation of concerns:**
 - `CalldataReader` parses and traverses calldata generically — no depth limit in its config. Consumers enforce their own limits.
@@ -27,8 +27,8 @@ The policy format allows `pathDepth` up to 255 (1-byte field). `CalldataReader` 
 
 ## Consequences
 
-- Single preallocated scratch buffer (64 bytes) reused across all rules, enabling a zero-allocation hot loop.
-- Policies with paths deeper than 32 steps are rejected at runtime rather than silently degrading performance or overflowing the scratch buffer.
+- Rule paths are read directly from the policy bytes during traversal — no per-rule allocation and no intermediate path buffer, keeping the hot loop allocation-free.
+- Policies with paths deeper than `MAX_PATH_DEPTH` are rejected at runtime rather than silently degrading performance.
 - `CalldataReader` remains a generic, reusable traversal library with no enforcer-specific constraints baked in.
 - The cap can be raised in a future spec revision without a wire-format change — it is a Design-category limit (spec Section 8.4), not a wire-format field.
 - Raising the cap to 64 steps after benchmarking, or adding a per-rule adaptive fallback that allocates a temporary buffer when `depth > MAX_PATH_DEPTH` instead of rejecting, remain viable future extensions.
