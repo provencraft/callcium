@@ -47,6 +47,12 @@ jobs:
         run: forge test -vvv
         id: test
 
+      - name: Check enforcement vector freshness
+        run: |
+          forge script script/EnforcementVectorGenerator.s.sol -v
+          git diff --exit-code ../../spec/vectors/enforcement.json
+        id: vectors
+
   docs:
     name: Docs
     runs-on: ubuntu-latest

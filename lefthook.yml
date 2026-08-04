@@ -1,3 +1,12 @@
+pre-push:
+  commands:
+    enforcement-vectors:
+      root: "packages/contracts/"
+      glob:
+        - "packages/contracts/src/**/*.sol"
+        - "packages/contracts/script/EnforcementVectorGenerator.s.sol"
+      run: bun run vectors:check
+
 pre-commit:
   commands:
     # Contracts

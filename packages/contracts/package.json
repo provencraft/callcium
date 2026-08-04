@@ -28,6 +28,7 @@
     "test": "forge test",
     "fmt": "forge fmt",
     "docs": "forge doc",
+    "vectors:check": "forge script script/EnforcementVectorGenerator.s.sol -v && git diff --exit-code ../../spec/vectors/enforcement.json",
     "bench:baseline": "forge test --match-path 'test/benchmark/**' -vv && bun tools/bench-baseline.ts",
     "bench:diff": "forge test --match-path 'test/benchmark/**' && bun tools/bench-compare.ts",
     "bench:compare": "bun tools/bench-compare.ts"
