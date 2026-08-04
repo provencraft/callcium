@@ -77,17 +77,31 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      # Docs consume the SDK's built dist, not its source.
       - name: Build SDK
         working-directory: packages/sdk
         run: bun run build
 
-      - name: Build docs
+      - name: Check docs formatting
         working-directory: packages/docs
-        run: bun run build
+        run: bun run fmt:check
+
+      # Ahead of lint and tests: this generates the MDX collections they import.
+      - name: Type check docs
+        working-directory: packages/docs
+        run: bun run types:check
 
       - name: Lint docs
         working-directory: packages/docs
         run: bun run lint
+
+      - name: Run docs tests
+        working-directory: packages/docs
+        run: bun run test
+
+      - name: Build docs
+        working-directory: packages/docs
+        run: bun run build
 
   sdk:
     name: SDK
