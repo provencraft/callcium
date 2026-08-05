@@ -17,12 +17,12 @@ If you are using the Solidity library, you do not need to read these. The builde
 
 | Spec | Version | Status | Description |
 |------|---------|--------|-------------|
-| [Descriptor](/docs/specifications/descriptor-v1) | v1.1 | Normative | Binary encoding of ABI types. Used by policies to describe the shape of calldata they constrain. |
+| [Descriptor](/docs/specifications/descriptor-v2) | v2.0 | Normative | Binary encoding of ABI types. Used by policies to describe the shape of calldata they constrain. |
 | [Policy](/docs/specifications/policy-v1) | v1.2 | Normative | Binary encoding of constraint policies. Defines wire format, canonicalization rules, and evaluation semantics. |
 
 ## Versioning
 
-Both specs are versioned independently. The document version tracks spec revisions, including additive changes that stay backward compatible. The wire format version byte is distinct: it is `0x01` for both formats, embedded in each blob's header, and changes only on a breaking change to the binary encoding.
+Both specs are versioned independently. The document version tracks spec revisions, including additive changes that stay backward compatible. The wire format version byte is distinct: embedded in each blob's header, it changes only on a breaking change to the binary encoding.
 
 ## Effective limits
 

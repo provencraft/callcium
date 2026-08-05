@@ -74,8 +74,8 @@ function path(...steps: number[]): Uint8Array {
 // Node constants
 ///////////////////////////////////////////////////////////////////////////
 
-const UINT256: DescNode = { type: "elementary", typeCode: 0x1f, isDynamic: false, staticSize: 32 };
-const ADDRESS: DescNode = { type: "elementary", typeCode: 0x40, isDynamic: false, staticSize: 32 };
+const UINT256: DescNode = { type: "elementary", typeCode: 0x20, isDynamic: false, staticSize: 32 };
+const ADDRESS: DescNode = { type: "elementary", typeCode: 0x41, isDynamic: false, staticSize: 32 };
 const BYTES: DescNode = { type: "elementary", typeCode: 0x70, isDynamic: true, staticSize: 0 };
 
 function staticTupleNode(fields: DescNode[]): DescNode {

@@ -162,31 +162,31 @@ Length operators apply to dynamic arrays (element count) and `bytes`/`string` (b
 
 The encodings in this section define the canonical 32-byte form for operator operands and the form required of resolved calldata values (§7.4).
 
-**Address (typeCode = 0x40):**
+**Address (typeCode = 0x41):**
 ```
 [0x000000000000000000000000][address:20]
 ```
 Left-padded with 12 zero bytes.
 
-**Unsigned Integers (typeCode = 0x00-0x1F):**
+**Unsigned Integers (typeCode = 0x01-0x20):**
 ```
 [padding][value]
 ```
-Left-padded to 32 bytes. Value occupies rightmost N bytes where N = (typeCode + 1).
+Left-padded to 32 bytes. Value occupies rightmost N bytes where N = typeCode.
 
-**Signed Integers (typeCode = 0x20-0x3F):**
+**Signed Integers (typeCode = 0x21-0x40):**
 ```
 [sign-extension][value]
 ```
 Sign-extended to 32 bytes (two's complement). Comparison operators (`GT`, `LT`, `GTE`, `LTE`, `BETWEEN`) MUST use signed arithmetic (EVM `slt`/`sgt`). The `EQ` and `IN` operators use bitwise equality and are sign-agnostic.
 
-**Boolean (typeCode = 0x41):**
+**Boolean (typeCode = 0x42):**
 ```
 [0x00...00][0x00 or 0x01]
 ```
 0x00 = false, 0x01 = true. Only `EQ` and its negation are valid for booleans.
 
-**Function (typeCode = 0x42):**
+**Function (typeCode = 0x43):**
 ```
 [address:20][selector:4][0x0000000000000000]
 ```
@@ -411,9 +411,9 @@ Sentinels (`ALL_OR_EMPTY`, `ALL`, `ANY`) are enforcer-level markers and MUST NOT
 
 Before applying an operator, an enforcer MUST verify that the resolved calldata value carries the encoding defined in §4.5 for its declared type. The declared type is the type code resolved by descriptor navigation (Callcium Descriptor Spec, Section 6). For the raw 32-byte word loaded at the resolved location, that encoding requires:
 
-- **Unsigned integers (`0x00`–`0x1F`), `address`, `bool`**: all bits above the type's value width are zero — `N * 8` bits for `uintN`, 160 for `address`, 1 for `bool`.
-- **Signed integers (`0x20`–`0x3F`)**: the word is sign-extended from the type's most-significant byte (EVM `SIGNEXTEND`).
-- **Fixed bytes (`0x50`–`0x6F`) and `function` (`0x42`)**: the low `(32 − N)` padding bytes are zero (the value is left-aligned in the high `N` bytes; `N = 24` for `function`, encoded identical to `bytes24`).
+- **Unsigned integers (`0x01`–`0x20`), `address`, `bool`**: all bits above the type's value width are zero — `N * 8` bits for `uintN`, 160 for `address`, 1 for `bool`.
+- **Signed integers (`0x21`–`0x40`)**: the word is sign-extended from the type's most-significant byte (EVM `SIGNEXTEND`).
+- **Fixed bytes (`0x50`–`0x6F`) and `function` (`0x43`)**: the low `(32 − N)` padding bytes are zero (the value is left-aligned in the high `N` bytes; `N = 24` for `function`, encoded identical to `bytes24`).
 - **`uint256`, `int256`, `bytes32`**: unconstrained; the value occupies the full word.
 
 A word that does not meet the requirement for its declared type is a `NON_CANONICAL_VALUE` violation.

@@ -6,7 +6,7 @@ import { CallciumError } from "./errors";
 
 /** Binary layout constants for the Callcium descriptor format. */
 export const DescriptorFormat = {
-  VERSION: 0x01,
+  VERSION: 0x02,
   HEADER_SIZE: 2,
   TYPECODE_SIZE: 1,
   COMPOSITE_META_SIZE: 3,
@@ -107,13 +107,13 @@ export function lookupScope(code: number): ScopeInfo {
 
 /** ABI type code ranges and sentinel values for the descriptor format. */
 export const TypeCode = {
-  UINT_MIN: 0x00,
-  UINT_MAX: 0x1f,
-  INT_MIN: 0x20,
-  INT_MAX: 0x3f,
-  ADDRESS: 0x40,
-  BOOL: 0x41,
-  FUNCTION: 0x42,
+  UINT_MIN: 0x01,
+  UINT_MAX: 0x20,
+  INT_MIN: 0x21,
+  INT_MAX: 0x40,
+  ADDRESS: 0x41,
+  BOOL: 0x42,
+  FUNCTION: 0x43,
   FIXED_BYTES_MIN: 0x50,
   FIXED_BYTES_MAX: 0x6f,
   BYTES: 0x70,
@@ -315,7 +315,7 @@ export function classifyTypeCode(code: number): TypeClassInfo {
   if (code >= TypeCode.UINT_MIN && code <= TypeCode.UINT_MAX) return ELEMENTARY;
   if (code >= TypeCode.INT_MIN && code <= TypeCode.INT_MAX) return ELEMENTARY;
   if (code === TypeCode.ADDRESS || code === TypeCode.BOOL || code === TypeCode.FUNCTION) return ELEMENTARY;
-  if (code >= 0x43 && code <= 0x4f) unknownTypeCode(code);
+  if (code >= 0x44 && code <= 0x4f) unknownTypeCode(code);
   if (code >= TypeCode.FIXED_BYTES_MIN && code <= TypeCode.FIXED_BYTES_MAX) return ELEMENTARY;
   if (code === TypeCode.BYTES || code === TypeCode.STRING) return ELEMENTARY_DYN;
   if (code >= 0x72 && code <= 0x7f) unknownTypeCode(code);

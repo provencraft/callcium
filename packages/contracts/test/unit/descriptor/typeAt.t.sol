@@ -259,15 +259,15 @@ contract TypeAtTest is DescriptorTest {
         desc.typeAt(_path(0));
     }
 
-    function test_RevertWhen_BadDescriptorVersionTwo() public {
-        bytes memory desc = hex"0201";
+    function test_RevertWhen_BadDescriptorVersionOne() public {
+        bytes memory desc = hex"0101";
 
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.UnsupportedVersion.selector, uint8(2)));
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.UnsupportedVersion.selector, uint8(1)));
         desc.typeAt(_path(0));
     }
 
     function test_RevertWhen_DescriptorTooSmall() public {
-        bytes memory desc = hex"01";
+        bytes memory desc = hex"02";
 
         vm.expectRevert(Descriptor.MalformedHeader.selector);
         desc.typeAt(_path(0));

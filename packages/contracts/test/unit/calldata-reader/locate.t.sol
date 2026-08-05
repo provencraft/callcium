@@ -373,16 +373,16 @@ contract LocateTest is CalldataReaderTest {
         harness.locate(desc, callData, _path(0), cfg);
     }
 
-    function test_RevertWhen_BadDescriptorVersionTwo() public {
-        bytes memory desc = hex"0201";
+    function test_RevertWhen_BadDescriptorVersionOne() public {
+        bytes memory desc = hex"0101";
         bytes memory callData = abi.encodeWithSelector(SELECTOR, address(1));
 
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.UnsupportedVersion.selector, uint8(2)));
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.UnsupportedVersion.selector, uint8(1)));
         harness.locate(desc, callData, _path(0), cfg);
     }
 
     function test_RevertWhen_DescriptorTooSmall() public {
-        bytes memory desc = hex"01";
+        bytes memory desc = hex"02";
         bytes memory callData = abi.encodeWithSelector(SELECTOR, address(1));
 
         vm.expectRevert(Descriptor.MalformedHeader.selector);

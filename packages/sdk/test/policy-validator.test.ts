@@ -1014,7 +1014,7 @@ describe("PolicyValidator - malformed descriptors", () => {
     const data: PolicyData = {
       isSelectorless: true,
       selector: "0x00000000",
-      descriptor: `0x0101${unassigned}`,
+      descriptor: `0x0201${unassigned}`,
       groups: [[constraint]],
     };
     expect(() => PolicyValidator.validate(data)).toThrow(CallciumError);
@@ -1024,7 +1024,7 @@ describe("PolicyValidator - malformed descriptors", () => {
     const data: PolicyData = {
       isSelectorless: true,
       selector: "0x00000000",
-      descriptor: "0x01014040",
+      descriptor: "0x02014141",
       groups: [[constraint]],
     };
     expect(() => PolicyValidator.validate(data)).toThrow(CallciumError);

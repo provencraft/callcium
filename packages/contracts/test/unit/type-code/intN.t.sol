@@ -7,7 +7,7 @@ import { TypeCode } from "src/TypeCode.sol";
 contract IntNTest is TypeCodeTest {
     function test_ReturnsExpectedCode() public pure {
         for (uint16 bits = 8; bits <= 256; bits += 8) {
-            uint8 expected = uint8(0x20 + (bits / 8) - 1);
+            uint8 expected = uint8(0x20 + (bits / 8));
             assertEq(TypeCode.intN(bits), expected);
         }
     }

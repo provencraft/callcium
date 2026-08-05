@@ -6,11 +6,11 @@ import { Descriptor } from "src/Descriptor.sol";
 
 contract ParamCountTest is DescriptorTest {
     function test_ReturnsHeaderCount() public pure {
-        assertEq(Descriptor.paramCount(hex"0103"), 3);
+        assertEq(Descriptor.paramCount(hex"0203"), 3);
     }
 
     function test_RevertWhen_MalformedHeader() public {
         vm.expectRevert(Descriptor.MalformedHeader.selector);
-        Descriptor.paramCount(hex"01");
+        Descriptor.paramCount(hex"02");
     }
 }

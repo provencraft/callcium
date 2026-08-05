@@ -89,17 +89,20 @@ function signedCompare(a: bigint, b: bigint, signed: boolean): bigint {
 
 /** True for uint and int type codes. */
 function isNumericType(typeCode: number): boolean {
-  return typeCode <= TypeCode.UINT_MAX || (typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX);
+  return (
+    (typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) ||
+    (typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX)
+  );
 }
 
 /** True for uint and bytes32 type codes. */
 function isBitmaskCompatible(typeCode: number): boolean {
-  return typeCode <= TypeCode.UINT_MAX || typeCode === TypeCode.FIXED_BYTES_MIN + 31;
+  return (typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) || typeCode === TypeCode.FIXED_BYTES_MIN + 31;
 }
 
 /** Physical domain limits for a type code (returned as raw uint256 bigints). */
 function getDomainLimits(typeCode: number): { min: bigint; max: bigint } {
-  if (typeCode <= TypeCode.UINT_MAX) {
+  if (typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) {
     const bits = BigInt(typeCode - TypeCode.UINT_MIN + 1) * 8n;
     return { min: 0n, max: bits === 256n ? UINT256_MAX : (1n << bits) - 1n };
   }

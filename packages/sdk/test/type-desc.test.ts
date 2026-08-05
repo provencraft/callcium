@@ -25,31 +25,31 @@ import { expectErrorCode } from "./helpers";
 ///////////////////////////////////////////////////////////////////////////
 
 describe("address", () => {
-  test("returns single byte 0x40", () => {
+  test("returns single byte 0x41", () => {
     expect(address()).toEqual(new Uint8Array([TypeCode.ADDRESS]));
   });
 });
 
 describe("bool", () => {
-  test("returns single byte 0x41", () => {
+  test("returns single byte 0x42", () => {
     expect(bool()).toEqual(new Uint8Array([TypeCode.BOOL]));
   });
 });
 
 describe("function_", () => {
-  test("returns single byte 0x42", () => {
+  test("returns single byte 0x43", () => {
     expect(function_()).toEqual(new Uint8Array([TypeCode.FUNCTION]));
   });
 });
 
 describe("uint256", () => {
-  test("returns single byte 0x1f", () => {
+  test("returns single byte 0x20", () => {
     expect(uint256()).toEqual(new Uint8Array([TypeCode.UINT_MAX]));
   });
 });
 
 describe("int256", () => {
-  test("returns single byte 0x3f", () => {
+  test("returns single byte 0x40", () => {
     expect(int256()).toEqual(new Uint8Array([TypeCode.INT_MAX]));
   });
 });
@@ -71,19 +71,19 @@ describe("string_", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("uintN", () => {
-  test("uint8 → 0x00", () => {
+  test("uint8 → 0x01", () => {
     expect(uintN(8)).toEqual(new Uint8Array([TypeCode.UINT_MIN]));
   });
 
-  test("uint16 → 0x01", () => {
-    expect(uintN(16)).toEqual(new Uint8Array([0x01]));
+  test("uint16 → 0x02", () => {
+    expect(uintN(16)).toEqual(new Uint8Array([0x02]));
   });
 
-  test("uint128 → 0x0f", () => {
-    expect(uintN(128)).toEqual(new Uint8Array([0x0f]));
+  test("uint128 → 0x10", () => {
+    expect(uintN(128)).toEqual(new Uint8Array([0x10]));
   });
 
-  test("uint256 → 0x1f", () => {
+  test("uint256 → 0x20", () => {
     expect(uintN(256)).toEqual(new Uint8Array([TypeCode.UINT_MAX]));
   });
 
@@ -105,19 +105,19 @@ describe("uintN", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("intN", () => {
-  test("int8 → 0x20", () => {
+  test("int8 → 0x21", () => {
     expect(intN(8)).toEqual(new Uint8Array([TypeCode.INT_MIN]));
   });
 
-  test("int16 → 0x21", () => {
-    expect(intN(16)).toEqual(new Uint8Array([0x21]));
+  test("int16 → 0x22", () => {
+    expect(intN(16)).toEqual(new Uint8Array([0x22]));
   });
 
-  test("int128 → 0x2f", () => {
-    expect(intN(128)).toEqual(new Uint8Array([0x2f]));
+  test("int128 → 0x30", () => {
+    expect(intN(128)).toEqual(new Uint8Array([0x30]));
   });
 
-  test("int256 → 0x3f", () => {
+  test("int256 → 0x40", () => {
     expect(intN(256)).toEqual(new Uint8Array([TypeCode.INT_MAX]));
   });
 
@@ -192,7 +192,7 @@ describe("array (dynamic)", () => {
     expect(result[1]).toBe(0x00);
     expect(result[2]).toBe(0x00);
     expect(result[3]).toBe(0x05);
-    expect(result[4]).toBe(0x1f);
+    expect(result[4]).toBe(0x20);
     expect(result.length).toBe(5);
   });
 
@@ -234,7 +234,7 @@ describe("array (static)", () => {
     expect(result[2]).toBe(0x40);
     expect(result[3]).toBe(0x07);
     // elem byte
-    expect(result[4]).toBe(0x1f);
+    expect(result[4]).toBe(0x20);
     // length suffix as be16
     expect(result[5]).toBe(0x00);
     expect(result[6]).toBe(0x04);
@@ -279,7 +279,7 @@ describe("tuple", () => {
     expect(result[4]).toBe(0x00);
     expect(result[5]).toBe(0x01);
     // field byte
-    expect(result[6]).toBe(0x1f);
+    expect(result[6]).toBe(0x20);
     expect(result.length).toBe(7);
   });
 

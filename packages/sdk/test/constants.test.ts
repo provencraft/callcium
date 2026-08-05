@@ -122,7 +122,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.MSG_SENDER)).toEqual({
       label: "msg.sender",
       contextKey: "msgSender",
-      typeCode: 0x40,
+      typeCode: 0x41,
     });
   });
 
@@ -130,7 +130,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.MSG_VALUE)).toEqual({
       label: "msg.value",
       contextKey: "msgValue",
-      typeCode: 0x1f,
+      typeCode: 0x20,
     });
   });
 
@@ -138,7 +138,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.BLOCK_TIMESTAMP)).toEqual({
       label: "block.timestamp",
       contextKey: "blockTimestamp",
-      typeCode: 0x1f,
+      typeCode: 0x20,
     });
   });
 
@@ -146,7 +146,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.BLOCK_NUMBER)).toEqual({
       label: "block.number",
       contextKey: "blockNumber",
-      typeCode: 0x1f,
+      typeCode: 0x20,
     });
   });
 
@@ -154,7 +154,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.CHAIN_ID)).toEqual({
       label: "block.chainid",
       contextKey: "chainId",
-      typeCode: 0x1f,
+      typeCode: 0x20,
     });
   });
 
@@ -162,7 +162,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.TX_ORIGIN)).toEqual({
       label: "tx.origin",
       contextKey: "txOrigin",
-      typeCode: 0x40,
+      typeCode: 0x41,
     });
   });
 
@@ -170,7 +170,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.BASE_FEE)).toEqual({
       label: "block.basefee",
       contextKey: "baseFee",
-      typeCode: 0x1f,
+      typeCode: 0x20,
     });
   });
 
@@ -178,7 +178,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.GAS_PRICE)).toEqual({
       label: "tx.gasprice",
       contextKey: "gasPrice",
-      typeCode: 0x1f,
+      typeCode: 0x20,
     });
   });
 
@@ -206,6 +206,10 @@ describe("lookupQuantifier", () => {
 });
 
 describe("classifyTypeCode", () => {
+  test("throws for reserved zero type code", () => {
+    expect(() => classifyTypeCode(0x00)).toThrow();
+  });
+
   test("throws for reserved range 0x82-0x8f", () => {
     expect(() => classifyTypeCode(0x83)).toThrow();
   });

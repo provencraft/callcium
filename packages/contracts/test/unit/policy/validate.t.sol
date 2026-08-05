@@ -24,7 +24,7 @@ contract ValidateTest is PolicyTest {
             new bytes(32)
         );
         // forge-lint: disable-next-item(unsafe-typecast)
-        return bytes.concat(hex"012fbebd38000301011f01", bytes2(uint16(1)), bytes4(uint32(rule.length)), rule);
+        return bytes.concat(hex"012fbebd38000302012001", bytes2(uint16(1)), bytes4(uint32(rule.length)), rule);
     }
 
     /*/////////////////////////////////////////////////////////////////////////

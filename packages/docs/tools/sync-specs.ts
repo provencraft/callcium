@@ -17,7 +17,7 @@ const OUTPUT_DIR = join(import.meta.dirname, "../content/docs/(protocol)/specifi
 type SpecMeta = { title: string; description: string };
 
 const SPECS: Record<string, SpecMeta> = {
-  "descriptor-v1": {
+  "descriptor-v2": {
     title: "Descriptor",
     description: "Binary format for describing ABI types in Callcium.",
   },

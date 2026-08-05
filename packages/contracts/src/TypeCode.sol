@@ -22,78 +22,78 @@ library TypeCode {
                                       CODES
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Unsigned Integers (0x00-0x1F).
-    uint8 internal constant UINT8 = 0x00;
-    uint8 internal constant UINT16 = 0x01;
-    uint8 internal constant UINT24 = 0x02;
-    uint8 internal constant UINT32 = 0x03;
-    uint8 internal constant UINT40 = 0x04;
-    uint8 internal constant UINT48 = 0x05;
-    uint8 internal constant UINT56 = 0x06;
-    uint8 internal constant UINT64 = 0x07;
-    uint8 internal constant UINT72 = 0x08;
-    uint8 internal constant UINT80 = 0x09;
-    uint8 internal constant UINT88 = 0x0a;
-    uint8 internal constant UINT96 = 0x0b;
-    uint8 internal constant UINT104 = 0x0c;
-    uint8 internal constant UINT112 = 0x0d;
-    uint8 internal constant UINT120 = 0x0e;
-    uint8 internal constant UINT128 = 0x0f;
-    uint8 internal constant UINT136 = 0x10;
-    uint8 internal constant UINT144 = 0x11;
-    uint8 internal constant UINT152 = 0x12;
-    uint8 internal constant UINT160 = 0x13;
-    uint8 internal constant UINT168 = 0x14;
-    uint8 internal constant UINT176 = 0x15;
-    uint8 internal constant UINT184 = 0x16;
-    uint8 internal constant UINT192 = 0x17;
-    uint8 internal constant UINT200 = 0x18;
-    uint8 internal constant UINT208 = 0x19;
-    uint8 internal constant UINT216 = 0x1a;
-    uint8 internal constant UINT224 = 0x1b;
-    uint8 internal constant UINT232 = 0x1c;
-    uint8 internal constant UINT240 = 0x1d;
-    uint8 internal constant UINT248 = 0x1e;
-    uint8 internal constant UINT256 = 0x1f;
+    /// @dev Unsigned Integers (0x01-0x20).
+    uint8 internal constant UINT8 = 0x01;
+    uint8 internal constant UINT16 = 0x02;
+    uint8 internal constant UINT24 = 0x03;
+    uint8 internal constant UINT32 = 0x04;
+    uint8 internal constant UINT40 = 0x05;
+    uint8 internal constant UINT48 = 0x06;
+    uint8 internal constant UINT56 = 0x07;
+    uint8 internal constant UINT64 = 0x08;
+    uint8 internal constant UINT72 = 0x09;
+    uint8 internal constant UINT80 = 0x0a;
+    uint8 internal constant UINT88 = 0x0b;
+    uint8 internal constant UINT96 = 0x0c;
+    uint8 internal constant UINT104 = 0x0d;
+    uint8 internal constant UINT112 = 0x0e;
+    uint8 internal constant UINT120 = 0x0f;
+    uint8 internal constant UINT128 = 0x10;
+    uint8 internal constant UINT136 = 0x11;
+    uint8 internal constant UINT144 = 0x12;
+    uint8 internal constant UINT152 = 0x13;
+    uint8 internal constant UINT160 = 0x14;
+    uint8 internal constant UINT168 = 0x15;
+    uint8 internal constant UINT176 = 0x16;
+    uint8 internal constant UINT184 = 0x17;
+    uint8 internal constant UINT192 = 0x18;
+    uint8 internal constant UINT200 = 0x19;
+    uint8 internal constant UINT208 = 0x1a;
+    uint8 internal constant UINT216 = 0x1b;
+    uint8 internal constant UINT224 = 0x1c;
+    uint8 internal constant UINT232 = 0x1d;
+    uint8 internal constant UINT240 = 0x1e;
+    uint8 internal constant UINT248 = 0x1f;
+    uint8 internal constant UINT256 = 0x20;
 
-    /// @dev Signed Integers (0x20-0x3F).
-    uint8 internal constant INT8 = 0x20;
-    uint8 internal constant INT16 = 0x21;
-    uint8 internal constant INT24 = 0x22;
-    uint8 internal constant INT32 = 0x23;
-    uint8 internal constant INT40 = 0x24;
-    uint8 internal constant INT48 = 0x25;
-    uint8 internal constant INT56 = 0x26;
-    uint8 internal constant INT64 = 0x27;
-    uint8 internal constant INT72 = 0x28;
-    uint8 internal constant INT80 = 0x29;
-    uint8 internal constant INT88 = 0x2a;
-    uint8 internal constant INT96 = 0x2b;
-    uint8 internal constant INT104 = 0x2c;
-    uint8 internal constant INT112 = 0x2d;
-    uint8 internal constant INT120 = 0x2e;
-    uint8 internal constant INT128 = 0x2f;
-    uint8 internal constant INT136 = 0x30;
-    uint8 internal constant INT144 = 0x31;
-    uint8 internal constant INT152 = 0x32;
-    uint8 internal constant INT160 = 0x33;
-    uint8 internal constant INT168 = 0x34;
-    uint8 internal constant INT176 = 0x35;
-    uint8 internal constant INT184 = 0x36;
-    uint8 internal constant INT192 = 0x37;
-    uint8 internal constant INT200 = 0x38;
-    uint8 internal constant INT208 = 0x39;
-    uint8 internal constant INT216 = 0x3a;
-    uint8 internal constant INT224 = 0x3b;
-    uint8 internal constant INT232 = 0x3c;
-    uint8 internal constant INT240 = 0x3d;
-    uint8 internal constant INT248 = 0x3e;
-    uint8 internal constant INT256 = 0x3f;
+    /// @dev Signed Integers (0x21-0x40).
+    uint8 internal constant INT8 = 0x21;
+    uint8 internal constant INT16 = 0x22;
+    uint8 internal constant INT24 = 0x23;
+    uint8 internal constant INT32 = 0x24;
+    uint8 internal constant INT40 = 0x25;
+    uint8 internal constant INT48 = 0x26;
+    uint8 internal constant INT56 = 0x27;
+    uint8 internal constant INT64 = 0x28;
+    uint8 internal constant INT72 = 0x29;
+    uint8 internal constant INT80 = 0x2a;
+    uint8 internal constant INT88 = 0x2b;
+    uint8 internal constant INT96 = 0x2c;
+    uint8 internal constant INT104 = 0x2d;
+    uint8 internal constant INT112 = 0x2e;
+    uint8 internal constant INT120 = 0x2f;
+    uint8 internal constant INT128 = 0x30;
+    uint8 internal constant INT136 = 0x31;
+    uint8 internal constant INT144 = 0x32;
+    uint8 internal constant INT152 = 0x33;
+    uint8 internal constant INT160 = 0x34;
+    uint8 internal constant INT168 = 0x35;
+    uint8 internal constant INT176 = 0x36;
+    uint8 internal constant INT184 = 0x37;
+    uint8 internal constant INT192 = 0x38;
+    uint8 internal constant INT200 = 0x39;
+    uint8 internal constant INT208 = 0x3a;
+    uint8 internal constant INT216 = 0x3b;
+    uint8 internal constant INT224 = 0x3c;
+    uint8 internal constant INT232 = 0x3d;
+    uint8 internal constant INT240 = 0x3e;
+    uint8 internal constant INT248 = 0x3f;
+    uint8 internal constant INT256 = 0x40;
 
-    /// @dev Fixed Types (0x40-0x4F).
-    uint8 internal constant ADDRESS = 0x40;
-    uint8 internal constant BOOL = 0x41;
-    uint8 internal constant FUNCTION = 0x42;
+    /// @dev Fixed Types (0x41-0x4F).
+    uint8 internal constant ADDRESS = 0x41;
+    uint8 internal constant BOOL = 0x42;
+    uint8 internal constant FUNCTION = 0x43;
 
     /// @dev Fixed Bytes (0x50-0x6F).
     uint8 internal constant BYTES1 = 0x50;
@@ -151,7 +151,8 @@ library TypeCode {
     function uintN(uint16 bits) internal pure returns (uint8) {
         require(bits % 8 == 0 && bits >= 8 && bits <= 256, InvalidUintBits(bits));
         unchecked {
-            return uint8((bits / 8) - 1);
+            // forge-lint: disable-next-line(unsafe-typecast) bits <= 256 is enforced by the require above.
+            return uint8(bits / 8);
         }
     }
 
@@ -162,7 +163,7 @@ library TypeCode {
     function intN(uint16 bits) internal pure returns (uint8) {
         require(bits % 8 == 0 && bits >= 8 && bits <= 256, InvalidIntBits(bits));
         unchecked {
-            return uint8(0x20 + (bits / 8) - 1);
+            return uint8(0x20 + (bits / 8));
         }
     }
 

@@ -24,9 +24,9 @@ function words(...values: bigint[]): Uint8Array {
 }
 
 // Shorthand for the unsigned uint256 type code.
-const UINT256 = TypeCode.UINT_MAX; // 0x1f
+const UINT256 = TypeCode.UINT_MAX; // 0x20
 // Shorthand for the signed int256 type code.
-const INT256 = TypeCode.INT_MAX; // 0x3f
+const INT256 = TypeCode.INT_MAX; // 0x40
 
 const MAX_UINT256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn;
 
@@ -442,7 +442,7 @@ describe("canonicalize", () => {
   // Clean, canonically-encoded values must pass through unchanged.
   test("clean uintN is a no-op across all widths", () => {
     for (let code = TypeCode.UINT_MIN; code <= TypeCode.UINT_MAX; code++) {
-      const bits = BigInt((code + 1) * 8);
+      const bits = BigInt(code * 8);
       const clean = bits === 256n ? SAMPLE : SAMPLE & ((1n << bits) - 1n);
       expect(canonicalize(clean, code)).toBe(clean);
     }
@@ -457,7 +457,7 @@ describe("canonicalize", () => {
   // Unsigned masking.
   test("dirty uintN is masked to width", () => {
     for (let code = TypeCode.UINT_MIN; code < TypeCode.UINT_MAX; code++) {
-      const bits = BigInt((code + 1) * 8);
+      const bits = BigInt(code * 8);
       const got = canonicalize(MAX_UINT256, code);
       expect(got).toBe((1n << bits) - 1n);
       expect(got >> bits).toBe(0n);

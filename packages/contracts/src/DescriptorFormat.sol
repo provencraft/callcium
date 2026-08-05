@@ -9,7 +9,7 @@ library DescriptorFormat {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @dev Current descriptor format version.
-    uint8 internal constant VERSION = 0x01;
+    uint8 internal constant VERSION = 0x02;
 
     /*/////////////////////////////////////////////////////////////////////////
                                DESCRIPTOR HEADER

@@ -42,8 +42,8 @@ contract IsCanonicalTest is TypeRuleTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function testFuzz_UintRejectsBitsAboveWidth(uint256 widthIndex, uint256 value) public pure {
-        uint8 code = uint8(bound(widthIndex, 0, 30)); // UINT8..UINT248, excluding the full word.
-        uint256 bits = (uint256(code) + 1) * 8;
+        uint8 code = uint8(bound(widthIndex, 0, 30)) + 1; // UINT8..UINT248, excluding the full word.
+        uint256 bits = uint256(code) * 8;
         uint256 clean = value & ((uint256(1) << bits) - 1);
         assertTrue(TypeRule.isCanonical(bytes32(clean), code));
         assertFalse(TypeRule.isCanonical(bytes32(clean | (uint256(1) << bits)), code));

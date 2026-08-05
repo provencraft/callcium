@@ -126,7 +126,8 @@ library OpRule {
     /// @param typeCode The type code to check.
     /// @return True if the type is numeric.
     function isNumericType(uint8 typeCode) internal pure returns (bool) {
-        return typeCode <= TypeCode.UINT256 || (typeCode >= TypeCode.INT8 && typeCode <= TypeCode.INT256);
+        return (typeCode >= TypeCode.UINT8 && typeCode <= TypeCode.UINT256)
+            || (typeCode >= TypeCode.INT8 && typeCode <= TypeCode.INT256);
     }
 
     /// @notice Checks if a type code is valid for bitmask operations.
@@ -134,7 +135,7 @@ library OpRule {
     /// @param typeCode The type code to check.
     /// @return True if bitmask operators can be used with this type.
     function isBitmaskCompatible(uint8 typeCode) internal pure returns (bool) {
-        return typeCode <= TypeCode.UINT256 || typeCode == TypeCode.BYTES32;
+        return (typeCode >= TypeCode.UINT8 && typeCode <= TypeCode.UINT256) || typeCode == TypeCode.BYTES32;
     }
 
     /// @notice Checks if comparison operators are semantically valid for a type.

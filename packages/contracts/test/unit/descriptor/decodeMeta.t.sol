@@ -9,27 +9,27 @@ import { DescriptorFormat as DF } from "src/DescriptorFormat.sol";
 
 contract DecodeMetaTest is DescriptorTest {
     function test_DynamicArray() public pure {
-        // Dynamic array of address: [code:81][meta:000005][elem:40].
+        // Dynamic array of address: [code:81][meta:000005][elem:41].
         // meta: staticWords=0 (dynamic), nodeLength=5 (1+3+1).
-        bytes memory desc = hex"01018100000540";
+        bytes memory desc = hex"02018100000541";
         (uint16 staticWords, uint16 nodeLength) = Descriptor.decodeMeta(desc, DF.HEADER_SIZE + DF.TYPECODE_SIZE);
         assertEq(staticWords, 0);
         assertEq(nodeLength, 5);
     }
 
     function test_StaticArray() public pure {
-        // Static array of address[3]: [code:80][meta:003007][elem:40][length:0003].
+        // Static array of address[3]: [code:80][meta:003007][elem:41][length:0003].
         // meta: staticWords=3, nodeLength=7 (1+3+1+2).
-        bytes memory desc = hex"010180003007400003";
+        bytes memory desc = hex"020180003007410003";
         (uint16 staticWords, uint16 nodeLength) = Descriptor.decodeMeta(desc, DF.HEADER_SIZE + DF.TYPECODE_SIZE);
         assertEq(staticWords, 3);
         assertEq(nodeLength, 7);
     }
 
     function test_Tuple() public pure {
-        // Tuple(address,uint8): [code:90][meta:002008][fieldCount:0002][addr:40][uint8:00].
+        // Tuple(address,uint8): [code:90][meta:002008][fieldCount:0002][addr:41][uint8:01].
         // meta: staticWords=2, nodeLength=8 (1+3+2+1+1).
-        bytes memory desc = hex"01019000200800024000";
+        bytes memory desc = hex"02019000200800024101";
         (uint16 staticWords, uint16 nodeLength) = Descriptor.decodeMeta(desc, DF.HEADER_SIZE + DF.TYPECODE_SIZE);
         assertEq(staticWords, 2);
         assertEq(nodeLength, 8);
@@ -37,7 +37,7 @@ contract DecodeMetaTest is DescriptorTest {
 
     function test_RevertWhen_OutOfBounds() public {
         // Descriptor too short to contain 3-byte meta at the requested offset.
-        bytes memory desc = hex"010181"; // header + code only.
+        bytes memory desc = hex"020181"; // header + code only.
         vm.expectRevert(Be24.OutOfBounds.selector);
         Descriptor.decodeMeta(desc, DF.HEADER_SIZE + DF.TYPECODE_SIZE);
     }

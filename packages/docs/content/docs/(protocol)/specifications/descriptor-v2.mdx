@@ -4,7 +4,7 @@ description: Binary format for describing ABI types in Callcium.
 ---
 ## 1. Document Control
 
-- Version: 1.1
+- Version: 2.0
 - Status: Normative
 
 ***
@@ -44,7 +44,7 @@ An implementation is conformant if and only if it meets all MUST/REQUIRED obliga
 [version:1][paramCount:1][param_0][param_1]…[param_(paramCount-1)]
 ```
 
-`version` is a single byte identifying the descriptor format version. This specification describes format version `0x01`. The descriptor format version is independent of the policy format version (see Callcium Policy Spec). Validators MUST reject any descriptor with `version != 0x01`.
+`version` is a single byte identifying the descriptor format version. This specification describes format version `VERSION = 0x02`. The descriptor format version is independent of the policy format version (see Callcium Policy Spec). Validators MUST reject any descriptor with `version != VERSION`.
 
 `paramCount` is a single byte declaring the number of top-level parameters (0–255). The descriptor body MUST contain exactly `paramCount` parameter descriptors, concatenated back-to-back with no padding. Validators MUST reject descriptors where the parsed count does not equal `paramCount`, or where trailing bytes remain after parsing the last parameter.
 
@@ -101,9 +101,10 @@ Layout: `[TUPLE][meta][fieldCount:be16][field_0][field_1]…[field_(fieldCount-1
 
 | Range         | Category           | Description                                                                 |
 | :------------ | :----------------- | :-------------------------------------------------------------------------- |
-| `0x00`–`0x1F` | Unsigned Integers  | 32 variants: `uint8` … `uint256`                                            |
-| `0x20`–`0x3F` | Signed Integers    | 32 variants: `int8` … `int256`                                              |
-| `0x40`–`0x4F` | Fixed Types        | `address`, `bool`, `function` (external function pointer)                   |
+| `0x00`        | Reserved Zero      | MUST NOT be used; validators MUST reject descriptors containing this code   |
+| `0x01`–`0x20` | Unsigned Integers  | 32 variants: `uint8` … `uint256`                                            |
+| `0x21`–`0x40` | Signed Integers    | 32 variants: `int8` … `int256`                                              |
+| `0x41`–`0x4F` | Fixed Types        | `address`, `bool`, `function` (external function pointer)                   |
 | `0x50`–`0x6F` | Fixed Bytes        | 32 variants: `bytes1` … `bytes32`                                           |
 | `0x70`–`0x7F` | Dynamic Elementary | `bytes`, `string`                                                           |
 | `0x80`–`0x8F` | Arrays             | static array, dynamic array                                                 |
@@ -114,13 +115,15 @@ Layout: `[TUPLE][meta][fieldCount:be16][field_0][field_1]…[field_(fieldCount-1
 
 The following formulas are normative and MUST produce the same code points as Appendix A:
 
-- `uint<N>`: code = `(N / 8) - 1` → `0x00`–`0x1F`.
-- `int<N>`: code = `0x20 + (N / 8) - 1` → `0x20`–`0x3F`.
+- `uint<N>`: code = `N / 8` → `0x01`–`0x20`.
+- `int<N>`: code = `0x20 + (N / 8)` → `0x21`–`0x40`.
 - `bytes<N>` (N ∈ \{1, ..., 32\}): code = `0x4F + N` → `0x50`–`0x6F`.
 
 ### 5.3 Reserved Codes
 
-Codes not listed in Appendix A within ranges `0x40`–`0x4F`, `0x70`–`0x7F`, `0x80`–`0x8F`, and `0x90`–`0x9F` are reserved for future use within their respective range. Validators MUST reject them in format version 1.
+Code `0x00` is permanently reserved: it is never a valid type code, in this or any future format version. Validators MUST reject it wherever a type code is expected.
+
+Codes not listed in Appendix A within ranges `0x41`–`0x4F`, `0x70`–`0x7F`, `0x80`–`0x8F`, and `0x90`–`0x9F` are reserved for future use within their respective range. Validators MUST reject them in this format version.
 
 ***
 
@@ -201,7 +204,7 @@ Readers MUST verify that ABI offsets read from calldata point within the calldat
 A descriptor is well-formed if it satisfies all of the following invariants. Validators MUST reject a descriptor that is not well-formed before it is used for calldata traversal (Section 6). Where that rejection happens — decoding, storage, or a standalone validation pass — is implementation-defined.
 
 - **DWF-1**: The descriptor is at least 2 bytes (version and `paramCount` are present).
-- **DWF-2**: `version == 0x01`.
+- **DWF-2**: `version == VERSION`.
 - **DWF-3**: Every type code is assigned in Appendix A; reserved and unassigned codes (Section 5.3) do not appear.
 - **DWF-4**: Every composite node's metadata lies within the descriptor, its `nodeLength` is at least the node's header size, and the node's span (`nodeLength` bytes from its type code) does not extend beyond the descriptor.
 - **DWF-5**: Every tuple has `fieldCount` in `[1, MAX_TUPLE_FIELDS]`.
@@ -233,7 +236,7 @@ Limit categories:
 
 - **Format**: Structural constraint from the binary encoding field width. Cannot change without a format version bump.
 - **Derived**: Mechanically follows from other limits.
-- **Design**: Operational cap chosen for implementation safety. Normative and fixed for format version 1: all conformant implementations enforce the same value.
+- **Design**: Operational cap chosen for implementation safety. Normative and fixed for this format version: all conformant implementations enforce the same value.
 
 ***
 
@@ -248,43 +251,43 @@ Limit categories:
 
 ## Appendix A. Complete Type Code Assignments
 
-#### Unsigned Integers (`0x00`–`0x1F`)
+#### Unsigned Integers (`0x01`–`0x20`)
 
 | ABI Type | Code   | ABI Type  | Code   | ABI Type  | Code   | ABI Type  | Code   |
 | :------- | :----- | :-------- | :----- | :-------- | :----- | :-------- | :----- |
-| `uint8`  | `0x00` | `uint72`  | `0x08` | `uint136` | `0x10` | `uint200` | `0x18` |
-| `uint16` | `0x01` | `uint80`  | `0x09` | `uint144` | `0x11` | `uint208` | `0x19` |
-| `uint24` | `0x02` | `uint88`  | `0x0A` | `uint152` | `0x12` | `uint216` | `0x1A` |
-| `uint32` | `0x03` | `uint96`  | `0x0B` | `uint160` | `0x13` | `uint224` | `0x1B` |
-| `uint40` | `0x04` | `uint104` | `0x0C` | `uint168` | `0x14` | `uint232` | `0x1C` |
-| `uint48` | `0x05` | `uint112` | `0x0D` | `uint176` | `0x15` | `uint240` | `0x1D` |
-| `uint56` | `0x06` | `uint120` | `0x0E` | `uint184` | `0x16` | `uint248` | `0x1E` |
-| `uint64` | `0x07` | `uint128` | `0x0F` | `uint192` | `0x17` | `uint256` | `0x1F` |
+| `uint8`  | `0x01` | `uint72`  | `0x09` | `uint136` | `0x11` | `uint200` | `0x19` |
+| `uint16` | `0x02` | `uint80`  | `0x0A` | `uint144` | `0x12` | `uint208` | `0x1A` |
+| `uint24` | `0x03` | `uint88`  | `0x0B` | `uint152` | `0x13` | `uint216` | `0x1B` |
+| `uint32` | `0x04` | `uint96`  | `0x0C` | `uint160` | `0x14` | `uint224` | `0x1C` |
+| `uint40` | `0x05` | `uint104` | `0x0D` | `uint168` | `0x15` | `uint232` | `0x1D` |
+| `uint48` | `0x06` | `uint112` | `0x0E` | `uint176` | `0x16` | `uint240` | `0x1E` |
+| `uint56` | `0x07` | `uint120` | `0x0F` | `uint184` | `0x17` | `uint248` | `0x1F` |
+| `uint64` | `0x08` | `uint128` | `0x10` | `uint192` | `0x18` | `uint256` | `0x20` |
 
-#### Signed Integers (`0x20`–`0x3F`)
+#### Signed Integers (`0x21`–`0x40`)
 
 | ABI Type | Code   | ABI Type | Code   | ABI Type | Code   | ABI Type | Code   |
 | :------- | :----- | :------- | :----- | :------- | :----- | :------- | :----- |
-| `int8`   | `0x20` | `int72`  | `0x28` | `int136` | `0x30` | `int200` | `0x38` |
-| `int16`  | `0x21` | `int80`  | `0x29` | `int144` | `0x31` | `int208` | `0x39` |
-| `int24`  | `0x22` | `int88`  | `0x2A` | `int152` | `0x32` | `int216` | `0x3A` |
-| `int32`  | `0x23` | `int96`  | `0x2B` | `int160` | `0x33` | `int224` | `0x3B` |
-| `int40`  | `0x24` | `int104` | `0x2C` | `int168` | `0x34` | `int232` | `0x3C` |
-| `int48`  | `0x25` | `int112` | `0x2D` | `int176` | `0x35` | `int240` | `0x3D` |
-| `int56`  | `0x26` | `int120` | `0x2E` | `int184` | `0x36` | `int248` | `0x3E` |
-| `int64`  | `0x27` | `int128` | `0x2F` | `int192` | `0x37` | `int256` | `0x3F` |
+| `int8`   | `0x21` | `int72`  | `0x29` | `int136` | `0x31` | `int200` | `0x39` |
+| `int16`  | `0x22` | `int80`  | `0x2A` | `int144` | `0x32` | `int208` | `0x3A` |
+| `int24`  | `0x23` | `int88`  | `0x2B` | `int152` | `0x33` | `int216` | `0x3B` |
+| `int32`  | `0x24` | `int96`  | `0x2C` | `int160` | `0x34` | `int224` | `0x3C` |
+| `int40`  | `0x25` | `int104` | `0x2D` | `int168` | `0x35` | `int232` | `0x3D` |
+| `int48`  | `0x26` | `int112` | `0x2E` | `int176` | `0x36` | `int240` | `0x3E` |
+| `int56`  | `0x27` | `int120` | `0x2F` | `int184` | `0x37` | `int248` | `0x3F` |
+| `int64`  | `0x28` | `int128` | `0x30` | `int192` | `0x38` | `int256` | `0x40` |
 
-#### Fixed Types (`0x40`–`0x4F`)
+#### Fixed Types (`0x41`–`0x4F`)
 
 | ABI Type   | Code   |
 | :--------- | :----- |
-| `address`  | `0x40` |
-| `bool`     | `0x41` |
-| `function` | `0x42` |
+| `address`  | `0x41` |
+| `bool`     | `0x42` |
+| `function` | `0x43` |
 
 `function` refers to the ABI external function pointer type: a 20-byte address followed by a 4-byte selector, encoded identical to `bytes24`.
 
-Codes `0x43`–`0x4F` are reserved and MUST be rejected in format version 1.
+Codes `0x44`–`0x4F` are reserved and MUST be rejected in this format version.
 
 #### Fixed Bytes (`0x50`–`0x6F`)
 
@@ -306,7 +309,7 @@ Codes `0x43`–`0x4F` are reserved and MUST be rejected in format version 1.
 | `bytes`  | `0x70` |
 | `string` | `0x71` |
 
-Codes `0x72`–`0x7F` are reserved and MUST be rejected in format version 1.
+Codes `0x72`–`0x7F` are reserved and MUST be rejected in this format version.
 
 #### Arrays (`0x80`–`0x8F`)
 
@@ -315,7 +318,7 @@ Codes `0x72`–`0x7F` are reserved and MUST be rejected in format version 1.
 | `static array`  | `0x80` |
 | `dynamic array` | `0x81` |
 
-Codes `0x82`–`0x8F` are reserved and MUST be rejected in format version 1.
+Codes `0x82`–`0x8F` are reserved and MUST be rejected in this format version.
 
 #### Tuples (`0x90`–`0x9F`)
 
@@ -323,11 +326,10 @@ Codes `0x82`–`0x8F` are reserved and MUST be rejected in format version 1.
 | :------- | :----- |
 | `tuple`  | `0x90` |
 
-Codes `0x91`–`0x9F` are reserved and MUST be rejected in format version 1.
+Codes `0x91`–`0x9F` are reserved and MUST be rejected in this format version.
 
 ***
 
 ## Appendix B. Changelog
 
-- v1.1 (2026-07-04): Section 7 restructured into labeled well-formedness and validity invariants; added `MAX_NESTING_DEPTH`.
-- v1.0 (2026-02-22): Initial specification.
+- v2.0 (2026-08-05): Initial specification.

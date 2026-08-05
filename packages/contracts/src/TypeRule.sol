@@ -68,8 +68,8 @@ library TypeRule {
     /// @return The canonicalized value.
     function canonicalize(bytes32 value, uint8 typeCode) internal pure returns (bytes32) {
         // Unsigned integers: mask to the low N bits.
-        if (typeCode <= TypeCode.UINT256) {
-            uint256 bits = (uint256(typeCode) + 1) << 3;
+        if (typeCode >= TypeCode.UINT8 && typeCode <= TypeCode.UINT256) {
+            uint256 bits = uint256(typeCode) << 3;
             if (bits == 256) return value;
             // forge-lint: disable-next-line(incorrect-shift) 2^bits bitmask
             return bytes32(uint256(value) & ((uint256(1) << bits) - 1));
@@ -119,8 +119,8 @@ library TypeRule {
     /// @return min The minimum possible value (raw bits).
     /// @return max The maximum possible value (raw bits).
     function getDomainLimits(uint8 typeCode) internal pure returns (uint256 min, uint256 max) {
-        if (typeCode <= TypeCode.UINT256) {
-            uint256 bits = (uint256(typeCode) + 1) * 8;
+        if (typeCode >= TypeCode.UINT8 && typeCode <= TypeCode.UINT256) {
+            uint256 bits = uint256(typeCode) * 8;
             min = 0;
             // forge-lint: disable-next-line(incorrect-shift) 2^bits bitmask
             max = bits == 256 ? type(uint256).max : (1 << bits) - 1;

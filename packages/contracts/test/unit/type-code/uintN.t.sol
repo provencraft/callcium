@@ -7,7 +7,8 @@ import { TypeCode } from "src/TypeCode.sol";
 contract UintNTest is TypeCodeTest {
     function test_ReturnsExpectedCode() public pure {
         for (uint16 bits = 8; bits <= 256; bits += 8) {
-            uint8 expected = uint8((bits / 8) - 1);
+            // forge-lint: disable-next-line(unsafe-typecast) bits <= 256 per the loop bound.
+            uint8 expected = uint8(bits / 8);
             assertEq(TypeCode.uintN(bits), expected);
         }
     }

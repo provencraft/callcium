@@ -1438,7 +1438,7 @@ contract UnnavigablePathTest is PolicyValidatorTest {
 
 contract MalformedDescriptorTest is PolicyValidatorTest {
     function test_RevertWhen_UnknownTypeCode() public {
-        bytes memory desc = bytes.concat(hex"0101", bytes1(TypeCode.TUPLE + 1));
+        bytes memory desc = bytes.concat(hex"0201", bytes1(TypeCode.TUPLE + 1));
 
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, arg(0).eq(uint256(1)));
 
@@ -1448,7 +1448,7 @@ contract MalformedDescriptorTest is PolicyValidatorTest {
 
     function test_RevertWhen_TrailingDescriptorBytes() public {
         // One declared param, two encoded address nodes.
-        bytes memory desc = hex"01014040";
+        bytes memory desc = hex"02014141";
 
         PolicyData memory data = _createPolicyData("foo(address)", desc, arg(0).eq(uint256(1)));
 

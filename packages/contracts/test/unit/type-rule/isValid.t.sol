@@ -5,6 +5,10 @@ import { TypeRuleTest } from "../TypeRule.t.sol";
 import { TypeRule } from "src/TypeRule.sol";
 
 contract IsValidTest is TypeRuleTest {
+    function test_RejectsReservedZero() public pure {
+        assertFalse(TypeRule.isValid(0x00));
+    }
+
     function testFuzz_EquivalentToPredicates(uint8 code) public pure {
         bool p = TypeRule.isElementary(code);
         bool c = TypeRule.isComposite(code);

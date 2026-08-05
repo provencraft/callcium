@@ -38,13 +38,13 @@ export function isLeftAligned(typeCode: number): boolean {
  */
 export function canonicalize(value: bigint, typeCode: number): bigint {
   // Unsigned integers: mask to the low N bits.
-  if (typeCode <= TypeCode.UINT_MAX) {
-    const bits = BigInt((typeCode + 1) * 8);
+  if (typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) {
+    const bits = BigInt(typeCode * 8);
     return bits === 256n ? value : value & ((1n << bits) - 1n);
   }
 
   // Signed integers: sign-extend from the type's most-significant byte.
-  if (typeCode <= TypeCode.INT_MAX) {
+  if (typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX) {
     const bits = (typeCode - TypeCode.INT_MIN + 1) * 8;
     return bits === 256 ? value : BigInt.asUintN(256, BigInt.asIntN(bits, value));
   }

@@ -14,8 +14,8 @@ contract CanonicalizeTest is TypeRuleTest {
     // enforcement behaviour is identical before and after canonicalization.
 
     function testFuzz_CleanUintIsNoOp(uint256 widthIndex, uint256 value) public pure {
-        uint8 code = uint8(bound(widthIndex, 0, 31)); // UINT8..UINT256
-        uint256 bits = (uint256(code) + 1) * 8;
+        uint8 code = uint8(bound(widthIndex, 0, 31)) + 1; // UINT8..UINT256
+        uint256 bits = uint256(code) * 8;
         uint256 clean = bits == 256 ? value : value & ((uint256(1) << bits) - 1);
         assertEq(uint256(TypeRule.canonicalize(bytes32(clean), code)), clean);
     }
@@ -39,8 +39,8 @@ contract CanonicalizeTest is TypeRuleTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function testFuzz_DirtyUintMaskedToWidth(uint256 widthIndex, uint256 value) public pure {
-        uint8 code = uint8(bound(widthIndex, 0, 30)); // exclude UINT256 (no spare bits)
-        uint256 bits = (uint256(code) + 1) * 8;
+        uint8 code = uint8(bound(widthIndex, 0, 30)) + 1; // exclude UINT256 (no spare bits)
+        uint256 bits = uint256(code) * 8;
         bytes32 got = TypeRule.canonicalize(bytes32(value), code);
         assertEq(uint256(got), value & ((uint256(1) << bits) - 1), "low bits preserved");
         assertEq(uint256(got) >> bits, 0, "high bits cleared");

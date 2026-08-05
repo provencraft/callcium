@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import { hexToBytes } from "../src/bytes";
 import { DescriptorFormat as DF, TypeCode } from "../src/constants";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { decodeDescriptor } from "../src/descriptor-coder";
@@ -307,5 +308,16 @@ describe("decodeDescriptor nesting depth", () => {
 
   test("rejects nesting beyond the maximum depth", () => {
     expectErrorCode(() => decodeDescriptor(nestedTuples(DF.MAX_NESTING_DEPTH + 1)), "NESTING_TOO_DEEP");
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Reserved zero type code
+///////////////////////////////////////////////////////////////////////////
+
+describe("decodeDescriptor reserved zero type code", () => {
+  test("rejects a reserved-zero field nested inside a tuple", () => {
+    // Tuple of (reserved-zero): [code:90][meta:001007][fieldCount:0001][field:00].
+    expectErrorCode(() => decodeDescriptor(hexToBytes("0x020190001007000100")), "UNKNOWN_TYPE_CODE");
   });
 });
