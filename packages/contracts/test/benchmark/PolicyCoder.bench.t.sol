@@ -139,7 +139,8 @@ abstract contract PolicyCoderBench is Test {
                 rules[ruleIndex] = PolicyCoder.Rule({
                     scope: PF.SCOPE_CALLDATA,
                     path: Path.encode(uint16(ruleIndex)),
-                    operator: _makeEqOp(uint256(ruleIndex + 1))
+                    operator: _makeEqOp(uint256(ruleIndex + 1)),
+                    hint: ""
                 });
             }
             groups[groupIndex] = PolicyCoder.Group({ rules: rules });
@@ -158,7 +159,8 @@ abstract contract PolicyCoderBench is Test {
         groups = new PolicyCoder.Group[](groupCount);
         for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](1);
-            rules[0] = PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: path, operator: _makeEqOp(uint256(42)) });
+            rules[0] =
+                PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: path, operator: _makeEqOp(uint256(42)), hint: "" });
             groups[groupIndex] = PolicyCoder.Group({ rules: rules });
         }
     }
@@ -175,7 +177,8 @@ abstract contract PolicyCoderBench is Test {
         groups = new PolicyCoder.Group[](groupCount);
         for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](1);
-            rules[0] = PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: operator });
+            rules[0] =
+                PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: operator, hint: "" });
             groups[groupIndex] = PolicyCoder.Group({ rules: rules });
         }
     }
@@ -212,7 +215,7 @@ abstract contract PolicyCoderBench is Test {
         for (uint256 i; i < ruleCount; ++i) {
             uint16 pathIndex = uint16(ruleCount - 1 - i);
             rules[i] = PolicyCoder.Rule({
-                scope: PF.SCOPE_CALLDATA, path: Path.encode(pathIndex), operator: _makeEqOp(uint256(i + 1))
+                scope: PF.SCOPE_CALLDATA, path: Path.encode(pathIndex), operator: _makeEqOp(uint256(i + 1)), hint: ""
             });
         }
         groups[0] = PolicyCoder.Group({ rules: rules });
@@ -224,7 +227,7 @@ abstract contract PolicyCoderBench is Test {
         PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](ruleCount);
         for (uint256 i; i < ruleCount; ++i) {
             rules[i] = PolicyCoder.Rule({
-                scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(i + 1))
+                scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(i + 1)), hint: ""
             });
         }
         groups[0] = PolicyCoder.Group({ rules: rules });
@@ -235,8 +238,9 @@ abstract contract PolicyCoderBench is Test {
         groups = new PolicyCoder.Group[](groupCount);
         for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](1);
-            rules[0] =
-                PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(42)) });
+            rules[0] = PolicyCoder.Rule({
+                scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(42)), hint: ""
+            });
             groups[groupIndex] = PolicyCoder.Group({ rules: rules });
         }
     }
@@ -270,18 +274,20 @@ abstract contract PolicyCoderBench is Test {
         rules[0] = PolicyCoder.Rule({
             scope: PF.SCOPE_CONTEXT,
             path: Path.encode(PF.CTX_MSG_SENDER),
-            operator: _makeEqOp(uint256(uint160(address(1))))
+            operator: _makeEqOp(uint256(uint160(address(1)))),
+            hint: ""
         });
         rules[1] = PolicyCoder.Rule({
-            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_VALUE), operator: _makeEqOp(uint256(0))
+            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_VALUE), operator: _makeEqOp(uint256(0)), hint: ""
         });
         rules[2] = PolicyCoder.Rule({
             scope: PF.SCOPE_CONTEXT,
             path: Path.encode(PF.CTX_BLOCK_TIMESTAMP),
-            operator: abi.encodePacked(OpCode.GT, bytes32(uint256(1000)))
+            operator: abi.encodePacked(OpCode.GT, bytes32(uint256(1000))),
+            hint: ""
         });
         rules[3] = PolicyCoder.Rule({
-            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_CHAIN_ID), operator: _makeEqOp(uint256(1))
+            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_CHAIN_ID), operator: _makeEqOp(uint256(1)), hint: ""
         });
         groups[0] = PolicyCoder.Group({ rules: rules });
     }
@@ -293,15 +299,18 @@ abstract contract PolicyCoderBench is Test {
         rules[0] = PolicyCoder.Rule({
             scope: PF.SCOPE_CONTEXT,
             path: Path.encode(PF.CTX_MSG_SENDER),
-            operator: _makeEqOp(uint256(uint160(address(1))))
+            operator: _makeEqOp(uint256(uint160(address(1)))),
+            hint: ""
         });
-        rules[1] =
-            PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(100)) });
+        rules[1] = PolicyCoder.Rule({
+            scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(100)), hint: ""
+        });
         rules[2] = PolicyCoder.Rule({
-            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_VALUE), operator: _makeEqOp(uint256(0))
+            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_VALUE), operator: _makeEqOp(uint256(0)), hint: ""
         });
-        rules[3] =
-            PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: _makeEqOp(uint256(200)) });
+        rules[3] = PolicyCoder.Rule({
+            scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: _makeEqOp(uint256(200)), hint: ""
+        });
         groups[0] = PolicyCoder.Group({ rules: rules });
     }
 
@@ -338,8 +347,9 @@ abstract contract PolicyCoderBench is Test {
             uint16 suffix = uint16(i);
             fullPath[12] = bytes1(uint8(suffix >> 8));
             fullPath[13] = bytes1(uint8(suffix));
-            rules[i] =
-                PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: fullPath, operator: _makeEqOp(uint256(i + 1)) });
+            rules[i] = PolicyCoder.Rule({
+                scope: PF.SCOPE_CALLDATA, path: fullPath, operator: _makeEqOp(uint256(i + 1)), hint: ""
+            });
         }
         groups[0] = PolicyCoder.Group({ rules: rules });
     }
@@ -370,23 +380,37 @@ abstract contract PolicyCoderBench is Test {
         groups = new PolicyCoder.Group[](1);
         PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](6);
         rules[0] = PolicyCoder.Rule({
-            scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: abi.encodePacked(OpCode.EQ, bytes32(uint256(100)))
+            scope: PF.SCOPE_CALLDATA,
+            path: Path.encode(0),
+            operator: abi.encodePacked(OpCode.EQ, bytes32(uint256(100))),
+            hint: ""
         });
         rules[1] = PolicyCoder.Rule({
-            scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: abi.encodePacked(OpCode.GT, bytes32(uint256(50)))
+            scope: PF.SCOPE_CALLDATA,
+            path: Path.encode(1),
+            operator: abi.encodePacked(OpCode.GT, bytes32(uint256(50))),
+            hint: ""
         });
         rules[2] = PolicyCoder.Rule({
-            scope: PF.SCOPE_CALLDATA, path: Path.encode(2), operator: abi.encodePacked(OpCode.LT, bytes32(uint256(200)))
+            scope: PF.SCOPE_CALLDATA,
+            path: Path.encode(2),
+            operator: abi.encodePacked(OpCode.LT, bytes32(uint256(200))),
+            hint: ""
         });
         rules[3] = PolicyCoder.Rule({
-            scope: PF.SCOPE_CALLDATA, path: Path.encode(3), operator: abi.encodePacked(OpCode.GTE, bytes32(uint256(10)))
+            scope: PF.SCOPE_CALLDATA,
+            path: Path.encode(3),
+            operator: abi.encodePacked(OpCode.GTE, bytes32(uint256(10))),
+            hint: ""
         });
         rules[4] = PolicyCoder.Rule({
             scope: PF.SCOPE_CALLDATA,
             path: Path.encode(4),
-            operator: abi.encodePacked(OpCode.BETWEEN, bytes32(uint256(0)), bytes32(uint256(1000)))
+            operator: abi.encodePacked(OpCode.BETWEEN, bytes32(uint256(0)), bytes32(uint256(1000))),
+            hint: ""
         });
-        rules[5] = PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(5), operator: _makeInOp(4) });
+        rules[5] =
+            PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(5), operator: _makeInOp(4), hint: "" });
         groups[0] = PolicyCoder.Group({ rules: rules });
     }
 

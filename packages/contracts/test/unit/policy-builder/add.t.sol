@@ -166,7 +166,7 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256[][])");
 
         bytes memory path = Path.encode(0, Path.ALL_OR_EMPTY, Path.ANY);
-        Constraint memory c = Constraint({ scope: PF.SCOPE_CALLDATA, path: path, operators: new bytes[](0) });
+        Constraint memory c = Constraint({ scope: PF.SCOPE_CALLDATA, path: path, operators: new bytes[](0), hint: "" });
         c = c.eq(uint256(1));
 
         vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.NestedQuantifier.selector, path, 2));

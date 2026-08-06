@@ -29,7 +29,7 @@ export const DescriptorFormat = {
 
 /** Binary layout constants for the Callcium policy format. */
 export const PolicyFormat = {
-  VERSION: 0x01,
+  VERSION: 0x02,
   VERSION_MASK: 0x0f,
   FLAG_NO_SELECTOR: 0x10,
   RESERVED_MASK: 0xe0,
@@ -52,6 +52,13 @@ export const PolicyFormat = {
   RULE_DATALENGTH_SIZE: 2,
   RULE_FIXED_OVERHEAD: 7,
   RULE_MIN_SIZE: 9,
+  HINT_FIELD_SIZE: 4,
+  HINT_STATIC_SIZE: 5,
+  HINT_QUANTIFIED_SIZE: 13,
+  HINT_ELEM_STRIDE_OFFSET: 4,
+  HINT_SUFFIX_OFFSET: 8,
+  HINT_SENTINEL_OFFSET: 0xffffffff,
+  HINT_TYPE_NONE: 0x00,
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////

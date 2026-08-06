@@ -1,4 +1,4 @@
-import { bigintToHex, hexToBytes } from "./bytes";
+import { bigintToHex, bytesToHex, hexToBytes } from "./bytes";
 import {
   classifyTypeCode,
   isValidOperatorData,
@@ -972,6 +972,15 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
   for (let constraintIndex = 0; constraintIndex < constraints.length; constraintIndex++) {
     const constraint = constraints[constraintIndex]!;
     const normalizedPath: Hex = `0x${constraint.path.slice(2).toLowerCase()}`;
+
+    // A carried hint must equal the compilation of its own path; constraints without an encoding
+    // carry none, and the encoder compiles theirs from the same descriptor.
+    if (constraint.scope === Scope.CALLDATA && constraint.hint !== undefined) {
+      const compiled = bytesToHex(Descriptor.compileHint(descBytes, parsePathSteps(constraint.path)));
+      if (compiled !== constraint.hint.toLowerCase()) {
+        issues.push(ValidationIssue.hintMismatch(groupIndex, constraintIndex));
+      }
+    }
 
     // Find existing context for this (scope, path) pair.
     let ctx: ConstraintContext | undefined;

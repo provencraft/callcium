@@ -13,18 +13,30 @@ import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 contract ValidateTest is PolicyTest {
     /// @dev Builds a single-rule calldata-scope blob with a zero path of the given depth.
     function _pathDepthBlob(uint256 depth) private pure returns (bytes memory) {
+        return _calldataRuleBlob(new bytes(depth * PF.PATH_STEP_SIZE), SENTINEL_HINT);
+    }
+
+    /// @dev Builds a single-rule calldata-scope blob whose path quantifies over the argument.
+    function _quantifiedRuleBlob(bytes memory hint) private pure returns (bytes memory) {
+        return _calldataRuleBlob(hex"0000ffff", hint);
+    }
+
+    /// @dev Wraps a single calldata rule with the given path and hint block into a policy blob
+    /// for `foo(uint256)`.
+    function _calldataRuleBlob(bytes memory path, bytes memory hint) private pure returns (bytes memory) {
         // forge-lint: disable-next-item(unsafe-typecast)
         bytes memory rule = bytes.concat(
-            bytes2(uint16(PF.RULE_FIXED_OVERHEAD + depth * PF.PATH_STEP_SIZE + 32)),
+            bytes2(uint16(PF.RULE_FIXED_OVERHEAD + path.length + hint.length + 32)),
             bytes1(PF.SCOPE_CALLDATA),
-            bytes1(uint8(depth)),
-            new bytes(depth * PF.PATH_STEP_SIZE),
+            bytes1(uint8(path.length / PF.PATH_STEP_SIZE)),
+            path,
+            hint,
             bytes1(OpCode.EQ),
             bytes2(uint16(32)),
             new bytes(32)
         );
         // forge-lint: disable-next-item(unsafe-typecast)
-        return bytes.concat(hex"012fbebd38000302012001", bytes2(uint16(1)), bytes4(uint32(rule.length)), rule);
+        return bytes.concat(hex"022fbebd38000302012001", bytes2(uint16(1)), bytes4(uint32(rule.length)), rule);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -89,8 +101,7 @@ contract ValidateTest is PolicyTest {
     function test_RevertWhen_UnknownOperator() public {
         bytes memory blob = _validBlob();
         uint256 ruleOffset = _firstRuleOffset(blob);
-        uint8 depth = uint8(blob[ruleOffset + PF.RULE_DEPTH_OFFSET]);
-        uint256 opCodeOffset = ruleOffset + PF.RULE_PATH_OFFSET + uint256(depth) * PF.PATH_STEP_SIZE;
+        uint256 opCodeOffset = _opCodeOffset(blob, ruleOffset);
         blob[opCodeOffset] = 0x50;
         vm.expectRevert(abi.encodeWithSelector(Policy.UnknownOperator.selector, ruleOffset));
         harness.validate(blob);
@@ -99,8 +110,7 @@ contract ValidateTest is PolicyTest {
     function test_RevertWhen_NegatedUnknownOperator() public {
         bytes memory blob = _validBlob();
         uint256 ruleOffset = _firstRuleOffset(blob);
-        uint8 depth = uint8(blob[ruleOffset + PF.RULE_DEPTH_OFFSET]);
-        uint256 opCodeOffset = ruleOffset + PF.RULE_PATH_OFFSET + uint256(depth) * PF.PATH_STEP_SIZE;
+        uint256 opCodeOffset = _opCodeOffset(blob, ruleOffset);
         blob[opCodeOffset] = bytes1(OpCode.NOT | 0x50);
         vm.expectRevert(abi.encodeWithSelector(Policy.UnknownOperator.selector, ruleOffset));
         harness.validate(blob);
@@ -123,9 +133,7 @@ contract ValidateTest is PolicyTest {
         bytes memory blob = PolicyBuilder.create("foo(uint256)").add(arg(0).isIn(set)).buildUnsafe();
 
         uint256 ruleOffset = _firstRuleOffset(blob);
-        uint8 depth = uint8(blob[ruleOffset + PF.RULE_DEPTH_OFFSET]);
-        uint256 payloadStart = ruleOffset + PF.RULE_PATH_OFFSET + uint256(depth) * PF.PATH_STEP_SIZE
-            + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
+        uint256 payloadStart = _opCodeOffset(blob, ruleOffset) + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
 
         // Swap the two sorted operand words so the set is descending.
         for (uint256 i; i < 32; ++i) {
@@ -145,10 +153,64 @@ contract ValidateTest is PolicyTest {
     function test_NegatedEqAccepted() public view {
         bytes memory blob = _validBlob();
         uint256 ruleOffset = _firstRuleOffset(blob);
-        uint8 depth = uint8(blob[ruleOffset + PF.RULE_DEPTH_OFFSET]);
-        uint256 opCodeOffset = ruleOffset + PF.RULE_PATH_OFFSET + uint256(depth) * PF.PATH_STEP_SIZE;
+        uint256 opCodeOffset = _opCodeOffset(blob, ruleOffset);
         // EQ with NOT flag should still be valid.
         blob[opCodeOffset] = bytes1(OpCode.NOT | OpCode.EQ);
+        harness.validate(blob);
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                  HINT BLOCK
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_ConcreteHintAccepted() public view {
+        harness.validate(_calldataRuleBlob(hex"0000", hex"0000000020"));
+    }
+
+    function test_RevertWhen_SentinelOffsetWithConcreteType() public {
+        bytes memory blob = _calldataRuleBlob(hex"0000", hex"ffffffff20");
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, ruleOffset));
+        harness.validate(blob);
+    }
+
+    function test_RevertWhen_ConcreteOffsetWithNoType() public {
+        bytes memory blob = _calldataRuleBlob(hex"0000", hex"0000000000");
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, ruleOffset));
+        harness.validate(blob);
+    }
+
+    function test_QuantifiedPathTakesQuantifiedHintSize() public view {
+        // A quantified path with a concrete hint resolves to the 13-byte block.
+        bytes memory blob = _quantifiedRuleBlob(hex"00000000000000200000000020");
+        (, uint256 hintSize) = harness.hintView(blob, _firstRuleOffset(blob));
+        assertEq(hintSize, PF.HINT_QUANTIFIED_SIZE, "quantified hint size");
+        harness.validate(blob);
+    }
+
+    function test_SentinelWinsOverQuantifiedPath() public view {
+        // The sentinel prefix resolves the size before the path is consulted.
+        bytes memory blob = _quantifiedRuleBlob(SENTINEL_HINT);
+        (, uint256 hintSize) = harness.hintView(blob, _firstRuleOffset(blob));
+        assertEq(hintSize, PF.HINT_STATIC_SIZE, "sentinel hint size");
+        harness.validate(blob);
+    }
+
+    function test_RevertWhen_QuantifiedPathCarriesStaticHint() public {
+        // The resolver takes HINT_QUANTIFIED_SIZE bytes for a quantified path, so a shorter block
+        // runs into the operator fields and the type code it lands on no longer matches its offset.
+        bytes memory blob = _quantifiedRuleBlob(hex"0000000020");
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, ruleOffset));
+        harness.validate(blob);
+    }
+
+    function test_RevertWhen_EmptyPath() public {
+        // A depth-zero calldata rule still resolves a hint block, so the empty path is what fails.
+        bytes memory blob = _calldataRuleBlob(hex"", SENTINEL_HINT);
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        vm.expectRevert(abi.encodeWithSelector(Policy.EmptyPath.selector, ruleOffset));
         harness.validate(blob);
     }
 

@@ -15,6 +15,8 @@ struct Constraint {
     bytes path;
     /// Encoded operators. Each item = opCode(1) || data.
     bytes[] operators;
+    /// Compiled hint block as carried on the wire; empty when the constraint has no encoding.
+    bytes hint;
 }
 
 using Operator for Constraint global;
@@ -26,56 +28,74 @@ using Operator for Constraint global;
 /// @notice Creates a constraint targeting `msg.sender`.
 /// @return A context-scoped constraint for msg.sender.
 function msgSender() pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_SENDER), operators: new bytes[](0) });
+    return
+        Constraint({
+            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_SENDER), operators: new bytes[](0), hint: ""
+        });
 }
 
 /// @notice Creates a constraint targeting `msg.value`.
 /// @return A context-scoped constraint for msg.value.
 function msgValue() pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_VALUE), operators: new bytes[](0) });
+    return
+        Constraint({
+            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_VALUE), operators: new bytes[](0), hint: ""
+        });
 }
 
 /// @notice Creates a constraint targeting `block.timestamp`.
 /// @return A context-scoped constraint for block.timestamp.
 function blockTimestamp() pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BLOCK_TIMESTAMP), operators: new bytes[](0) });
+    return Constraint({
+        scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BLOCK_TIMESTAMP), operators: new bytes[](0), hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting `block.number`.
 /// @return A context-scoped constraint for block.number.
 function blockNumber() pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BLOCK_NUMBER), operators: new bytes[](0) });
+    return Constraint({
+        scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BLOCK_NUMBER), operators: new bytes[](0), hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting `block.chainid`.
 /// @return A context-scoped constraint for block.chainid.
 function chainId() pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_CHAIN_ID), operators: new bytes[](0) });
+    return
+        Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_CHAIN_ID), operators: new bytes[](0), hint: "" });
 }
 
 /// @notice Creates a constraint targeting `tx.origin`.
 /// @return A context-scoped constraint for tx.origin.
 function txOrigin() pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_TX_ORIGIN), operators: new bytes[](0) });
+    return
+        Constraint({
+            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_TX_ORIGIN), operators: new bytes[](0), hint: ""
+        });
 }
 
 /// @notice Creates a constraint targeting `block.basefee`.
 /// @return A context-scoped constraint for block.basefee.
 function baseFee() pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BASE_FEE), operators: new bytes[](0) });
+    return
+        Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BASE_FEE), operators: new bytes[](0), hint: "" });
 }
 
 /// @notice Creates a constraint targeting `tx.gasprice`.
 /// @return A context-scoped constraint for tx.gasprice.
 function gasPrice() pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_GAS_PRICE), operators: new bytes[](0) });
+    return
+        Constraint({
+            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_GAS_PRICE), operators: new bytes[](0), hint: ""
+        });
 }
 
 /// @notice Creates a constraint targeting a top-level argument.
 /// @param p0 The argument index.
 /// @return A calldata-scoped constraint at the given path.
 function arg(uint16 p0) pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0), operators: new bytes[](0) });
+    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0), operators: new bytes[](0), hint: "" });
 }
 
 /// @notice Creates a constraint targeting a nested path of depth 2.
@@ -83,7 +103,7 @@ function arg(uint16 p0) pure returns (Constraint memory) {
 /// @param p1 The second path step.
 /// @return A calldata-scoped constraint at the given path.
 function arg(uint16 p0, uint16 p1) pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0, p1), operators: new bytes[](0) });
+    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0, p1), operators: new bytes[](0), hint: "" });
 }
 
 /// @notice Creates a constraint targeting a nested path of depth 3.
@@ -92,7 +112,7 @@ function arg(uint16 p0, uint16 p1) pure returns (Constraint memory) {
 /// @param p2 The third path step.
 /// @return A calldata-scoped constraint at the given path.
 function arg(uint16 p0, uint16 p1, uint16 p2) pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0, p1, p2), operators: new bytes[](0) });
+    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0, p1, p2), operators: new bytes[](0), hint: "" });
 }
 
 /// @notice Creates a constraint targeting a nested path of depth 4.
@@ -102,7 +122,8 @@ function arg(uint16 p0, uint16 p1, uint16 p2) pure returns (Constraint memory) {
 /// @param p3 The fourth path step.
 /// @return A calldata-scoped constraint at the given path.
 function arg(uint16 p0, uint16 p1, uint16 p2, uint16 p3) pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0, p1, p2, p3), operators: new bytes[](0) });
+    return
+        Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0, p1, p2, p3), operators: new bytes[](0), hint: "" });
 }
 
 /// @notice Creates a constraint from a pre-encoded BE16 path.
@@ -110,7 +131,7 @@ function arg(uint16 p0, uint16 p1, uint16 p2, uint16 p3) pure returns (Constrain
 /// @return A calldata-scoped constraint at the given path.
 function arg(bytes memory path) pure returns (Constraint memory) {
     Path.validate(path);
-    return Constraint({ scope: PF.SCOPE_CALLDATA, path: path, operators: new bytes[](0) });
+    return Constraint({ scope: PF.SCOPE_CALLDATA, path: path, operators: new bytes[](0), hint: "" });
 }
 
 /// @title Operator

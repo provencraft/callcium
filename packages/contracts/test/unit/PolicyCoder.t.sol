@@ -47,7 +47,7 @@ abstract contract PolicyCoderTest is BaseTest {
     {
         groups = new PolicyCoder.Group[](1);
         groups[0].rules = new PolicyCoder.Rule[](1);
-        groups[0].rules[0] = PolicyCoder.Rule(scope, path, op);
+        groups[0].rules[0] = PolicyCoder.Rule(scope, path, op, "");
     }
 
     /// @dev Creates a policy with one group containing two rules.

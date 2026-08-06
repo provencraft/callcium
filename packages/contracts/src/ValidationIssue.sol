@@ -674,6 +674,23 @@ library ValidationIssue {
         });
     }
 
+    /// @notice Creates an error for a hint block that does not match its compiled path.
+    /// @param groupIndex The group index.
+    /// @param constraintIndex The constraint index.
+    /// @return The constructed validation issue.
+    function hintMismatch(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
+        return Issue({
+            severity: IssueSeverity.Error,
+            category: IssueCategory.TypeMismatch,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: IssueCode.HINT_MISMATCH,
+            value1: bytes32(0),
+            value2: bytes32(0),
+            message: "Hint does not match the path compiled against the descriptor"
+        });
+    }
+
     /// @notice Creates a warning for a path deeper than the reference enforcer's cap.
     /// @return The constructed validation issue.
     function pathDepthExceeded(

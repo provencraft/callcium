@@ -1,16 +1,17 @@
-import { hexToBytes, bytesToHex, readU16, bigintToHex } from "./bytes";
+import { hexToBytes, bytesToHex, readU16, readU32, bigintToHex } from "./bytes";
 import {
   PolicyFormat as PF,
   Scope,
   MAX_CONTEXT_PROPERTY_ID,
   Limits,
   Quantifier,
+  isQuantifier,
   lookupContextProperty,
 } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
 import { applyOperator, toBigInt, isLengthOp, canonicalize } from "./operators";
-import { decodePolicy } from "./policy-coder";
-import { locate, arrayShape, arrayElementAt, loadScalar, loadSlice, descendPath } from "./reader";
+import { decodePolicy, parsePathSteps } from "./policy-coder";
+import { locate, arrayShape, arrayElementAt, loadScalar, loadSlice, descendPath, readPointer } from "./reader";
 
 import type { Location } from "./reader";
 import type { Context, DescNode, EnforceResult, Hex, NavigationViolationCode, Violation, ViolationCode } from "./types";
@@ -116,7 +117,7 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
       if (violation !== null) {
         allViolations.push(violation);
         if (ABORT_VIOLATION_CODES.has(violation.code)) {
-          // Abort violations reject the policy outright; later groups are not consulted (spec §10.3).
+          // Abort violations reject the policy outright; later groups are not consulted (spec §9.3).
           return { ok: false, violations: allViolations };
         }
         groupFailed = true;
@@ -156,6 +157,7 @@ function evaluateRule(
   rule: {
     scope: { value: number };
     path: { value: Hex };
+    hint?: { value: Hex };
     opCode: { value: number };
     data: { value: Hex };
   },
@@ -173,6 +175,23 @@ function evaluateRule(
 
   if (scope === Scope.CONTEXT) {
     return evaluateContextRule(pathBytes, opCode, operandData, groupIndex, ruleIndex, rule.path.value, context);
+  }
+
+  // A concrete hint addresses the target directly; only a sentinel resolves by traversal.
+  const hintBytes = rule.hint === undefined ? new Uint8Array(0) : hexToBytes(rule.hint.value);
+  if (hintBytes.length > 0 && readU32(hintBytes, 0) !== PF.HINT_SENTINEL_OFFSET) {
+    return evaluateHintedRule(
+      hintBytes,
+      pathBytes,
+      tree,
+      callDataBytes,
+      baseOffset,
+      opCode,
+      operandData,
+      groupIndex,
+      ruleIndex,
+      rule.path.value,
+    );
   }
 
   // Calldata rule: locate the path target.
@@ -205,6 +224,198 @@ function evaluateRule(
 
   // Leaf: evaluate directly.
   return evaluateLeaf(locResult.location, callDataBytes, opCode, operandData, groupIndex, ruleIndex, rule.path.value);
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Hinted rule evaluation
+///////////////////////////////////////////////////////////////////////////
+
+/** Evaluate a calldata rule through its concrete hint block. */
+function evaluateHintedRule(
+  hintBytes: Uint8Array,
+  pathBytes: Uint8Array,
+  tree: DescNode[],
+  callDataBytes: Uint8Array,
+  baseOffset: number,
+  opCode: number,
+  operandData: Uint8Array,
+  groupIndex: number,
+  ruleIndex: number,
+  pathHex: Hex,
+): Violation | null {
+  const quantifier = parsePathSteps(pathHex).find(isQuantifier);
+  if (quantifier !== undefined) {
+    return evaluateHintedQuantifier(
+      hintBytes,
+      quantifier,
+      callDataBytes,
+      baseOffset,
+      opCode,
+      operandData,
+      groupIndex,
+      ruleIndex,
+      pathHex,
+    );
+  }
+
+  const typeCode = hintBytes[PF.HINT_STATIC_SIZE - 1]!;
+  const location: Location = {
+    head: baseOffset + readU32(hintBytes, 0),
+    base: baseOffset,
+    // A compilable path crosses no dynamic node, so a dynamic target is a top-level parameter and
+    // its element metadata comes from that parameter's node.
+    node: hintTargetNode(typeCode, tree[readU16(pathBytes, 0)]),
+  };
+
+  return evaluateLeaf(location, callDataBytes, opCode, operandData, groupIndex, ruleIndex, pathHex);
+}
+
+/** Evaluate a quantified calldata rule through its concrete hint block. */
+function evaluateHintedQuantifier(
+  hintBytes: Uint8Array,
+  quantifier: number,
+  callDataBytes: Uint8Array,
+  baseOffset: number,
+  opCode: number,
+  operandData: Uint8Array,
+  groupIndex: number,
+  ruleIndex: number,
+  pathHex: Hex,
+): Violation | null {
+  const arrayHead = baseOffset + readU32(hintBytes, 0);
+  const arrayBaseWord = readPointer(callDataBytes, arrayHead);
+  if (typeof arrayBaseWord !== "number") {
+    return outOfBounds(groupIndex, ruleIndex, pathHex, opCode, operandData);
+  }
+  const arrayBase = baseOffset + arrayBaseWord;
+  const length = readPointer(callDataBytes, arrayBase);
+  if (typeof length !== "number") {
+    return outOfBounds(groupIndex, ruleIndex, pathHex, opCode, operandData);
+  }
+
+  if (length > Limits.MAX_QUANTIFIED_ARRAY_LENGTH) {
+    return {
+      group: groupIndex,
+      rule: ruleIndex,
+      code: "QUANTIFIER_LIMIT_EXCEEDED",
+      scope: Scope.CALLDATA,
+      path: pathHex,
+      resolvedValue: bigintToHex(BigInt(length)),
+    };
+  }
+
+  if (length === 0) {
+    if (quantifier === Quantifier.ALL_OR_EMPTY) return null;
+    return {
+      group: groupIndex,
+      rule: ruleIndex,
+      code: "QUANTIFIER_EMPTY_ARRAY",
+      scope: Scope.CALLDATA,
+      path: pathHex,
+    };
+  }
+
+  const typeCode = hintBytes[PF.HINT_QUANTIFIED_SIZE - 1]!;
+  // A compilable quantified path targets a static element, so the target is always a scalar.
+  const node = hintTargetNode(typeCode);
+  const elemStride = readU32(hintBytes, PF.HINT_ELEM_STRIDE_OFFSET);
+  const isUniversal = quantifier !== Quantifier.ANY;
+
+  let target = arrayBase + 32 + readU32(hintBytes, PF.HINT_SUFFIX_OFFSET);
+  let anyPassed = false;
+
+  for (let elemIndex = 0; elemIndex < length; elemIndex++, target += elemStride) {
+    const applied = applyLeafOperator(callDataBytes, { head: target, base: arrayBase, node }, opCode, operandData);
+
+    if ("error" in applied) {
+      // An abort-effect violation ends evaluation whatever the quantifier; a later element cannot
+      // rescue calldata the enforcer cannot read (spec §9.3).
+      if (applied.error === "NON_CANONICAL_VALUE") {
+        return {
+          group: groupIndex,
+          rule: ruleIndex,
+          code: applied.error,
+          scope: Scope.CALLDATA,
+          path: pathHex,
+          opCode,
+          operandData: bytesToHex(operandData),
+          typeCode,
+          elementIndex: elemIndex,
+          resolvedValue: applied.resolvedValue,
+        };
+      }
+
+      return {
+        group: groupIndex,
+        rule: ruleIndex,
+        code: applied.error,
+        scope: Scope.CALLDATA,
+        path: pathHex,
+        opCode,
+        operandData: bytesToHex(operandData),
+        typeCode,
+        elementIndex: elemIndex,
+      };
+    }
+
+    if (applied.passed) {
+      anyPassed = true;
+      if (!isUniversal) return null;
+    } else if (isUniversal) {
+      return {
+        group: groupIndex,
+        rule: ruleIndex,
+        code: "VALUE_MISMATCH",
+        scope: Scope.CALLDATA,
+        path: pathHex,
+        opCode,
+        operandData: bytesToHex(operandData),
+        typeCode,
+        elementIndex: elemIndex,
+        resolvedValue: applied.resolvedValue,
+      };
+    }
+  }
+
+  if (isUniversal || anyPassed) return null;
+  return {
+    group: groupIndex,
+    rule: ruleIndex,
+    code: "VALUE_MISMATCH",
+    scope: Scope.CALLDATA,
+    path: pathHex,
+    opCode,
+    operandData: bytesToHex(operandData),
+    typeCode,
+  };
+}
+
+/**
+ * Build the descriptor node a hint's type code stands for. Dynamic targets keep their decoded node
+ * so element metadata (and with it the payload stride) stays available.
+ */
+function hintTargetNode(typeCode: number, decoded?: DescNode): DescNode {
+  if (decoded !== undefined && decoded.typeCode === typeCode && decoded.isDynamic) return decoded;
+  return { type: "elementary", typeCode, isDynamic: false, staticSize: 32 };
+}
+
+/** Build a calldata bounds violation for a hinted read. */
+function outOfBounds(
+  groupIndex: number,
+  ruleIndex: number,
+  pathHex: Hex,
+  opCode: number,
+  operandData: Uint8Array,
+): Violation {
+  return {
+    group: groupIndex,
+    rule: ruleIndex,
+    code: "CALLDATA_OUT_OF_BOUNDS",
+    scope: Scope.CALLDATA,
+    path: pathHex,
+    opCode,
+    operandData: bytesToHex(operandData),
+  };
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -463,20 +674,19 @@ function evaluateQuantifier(
     // Resolve element location via arrayElementAt.
     const elemResult = arrayElementAt(shape, elemIndex, callDataBytes);
     if (!elemResult.ok) {
-      if (isUniversal) {
-        return {
-          group: groupIndex,
-          rule: ruleIndex,
-          code: elemResult.code,
-          scope: Scope.CALLDATA,
-          path: pathHex,
-          opCode,
-          operandData: operandHex,
-          typeCode: leafTypeCode,
-          elementIndex: elemIndex,
-        };
-      }
-      continue;
+      // Navigation failures abort under every quantifier: calldata the enforcer cannot read is
+      // not an element that merely fails the operator (spec §9.3).
+      return {
+        group: groupIndex,
+        rule: ruleIndex,
+        code: elemResult.code,
+        scope: Scope.CALLDATA,
+        path: pathHex,
+        opCode,
+        operandData: operandHex,
+        typeCode: leafTypeCode,
+        elementIndex: elemIndex,
+      };
     }
     const elemLocation = elemResult.location;
 
@@ -485,20 +695,17 @@ function evaluateQuantifier(
     if (hasSuffix) {
       const navResult = descendPath(callDataBytes, elemLocation, remainingPath);
       if (!navResult.ok) {
-        if (isUniversal) {
-          return {
-            group: groupIndex,
-            rule: ruleIndex,
-            code: navResult.code,
-            scope: Scope.CALLDATA,
-            path: pathHex,
-            opCode,
-            operandData: operandHex,
-            typeCode: leafTypeCode,
-            elementIndex: elemIndex,
-          };
-        }
-        continue;
+        return {
+          group: groupIndex,
+          rule: ruleIndex,
+          code: navResult.code,
+          scope: Scope.CALLDATA,
+          path: pathHex,
+          opCode,
+          operandData: operandHex,
+          typeCode: leafTypeCode,
+          elementIndex: elemIndex,
+        };
       }
       leafLocation = navResult.location;
     } else {
@@ -525,20 +732,17 @@ function evaluateQuantifier(
         };
       }
 
-      if (isUniversal) {
-        return {
-          group: groupIndex,
-          rule: ruleIndex,
-          code: applied.error,
-          scope: Scope.CALLDATA,
-          path: pathHex,
-          opCode,
-          operandData: operandHex,
-          typeCode: leafTypeCode,
-          elementIndex: elemIndex,
-        };
-      }
-      continue;
+      return {
+        group: groupIndex,
+        rule: ruleIndex,
+        code: applied.error,
+        scope: Scope.CALLDATA,
+        path: pathHex,
+        opCode,
+        operandData: operandHex,
+        typeCode: leafTypeCode,
+        elementIndex: elemIndex,
+      };
     }
 
     if (isUniversal && !applied.passed) {

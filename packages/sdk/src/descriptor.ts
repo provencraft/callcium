@@ -1,5 +1,5 @@
-import { readU16, readU24 } from "./bytes";
-import { DescriptorFormat as DF, TypeCode, isQuantifier } from "./constants";
+import { readU16, readU24, writeBE32 } from "./bytes";
+import { DescriptorFormat as DF, PolicyFormat as PF, TypeCode, isQuantifier } from "./constants";
 import { CallciumError } from "./errors";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -180,6 +180,108 @@ function arrayElementOffset(offset: number): number {
   return offset + DF.ARRAY_HEADER_SIZE;
 }
 
+/** Build the hint block for a path that does not compile to concrete offsets. */
+function sentinelHint(): Uint8Array {
+  const hint = new Uint8Array(PF.HINT_STATIC_SIZE);
+  writeBE32(hint, 0, PF.HINT_SENTINEL_OFFSET);
+  hint[PF.HINT_STATIC_SIZE - 1] = PF.HINT_TYPE_NONE;
+  return hint;
+}
+
+/**
+ * Compile a calldata rule path into its wire hint block.
+ *
+ * Returns the sentinel block for a path that is not compilable: one that navigates through a
+ * dynamic node, quantifies over anything but a dynamic array of static elements, or does not
+ * navigate the descriptor at all.
+ *
+ * @param desc - Raw descriptor bytes.
+ * @param steps - Path steps, length >= 1.
+ * @returns The hint block bytes.
+ */
+function compileHint(desc: Uint8Array, steps: number[]): Uint8Array {
+  if (steps.length === 0) {
+    throw new CallciumError("EMPTY_PATH", "Path must have at least one step.");
+  }
+
+  const argIndex = steps[0]!;
+  if (argIndex >= paramCount(desc)) return sentinelHint();
+
+  // Accumulate the argument's head offset by skipping the preceding parameters.
+  let descOffset: number = DF.HEADER_SIZE;
+  let head = 0;
+  for (let i = 0; i < argIndex; i++) {
+    const param = inspect(desc, descOffset);
+    head += param.isDynamic ? 32 : param.staticSize;
+    descOffset += nodeLength(desc, descOffset);
+  }
+
+  let arrayHead = 0;
+  let elemStride = 0;
+  let quantified = false;
+
+  for (let stepIndex = 1; stepIndex < steps.length; stepIndex++) {
+    const childIndex = steps[stepIndex]!;
+    const node = inspect(desc, descOffset);
+
+    if (isQuantifier(childIndex)) {
+      // Only a dynamic array of static elements compiles: calldata supplies the element count,
+      // the descriptor supplies a fixed stride.
+      if (node.typeCode !== TypeCode.DYNAMIC_ARRAY) return sentinelHint();
+      const quantifiedElemOffset = arrayElementOffset(descOffset);
+      const element = inspect(desc, quantifiedElemOffset);
+      if (element.isDynamic) return sentinelHint();
+
+      arrayHead = head;
+      elemStride = element.staticSize;
+      quantified = true;
+      // Offsets past the quantifier are relative to the element.
+      head = 0;
+      descOffset = quantifiedElemOffset;
+      continue;
+    }
+
+    // A dynamic node places its subtree at a calldata-supplied offset, so nothing below it has a
+    // fixed address.
+    if (node.isDynamic) return sentinelHint();
+
+    if (node.typeCode === TypeCode.TUPLE) {
+      if (childIndex >= tupleFieldCount(desc, descOffset)) return sentinelHint();
+      let fieldOffset = descOffset + DF.TUPLE_HEADER_SIZE;
+      for (let i = 0; i < childIndex; i++) {
+        head += inspect(desc, fieldOffset).staticSize;
+        fieldOffset += nodeLength(desc, fieldOffset);
+      }
+      descOffset = fieldOffset;
+    } else if (node.typeCode === TypeCode.STATIC_ARRAY) {
+      if (childIndex >= staticArrayLength(desc, descOffset)) return sentinelHint();
+      const elemOffset = arrayElementOffset(descOffset);
+      head += childIndex * inspect(desc, elemOffset).staticSize;
+      descOffset = elemOffset;
+    } else {
+      return sentinelHint();
+    }
+  }
+
+  // An offset indistinguishable from the sentinel is not addressable through a hint.
+  if (head >= PF.HINT_SENTINEL_OFFSET || arrayHead >= PF.HINT_SENTINEL_OFFSET) return sentinelHint();
+
+  const targetCode = desc[descOffset]!;
+  if (quantified) {
+    const hint = new Uint8Array(PF.HINT_QUANTIFIED_SIZE);
+    writeBE32(hint, 0, arrayHead);
+    writeBE32(hint, PF.HINT_ELEM_STRIDE_OFFSET, elemStride);
+    writeBE32(hint, PF.HINT_SUFFIX_OFFSET, head);
+    hint[PF.HINT_QUANTIFIED_SIZE - 1] = targetCode;
+    return hint;
+  }
+
+  const hint = new Uint8Array(PF.HINT_STATIC_SIZE);
+  writeBE32(hint, 0, head);
+  hint[PF.HINT_STATIC_SIZE - 1] = targetCode;
+  return hint;
+}
+
 /** Inspect and navigate raw descriptor bytes. */
 export const Descriptor = {
   paramCount,
@@ -192,4 +294,5 @@ export const Descriptor = {
   nodeLength,
   arrayElementOffset,
   walkPath,
+  compileHint,
 };

@@ -21,7 +21,7 @@ const SPECS: Record<string, SpecMeta> = {
     title: "Descriptor",
     description: "Binary format for describing ABI types in Callcium.",
   },
-  "policy-v1": {
+  "policy-v2": {
     title: "Policy",
     description: "Binary encoding format for onchain calldata policies.",
   },

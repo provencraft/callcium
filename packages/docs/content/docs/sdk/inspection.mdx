@@ -76,7 +76,7 @@ Each `Field<T>` is `{ value: T, span: { start, end } }`, where `start` and `end`
 
 - `DecodedPolicy`: top-level policy (version, selector, descriptor, groups).
 - `DecodedGroup`: a single OR group with a rule count and list of rules.
-- `DecodedRule`: one constraint (scope, path, opCode, operand data), each as a `Field<T>`.
+- `DecodedRule`: one constraint (scope, path, compiled hint, opCode, operand data), each as a `Field<T>`.
 - `DecodedParam`: a parameter entry from the descriptor.
 
 ## Inspecting rule paths

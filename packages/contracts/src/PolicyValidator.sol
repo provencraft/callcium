@@ -8,6 +8,7 @@ import { IssueCollector } from "./IssueCollector.sol";
 import { OpCode } from "./OpCode.sol";
 import { OpRule } from "./OpRule.sol";
 import { Path } from "./Path.sol";
+import { Policy } from "./Policy.sol";
 import { PolicyData } from "./PolicyCoder.sol";
 import { PolicyFormat as PF } from "./PolicyFormat.sol";
 import { TypeCode } from "./TypeCode.sol";
@@ -148,6 +149,14 @@ library PolicyValidator {
         for (uint32 constraintIndex; constraintIndex < constraintCount; ++constraintIndex) {
             Constraint memory constraint = constraints[constraintIndex];
 
+            // A carried hint must equal the compilation of its own path; constraints without an
+            // encoding carry none, and the encoder compiles theirs from the same descriptor.
+            if (constraint.scope == PF.SCOPE_CALLDATA && constraint.hint.length != 0) {
+                if (!LibBytes.eq(constraint.hint, Policy.compileHint(data.descriptor, constraint.path))) {
+                    issues.push(ValidationIssue.hintMismatch(groupIndex, constraintIndex));
+                }
+            }
+
             // Look up existing context for this (scope, path) pair.
             // ctxIdx == max signals no match found; a new context will be created.
             uint256 ctxIdx = type(uint256).max;
@@ -163,7 +172,7 @@ library PolicyValidator {
             if (ctxIdx == type(uint256).max) {
                 Descriptor.TypeInfo memory typeInfo;
                 if (constraint.scope == PF.SCOPE_CALLDATA) {
-                    // Compatibility warnings against the reference enforcer's limits (spec §9.1).
+                    // Compatibility warnings against the reference enforcer's limits (spec §8.4).
                     uint256 depth = constraint.path.length / 2;
                     if (depth > PF.MAX_PATH_DEPTH) {
                         issues.push(

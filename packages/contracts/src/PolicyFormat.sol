@@ -15,7 +15,7 @@ library PolicyFormat {
     uint256 internal constant POLICY_HEADER_SIZE = 1;
 
     /// @dev Current policy format version (lower nibble of header byte).
-    uint8 internal constant POLICY_VERSION = 0x01;
+    uint8 internal constant POLICY_VERSION = 0x02;
 
     /// @dev Mask to extract the version from the header byte.
     uint8 internal constant POLICY_VERSION_MASK = 0x0F;
@@ -117,6 +117,31 @@ library PolicyFormat {
     uint256 internal constant RULE_MIN_SIZE = RULE_FIXED_OVERHEAD + PATH_STEP_SIZE;
 
     /*/////////////////////////////////////////////////////////////////////////
+                                  COMPILED HINT
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev Size of each hint offset field in bytes.
+    uint256 internal constant HINT_FIELD_SIZE = 4;
+
+    /// @dev Size of a static or sentinel hint block: headOffset(4) + typeCode(1).
+    uint256 internal constant HINT_STATIC_SIZE = HINT_FIELD_SIZE + 1;
+
+    /// @dev Size of a quantified hint block: arrayHead(4) + elemStride(4) + suffixOffset(4) + typeCode(1).
+    uint256 internal constant HINT_QUANTIFIED_SIZE = HINT_FIELD_SIZE * 3 + 1;
+
+    /// @dev Byte offset of `elemStride` within a quantified hint block.
+    uint256 internal constant HINT_ELEM_STRIDE_OFFSET = HINT_FIELD_SIZE;
+
+    /// @dev Byte offset of `suffixOffset` within a quantified hint block.
+    uint256 internal constant HINT_SUFFIX_OFFSET = HINT_FIELD_SIZE * 2;
+
+    /// @dev First hint field value marking a path that does not compile to concrete offsets.
+    uint32 internal constant HINT_SENTINEL_OFFSET = 0xFFFFFFFF;
+
+    /// @dev Type code of a sentinel hint block: the reserved descriptor code.
+    uint8 internal constant HINT_TYPE_NONE = 0x00;
+
+    /*/////////////////////////////////////////////////////////////////////////
                              CONTEXT PROPERTY IDS
     /////////////////////////////////////////////////////////////////////////*/
 
@@ -151,9 +176,9 @@ library PolicyFormat {
                                 NORMATIVE LIMITS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Maximum path depth accepted by the reference enforcer (policy spec §9.1).
+    /// @dev Maximum path depth accepted by the reference enforcer (policy spec §8.4).
     uint8 internal constant MAX_PATH_DEPTH = 32;
 
-    /// @dev Maximum array length for quantifier iteration (policy spec §9.1, gas DoS protection).
+    /// @dev Maximum array length for quantifier iteration (policy spec §8.4, gas DoS protection).
     uint256 internal constant MAX_QUANTIFIED_ARRAY_LENGTH = 256;
 }

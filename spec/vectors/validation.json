@@ -2544,5 +2544,118 @@
       }
     ],
     "builds": false
+  },
+  {
+    "id": "hint-matches-path",
+    "description": "hint equal to the compiled path is accepted",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x01000000000000000000000000000000000000000000000000000000000000002a"
+              ],
+              "hint": "0x0000000020"
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
+  },
+  {
+    "id": "hint-absent",
+    "description": "a constraint without an encoding carries no hint to check",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x01000000000000000000000000000000000000000000000000000000000000002a"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
+  },
+  {
+    "id": "hint-diverges-from-path",
+    "description": "hint addressing a different offset than the compiled path",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x01000000000000000000000000000000000000000000000000000000000000002a"
+              ],
+              "hint": "0x0000002020"
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "severity": "error",
+        "code": "HINT_MISMATCH",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "hint-sentinel-on-compilable-path",
+    "description": "sentinel hint on a path that compiles to concrete offsets",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x01000000000000000000000000000000000000000000000000000000000000002a"
+              ],
+              "hint": "0xffffffff00"
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "severity": "error",
+        "code": "HINT_MISMATCH",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
   }
 ]

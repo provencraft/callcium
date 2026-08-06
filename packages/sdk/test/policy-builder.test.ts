@@ -306,3 +306,37 @@ describe("PolicyBuilder", () => {
     expect(blob).toMatch(/^0x[0-9a-f]+$/);
   });
 });
+
+///////////////////////////////////////////////////////////////////////////
+// Hint block
+///////////////////////////////////////////////////////////////////////////
+
+describe("hint block", () => {
+  test("decodes a concrete hint", () => {
+    const blob = PolicyBuilder.create("foo(address,uint256)").add(arg(1).eq(42n)).build();
+
+    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBe("0x0000002020");
+  });
+
+  test("decodes a sentinel hint", () => {
+    const blob = PolicyBuilder.create("foo(uint256[3])").add(arg(0, Quantifier.ALL).eq(42n)).build();
+
+    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBe("0xffffffff00");
+  });
+
+  test("context constraints carry no hint", () => {
+    const blob = PolicyBuilder.create("foo(uint256)")
+      .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
+      .build();
+
+    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBeUndefined();
+  });
+
+  test("re-encoding a decoded policy reproduces the blob", () => {
+    const blob = PolicyBuilder.create("foo((address,uint256)[])")
+      .add(arg(0, Quantifier.ALL, 1).gte(1n))
+      .build();
+
+    expect(PolicyCoder.encode(PolicyCoder.decode(blob))).toBe(blob);
+  });
+});

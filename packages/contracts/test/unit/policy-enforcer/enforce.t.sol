@@ -1109,6 +1109,21 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
+    function test_RevertWhen_AnyElementReadOutOfBounds() public {
+        // A read the enforcer cannot perform aborts under every quantifier, so the second group
+        // never runs even though it would pass.
+        bytes memory policy = PolicyBuilder.createRaw("uint256[],uint256")
+            .add(arg(0, Path.ANY).eq(uint256(7)))
+            .or()
+            .add(arg(1).eq(uint256(5)))
+            .build();
+        // The array claims two elements but supplies one.
+        bytes memory callData = abi.encodePacked(uint256(64), uint256(5), uint256(2), uint256(1));
+
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
+        harness.check(policy, callData);
+    }
+
     function test_RevertWhen_QuantifierLimitExceeded() public {
         uint256[] memory arr = _uintArray(257);
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
@@ -1313,7 +1328,7 @@ contract EnforceSelectorlessTest is PolicyEnforcerTest {
         data.groups[0] = new Constraint[](1);
         bytes[] memory operators = new bytes[](1);
         operators[0] = abi.encodePacked(OpCode.EQ, bytes32(uint256(42)));
-        data.groups[0][0] = Constraint({ scope: PF.SCOPE_CALLDATA, path: hex"0000", operators: operators });
+        data.groups[0][0] = Constraint({ scope: PF.SCOPE_CALLDATA, path: hex"0000", operators: operators, hint: "" });
         return PolicyCoder.encode(data);
     }
 
@@ -1388,5 +1403,59 @@ contract EnforceSelectorlessTest is PolicyEnforcerTest {
         bytes4 selector = bytes4(keccak256("foo(uint64)"));
         assertTrue(harness.check(policy, abi.encodePacked(selector, bytes32(uint256(2000)))), "2000 satisfies >= 1000");
         assertFalse(harness.check(policy, abi.encodePacked(selector, bytes32(uint256(1)))), "1 violates >= 1000");
+    }
+}
+
+/// @dev Tests for hint-driven target resolution.
+/// A calldata rule resolves its target through its compiled hint; only a sentinel hint resolves
+/// by descriptor traversal. Rewriting a stored hint therefore changes what the rule reads.
+contract EnforceHintDispatchTest is PolicyEnforcerTest {
+    function test_ConcreteHintAddressesTarget() public view {
+        bytes memory policy = PolicyBuilder.create("foo(uint256,uint256)").add(arg(0).eq(uint256(1))).buildUnsafe();
+        // Re-point the hint at the second argument while the path still names the first.
+        _writeU32(policy, _firstHintOffset(policy), 32);
+
+        bytes memory callData = abi.encodeWithSignature("foo(uint256,uint256)", uint256(9), uint256(1));
+        assertTrue(harness.check(policy, callData), "the hint selects the read");
+    }
+
+    function test_SentinelHintResolvesByTraversal() public view {
+        bytes memory policy = PolicyBuilder.create("foo(uint256,uint256)").add(arg(1).eq(uint256(1))).buildUnsafe();
+        // Replacing the concrete hint with the sentinel sends the rule down the traversal path,
+        // which resolves the same target from the descriptor and path.
+        uint256 hintOffset = _firstHintOffset(policy);
+        _writeU32(policy, hintOffset, PF.HINT_SENTINEL_OFFSET);
+        policy[hintOffset + PF.HINT_STATIC_SIZE - 1] = bytes1(PF.HINT_TYPE_NONE);
+
+        assertTrue(
+            harness.check(policy, abi.encodeWithSignature("foo(uint256,uint256)", uint256(9), uint256(1))),
+            "traversal reaches the path target"
+        );
+        assertFalse(
+            harness.check(policy, abi.encodeWithSignature("foo(uint256,uint256)", uint256(1), uint256(9))),
+            "traversal ignores the other argument"
+        );
+    }
+
+    function test_RevertWhen_QuantifiedHintPointerOutOfBounds() public {
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])").add(arg(0, Path.ALL).eq(uint256(1))).buildUnsafe();
+        // The array head word addresses far beyond calldata, so the read fails.
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(uint256[])")), uint256(2) ** 200, uint256(1));
+
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
+        harness.check(policy, callData);
+    }
+
+    function test_QuantifiedHintAddressesElementField() public view {
+        bytes memory policy =
+            PolicyBuilder.create("foo((uint256,uint256)[])").add(arg(0, Path.ALL, 0).eq(uint256(1))).buildUnsafe();
+        // Re-point the suffix at the second field of each element.
+        _writeU32(policy, _firstHintOffset(policy) + PF.HINT_SUFFIX_OFFSET, 32);
+
+        TwoUints[] memory elements = new TwoUints[](2);
+        elements[0] = TwoUints({ a: 9, b: 1 });
+        elements[1] = TwoUints({ a: 9, b: 1 });
+        bytes memory callData = abi.encodeWithSignature("foo((uint256,uint256)[])", elements);
+        assertTrue(harness.check(policy, callData), "the suffix offset selects the field");
     }
 }

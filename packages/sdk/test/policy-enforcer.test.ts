@@ -20,6 +20,7 @@ import {
   bytesToHex,
 } from "../src";
 import { bigintToHex } from "../src/bytes";
+import { PolicyFormat } from "../src/constants";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { applyOperator } from "../src/operators";
 import { assertFailed, assertPassed, assertViolationCode, firstViolation, op } from "./helpers";
@@ -27,28 +28,26 @@ import { assertFailed, assertPassed, assertViolationCode, firstViolation, op } f
 import type { Context, Hex, PolicyData } from "../src";
 
 ///////////////////////////////////////////////////////////////////////////
-// Test policy blobs from spec/vectors/policies.json
+// Test policy blobs
 ///////////////////////////////////////////////////////////////////////////
 
 // EQ rule: arg(0) == 42, selector 0x2fbebd38, descriptor uint256.
-const POLICY_EQ_UINT256 =
-  "0x012fbebd38000302012001000100000029002901010000010020000000000000000000000000000000000000000000000000000000000000002a";
+const POLICY_EQ_UINT256 = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(42n)).build();
 
 // Selectorless: EQ rule arg(0) == 42.
-const POLICY_SELECTORLESS =
-  "0x1100000000000302012001000100000029002901010000010020000000000000000000000000000000000000000000000000000000000000002a";
+const POLICY_SELECTORLESS = PolicyBuilder.createRaw("uint256").add(arg(0).eq(42n)).build();
 
 // Two groups (OR): EQ(arg0,2) | EQ(arg0,1).
-const POLICY_MULTI_GROUP =
-  "0x012fbebd3800030201200200010000002900290101000001002000000000000000000000000000000000000000000000000000000000000000020001000000290029010100000100200000000000000000000000000000000000000000000000000000000000000001";
+const POLICY_MULTI_GROUP = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(2n)).or().add(arg(0).eq(1n)).build();
 
 // Two calldata rules in one group: GT(0) AND LTE(100).
-const POLICY_TWO_CONSTRAINTS =
-  "0x012fbebd3800030201200100020000005200290101000002002000000000000000000000000000000000000000000000000000000000000000000029010100000500200000000000000000000000000000000000000000000000000000000000000064";
+const POLICY_TWO_CONSTRAINTS = PolicyBuilder.create("foo(uint256)").add(arg(0).gt(0n).lte(100n)).build();
 
 // Mixed scope: context msg.sender=addr(1) AND calldata arg(0)=uint256(42).
-const POLICY_MIXED_SCOPE =
-  "0x012fbebd380003020120010002000000520029000100000100200000000000000000000000000000000000000000000000000000000000000001002901010000010020000000000000000000000000000000000000000000000000000000000000002a";
+const POLICY_MIXED_SCOPE = PolicyBuilder.create("foo(uint256)")
+  .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
+  .add(arg(0).eq(42n))
+  .build();
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -107,6 +106,8 @@ function craftPolicy(opts: {
   pathHex: string;
   opCode: number;
   dataHex: string;
+  /** Hint block; the sentinel by default, which resolves the rule by traversal. */
+  hintHex?: string;
 }): Hex {
   const desc = opts.descriptor;
   const descLen = desc.length / 2;
@@ -114,20 +115,28 @@ function craftPolicy(opts: {
   const depth = pathBytes.length / 4;
   const dataBytes = opts.dataHex;
   const dataLen = dataBytes.length / 2;
-  const ruleSize = 7 + depth * 2 + dataLen;
+  const hintBytes = opts.scope === Scope.CALLDATA ? (opts.hintHex ?? "ffffffff00") : "";
+  const ruleSize = 7 + depth * 2 + hintBytes.length / 2 + dataLen;
 
   const rule =
     ruleSize.toString(16).padStart(4, "0") +
     opts.scope.toString(16).padStart(2, "0") +
     depth.toString(16).padStart(2, "0") +
     pathBytes +
+    hintBytes +
     opts.opCode.toString(16).padStart(2, "0") +
     dataLen.toString(16).padStart(4, "0") +
     dataBytes;
 
   const group = "0001" + (rule.length / 2).toString(16).padStart(8, "0") + rule;
-  const header = "11" + "00000000" + descLen.toString(16).padStart(4, "0") + desc + "01" + group;
+  const headerByte = (PolicyFormat.VERSION | PolicyFormat.FLAG_NO_SELECTOR).toString(16).padStart(2, "0");
+  const header = headerByte + "00000000" + descLen.toString(16).padStart(4, "0") + desc + "01" + group;
   return `0x${header}`;
+}
+
+/** Return the byte offset of the first rule's hint block within `policy`. */
+function hintOffset(policy: Hex): number {
+  return PolicyCoder.inspect(policy).groups[0].rules[0].hint!.span.start;
 }
 
 /** Overwrite bytes in a hex blob at a given byte offset. */
@@ -576,12 +585,26 @@ describe("enforce - quantifier element resolution failures", () => {
     expect(violation.typeCode).toBe(TypeCode.UINT_MAX);
   });
 
-  test("ANY skips elements where arrayElementAt fails and reports failure", () => {
+  test("an abort under ANY rejects the policy instead of falling through to a later group", () => {
+    // Spec §9.3: CALLDATA_OUT_OF_BOUNDS aborts evaluation, so the passing second group is never
+    // consulted. The Solidity enforcer reverts on the same input.
+    const policy = PolicyBuilder.createRaw("uint256[],uint256")
+      .add(arg(0, Quantifier.ANY).eq(7n))
+      .or()
+      .add(arg(1).eq(5n))
+      .build();
+    // The array claims two elements but supplies one.
+    const callData: Hex = `0x${word(64n)}${word(5n)}${word(2n)}${word(1n)}`;
+
+    firstViolation(PolicyEnforcer.check(policy, callData), "CALLDATA_OUT_OF_BOUNDS");
+  });
+
+  test("ANY aborts when arrayElementAt fails", () => {
     const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ANY).eq(999n)).build();
     // Only 64 bytes for 3-element static array.
     const callData: Hex = `0x${word(1n)}${word(2n)}`;
     const result = PolicyEnforcer.check(policy, callData);
-    firstViolation(result, "VALUE_MISMATCH");
+    firstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
   });
 
   test("ALL with suffix: descendPath failure on element causes violation", () => {
@@ -597,14 +620,14 @@ describe("enforce - quantifier element resolution failures", () => {
     expect(violation.typeCode).toBe(TypeCode.UINT_MAX);
   });
 
-  test("ANY with suffix: descendPath failure is skipped, fails when no element passes", () => {
+  test("ANY with suffix: descendPath failure aborts", () => {
     const policy = PolicyBuilder.createRaw("(uint256[],uint256)[]")
       .add(arg(0, Quantifier.ANY, 0, 0).eq(42n))
       .build();
     const callData: Hex = `0x${word(32n)}${word(1n)}${word(0n)}${word(9999n)}${word(42n)}`;
     const result = PolicyEnforcer.check(policy, callData);
-    const violation = firstViolation(result, "VALUE_MISMATCH");
-    expect(violation.elementIndex).toBeUndefined();
+    const violation = firstViolation(result, "ARRAY_INDEX_OUT_OF_BOUNDS");
+    expect(violation.elementIndex).toBe(0);
   });
 
   test("ALL with suffix: post-descend leaf-load failure surfaces underlying read code", () => {
@@ -630,11 +653,11 @@ describe("enforce - quantifier deep error paths", () => {
     assertFailed(result);
   });
 
-  test("ANY with no suffix: leaf error on element is skipped, fails if none pass", () => {
+  test("ANY with no suffix: leaf error on an element aborts", () => {
     const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ANY).lengthEq(5n)).build();
     const callData: Hex = `0x${word(32n)}${word(1n)}${word(9999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
-    firstViolation(result, "VALUE_MISMATCH");
+    firstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
   });
 
   test("ALL with suffix path: descendPath failure causes violation", () => {
@@ -647,13 +670,13 @@ describe("enforce - quantifier deep error paths", () => {
     assertFailed(result);
   });
 
-  test("ANY with suffix path: descendPath failure is skipped", () => {
+  test("ANY with suffix path: descendPath failure aborts", () => {
     const policy = PolicyBuilder.createRaw("(uint256,bytes)[]")
       .add(arg(0, Quantifier.ANY, 1).lengthEq(5n))
       .build();
     const callData: Hex = `0x${word(32n)}${word(1n)}${word(0n)}${word(42n)}${word(9999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
-    firstViolation(result, "VALUE_MISMATCH");
+    firstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
   });
 });
 
@@ -834,5 +857,50 @@ describe("PolicyEnforcer - value operator on non-scalar target", () => {
         expect(err.code).toBe("NOT_SCALAR");
       }
     }
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Hint dispatch
+///////////////////////////////////////////////////////////////////////////
+
+// A calldata rule resolves its target through its compiled hint; only a sentinel hint resolves by
+// descriptor traversal. Rewriting a stored hint therefore changes what the rule reads.
+
+describe("enforce - hint dispatch", () => {
+  test("a concrete hint addresses the target", () => {
+    const policy = PolicyBuilder.createRaw("uint256,uint256").add(arg(0).eq(1n)).build();
+    // Re-point the hint at the second argument while the path still names the first.
+    const tampered = tamper(policy, hintOffset(policy), "00000020");
+
+    assertPassed(PolicyEnforcer.check(tampered, `0x${word(9n)}${word(1n)}`));
+  });
+
+  test("a sentinel hint resolves by traversal", () => {
+    const policy = PolicyBuilder.createRaw("uint256,uint256").add(arg(1).eq(1n)).build();
+    const tampered = tamper(policy, hintOffset(policy), "ffffffff00");
+
+    assertPassed(PolicyEnforcer.check(tampered, `0x${word(9n)}${word(1n)}`));
+    assertFailed(PolicyEnforcer.check(tampered, `0x${word(1n)}${word(9n)}`));
+  });
+
+  test("a quantified hint rejects an oversized array pointer", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).eq(1n)).build();
+    // The array head word is far beyond calldata, so the read fails instead of wrapping.
+    const callData: Hex = `0x${word(2n ** 200n)}${word(1n)}`;
+
+    firstViolation(PolicyEnforcer.check(policy, callData), "CALLDATA_OUT_OF_BOUNDS");
+  });
+
+  test("a quantified hint addresses the element field", () => {
+    const policy = PolicyBuilder.createRaw("(uint256,uint256)[]")
+      .add(arg(0, Quantifier.ALL, 0).eq(1n))
+      .build();
+    // Re-point the suffix at the second field of each element.
+    const suffixOffset = hintOffset(policy) + PolicyFormat.HINT_SUFFIX_OFFSET;
+    const tampered = tamper(policy, suffixOffset, "00000020");
+
+    const callData: Hex = `0x${word(32n)}${word(2n)}${word(9n)}${word(1n)}${word(9n)}${word(1n)}`;
+    assertPassed(PolicyEnforcer.check(tampered, callData));
   });
 });

@@ -44,6 +44,20 @@ export function unnavigablePath(groupIndex: number, constraintIndex: number): Is
   };
 }
 
+/** Issue for a hint block that does not match its path compiled against the descriptor. */
+export function hintMismatch(groupIndex: number, constraintIndex: number): Issue {
+  return {
+    severity: "error",
+    category: "typeMismatch",
+    groupIndex,
+    constraintIndex,
+    code: "HINT_MISMATCH",
+    value1: ZERO,
+    value2: ZERO,
+    message: "Hint does not match the path compiled against the descriptor",
+  };
+}
+
 /** Issue for an operand that is not canonically encoded for the declared type. */
 export function nonCanonicalOperand(groupIndex: number, constraintIndex: number, operand: Hex, canonical: Hex): Issue {
   return {

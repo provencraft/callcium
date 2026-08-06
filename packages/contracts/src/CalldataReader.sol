@@ -284,6 +284,14 @@ library CalldataReader {
         }
     }
 
+    /// @notice Loads the 32-byte word at `offset` in calldata.
+    /// @param callData The calldata buffer.
+    /// @param offset Byte offset of the word.
+    /// @return The 32-byte word.
+    function loadWord(bytes calldata callData, uint256 offset) internal pure returns (bytes32) {
+        return _calldataload(callData, offset);
+    }
+
     /// @notice Loads a scalar value from calldata at the resolved location.
     /// @dev For elementary types this returns the value. For dynamic types this returns the offset word.
     /// @param location The resolved location.

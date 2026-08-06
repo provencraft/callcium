@@ -11,7 +11,7 @@ import { PolicyCoderTest } from "../PolicyCoder.t.sol";
 // forge-lint: disable-next-item(unsafe-typecast)
 contract EncodeTest is PolicyCoderTest {
     bytes4 internal constant SELECTOR = bytes4(keccak256("foo(uint256)"));
-    bytes internal constant DESCRIPTOR = hex"";
+    bytes internal constant DESCRIPTOR = hex"020120";
 
     /*/////////////////////////////////////////////////////////////////////////
                                   BINARY FORMAT
@@ -42,8 +42,8 @@ contract EncodeTest is PolicyCoderTest {
     function test_GroupHeaderFormat() public pure {
         bytes memory blob = PolicyCoder.encode(
             _twoRules(
-                PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1)))),
-                PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0001", _op1(OpCode.EQ, bytes32(uint256(2))))
+                PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))), ""),
+                PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0001", _op1(OpCode.EQ, bytes32(uint256(2))), "")
             ),
             SELECTOR,
             DESCRIPTOR
@@ -51,7 +51,7 @@ contract EncodeTest is PolicyCoderTest {
 
         uint256 groupStart = PF.POLICY_HEADER_PREFIX + DESCRIPTOR.length + PF.POLICY_GROUP_COUNT_SIZE;
         assertEq(_readU16(blob, groupStart + PF.GROUP_RULECOUNT_OFFSET), 2, "ruleCount");
-        uint256 expectedRuleSize = PF.RULE_MIN_SIZE + 32;
+        uint256 expectedRuleSize = PF.RULE_MIN_SIZE + PF.HINT_STATIC_SIZE + 32;
         assertEq(_readU32(blob, groupStart + PF.GROUP_SIZE_OFFSET), expectedRuleSize * 2, "groupSize");
     }
 
@@ -60,21 +60,16 @@ contract EncodeTest is PolicyCoderTest {
             _singleRule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(42)))), SELECTOR, DESCRIPTOR
         );
 
-        assertEq(_readU16(blob, _firstRuleOffset(DESCRIPTOR.length)), PF.RULE_MIN_SIZE + 32, "ruleSize");
+        assertEq(
+            _readU16(blob, _firstRuleOffset(DESCRIPTOR.length)), PF.RULE_MIN_SIZE + PF.HINT_STATIC_SIZE + 32, "ruleSize"
+        );
         assertEq(uint8(blob[_firstRuleOffset(DESCRIPTOR.length) + PF.RULE_SCOPE_OFFSET]), PF.SCOPE_CALLDATA, "scope");
         assertEq(uint8(blob[_firstRuleOffset(DESCRIPTOR.length) + PF.RULE_DEPTH_OFFSET]), 1, "pathDepth");
         assertEq(uint8(blob[_firstRuleOffset(DESCRIPTOR.length) + PF.RULE_PATH_OFFSET + 0]), 0x00, "path[0]");
         assertEq(uint8(blob[_firstRuleOffset(DESCRIPTOR.length) + PF.RULE_PATH_OFFSET + 1]), 0x00, "path[1]");
+        assertEq(uint8(blob[_opCodeOffset(blob, _firstRuleOffset(DESCRIPTOR.length))]), OpCode.EQ, "opCode");
         assertEq(
-            uint8(blob[_firstRuleOffset(DESCRIPTOR.length) + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE]),
-            OpCode.EQ,
-            "opCode"
-        );
-        assertEq(
-            _readU16(
-                blob,
-                _firstRuleOffset(DESCRIPTOR.length) + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE + PF.RULE_OPCODE_SIZE
-            ),
+            _readU16(blob, _opCodeOffset(blob, _firstRuleOffset(DESCRIPTOR.length)) + PF.RULE_OPCODE_SIZE),
             32,
             "dataLength"
         );
@@ -95,7 +90,7 @@ contract EncodeTest is PolicyCoderTest {
         uint256 dataLength = 96;
         assertEq(
             _readU16(blob, _firstRuleOffset(DESCRIPTOR.length)),
-            (PF.RULE_MIN_SIZE - PF.PATH_STEP_SIZE) + pathLength + dataLength
+            (PF.RULE_MIN_SIZE - PF.PATH_STEP_SIZE) + pathLength + PF.HINT_STATIC_SIZE + dataLength
         );
     }
 
@@ -104,12 +99,13 @@ contract EncodeTest is PolicyCoderTest {
             _singleRule(PF.SCOPE_CALLDATA, hex"0000", abi.encodePacked(OpCode.EQ)), SELECTOR, DESCRIPTOR
         );
 
-        assertEq(_readU16(blob, _firstRuleOffset(DESCRIPTOR.length)), PF.RULE_MIN_SIZE, "ruleSize with no data");
         assertEq(
-            _readU16(
-                blob,
-                _firstRuleOffset(DESCRIPTOR.length) + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE + PF.RULE_OPCODE_SIZE
-            ),
+            _readU16(blob, _firstRuleOffset(DESCRIPTOR.length)),
+            PF.RULE_MIN_SIZE + PF.HINT_STATIC_SIZE,
+            "ruleSize with no data"
+        );
+        assertEq(
+            _readU16(blob, _opCodeOffset(blob, _firstRuleOffset(DESCRIPTOR.length)) + PF.RULE_OPCODE_SIZE),
             0,
             "dataLength"
         );
@@ -121,9 +117,9 @@ contract EncodeTest is PolicyCoderTest {
 
     function test_RuleOrderPermutationInvariant() public pure {
         PolicyCoder.Rule memory ruleA =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))), "");
         PolicyCoder.Rule memory ruleB =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0001", _op1(OpCode.EQ, bytes32(uint256(2))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0001", _op1(OpCode.EQ, bytes32(uint256(2))), "");
 
         bytes memory blobAb = PolicyCoder.encode(_twoRules(ruleA, ruleB), SELECTOR, DESCRIPTOR);
         bytes memory blobBa = PolicyCoder.encode(_twoRules(ruleB, ruleA), SELECTOR, DESCRIPTOR);
@@ -133,9 +129,9 @@ contract EncodeTest is PolicyCoderTest {
 
     function test_GroupOrderPermutationInvariant() public pure {
         PolicyCoder.Rule memory ruleA =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))), "");
         PolicyCoder.Rule memory ruleB =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0001", _op1(OpCode.EQ, bytes32(uint256(2))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0001", _op1(OpCode.EQ, bytes32(uint256(2))), "");
 
         PolicyCoder.Group[] memory groupsAb = new PolicyCoder.Group[](2);
         groupsAb[0].rules = new PolicyCoder.Rule[](1);
@@ -163,10 +159,11 @@ contract EncodeTest is PolicyCoderTest {
         PolicyCoder.Rule memory contextRule = PolicyCoder.Rule(
             PF.SCOPE_CONTEXT,
             abi.encodePacked(PF.CTX_MSG_SENDER),
-            _op1(OpCode.EQ, bytes32(uint256(uint160(address(1)))))
+            _op1(OpCode.EQ, bytes32(uint256(uint160(address(1))))),
+            ""
         );
         PolicyCoder.Rule memory calldataRule =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(42))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(42))), "");
 
         bytes memory blob = PolicyCoder.encode(_twoRules(calldataRule, contextRule), SELECTOR, DESCRIPTOR);
 
@@ -180,9 +177,9 @@ contract EncodeTest is PolicyCoderTest {
 
     function test_SortsByPathDepth() public pure {
         PolicyCoder.Rule memory shallowRule =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))), "");
         PolicyCoder.Rule memory deepRule =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"00000001", _op1(OpCode.EQ, bytes32(uint256(2))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"00000001", _op1(OpCode.EQ, bytes32(uint256(2))), "");
 
         bytes memory blob = PolicyCoder.encode(_twoRules(deepRule, shallowRule), SELECTOR, DESCRIPTOR);
 
@@ -194,9 +191,9 @@ contract EncodeTest is PolicyCoderTest {
 
     function test_SortsByPathBytes() public pure {
         PolicyCoder.Rule memory ruleA =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))), "");
         PolicyCoder.Rule memory ruleB =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0001", _op1(OpCode.EQ, bytes32(uint256(2))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0001", _op1(OpCode.EQ, bytes32(uint256(2))), "");
 
         bytes memory blob = PolicyCoder.encode(_twoRules(ruleB, ruleA), SELECTOR, DESCRIPTOR);
 
@@ -212,63 +209,53 @@ contract EncodeTest is PolicyCoderTest {
 
     function test_SortsByOpCode() public pure {
         PolicyCoder.Rule memory ruleEq =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))), "");
         PolicyCoder.Rule memory ruleGt =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.GT, bytes32(uint256(1))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.GT, bytes32(uint256(1))), "");
 
         bytes memory blob = PolicyCoder.encode(_twoRules(ruleGt, ruleEq), SELECTOR, DESCRIPTOR);
 
-        assertEq(
-            uint8(blob[_firstRuleOffset(DESCRIPTOR.length) + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE]),
-            OpCode.EQ,
-            "OP_EQ first"
-        );
+        assertEq(uint8(blob[_opCodeOffset(blob, _firstRuleOffset(DESCRIPTOR.length))]), OpCode.EQ, "OP_EQ first");
         uint256 secondRuleStart =
             _firstRuleOffset(DESCRIPTOR.length) + _readU16(blob, _firstRuleOffset(DESCRIPTOR.length));
-        assertEq(uint8(blob[secondRuleStart + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE]), OpCode.GT, "OP_GT second");
+        assertEq(uint8(blob[_opCodeOffset(blob, secondRuleStart)]), OpCode.GT, "OP_GT second");
     }
 
     function test_SortsByOpData() public pure {
         PolicyCoder.Rule memory ruleLow =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))), "");
         PolicyCoder.Rule memory ruleHigh =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(2))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(2))), "");
 
         bytes memory blob = PolicyCoder.encode(_twoRules(ruleHigh, ruleLow), SELECTOR, DESCRIPTOR);
 
-        uint256 dataStart = _firstRuleOffset(DESCRIPTOR.length) + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE
-            + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
+        uint256 dataStart =
+            _opCodeOffset(blob, _firstRuleOffset(DESCRIPTOR.length)) + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
         assertEq(_readBytes32(blob, dataStart), bytes32(uint256(1)), "value 1 first");
 
         uint256 secondRuleStart =
             _firstRuleOffset(DESCRIPTOR.length) + _readU16(blob, _firstRuleOffset(DESCRIPTOR.length));
-        uint256 secondDataStart =
-            secondRuleStart + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
+        uint256 secondDataStart = _opCodeOffset(blob, secondRuleStart) + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
         assertEq(_readBytes32(blob, secondDataStart), bytes32(uint256(2)), "value 2 second");
     }
 
     function test_SortsByOpDataLength() public pure {
         PolicyCoder.Rule memory shortIn =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.IN, bytes32(uint256(1))));
-        PolicyCoder.Rule memory longIn =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op2(OpCode.IN, bytes32(uint256(1)), bytes32(uint256(2))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.IN, bytes32(uint256(1))), "");
+        PolicyCoder.Rule memory longIn = PolicyCoder.Rule(
+            PF.SCOPE_CALLDATA, hex"0000", _op2(OpCode.IN, bytes32(uint256(1)), bytes32(uint256(2))), ""
+        );
 
         bytes memory blob = PolicyCoder.encode(_twoRules(longIn, shortIn), SELECTOR, DESCRIPTOR);
 
-        assertEq(
-            _readU16(
-                blob,
-                _firstRuleOffset(DESCRIPTOR.length) + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE + PF.RULE_OPCODE_SIZE
-            ),
-            32
-        );
+        assertEq(_readU16(blob, _opCodeOffset(blob, _firstRuleOffset(DESCRIPTOR.length)) + PF.RULE_OPCODE_SIZE), 32);
     }
 
     function test_SortsByPathCommonPrefix() public pure {
         PolicyCoder.Rule memory early =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"000100020003", _op1(OpCode.EQ, bytes32(uint256(1))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"000100020003", _op1(OpCode.EQ, bytes32(uint256(1))), "");
         PolicyCoder.Rule memory later =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"000100020004", _op1(OpCode.EQ, bytes32(uint256(2))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"000100020004", _op1(OpCode.EQ, bytes32(uint256(2))), "");
 
         bytes memory blob = PolicyCoder.encode(_twoRules(later, early), SELECTOR, DESCRIPTOR);
 
@@ -289,14 +276,14 @@ contract EncodeTest is PolicyCoderTest {
 
     function test_SortsByOpCode_WithNotFlag() public pure {
         PolicyCoder.Rule memory plain =
-            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))));
+            PolicyCoder.Rule(PF.SCOPE_CALLDATA, hex"0000", _op1(OpCode.EQ, bytes32(uint256(1))), "");
         PolicyCoder.Rule memory negated = PolicyCoder.Rule(
-            PF.SCOPE_CALLDATA, hex"0000", abi.encodePacked(uint8(OpCode.EQ | OpCode.NOT), bytes32(uint256(1)))
+            PF.SCOPE_CALLDATA, hex"0000", abi.encodePacked(uint8(OpCode.EQ | OpCode.NOT), bytes32(uint256(1))), ""
         );
 
         bytes memory blob = PolicyCoder.encode(_twoRules(negated, plain), SELECTOR, DESCRIPTOR);
 
-        assertEq(uint8(blob[_firstRuleOffset(DESCRIPTOR.length) + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE]), OpCode.EQ);
+        assertEq(uint8(blob[_opCodeOffset(blob, _firstRuleOffset(DESCRIPTOR.length))]), OpCode.EQ);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -364,7 +351,7 @@ contract EncodeTest is PolicyCoderTest {
         groups[0] = new Constraint[](1);
         bytes[] memory operators = new bytes[](1);
         operators[0] = _op1(OpCode.EQ, bytes32(uint256(42)));
-        groups[0][0] = Constraint({ scope: PF.SCOPE_CALLDATA, path: hex"0000", operators: operators });
+        groups[0][0] = Constraint({ scope: PF.SCOPE_CALLDATA, path: hex"0000", operators: operators, hint: "" });
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -416,8 +403,9 @@ contract EncodeTest is PolicyCoderTest {
         PolicyCoder.Group[] memory groups = new PolicyCoder.Group[](256);
         for (uint256 i; i < 256; ++i) {
             groups[i].rules = new PolicyCoder.Rule[](1);
-            groups[i].rules[0] =
-                PolicyCoder.Rule(PF.SCOPE_CALLDATA, abi.encodePacked(uint16(i)), _op1(OpCode.EQ, bytes32(uint256(42))));
+            groups[i].rules[0] = PolicyCoder.Rule(
+                PF.SCOPE_CALLDATA, abi.encodePacked(uint16(i)), _op1(OpCode.EQ, bytes32(uint256(42))), ""
+            );
         }
 
         vm.expectRevert(abi.encodeWithSelector(PolicyCoder.GroupCountOverflow.selector, 256));
@@ -444,7 +432,9 @@ contract EncodeTest is PolicyCoderTest {
         op[0] = bytes1(OpCode.IN);
 
         vm.expectRevert(
-            abi.encodeWithSelector(PolicyCoder.RuleSizeOverflow.selector, 0, 0, PF.RULE_MIN_SIZE + dataLength)
+            abi.encodeWithSelector(
+                PolicyCoder.RuleSizeOverflow.selector, 0, 0, PF.RULE_MIN_SIZE + PF.HINT_STATIC_SIZE + dataLength
+            )
         );
         PolicyCoder.encode(_singleRule(PF.SCOPE_CALLDATA, hex"0000", op), SELECTOR, DESCRIPTOR);
     }

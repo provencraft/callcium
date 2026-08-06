@@ -867,16 +867,17 @@ contract EnforcementVectorGenerator is Script {
                           Violation effects across groups
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev OR of [arg0[5] == 1] and [arg1 == 42]: calldata has 3 elements, so the missing
-    ///      index aborts evaluation even though the other group would pass.
+    /// @dev OR of [arg0[5] == 1] and [arg1 == 3]: calldata has 3 elements, so the missing
+    ///      index aborts evaluation even though the other group would pass. The operand is chosen
+    ///      so the aborting group sorts first: canonical group order is the hash of the rule bytes.
     function _vectorAbortArrayIndexMultiGroup() private {
         bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
             .add(arg(0, 5).eq(uint256(1)))
             .or()
-            .add(arg(1).eq(uint256(42)))
+            .add(arg(1).eq(uint256(3)))
             .build();
         uint256[] memory values = new uint256[](3);
-        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(42));
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(3));
         _addErrorVector(
             "abort-array-index-multi-group",
             "Array index out of bounds aborts evaluation before a later passing group",
@@ -887,16 +888,17 @@ contract EnforcementVectorGenerator is Script {
         );
     }
 
-    /// @dev OR of [ALL(arg0) == 0 over 257 elements] and [arg1 == 42]: the quantifier limit
-    ///      aborts evaluation even though the other group would pass.
+    /// @dev OR of [ALL(arg0) == 0 over 257 elements] and [arg1 == 3]: the quantifier limit
+    ///      aborts evaluation even though the other group would pass. The operand is chosen so the
+    ///      aborting group sorts first: canonical group order is the hash of the rule bytes.
     function _vectorAbortQuantifierLimitMultiGroup() private {
         bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
             .add(arg(0, Path.ALL).eq(uint256(0)))
             .or()
-            .add(arg(1).eq(uint256(42)))
+            .add(arg(1).eq(uint256(3)))
             .build();
         uint256[] memory values = new uint256[](257);
-        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(42));
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(3));
         _addErrorVector(
             "abort-quantifier-limit-multi-group",
             "Quantifier limit exceeded aborts evaluation before a later passing group",
@@ -907,18 +909,19 @@ contract EnforcementVectorGenerator is Script {
         );
     }
 
-    /// @dev OR of [length(arg0) >= 10] and [arg1 == 42]: the inflated length word is not backed
+    /// @dev OR of [length(arg0) >= 10] and [arg1 == 3]: the inflated length word is not backed
     ///      by calldata, so the out-of-bounds read aborts evaluation even though the other group
-    ///      would pass.
+    ///      would pass. The operand is chosen so the aborting group sorts first: canonical group
+    ///      order is the hash of the rule bytes.
     function _vectorAbortCalldataOutOfBoundsMultiGroup() private {
         bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
             .add(arg(0).lengthGte(uint256(10)))
             .or()
-            .add(arg(1).eq(uint256(42)))
+            .add(arg(1).eq(uint256(3)))
             .build();
-        // Head: offset to array (0x40), arg1 = 42; tail: length word claims 10 elements, only 2 follow.
+        // Head: offset to array (0x40), arg1 = 3; tail: length word claims 10 elements, only 2 follow.
         bytes memory callData = abi.encodePacked(
-            bytes4(keccak256("foo(uint256[],uint256)")), uint256(0x40), uint256(42), uint256(10), uint256(1), uint256(2)
+            bytes4(keccak256("foo(uint256[],uint256)")), uint256(0x40), uint256(3), uint256(10), uint256(1), uint256(2)
         );
         _addErrorVector(
             "abort-calldata-oob-multi-group",

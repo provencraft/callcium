@@ -64,6 +64,14 @@ export function writeBE24(buffer: Uint8Array, offset: number, value: number): vo
   buffer[offset + 2] = value & 0xff;
 }
 
+/** Write a 32-bit big-endian value into a Uint8Array at offset. */
+export function writeBE32(buffer: Uint8Array, offset: number, value: number): void {
+  buffer[offset] = (value >>> 24) & 0xff;
+  buffer[offset + 1] = (value >>> 16) & 0xff;
+  buffer[offset + 2] = (value >>> 8) & 0xff;
+  buffer[offset + 3] = value & 0xff;
+}
+
 /** Format a bigint as a zero-padded 32-byte hex string. */
 export function bigintToHex(value: bigint): Hex {
   return `0x${value.toString(16).padStart(64, "0")}`;

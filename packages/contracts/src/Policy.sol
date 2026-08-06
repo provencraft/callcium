@@ -3,9 +3,12 @@ pragma solidity ^0.8.28;
 
 import { Be16 } from "./Be16.sol";
 import { Descriptor } from "./Descriptor.sol";
+import { DescriptorFormat as DF } from "./DescriptorFormat.sol";
 import { OpCode } from "./OpCode.sol";
 import { OpRule } from "./OpRule.sol";
+import { Path } from "./Path.sol";
 import { PolicyFormat as PF } from "./PolicyFormat.sol";
+import { TypeCode } from "./TypeCode.sol";
 import { LibBytes } from "solady/utils/LibBytes.sol";
 
 /// @title Policy
@@ -65,6 +68,10 @@ library Policy {
     /// @notice Thrown when declared rule size does not match the field layout.
     /// @param ruleOffset The offset of the inconsistent rule.
     error RuleSizeMismatch(uint256 ruleOffset);
+
+    /// @notice Thrown when a hint block pairs a sentinel offset with a concrete type code, or the reverse.
+    /// @param ruleOffset The offset of the rule with the malformed hint.
+    error MalformedHint(uint256 ruleOffset);
 
     /// @notice Thrown when a rule has an empty path.
     /// @param ruleOffset The offset of the rule with depth zero.
@@ -216,69 +223,6 @@ library Policy {
         require(offset == self.length, UnexpectedEnd());
     }
 
-    /// @dev Validates a single rule and returns the offset of the next rule.
-    function _validateRule(bytes memory self, uint256 ruleOffset, uint256 groupEnd) private pure returns (uint256) {
-        uint16 ruleTotalSize = ruleSize(self, ruleOffset);
-
-        // Scope must be a defined value.
-        uint8 ruleScope = uint8(self[ruleOffset + PF.RULE_SCOPE_OFFSET]);
-        require(ruleScope == PF.SCOPE_CONTEXT || ruleScope == PF.SCOPE_CALLDATA, InvalidScope(ruleOffset));
-
-        // Framing consistency: declared size must match field layout.
-        uint256 depth = uint8(self[ruleOffset + PF.RULE_DEPTH_OFFSET]);
-        uint256 dataLengthOffset = ruleOffset + PF.RULE_PATH_OFFSET + depth * PF.PATH_STEP_SIZE + PF.RULE_OPCODE_SIZE;
-        require(dataLengthOffset + PF.RULE_DATALENGTH_SIZE <= ruleOffset + ruleTotalSize, RuleSizeMismatch(ruleOffset));
-        uint16 dataLength = Be16.readUnchecked(self, dataLengthOffset);
-        require(
-            ruleTotalSize == PF.RULE_FIXED_OVERHEAD + depth * PF.PATH_STEP_SIZE + dataLength,
-            RuleSizeMismatch(ruleOffset)
-        );
-
-        // Operator must be a defined opcode with valid payload size.
-        uint8 opBase = uint8(self[dataLengthOffset - PF.RULE_OPCODE_SIZE]) & ~OpCode.NOT;
-        require(opBase != 0 && OpRule.isValidPayloadSize(opBase, dataLength), UnknownOperator(ruleOffset));
-
-        // IN operands must be strictly ascending (unsigned): the enforcer's binary search
-        // relies on the order, and strictness also rejects duplicates.
-        if (opBase == OpCode.IN) {
-            _validateInAscending(self, dataLengthOffset + PF.RULE_DATALENGTH_SIZE, dataLength, ruleOffset);
-        }
-
-        // Path must be non-empty and within the depth cap.
-        require(depth >= 1, EmptyPath(ruleOffset));
-        require(depth <= PF.MAX_PATH_DEPTH, PathTooDeep(ruleOffset, depth));
-
-        // Context-scope rules must have exactly one path step naming a defined property.
-        if (ruleScope == PF.SCOPE_CONTEXT) {
-            require(depth == 1, InvalidContextPath(ruleOffset));
-            uint16 contextPropertyId = Be16.readUnchecked(self, ruleOffset + PF.RULE_PATH_OFFSET);
-            require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(ruleOffset));
-        }
-
-        ruleOffset += ruleTotalSize;
-        require(ruleOffset <= groupEnd, RuleOverflow(ruleOffset - ruleTotalSize));
-        return ruleOffset;
-    }
-
-    /// @dev Requires the IN operand words to be strictly ascending by unsigned value.
-    function _validateInAscending(
-        bytes memory self,
-        uint256 payloadStart,
-        uint16 dataLength,
-        uint256 ruleOffset
-    )
-        private
-        pure
-    {
-        uint256 count = dataLength / 32;
-        uint256 prev = uint256(LibBytes.load(self, payloadStart));
-        for (uint256 i = 1; i < count; ++i) {
-            uint256 cur = uint256(LibBytes.load(self, payloadStart + i * 32));
-            require(cur > prev, UnsortedInSet(ruleOffset));
-            prev = cur;
-        }
-    }
-
     /// @notice Returns the byte offset of the `index`-th group in `self`.
     /// @param self The policy blob.
     /// @param index Group index (0-based).
@@ -387,13 +331,126 @@ library Policy {
         step = Be16.readUnchecked(self, offset);
     }
 
+    /// @notice Returns the offset and size of the compiled hint block for the rule at `ruleOffset`.
+    /// @dev Context rules carry no hint block and resolve to a zero size.
+    /// @param self The policy blob.
+    /// @param ruleOffset Offset of a rule header within `self`.
+    /// @return hintOffset Byte offset of the hint block within `self`.
+    /// @return hintSize Size of the hint block in bytes.
+    function hintView(
+        bytes memory self,
+        uint256 ruleOffset
+    )
+        internal
+        pure
+        returns (uint256 hintOffset, uint256 hintSize)
+    {
+        uint256 pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
+        uint256 depth = pathDepth(self, ruleOffset);
+        hintOffset = pathStart + depth * PF.PATH_STEP_SIZE;
+        if (scope(self, ruleOffset) == PF.SCOPE_CONTEXT) return (hintOffset, 0);
+
+        uint256 ruleEnd = ruleOffset + Be16.readUnchecked(self, ruleOffset);
+        require(hintOffset + PF.HINT_FIELD_SIZE <= ruleEnd, RuleFieldOutOfBounds(ruleOffset));
+
+        // Size resolution precedence: a sentinel first field, then a quantifier step in the path.
+        hintSize = PF.HINT_STATIC_SIZE;
+        if (
+            uint32(bytes4(LibBytes.load(self, hintOffset))) != PF.HINT_SENTINEL_OFFSET
+                && _hasQuantifier(self, pathStart, depth)
+        ) hintSize = PF.HINT_QUANTIFIED_SIZE;
+        require(hintOffset + hintSize <= ruleEnd, RuleFieldOutOfBounds(ruleOffset));
+    }
+
+    /// @notice Compiles a calldata rule path into its wire hint block.
+    /// @dev Returns the sentinel block for a path that is not compilable: one that navigates
+    /// through a dynamic node, quantifies over anything but a dynamic array of static elements,
+    /// or does not navigate the descriptor at all.
+    /// @param desc The descriptor bytes.
+    /// @param path Path encoded as big-endian uint16 steps.
+    /// @return The hint block bytes.
+    function compileHint(bytes memory desc, bytes memory path) internal pure returns (bytes memory) {
+        uint256 depth = Path.validate(path);
+        uint256 argIndex = Path.atUnchecked(path, 0);
+        if (argIndex >= Descriptor.paramCount(desc)) return _sentinelHint();
+
+        // Accumulate the argument's head offset by skipping the preceding parameters.
+        uint256 descOffset = DF.HEADER_SIZE;
+        uint256 head;
+        for (uint256 i; i < argIndex; ++i) {
+            (, bool paramIsDynamic, uint32 paramStaticSize, uint256 paramDescEnd) = Descriptor.inspect(desc, descOffset);
+            head += paramIsDynamic ? 32 : uint256(paramStaticSize);
+            descOffset = paramDescEnd;
+        }
+
+        uint256 arrayHead;
+        uint256 elemStride;
+        bool quantified;
+
+        for (uint256 stepIndex = 1; stepIndex < depth; ++stepIndex) {
+            uint256 childIndex = Path.atUnchecked(path, stepIndex);
+            (uint8 code, bool isDynamic,,) = Descriptor.inspect(desc, descOffset);
+
+            if (childIndex >= Path.ANY) {
+                // Only a dynamic array of static elements compiles: calldata supplies the element
+                // count, the descriptor supplies a fixed stride.
+                if (code != TypeCode.DYNAMIC_ARRAY) return _sentinelHint();
+                uint256 quantifiedElemDescOffset = descOffset + DF.ARRAY_HEADER_SIZE;
+                (, bool elemIsDynamic, uint32 elemStaticSize,) = Descriptor.inspect(desc, quantifiedElemDescOffset);
+                if (elemIsDynamic) return _sentinelHint();
+
+                arrayHead = head;
+                elemStride = elemStaticSize;
+                quantified = true;
+                // Offsets past the quantifier are relative to the element.
+                head = 0;
+                descOffset = quantifiedElemDescOffset;
+                continue;
+            }
+
+            // A dynamic node places its subtree at a calldata-supplied offset, so nothing below it
+            // has a fixed address.
+            if (isDynamic) return _sentinelHint();
+
+            if (code == TypeCode.TUPLE) {
+                if (childIndex >= Descriptor.tupleFieldCount(desc, descOffset)) return _sentinelHint();
+                uint256 fieldDescOffset = descOffset + DF.TUPLE_HEADER_SIZE;
+                for (uint256 i; i < childIndex; ++i) {
+                    (,, uint32 fieldStaticSize, uint256 fieldDescEnd) = Descriptor.inspect(desc, fieldDescOffset);
+                    head += fieldStaticSize;
+                    fieldDescOffset = fieldDescEnd;
+                }
+                descOffset = fieldDescOffset;
+            } else if (code == TypeCode.STATIC_ARRAY) {
+                if (childIndex >= Descriptor.staticArrayLength(desc, descOffset)) return _sentinelHint();
+                uint256 elemDescOffset = descOffset + DF.ARRAY_HEADER_SIZE;
+                (,, uint32 elemStaticSize,) = Descriptor.inspect(desc, elemDescOffset);
+                head += childIndex * uint256(elemStaticSize);
+                descOffset = elemDescOffset;
+            } else {
+                return _sentinelHint();
+            }
+        }
+
+        // An offset indistinguishable from the sentinel is not addressable through a hint.
+        if (head >= PF.HINT_SENTINEL_OFFSET || arrayHead >= PF.HINT_SENTINEL_OFFSET) return _sentinelHint();
+
+        (uint8 targetCode,,,) = Descriptor.inspect(desc, descOffset);
+        // forgefmt: disable-next-item
+        return quantified
+            // forge-lint: disable-next-line(unsafe-typecast) bounded above by the sentinel check.
+            ? abi.encodePacked(uint32(arrayHead), uint32(elemStride), uint32(head), targetCode)
+            // forge-lint: disable-next-line(unsafe-typecast) bounded above by the sentinel check.
+            : abi.encodePacked(uint32(head), targetCode);
+    }
+
     /// @notice Returns the operator code for the rule at `ruleOffset`.
     /// @param self The policy blob.
     /// @param ruleOffset Offset of a rule header within `self`.
     /// @return The operator code byte.
     function opCode(bytes memory self, uint256 ruleOffset) internal pure returns (uint8) {
-        uint8 depth = pathDepth(self, ruleOffset);
-        uint256 offset = ruleOffset + PF.RULE_PATH_OFFSET + (uint256(depth) * PF.PATH_STEP_SIZE);
+        (uint256 hintOffset, uint256 hintSize) = hintView(self, ruleOffset);
+        uint256 offset = hintOffset + hintSize;
 
         uint16 size = Be16.readUnchecked(self, ruleOffset);
         require(offset + PF.RULE_OPCODE_SIZE <= ruleOffset + size, RuleFieldOutOfBounds(ruleOffset));
@@ -413,13 +470,100 @@ library Policy {
         pure
         returns (uint256 dataOffset, uint16 dataLength)
     {
-        uint8 depth = pathDepth(self, ruleOffset);
-        uint256 offset = ruleOffset + PF.RULE_PATH_OFFSET + (uint256(depth) * PF.PATH_STEP_SIZE) + PF.RULE_OPCODE_SIZE;
+        (uint256 hintOffset, uint256 hintSize) = hintView(self, ruleOffset);
+        uint256 offset = hintOffset + hintSize + PF.RULE_OPCODE_SIZE;
         uint16 size = Be16.readUnchecked(self, ruleOffset);
         require(offset + PF.RULE_DATALENGTH_SIZE <= ruleOffset + size, RuleFieldOutOfBounds(ruleOffset));
 
         dataLength = Be16.readUnchecked(self, offset);
         dataOffset = offset + PF.RULE_DATALENGTH_SIZE;
         require(dataOffset + dataLength <= ruleOffset + size, RuleFieldOutOfBounds(ruleOffset));
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                 PRIVATE FUNCTIONS
+    ////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev Validates a single rule and returns the offset of the next rule.
+    function _validateRule(bytes memory self, uint256 ruleOffset, uint256 groupEnd) private pure returns (uint256) {
+        uint16 ruleTotalSize = ruleSize(self, ruleOffset);
+
+        // Scope must be a defined value.
+        uint8 ruleScope = uint8(self[ruleOffset + PF.RULE_SCOPE_OFFSET]);
+        require(ruleScope == PF.SCOPE_CONTEXT || ruleScope == PF.SCOPE_CALLDATA, InvalidScope(ruleOffset));
+
+        // Hint block: a sentinel offset and the reserved type code appear together or not at all.
+        uint256 depth = uint8(self[ruleOffset + PF.RULE_DEPTH_OFFSET]);
+        (uint256 hintOffset, uint256 hintSize) = hintView(self, ruleOffset);
+        if (hintSize != 0) {
+            bool sentinelOffset = uint32(bytes4(LibBytes.load(self, hintOffset))) == PF.HINT_SENTINEL_OFFSET;
+            bool noTypeCode = uint8(self[hintOffset + hintSize - 1]) == PF.HINT_TYPE_NONE;
+            require(sentinelOffset == noTypeCode, MalformedHint(ruleOffset));
+        }
+
+        // Framing consistency: declared size must match field layout.
+        uint256 dataLengthOffset = hintOffset + hintSize + PF.RULE_OPCODE_SIZE;
+        require(dataLengthOffset + PF.RULE_DATALENGTH_SIZE <= ruleOffset + ruleTotalSize, RuleSizeMismatch(ruleOffset));
+        uint16 dataLength = Be16.readUnchecked(self, dataLengthOffset);
+        require(
+            ruleTotalSize == PF.RULE_FIXED_OVERHEAD + depth * PF.PATH_STEP_SIZE + hintSize + dataLength,
+            RuleSizeMismatch(ruleOffset)
+        );
+
+        // Operator must be a defined opcode with valid payload size.
+        uint8 opBase = uint8(self[dataLengthOffset - PF.RULE_OPCODE_SIZE]) & ~OpCode.NOT;
+        require(opBase != 0 && OpRule.isValidPayloadSize(opBase, dataLength), UnknownOperator(ruleOffset));
+
+        // IN operands must be strictly ascending (unsigned); strictness also rejects duplicates.
+        if (opBase == OpCode.IN) {
+            _validateInAscending(self, dataLengthOffset + PF.RULE_DATALENGTH_SIZE, dataLength, ruleOffset);
+        }
+
+        // Path must be non-empty and within the depth cap.
+        require(depth >= 1, EmptyPath(ruleOffset));
+        require(depth <= PF.MAX_PATH_DEPTH, PathTooDeep(ruleOffset, depth));
+
+        // Context-scope rules must have exactly one path step naming a defined property.
+        if (ruleScope == PF.SCOPE_CONTEXT) {
+            require(depth == 1, InvalidContextPath(ruleOffset));
+            uint16 contextPropertyId = Be16.readUnchecked(self, ruleOffset + PF.RULE_PATH_OFFSET);
+            require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(ruleOffset));
+        }
+
+        ruleOffset += ruleTotalSize;
+        require(ruleOffset <= groupEnd, RuleOverflow(ruleOffset - ruleTotalSize));
+        return ruleOffset;
+    }
+
+    /// @dev Returns true if any of the `depth` path steps at `pathStart` is a quantifier.
+    function _hasQuantifier(bytes memory self, uint256 pathStart, uint256 depth) private pure returns (bool) {
+        for (uint256 i; i < depth; ++i) {
+            if (Be16.readUnchecked(self, pathStart + i * PF.PATH_STEP_SIZE) >= Path.ANY) return true;
+        }
+        return false;
+    }
+
+    /// @dev Returns the hint block for a path that does not compile to concrete offsets.
+    function _sentinelHint() private pure returns (bytes memory) {
+        return abi.encodePacked(PF.HINT_SENTINEL_OFFSET, PF.HINT_TYPE_NONE);
+    }
+
+    /// @dev Requires the IN operand words to be strictly ascending by unsigned value.
+    function _validateInAscending(
+        bytes memory self,
+        uint256 payloadStart,
+        uint16 dataLength,
+        uint256 ruleOffset
+    )
+        private
+        pure
+    {
+        uint256 count = dataLength / 32;
+        uint256 prev = uint256(LibBytes.load(self, payloadStart));
+        for (uint256 i = 1; i < count; ++i) {
+            uint256 cur = uint256(LibBytes.load(self, payloadStart + i * 32));
+            require(cur > prev, UnsortedInSet(ruleOffset));
+            prev = cur;
+        }
     }
 }

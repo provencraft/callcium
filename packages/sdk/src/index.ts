@@ -40,6 +40,7 @@ export type { TypeInfo } from "./descriptor";
 export {
   Op,
   TypeCode,
+  PolicyFormat,
   Quantifier,
   Scope,
   ContextProperty,

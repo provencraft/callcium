@@ -1,6 +1,15 @@
 "use client";
 
-import { type DecodedPolicy, type Hex, lookupScope, parsePathSteps, PolicyCoder, type Span } from "@callcium/sdk";
+import {
+  type DecodedPolicy,
+  type Hex,
+  lookupScope,
+  parsePathSteps,
+  PolicyCoder,
+  PolicyFormat,
+  type Span,
+  lookupTypeCode,
+} from "@callcium/sdk";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui/components/ui/collapsible";
 import { ChevronDown, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -18,6 +27,24 @@ import { cn } from "@/lib/utils";
 import { type ExplainedPolicy, explainPolicy, flattenGroup, formatOperands } from "@/tools/policy-inspector";
 
 const plural = (n: number) => (n === 1 ? "" : "s");
+
+/** Read a big-endian uint32 field from a hint block's hex body. */
+const hintField = (body: string, fieldIndex: number) => {
+  const width = PolicyFormat.HINT_FIELD_SIZE * 2;
+  return parseInt(body.slice(fieldIndex * width, fieldIndex * width + width), 16);
+};
+
+/** Describe a compiled hint block: its offsets and the type code of the target it addresses. */
+function formatHint(hint: Hex): string {
+  const body = hint.slice(2);
+  if (hintField(body, 0) === PolicyFormat.HINT_SENTINEL_OFFSET) return "sentinel (resolved by path)";
+
+  const typeLabel = lookupTypeCode(parseInt(body.slice(-2), 16)).label;
+  if (body.length / 2 === PolicyFormat.HINT_QUANTIFIED_SIZE) {
+    return `array @${hintField(body, 0)}, stride ${hintField(body, 1)}, target +${hintField(body, 2)} : ${typeLabel}`;
+  }
+  return `@${hintField(body, 0)} : ${typeLabel}`;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // Decode logic
@@ -356,6 +383,7 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
           node("Scope", lookupScope(decodedRule.scope.value).label, decodedRule.scope.span),
           node("Path Depth", String(decodedRule.pathDepth.value), decodedRule.pathDepth.span),
           node("Path", `[${parsePathSteps(decodedRule.path.value).join(", ")}]`, decodedRule.path.span),
+          ...(decodedRule.hint ? [node("Hint", formatHint(decodedRule.hint.value), decodedRule.hint.span)] : []),
           node("OpCode", opDisplay, decodedRule.opCode.span),
           node("Data Length", String(decodedRule.dataLength.value), decodedRule.dataLength.span),
           node("Data", dataValue, decodedRule.data.span),

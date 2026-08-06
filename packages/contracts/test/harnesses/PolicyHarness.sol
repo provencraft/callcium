@@ -20,4 +20,12 @@ contract PolicyHarness {
     function isSelectorless(bytes memory policy) external pure returns (bool) {
         return Policy.isSelectorless(policy);
     }
+
+    function hintView(bytes memory policy, uint256 ruleOffset) external pure returns (uint256, uint256) {
+        return Policy.hintView(policy, ruleOffset);
+    }
+
+    function compileHint(bytes memory desc, bytes memory path) external pure returns (bytes memory) {
+        return Policy.compileHint(desc, path);
+    }
 }

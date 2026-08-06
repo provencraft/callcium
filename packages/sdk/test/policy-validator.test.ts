@@ -1030,3 +1030,62 @@ describe("PolicyValidator - malformed descriptors", () => {
     expect(() => PolicyValidator.validate(data)).toThrow(CallciumError);
   });
 });
+
+///////////////////////////////////////////////////////////////////////////
+// Hint mismatch (PV-6)
+///////////////////////////////////////////////////////////////////////////
+
+/** Return the codes of all issues in `issues`. */
+function issueCodes(issues: Issue[]): string[] {
+  return issues.map((issue) => issue.code);
+}
+
+describe("hint mismatch", () => {
+  /** Build policy data for `foo(uint256)` whose single constraint carries `hint`. */
+  function withHint(hint?: Hex): PolicyData {
+    const constraint: Constraint = { scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.EQ, 1n)] };
+    if (hint !== undefined) constraint.hint = hint;
+    return {
+      isSelectorless: true,
+      selector: "0x00000000",
+      descriptor: bytesToHex(DescriptorCoder.fromTypes("uint256")),
+      groups: [[constraint]],
+    };
+  }
+
+  test("matching hint reports no issue", () => {
+    expect(issueCodes(PolicyValidator.validate(withHint("0x0000000020")))).not.toContain("HINT_MISMATCH");
+  });
+
+  test("absent hint reports no issue", () => {
+    expect(issueCodes(PolicyValidator.validate(withHint()))).not.toContain("HINT_MISMATCH");
+  });
+
+  test("divergent offset reports an error", () => {
+    const issues = PolicyValidator.validate(withHint("0x0000002020"));
+    const issue = issues.find((candidate) => candidate.code === "HINT_MISMATCH");
+    expect(issue).toBeDefined();
+    expect(issue?.severity).toBe("error");
+    expect(issue?.category).toBe("typeMismatch");
+    expect(issue?.groupIndex).toBe(0);
+    expect(issue?.constraintIndex).toBe(0);
+  });
+
+  test("sentinel where the path compiles reports an error", () => {
+    expect(issueCodes(PolicyValidator.validate(withHint("0xffffffff00")))).toContain("HINT_MISMATCH");
+  });
+
+  test("concrete hint on an unnavigable path reports an error", () => {
+    const data = withHint("0x0000000020");
+    data.groups[0][0].path = "0x0003";
+    const issues = issueCodes(PolicyValidator.validate(data));
+    expect(issues).toContain("HINT_MISMATCH");
+    expect(issues).toContain("UNNAVIGABLE_PATH");
+  });
+
+  test("context constraint hint is ignored", () => {
+    const data = withHint();
+    data.groups[0][0] = { scope: Scope.CONTEXT, path: "0x0000", operators: [op(Op.EQ, 1n)], hint: "0x0000000020" };
+    expect(issueCodes(PolicyValidator.validate(data))).not.toContain("HINT_MISMATCH");
+  });
+});

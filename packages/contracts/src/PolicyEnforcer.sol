@@ -37,8 +37,16 @@ library PolicyEnforcer {
         uint8 depth;
         /// The operator code (may include NOT flag).
         uint8 opCode;
+        /// Index of the quantifier step, meaningful only when `quantifierType` is set.
+        uint8 quantifierIndex;
+        /// The quantifier step value, or zero when the path holds none.
+        uint16 quantifierType;
+        /// True when the hint block is the sentinel and the target resolves by traversal.
+        bool isSentinel;
         /// Byte offset where the path array starts within the policy blob.
         uint256 pathStart;
+        /// Byte offset of the hint block within the policy blob (calldata rules only).
+        uint256 hintOffset;
         /// Byte offset of the operator data payload within the policy blob.
         uint256 dataOffset;
         /// Length of the operator data payload.
@@ -206,20 +214,50 @@ library PolicyEnforcer {
         return (true, 0, groupEnd);
     }
 
-    /// @dev Reads all rule fields from the policy blob in a single pass.
-    /// Eliminates redundant reads of pathDepth and ruleSize that occur when calling
-    /// Policy.scope(), Policy.pathDepth(), Policy.opCode(), and Policy.dataView() individually.
+    /// @dev Reads every rule field from the policy blob in a single pass, resolving the hint block
+    /// once so no later step re-walks the path to find the operator fields.
     function _parseRule(bytes memory policy, uint256 ruleOffset) private pure returns (RuleView memory rule) {
         rule.scope = uint8(policy[ruleOffset + PF.RULE_SCOPE_OFFSET]);
         rule.depth = uint8(policy[ruleOffset + PF.RULE_DEPTH_OFFSET]);
         rule.pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
 
         uint256 opCodeOffset = rule.pathStart + uint256(rule.depth) * PF.PATH_STEP_SIZE;
+
+        if (rule.scope == PF.SCOPE_CALLDATA) {
+            rule.hintOffset = opCodeOffset;
+            rule.isSentinel = _hintField(policy, opCodeOffset, 0) == PF.HINT_SENTINEL_OFFSET;
+
+            // The quantifier both resolves the hint block size and selects empty-array semantics.
+            for (uint256 i; i < rule.depth; ++i) {
+                uint16 step = Be16.readUnchecked(policy, rule.pathStart + i * PF.PATH_STEP_SIZE);
+                if (step >= Path.ANY) {
+                    require(rule.quantifierType == 0, NestedQuantifiersUnsupported());
+                    // forge-lint: disable-next-line(unsafe-typecast) i < rule.depth <= PF.MAX_PATH_DEPTH
+                    rule.quantifierIndex = uint8(i);
+                    rule.quantifierType = step;
+                }
+            }
+
+            opCodeOffset += (!rule.isSentinel && rule.quantifierType != 0)
+                ? PF.HINT_QUANTIFIED_SIZE
+                : PF.HINT_STATIC_SIZE;
+        }
+
         rule.opCode = uint8(policy[opCodeOffset]);
 
         uint256 dataLengthOffset = opCodeOffset + PF.RULE_OPCODE_SIZE;
         rule.dataLength = Be16.readUnchecked(policy, dataLengthOffset);
         rule.dataOffset = dataLengthOffset + PF.RULE_DATALENGTH_SIZE;
+    }
+
+    /// @dev Reads the big-endian uint32 hint field at `fieldOffset` within the block at `hintOffset`.
+    function _hintField(bytes memory policy, uint256 hintOffset, uint256 fieldOffset) private pure returns (uint256) {
+        return uint256(uint32(bytes4(LibBytes.load(policy, hintOffset + fieldOffset))));
+    }
+
+    /// @dev Reads the type code of the hint block at `hintOffset`, sized `hintSize`.
+    function _hintTypeCode(bytes memory policy, uint256 hintOffset, uint256 hintSize) private pure returns (uint8) {
+        return uint8(policy[hintOffset + hintSize - 1]);
     }
 
     /// @dev Evaluates a single rule. Returns true if rule passes.
@@ -269,25 +307,18 @@ library PolicyEnforcer {
         pure
         returns (bytes32 value, uint256 valueLength, uint8 typeCode, bool isQuantified, bool quantifiedResult)
     {
-        uint8 quantifierIndex;
-        uint16 quantifierType;
-
-        // Scan the rule's path steps for a quantifier.
-        for (uint256 i; i < rule.depth; ++i) {
-            uint16 step = Be16.readUnchecked(state.policy, rule.pathStart + i * 2);
-
-            if (step >= Path.ANY) {
-                require(quantifierType == 0, NestedQuantifiersUnsupported());
-                // forge-lint: disable-next-line(unsafe-typecast) i < rule.depth <= PF.MAX_PATH_DEPTH
-                quantifierIndex = uint8(i);
-                quantifierType = step;
-            }
+        // Quantified path: delegate to specialized handler.
+        if (rule.quantifierType != 0) {
+            quantifiedResult = rule.isSentinel
+                ? _evalQuantifiedPath(state, callData, rule, opBase)
+                : _evalHintedQuantifiedPath(state, callData, rule);
+            return (bytes32(0), 0, 0, true, quantifiedResult);
         }
 
-        // Quantified path: delegate to specialized handler.
-        if (quantifierType != 0) {
-            quantifiedResult = _evalQuantifiedPath(state, callData, rule, quantifierIndex, quantifierType, opBase);
-            return (bytes32(0), 0, 0, true, quantifiedResult);
+        // A concrete hint addresses the target directly; only a sentinel resolves by traversal.
+        if (!rule.isSentinel) {
+            (value, valueLength, typeCode) = _loadHintedValue(state, callData, rule, opBase);
+            return (value, valueLength, typeCode, false, false);
         }
 
         // Resolve the path to a calldata location, reading steps directly from the policy blob.
@@ -310,13 +341,105 @@ library PolicyEnforcer {
         }
     }
 
+    /// @dev Loads the value addressed by a concrete static hint.
+    function _loadHintedValue(
+        EvalState memory state,
+        bytes calldata callData,
+        RuleView memory rule,
+        uint8 opBase
+    )
+        private
+        pure
+        returns (bytes32 value, uint256 valueLength, uint8 typeCode)
+    {
+        uint256 head = state.config.baseOffset + _hintField(state.policy, rule.hintOffset, 0);
+        typeCode = _hintTypeCode(state.policy, rule.hintOffset, PF.HINT_STATIC_SIZE);
+
+        // Dynamic targets carry their length in calldata; the head slot holds the payload offset.
+        if (TypeRule.hasCalldataLength(typeCode)) {
+            require(!OpRule.isValueOp(opBase), CalldataReader.NotScalar(typeCode));
+
+            // A compilable path crosses no dynamic node, so a dynamic target is a top-level
+            // parameter and its descriptor node is that parameter's node.
+            uint256 argIndex = Be16.readUnchecked(state.policy, rule.pathStart);
+            CalldataReader.Location memory loc = CalldataReader.Location({
+                head: head,
+                base: state.config.baseOffset,
+                descOffset: Descriptor.atUnchecked(state.desc, argIndex),
+                typeCode: typeCode,
+                isDynamic: true,
+                staticSize: 0
+            });
+            return (bytes32(0), CalldataReader.loadSlice(state.desc, loc, callData).length, typeCode);
+        }
+
+        require(TypeRule.isElementary(typeCode), CalldataReader.NotScalar(typeCode));
+        value = CalldataReader.loadWord(callData, head);
+        require(TypeRule.isCanonical(value, typeCode), NonCanonicalValue(typeCode, value));
+        valueLength = 32;
+    }
+
+    /// @dev Evaluates a quantified rule through its concrete hint, addressing each element
+    /// by stride from the array data section.
+    function _evalHintedQuantifiedPath(
+        EvalState memory state,
+        bytes calldata callData,
+        RuleView memory rule
+    )
+        private
+        pure
+        returns (bool)
+    {
+        uint256 baseOffset = state.config.baseOffset;
+        uint256 arrayHead = baseOffset + _hintField(state.policy, rule.hintOffset, 0);
+        uint256 arrayBase = baseOffset + uint256(CalldataReader.loadWord(callData, arrayHead));
+        uint256 length = uint256(CalldataReader.loadWord(callData, arrayBase));
+
+        require(
+            length <= PF.MAX_QUANTIFIED_ARRAY_LENGTH, QuantifierLimitExceeded(length, PF.MAX_QUANTIFIED_ARRAY_LENGTH)
+        );
+
+        // Empty array semantics: ALL_OR_EMPTY (vacuous truth) vs ANY/ALL (false).
+        if (length == 0) return rule.quantifierType == Path.ALL_OR_EMPTY;
+
+        uint8 typeCode = _hintTypeCode(state.policy, rule.hintOffset, PF.HINT_QUANTIFIED_SIZE);
+        // A compilable quantified path targets a static element, so the target is always a scalar.
+        require(
+            TypeRule.isElementary(typeCode) && !TypeRule.hasCalldataLength(typeCode), CalldataReader.NotScalar(typeCode)
+        );
+
+        uint256 elemStride = _hintField(state.policy, rule.hintOffset, PF.HINT_ELEM_STRIDE_OFFSET);
+        uint256 target = arrayBase + 32 + _hintField(state.policy, rule.hintOffset, PF.HINT_SUFFIX_OFFSET);
+        bool isUniversal = rule.quantifierType != Path.ANY;
+
+        for (uint256 elemIndex; elemIndex < length; ++elemIndex) {
+            bytes32 value = CalldataReader.loadWord(callData, target);
+            require(TypeRule.isCanonical(value, typeCode), NonCanonicalValue(typeCode, value));
+
+            // forgefmt: disable-next-item
+            bool elemResult = _applyOperator(
+                rule.opCode, value, 32, typeCode, state.policy, rule.dataOffset, rule.dataLength
+            );
+
+            // Short-circuit.
+            if (isUniversal && !elemResult) return false;
+            if (!isUniversal && elemResult) return true;
+
+            // The element loads are bounds-checked, so the stride cannot carry the target past
+            // calldata without failing there first.
+            unchecked {
+                target += elemStride;
+            }
+        }
+
+        return isUniversal; // Universal: all passed, Existential: none passed.
+    }
+
     /// @dev Evaluates a quantified path by iterating array elements.
     function _evalQuantifiedPath(
         EvalState memory state,
         bytes calldata callData,
         RuleView memory rule,
-        uint8 quantifierIndex,
-        uint16 quantifierType,
         uint8 opBase
     )
         private
@@ -325,7 +448,7 @@ library PolicyEnforcer {
     {
         // Locate the array via the path prefix before the quantifier, then take its shape.
         CalldataReader.Location memory arrayLoc = CalldataReader.locateSteps(
-            state.desc, callData, state.policy, rule.pathStart, quantifierIndex, state.config
+            state.desc, callData, state.policy, rule.pathStart, rule.quantifierIndex, state.config
         );
         CalldataReader.ArrayShape memory shape = CalldataReader.arrayShape(state.desc, callData, arrayLoc);
 
@@ -335,12 +458,12 @@ library PolicyEnforcer {
         );
 
         // Empty array semantics: ALL_OR_EMPTY (vacuous truth) vs ANY/ALL (false).
-        if (shape.length == 0) return quantifierType == Path.ALL_OR_EMPTY;
+        if (shape.length == 0) return rule.quantifierType == Path.ALL_OR_EMPTY;
 
         QParams memory params;
         params.opBase = opBase;
-        params.hasSuffix = rule.depth > quantifierIndex + 1;
-        params.isUniversal = (quantifierType == Path.ALL_OR_EMPTY || quantifierType == Path.ALL);
+        params.hasSuffix = rule.depth > rule.quantifierIndex + 1;
+        params.isUniversal = (rule.quantifierType == Path.ALL_OR_EMPTY || rule.quantifierType == Path.ALL);
         params.opCode = rule.opCode;
         params.dataOffset = rule.dataOffset;
         params.dataLength = rule.dataLength;
@@ -367,7 +490,7 @@ library PolicyEnforcer {
             if (params.hasSuffix) {
                 // Descend through suffix path.
                 (loop.value, loop.valueLength, loop.typeCode) = _descendAndLoad(
-                    state, callData, rule.pathStart, elemLoc, quantifierIndex + 1, rule.depth, params.opBase
+                    state, callData, rule.pathStart, elemLoc, rule.quantifierIndex + 1, rule.depth, params.opBase
                 );
             } else {
                 // Element is the target.

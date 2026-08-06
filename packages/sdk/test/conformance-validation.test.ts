@@ -24,7 +24,7 @@ type Vector = {
     isSelectorless: boolean;
     selector: string;
     descriptor: string;
-    groups: { constraints: { scope: number; path: string; operators: string[] }[] }[];
+    groups: { constraints: { scope: number; path: string; operators: string[]; hint?: string }[] }[];
   };
   issues: VectorIssue[];
   builds: boolean;
@@ -43,6 +43,7 @@ function policyDataFromVector(policy: Vector["policy"]): PolicyData {
       scope: c.scope,
       path: hex(c.path),
       operators: c.operators.map((o) => hex(o)),
+      ...(c.hint !== undefined && { hint: hex(c.hint) }),
     })),
   );
   return {

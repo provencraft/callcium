@@ -7,7 +7,7 @@ description: "ABI descriptor model and coder."
 
 Inspect and navigate raw descriptor bytes.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L184)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L286)
 
 ### Methods
 
@@ -208,6 +208,29 @@ function walkPath(desc: Uint8Array, steps: number[]): object;
 **Returns**
 
 `object` — TypeInfo at the resolved path and the quantified static array length.
+
+### compileHint
+
+Compile a calldata rule path into its wire hint block.
+
+Returns the sentinel block for a path that is not compilable: one that navigates through a
+dynamic node, quantifies over anything but a dynamic array of static elements, or does not
+navigate the descriptor at all.
+
+```ts
+function compileHint(desc: Uint8Array, steps: number[]): Uint8Array;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `desc` | `Uint8Array` | Raw descriptor bytes. |
+| `steps` | `number[]` | Path steps, length >= 1. |
+
+**Returns**
+
+`Uint8Array` — The hint block bytes.
 
 ## DescriptorCoder
 

@@ -243,6 +243,8 @@ export type Constraint = {
   scope: number;
   path: Hex;
   operators: Hex[];
+  /** Compiled hint block as carried on the wire; absent when the constraint has no encoding. */
+  hint?: Hex;
   span?: Span;
 };
 
@@ -269,6 +271,8 @@ export type DecodedRule = {
   scope: Field<number>;
   pathDepth: Field<number>;
   path: Field<Hex>;
+  /** Compiled hint block; present for calldata rules only. */
+  hint?: Field<Hex>;
   opCode: Field<number>;
   dataLength: Field<number>;
   data: Field<Hex>;

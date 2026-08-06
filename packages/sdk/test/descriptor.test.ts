@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import { bytesToHex } from "../src/bytes";
 import { Quantifier, TypeCode } from "../src/constants";
 import { Descriptor } from "../src/descriptor";
 import { DescriptorCoder } from "../src/descriptor-coder";
@@ -203,5 +204,106 @@ describe("Descriptor.walkPath", () => {
     const walk = Descriptor.walkPath(desc, [0, Quantifier.ALL, 1]);
     expect(walk.typeInfo.typeCode).toBe(TypeCode.UINT_MAX);
     expect(walk.quantifiedStaticLength).toBe(4);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// compileHint
+///////////////////////////////////////////////////////////////////////////
+
+describe("Descriptor.compileHint", () => {
+  const SENTINEL = "0xffffffff00";
+
+  /** Compile the hint for `steps` against the descriptor of `typesCsv`. */
+  function compile(typesCsv: string, steps: number[]): string {
+    return bytesToHex(Descriptor.compileHint(DescriptorCoder.fromTypes(typesCsv), steps));
+  }
+
+  describe("static layout", () => {
+    test("first argument", () => {
+      expect(compile("uint256", [0])).toBe("0x0000000020");
+    });
+
+    test("second argument skips the preceding head", () => {
+      expect(compile("uint256,address", [1])).toBe("0x0000002041");
+    });
+
+    test("dynamic sibling occupies one word", () => {
+      expect(compile("bytes,uint256", [1])).toBe("0x0000002020");
+    });
+
+    test("static tuple field", () => {
+      expect(compile("(address,uint256)", [0, 1])).toBe("0x0000002020");
+    });
+
+    test("static array element", () => {
+      expect(compile("uint256[3]", [0, 2])).toBe("0x0000004020");
+    });
+
+    test("nested static tuple", () => {
+      expect(compile("((uint256,address),uint256)", [0, 0, 1])).toBe("0x0000002041");
+    });
+  });
+
+  describe("dynamic targets", () => {
+    test("bytes addresses its head slot", () => {
+      expect(compile("uint256,bytes", [1])).toBe("0x0000002070");
+    });
+
+    test("dynamic array", () => {
+      expect(compile("uint256[]", [0])).toBe("0x0000000081");
+    });
+  });
+
+  describe("quantified layout", () => {
+    test("quantifier over a dynamic array", () => {
+      expect(compile("uint256[]", [0, Quantifier.ALL])).toBe("0x00000000000000200000000020");
+    });
+
+    test("quantifier carries the array head", () => {
+      expect(compile("uint256,address[]", [1, Quantifier.ANY])).toBe("0x00000020000000200000000041");
+    });
+
+    test("quantifier with a suffix", () => {
+      expect(compile("(address,uint256)[]", [0, Quantifier.ALL_OR_EMPTY, 1])).toBe("0x00000000000000400000002020");
+    });
+  });
+
+  describe("sentinel", () => {
+    test("quantifier over a static array", () => {
+      expect(compile("uint256[3]", [0, Quantifier.ALL])).toBe(SENTINEL);
+    });
+
+    test("quantifier over dynamic elements", () => {
+      expect(compile("bytes[]", [0, Quantifier.ALL])).toBe(SENTINEL);
+    });
+
+    test("quantifier over a non-array", () => {
+      expect(compile("(address,uint256)", [0, Quantifier.ALL])).toBe(SENTINEL);
+    });
+
+    test("concrete index into a dynamic array", () => {
+      expect(compile("uint256[]", [0, 1])).toBe(SENTINEL);
+    });
+
+    test("field of a dynamic tuple", () => {
+      expect(compile("(bytes,uint256)", [0, 1])).toBe(SENTINEL);
+    });
+
+    test("argument index out of bounds", () => {
+      expect(compile("uint256", [1])).toBe(SENTINEL);
+    });
+
+    test("tuple field out of bounds", () => {
+      expect(compile("(address,uint256)", [0, 2])).toBe(SENTINEL);
+    });
+
+    test("static array index out of bounds", () => {
+      expect(compile("uint256[3]", [0, 3])).toBe(SENTINEL);
+    });
+
+    test("step into an elementary type", () => {
+      expect(compile("uint256", [0, 0])).toBe(SENTINEL);
+    });
   });
 });

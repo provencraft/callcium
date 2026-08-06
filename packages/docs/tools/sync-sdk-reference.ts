@@ -94,6 +94,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
       types: [
         "Op",
         "TypeCode",
+        "PolicyFormat",
         "Quantifier",
         "Scope",
         "ContextProperty",

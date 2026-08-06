@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import { Policy } from "src/Policy.sol";
+
 import { PolicyEnforcerHarness } from "test/harnesses/PolicyEnforcerHarness.sol";
 import { BaseTest } from "test/unit/BaseTest.sol";
 
@@ -10,6 +12,12 @@ abstract contract PolicyEnforcerTest is BaseTest {
 
     function setUp() public virtual {
         harness = new PolicyEnforcerHarness();
+    }
+
+    /// @dev Returns the offset of the hint block of the first rule in `policy`.
+    function _firstHintOffset(bytes memory policy) internal pure returns (uint256) {
+        (uint256 hintOffset,) = Policy.hintView(policy, _firstRuleOffset(policy));
+        return hintOffset;
     }
 
     /// @dev Encodes a static struct (address, uint256) into calldata.

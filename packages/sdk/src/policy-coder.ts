@@ -1,15 +1,17 @@
 import { keccak_256 } from "@noble/hashes/sha3";
 
-import { bytesToHex, hexToBytes, toHex, readU16, readU32, writeBE16 } from "./bytes";
+import { bytesToHex, hexToBytes, toHex, readU16, readU32, writeBE16, writeBE32 } from "./bytes";
 import {
   DescriptorFormat as DF,
   PolicyFormat as PF,
   Scope,
   Limits,
   Op,
+  isQuantifier,
   isValidOperatorData,
   MAX_CONTEXT_PROPERTY_ID,
 } from "./constants";
+import { Descriptor } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError } from "./errors";
 
@@ -203,7 +205,32 @@ export function decodePolicy(blob: Hex): {
         }
       }
 
-      const opCodeOffset = pathStart + pathLength;
+      // Resolve the hint block; context rules carry none.
+      const ruleEnd = ruleOffset + ruleSizeValue;
+      const hintStart = pathStart + pathLength;
+      let hintSize = 0;
+      if (scopeValue === Scope.CALLDATA) {
+        if (hintStart + PF.HINT_FIELD_SIZE > ruleEnd) {
+          throw new CallciumError("RULE_SIZE_MISMATCH", "Rule is too small to hold a hint block", ruleOffset);
+        }
+        // Size resolution precedence: a sentinel first field, then a quantifier step in the path.
+        const isSentinel = readU32(data, hintStart) === PF.HINT_SENTINEL_OFFSET;
+        const hasQuantifier = parsePathSteps(pathHex).some(isQuantifier);
+        hintSize = !isSentinel && hasQuantifier ? PF.HINT_QUANTIFIED_SIZE : PF.HINT_STATIC_SIZE;
+        if (hintStart + hintSize > ruleEnd) {
+          throw new CallciumError("RULE_SIZE_MISMATCH", "Rule is too small to hold a hint block", ruleOffset);
+        }
+        // A sentinel offset and the reserved type code appear together or not at all.
+        if (isSentinel !== (data[hintStart + hintSize - 1] === PF.HINT_TYPE_NONE)) {
+          throw new CallciumError(
+            "MALFORMED_HINT",
+            "Hint pairs a sentinel offset with a concrete type code, or the reverse",
+            ruleOffset,
+          );
+        }
+      }
+
+      const opCodeOffset = hintStart + hintSize;
       const opCodeValue = data[opCodeOffset]!;
 
       const dataLengthOffset = opCodeOffset + PF.RULE_OPCODE_SIZE;
@@ -212,7 +239,7 @@ export function decodePolicy(blob: Hex): {
       const dataStart = dataLengthOffset + PF.RULE_DATALENGTH_SIZE;
 
       // Validate ruleSize matches the computed layout.
-      const expectedRuleSize = PF.RULE_FIXED_OVERHEAD + pathLength + dataLengthValue;
+      const expectedRuleSize = PF.RULE_FIXED_OVERHEAD + pathLength + hintSize + dataLengthValue;
       if (ruleSizeValue !== expectedRuleSize) {
         throw new CallciumError(
           "RULE_SIZE_MISMATCH",
@@ -244,6 +271,9 @@ export function decodePolicy(blob: Hex): {
         scope: field(scopeValue, scopeOffset, scopeOffset + 1),
         pathDepth: field(depthValue, depthOffset, depthOffset + 1),
         path: field(pathHex, pathStart, pathStart + pathLength),
+        ...(hintSize > 0 && {
+          hint: field(toHex(data, hintStart, hintStart + hintSize), hintStart, hintStart + hintSize),
+        }),
         opCode: field(opCodeValue, opCodeOffset, opCodeOffset + PF.RULE_OPCODE_SIZE),
         dataLength: field(dataLengthValue, dataLengthOffset, dataLengthOffset + PF.RULE_DATALENGTH_SIZE),
         data: field(toHex(data, dataStart, dataStart + dataLengthValue), dataStart, dataStart + dataLengthValue),
@@ -295,15 +325,20 @@ export function decodePolicy(blob: Hex): {
 // Encoder internals
 ///////////////////////////////////////////////////////////////////////////
 
-type Rule = { scope: number; path: Uint8Array; operator: Uint8Array };
+type Rule = { scope: number; path: Uint8Array; operator: Uint8Array; hint: Uint8Array };
 
-/** Flatten a Constraint into one Rule per operator. */
-function flattenConstraint(constraint: Constraint): Rule[] {
+/** Flatten a Constraint into one Rule per operator, compiling its hint against the descriptor. */
+function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
   const path = hexToBytes(constraint.path);
+  const hint =
+    constraint.scope === Scope.CALLDATA
+      ? Descriptor.compileHint(desc, parsePathSteps(constraint.path))
+      : new Uint8Array(0);
   return constraint.operators.map((op) => ({
     scope: constraint.scope,
     path,
     operator: hexToBytes(op),
+    hint,
   }));
 }
 
@@ -349,7 +384,7 @@ function encodeRule(rule: Rule): Uint8Array {
   }
   const opCode = rule.operator[0]!;
   const data = rule.operator.subarray(1);
-  const ruleSize = PF.RULE_FIXED_OVERHEAD + rule.path.length + data.length;
+  const ruleSize = PF.RULE_FIXED_OVERHEAD + rule.path.length + rule.hint.length + data.length;
   if (ruleSize > 0xffff) {
     throw new CallciumError("RULE_SIZE_OVERFLOW", `Rule size ${ruleSize} exceeds maximum 65535`);
   }
@@ -359,7 +394,8 @@ function encodeRule(rule: Rule): Uint8Array {
   buf[2] = rule.scope;
   buf[3] = depth;
   buf.set(rule.path, 4);
-  const opOffset = 4 + rule.path.length;
+  buf.set(rule.hint, 4 + rule.path.length);
+  const opOffset = 4 + rule.path.length + rule.hint.length;
   buf[opOffset] = opCode;
   writeBE16(buf, opOffset + 1, data.length);
   buf.set(data, opOffset + 3);
@@ -397,9 +433,12 @@ function buildOperatorHex(rule: DecodedRule): Hex {
  * @returns The encoded policy as a 0x-prefixed hex string.
  */
 function encode(data: PolicyData): Hex {
-  // Flatten constraints into rules and sort within each group.
+  const descBytes = hexToBytes(data.descriptor);
+
+  // Flatten constraints into rules and sort within each group. Hints are compiled first because
+  // they are part of the rule bytes the group hash covers.
   const sortedGroups: Rule[][] = data.groups.map((group) => {
-    const rules = group.flatMap(flattenConstraint);
+    const rules = group.flatMap((constraint) => flattenConstraint(constraint, descBytes));
     sortRules(rules);
     return rules;
   });
@@ -430,7 +469,6 @@ function encode(data: PolicyData): Hex {
   groupsWithHash.sort((a, b) => compareBytes(a.hash, b.hash));
 
   // Build the binary output.
-  const descBytes = hexToBytes(data.descriptor);
   if (descBytes.length > 0xffff) {
     throw new CallciumError("DESC_LENGTH_OVERFLOW", `Descriptor length ${descBytes.length} exceeds maximum 65535`);
   }
@@ -472,10 +510,8 @@ function encode(data: PolicyData): Hex {
     offset += PF.GROUP_RULECOUNT_SIZE;
 
     // Group size (BE32).
-    out[offset++] = (g.wireBytes.length >>> 24) & 0xff;
-    out[offset++] = (g.wireBytes.length >>> 16) & 0xff;
-    out[offset++] = (g.wireBytes.length >>> 8) & 0xff;
-    out[offset++] = g.wireBytes.length & 0xff;
+    writeBE32(out, offset, g.wireBytes.length);
+    offset += PF.GROUP_SIZE_SIZE;
 
     // Rule bytes.
     out.set(g.wireBytes, offset);
@@ -499,7 +535,8 @@ function decode(blob: Hex): PolicyData {
     const constraintOrder: string[] = [];
 
     for (const rule of group.rules) {
-      const key = `${rule.scope.value}:${rule.path.value}`;
+      const hintHex = rule.hint?.value;
+      const key = `${rule.scope.value}:${rule.path.value}:${hintHex ?? ""}`;
       const opHex = buildOperatorHex(rule);
 
       const existing = constraintMap.get(key);
@@ -510,6 +547,7 @@ function decode(blob: Hex): PolicyData {
           scope: rule.scope.value,
           path: rule.path.value,
           operators: [opHex],
+          ...(hintHex !== undefined && { hint: hintHex }),
           span: rule.span,
         };
         constraintMap.set(key, constraint);

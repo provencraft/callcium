@@ -11,6 +11,9 @@ import { BaseTest } from "test/unit/BaseTest.sol";
 
 /// @dev Base contract for Policy unit tests.
 abstract contract PolicyTest is BaseTest {
+    /// @dev The sentinel hint block: a path that does not compile to concrete offsets.
+    bytes internal constant SENTINEL_HINT = hex"ffffffff00";
+
     PolicyHarness internal harness;
 
     function setUp() public virtual {
@@ -41,34 +44,11 @@ abstract contract PolicyTest is BaseTest {
         return blob;
     }
 
-    /// @dev Returns the offset of the first group header within a policy blob.
-    function _firstGroupOffset(bytes memory blob) internal pure returns (uint256) {
-        uint16 descLen = Be16.readUnchecked(blob, PF.POLICY_DESC_LENGTH_OFFSET);
-        return PF.POLICY_HEADER_PREFIX + descLen + PF.POLICY_GROUP_COUNT_SIZE;
-    }
-
-    /// @dev Returns the offset of the first rule within the first group.
-    function _firstRuleOffset(bytes memory blob) internal pure returns (uint256) {
-        return _firstGroupOffset(blob) + PF.GROUP_HEADER_SIZE;
-    }
-
     /// @dev Zeroes the 4-byte selector slot in a policy blob.
     function _zeroSelector(bytes memory blob) internal pure {
         blob[PF.POLICY_SELECTOR_OFFSET] = 0x00;
         blob[PF.POLICY_SELECTOR_OFFSET + 1] = 0x00;
         blob[PF.POLICY_SELECTOR_OFFSET + 2] = 0x00;
         blob[PF.POLICY_SELECTOR_OFFSET + 3] = 0x00;
-    }
-
-    /// @dev Writes a big-endian uint32 into `blob` at `offset`.
-    function _writeU32(bytes memory blob, uint256 offset, uint32 value) internal pure {
-        // forge-lint: disable-next-line(unsafe-typecast) casting to 'uint8' is safe because value is uint32 and the shift discards upper bits
-        blob[offset] = bytes1(uint8(value >> 24));
-        // forge-lint: disable-next-line(unsafe-typecast)
-        blob[offset + 1] = bytes1(uint8(value >> 16));
-        // forge-lint: disable-next-line(unsafe-typecast)
-        blob[offset + 2] = bytes1(uint8(value >> 8));
-        // forge-lint: disable-next-line(unsafe-typecast)
-        blob[offset + 3] = bytes1(uint8(value));
     }
 }

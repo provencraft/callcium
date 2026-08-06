@@ -77,11 +77,15 @@ contract PolicyValidatorConformanceTest is BaseTest {
                         json, string.concat(constraintPath, ".operators[", vm.toString(operatorIndex), "]")
                     );
                 }
+                string memory hintPath = string.concat(constraintPath, ".hint");
+                bytes memory hint;
+                if (vm.keyExistsJson(json, hintPath)) hint = vm.parseJsonBytes(json, hintPath);
                 // forge-lint: disable-next-line(unsafe-typecast)
                 data.groups[groupIndex][constraintIndex] = Constraint({
                     scope: uint8(vm.parseJsonUint(json, string.concat(constraintPath, ".scope"))),
                     path: vm.parseJsonBytes(json, string.concat(constraintPath, ".path")),
-                    operators: operators
+                    operators: operators,
+                    hint: hint
                 });
             }
         }

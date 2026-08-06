@@ -1456,3 +1456,60 @@ contract MalformedDescriptorTest is PolicyValidatorTest {
         PolicyValidator.validate(data);
     }
 }
+
+contract HintMismatchTest is PolicyValidatorTest {
+    /// @dev A single-argument descriptor for `foo(uint256)`.
+    function _desc() private pure returns (bytes memory) {
+        return DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+    }
+
+    /// @dev Attaches `hint` to a constraint on the first argument.
+    function _withHint(bytes memory hint) private pure returns (PolicyData memory) {
+        Constraint memory c = arg(0).eq(uint256(1));
+        c.hint = hint;
+        return _createPolicyData("foo(uint256)", _desc(), c);
+    }
+
+    function test_MatchingHint_ReturnsNoIssue() public pure {
+        Issue[] memory issues = PolicyValidator.validate(_withHint(hex"0000000020"));
+        _assertNoIssue(issues, IssueCode.HINT_MISMATCH);
+    }
+
+    function test_AbsentHint_ReturnsNoIssue() public pure {
+        Issue[] memory issues =
+            PolicyValidator.validate(_createPolicyData("foo(uint256)", _desc(), arg(0).eq(uint256(1))));
+        _assertNoIssue(issues, IssueCode.HINT_MISMATCH);
+    }
+
+    function test_DivergentOffset_ReturnsError() public pure {
+        Issue[] memory issues = PolicyValidator.validate(_withHint(hex"0000002020"));
+
+        Issue memory issue = _findIssue(issues, IssueCode.HINT_MISMATCH);
+        assertEq(issue.severity, IssueSeverity.Error);
+        assertEq(issue.category, IssueCategory.TypeMismatch);
+        assertEq(issue.groupIndex, 0);
+        assertEq(issue.constraintIndex, 0);
+    }
+
+    function test_SentinelWhereCompilable_ReturnsError() public pure {
+        _assertIssue(PolicyValidator.validate(_withHint(hex"ffffffff00")), IssueCode.HINT_MISMATCH);
+    }
+
+    function test_ConcreteWhereUnnavigable_ReturnsError() public pure {
+        Constraint memory c = arg(3).eq(uint256(1));
+        c.hint = hex"0000000020";
+
+        Issue[] memory issues = PolicyValidator.validate(_createPolicyData("foo(uint256)", _desc(), c));
+
+        _assertIssue(issues, IssueCode.HINT_MISMATCH);
+        _assertIssue(issues, IssueCode.UNNAVIGABLE_PATH);
+    }
+
+    function test_ContextConstraintHintIgnored() public pure {
+        Constraint memory c = msgSender().eq(address(1));
+        c.hint = hex"0000000020";
+
+        Issue[] memory issues = PolicyValidator.validate(_createPolicyData("foo(uint256)", _desc(), c));
+        _assertNoIssue(issues, IssueCode.HINT_MISMATCH);
+    }
+}

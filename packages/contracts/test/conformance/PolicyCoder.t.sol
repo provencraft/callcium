@@ -53,6 +53,7 @@ contract PolicyCoderConformanceTest is BaseTest {
         if (h == keccak256("InvalidContextPath")) return Policy.InvalidContextPath.selector;
         if (h == keccak256("InvalidScope")) return Policy.InvalidScope.selector;
         if (h == keccak256("MalformedHeader")) return Policy.MalformedHeader.selector;
+        if (h == keccak256("MalformedHint")) return Policy.MalformedHint.selector;
         if (h == keccak256("PathTooDeep")) return Policy.PathTooDeep.selector;
         if (h == keccak256("RuleOverflow")) return Policy.RuleOverflow.selector;
         if (h == keccak256("RuleSizeMismatch")) return Policy.RuleSizeMismatch.selector;
@@ -114,7 +115,7 @@ contract PolicyCoderConformanceTest is BaseTest {
                     bytes[] memory operators = new bytes[](1);
                     operators[0] = groups[groupIndex].rules[ruleIndex].operator;
                     // forgefmt: disable-next-item
-                    constraints[groupIndex][ruleIndex] = Constraint({ scope: groups[groupIndex].rules[ruleIndex].scope, path: groups[groupIndex].rules[ruleIndex].path, operators: operators });
+                    constraints[groupIndex][ruleIndex] = Constraint({ scope: groups[groupIndex].rules[ruleIndex].scope, path: groups[groupIndex].rules[ruleIndex].path, operators: operators, hint: "" });
                 }
             }
             PolicyData memory data;
