@@ -145,12 +145,14 @@ library PolicyEnforcer {
         view
         returns (bool ok, uint32 failingGroup, uint32 failingRule)
     {
+        // Parse the policy header once; every later field read reuses these offsets.
+        require(policy.length >= PF.POLICY_HEADER_PREFIX, Policy.MalformedHeader());
+        uint8 policyHeader = uint8(policy[PF.POLICY_HEADER_OFFSET]);
+
         // Determine base offset and validate selector if present.
         uint32 baseOffset;
-        if (Policy.isSelectorless(policy)) {
-            baseOffset = 0;
-        } else {
-            bytes4 expectedSelector = Policy.selector(policy);
+        if (policyHeader & PF.FLAG_NO_SELECTOR == 0) {
+            bytes4 expectedSelector = bytes4(LibBytes.load(policy, PF.POLICY_SELECTOR_OFFSET));
             require(callData.length >= PF.POLICY_SELECTOR_SIZE, MissingSelector());
             bytes4 actualSelector = bytes4(LibBytes.loadCalldata(callData, 0));
             require(expectedSelector == actualSelector, SelectorMismatch(expectedSelector, actualSelector));
@@ -166,11 +168,13 @@ library PolicyEnforcer {
         uint8 formatVersion = Descriptor.version(state.desc);
         require(formatVersion == DF.VERSION, Descriptor.UnsupportedVersion(formatVersion));
 
-        uint8 groups = Policy.groupCount(policy);
+        uint256 groupCountOffset = PF.POLICY_HEADER_PREFIX + state.desc.length;
+        require(policy.length >= groupCountOffset + PF.POLICY_GROUP_COUNT_SIZE, Policy.MalformedHeader());
+        uint8 groups = uint8(policy[groupCountOffset]);
         if (groups == 0) return (false, 0, 0);
 
         // Evaluate groups with OR semantics: first passing group succeeds.
-        uint256 groupOffset = Policy.groupAt(policy, 0);
+        uint256 groupOffset = groupCountOffset + PF.POLICY_GROUP_COUNT_SIZE;
         for (uint32 groupIndex; groupIndex < groups; ++groupIndex) {
             (bool groupOk, uint32 failingRuleIndex, uint256 groupEnd) = _evalGroup(state, callData, groupOffset);
             if (groupOk) return (true, 0, 0);
@@ -193,16 +197,31 @@ library PolicyEnforcer {
         view
         returns (bool groupOk, uint32 failingRule, uint256 groupEnd)
     {
-        uint32 groupSize = Policy.groupSize(state.policy, groupOffset);
-        uint16 ruleCount = Policy.ruleCount(state.policy, groupOffset);
+        // One bounds check covers the whole group header; both fields read unchecked after it.
+        require(groupOffset + PF.GROUP_HEADER_SIZE <= state.policy.length, Policy.UnexpectedEnd());
+        uint16 ruleCount = Be16.readUnchecked(state.policy, groupOffset + PF.GROUP_RULECOUNT_OFFSET);
+        uint32 groupSize = uint32(bytes4(LibBytes.load(state.policy, groupOffset + PF.GROUP_SIZE_OFFSET)));
         groupEnd = groupOffset + PF.GROUP_HEADER_SIZE + groupSize;
+        require(groupEnd <= state.policy.length, Policy.GroupOverflow(groupOffset));
 
         uint256 ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
 
+        // Each rule allocates scratch memory (RuleView, locations, slices) that dies with the
+        // rule. After each verdict, the free-memory pointer rewinds to this checkpoint so
+        // memory stays flat across rules; no reference escapes _evalRule.
+        uint256 memCheckpoint;
+        assembly ("memory-safe") {
+            memCheckpoint := mload(0x40)
+        }
         for (uint32 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-            uint16 ruleSize = Policy.ruleSize(state.policy, ruleOffset);
+            // The group bounds check above frames the rules region; the closing
+            // `ruleOffset == groupEnd` check rejects any rule that overruns it.
+            uint16 ruleSize = Be16.readUnchecked(state.policy, ruleOffset);
 
             bool ruleOk = _evalRule(state, callData, ruleOffset);
+            assembly ("memory-safe") {
+                mstore(0x40, memCheckpoint)
+            }
             if (!ruleOk) return (false, ruleIndex, groupEnd);
 
             unchecked {
@@ -257,7 +276,7 @@ library PolicyEnforcer {
 
     /// @dev Reads the type code of the hint block at `hintOffset`, sized `hintSize`.
     function _hintTypeCode(bytes memory policy, uint256 hintOffset, uint256 hintSize) private pure returns (uint8) {
-        return uint8(policy[hintOffset + hintSize - 1]);
+        return uint8(bytes1(LibBytes.load(policy, hintOffset + hintSize - 1)));
     }
 
     /// @dev Evaluates a single rule. Returns true if rule passes.
@@ -412,21 +431,30 @@ library PolicyEnforcer {
         uint256 target = arrayBase + 32 + _hintField(state.policy, rule.hintOffset, PF.HINT_SUFFIX_OFFSET);
         bool isUniversal = rule.quantifierType != Path.ANY;
 
+        // Every element shares the target type, so the canonicity spec resolves once.
+        (uint8 canonMode, uint256 canonBits) = TypeRule.canonicalSpec(typeCode);
+
+        // Targets grow monotonically by stride, so one check on the last element's word
+        // bounds every load in the loop. No term can overflow: the array base is already
+        // bounds-checked against calldata, hint fields are 32-bit, and length is capped.
+        uint256 lastWordEnd;
+        unchecked {
+            lastWordEnd = target + (length - 1) * elemStride + 32;
+        }
+        require(lastWordEnd <= callData.length, CalldataReader.CalldataOutOfBounds());
+
         for (uint256 elemIndex; elemIndex < length; ++elemIndex) {
-            bytes32 value = CalldataReader.loadWord(callData, target);
-            require(TypeRule.isCanonical(value, typeCode), NonCanonicalValue(typeCode, value));
+            bytes32 value = LibBytes.loadCalldata(callData, target);
+            require(TypeRule.checkCanonical(canonMode, canonBits, value), NonCanonicalValue(typeCode, value));
 
             // forgefmt: disable-next-item
             bool elemResult = _applyOperator(
                 rule.opCode, value, 32, typeCode, state.policy, rule.dataOffset, rule.dataLength
             );
 
-            // Short-circuit.
-            if (isUniversal && !elemResult) return false;
-            if (!isUniversal && elemResult) return true;
+            // Universal quantification short-circuits on failure, existential on success.
+            if (elemResult != isUniversal) return elemResult;
 
-            // The element loads are bounds-checked, so the stride cannot carry the target past
-            // calldata without failing there first.
             unchecked {
                 target += elemStride;
             }
@@ -518,9 +546,8 @@ library PolicyEnforcer {
                 params.dataLength
             );
 
-            // Short-circuit.
-            if (params.isUniversal && !elemResult) return false;
-            if (!params.isUniversal && elemResult) return true;
+            // Universal quantification short-circuits on failure, existential on success.
+            if (elemResult != params.isUniversal) return elemResult;
 
             assembly ("memory-safe") {
                 mstore(0x40, memCheckpoint)

@@ -137,8 +137,10 @@ library PolicyCoder {
         uint8 groupCount = Policy.groupCount(policy);
         data.groups = new Constraint[][](groupCount);
 
+        uint256 groupOffset = Policy.groupAt(policy, 0);
         for (uint32 groupIndex; groupIndex < groupCount; ++groupIndex) {
-            data.groups[groupIndex] = _decodeGroup(policy, groupIndex);
+            data.groups[groupIndex] = _decodeGroup(policy, groupOffset);
+            groupOffset += PF.GROUP_HEADER_SIZE + Policy.groupSize(policy, groupOffset);
         }
     }
 
@@ -339,9 +341,8 @@ library PolicyCoder {
             .p(LibBytes.slice(operator, 1, operator.length));
     }
 
-    /// @dev Decodes a single group from the policy blob into Constraints.
-    function _decodeGroup(bytes memory policy, uint32 groupIndex) private pure returns (Constraint[] memory) {
-        uint256 groupOffset = Policy.groupAt(policy, groupIndex);
+    /// @dev Decodes the group at `groupOffset` from the policy blob into Constraints.
+    function _decodeGroup(bytes memory policy, uint256 groupOffset) private pure returns (Constraint[] memory) {
         uint16 ruleCount = Policy.ruleCount(policy, groupOffset);
 
         if (ruleCount == 0) return new Constraint[](0);
@@ -359,28 +360,23 @@ library PolicyCoder {
         return _groupRulesIntoConstraints(rules);
     }
 
-    /// @dev Reads a single rule from the policy blob at the given offset.
+    /// @dev Reads a single rule from a validated policy blob at the given offset.
     function _readRule(bytes memory policy, uint256 ruleOffset) private pure returns (Rule memory rule) {
         rule.scope = Policy.scope(policy, ruleOffset);
         uint8 depth = Policy.pathDepth(policy, ruleOffset);
 
-        rule.path = new bytes(uint256(depth) * PF.PATH_STEP_SIZE);
-        for (uint256 i; i < depth; ++i) {
-            uint16 step = Policy.pathStep(policy, ruleOffset, i);
-            Be16.write(rule.path, i * 2, step);
-        }
+        uint256 pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
+        rule.path = LibBytes.slice(policy, pathStart, pathStart + uint256(depth) * PF.PATH_STEP_SIZE);
 
         (uint256 hintOffset, uint256 hintSize) = Policy.hintView(policy, ruleOffset);
         rule.hint = LibBytes.slice(policy, hintOffset, hintOffset + hintSize);
 
-        uint8 opCode = Policy.opCode(policy, ruleOffset);
-        (uint256 dataOffset, uint16 dataLength) = Policy.dataView(policy, ruleOffset);
-
-        rule.operator = new bytes(1 + dataLength);
-        rule.operator[0] = bytes1(opCode);
-        for (uint256 i; i < dataLength; ++i) {
-            rule.operator[1 + i] = policy[dataOffset + i];
-        }
+        // The rule is framed by prior validation, so the operator fields sit directly after the hint.
+        uint256 opCodeOffset = hintOffset + hintSize;
+        uint16 dataLength = Be16.readUnchecked(policy, opCodeOffset + PF.RULE_OPCODE_SIZE);
+        uint256 dataOffset = opCodeOffset + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
+        rule.operator =
+            abi.encodePacked(policy[opCodeOffset], LibBytes.slice(policy, dataOffset, dataOffset + dataLength));
     }
 
     /// @dev Groups rules by (scope, path, hint) into Constraints. The hint joins the key so that

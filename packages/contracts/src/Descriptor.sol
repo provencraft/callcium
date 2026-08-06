@@ -7,6 +7,7 @@ import { DescriptorFormat as DF } from "./DescriptorFormat.sol";
 import { Path } from "./Path.sol";
 import { TypeCode } from "./TypeCode.sol";
 import { TypeRule } from "./TypeRule.sol";
+import { LibBytes } from "solady/utils/LibBytes.sol";
 
 /// @title Descriptor
 /// @notice Validation and lightweight views for parameter descriptors.
@@ -151,6 +152,33 @@ library Descriptor {
         nodeLength = uint16(meta & DF.META_NODE_LENGTH_MASK);
     }
 
+    /// @notice Reads the type code and composite meta at `offset` without bounds checks.
+    /// @dev Caller must ensure `offset` starts a node within a validated descriptor. The meta
+    /// fields are meaningful only for composite codes; elementary codes carry none.
+    /// @param self The descriptor bytes.
+    /// @param offset Start offset of a type descriptor within `self`.
+    /// @return code The type code byte.
+    /// @return staticWords Static size in 32-byte words (0 means dynamic).
+    /// @return nodeLength Total bytes for this node's descriptor subtree.
+    function peekUnchecked(
+        bytes memory self,
+        uint256 offset
+    )
+        internal
+        pure
+        returns (uint8 code, uint16 staticWords, uint16 nodeLength)
+    {
+        uint256 word = uint256(LibBytes.load(self, offset));
+        // forge-lint: disable-next-line(unsafe-typecast)
+        code = uint8(word >> (256 - 8 * DF.TYPECODE_SIZE));
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint24 meta = uint24(word >> (256 - 8 * (DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE)));
+        // forge-lint: disable-next-line(unsafe-typecast)
+        staticWords = uint16(meta >> DF.META_STATIC_WORDS_SHIFT);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        nodeLength = uint16(meta & DF.META_NODE_LENGTH_MASK);
+    }
+
     /// @notice Inspects type descriptor at offset. Returns code, dynamic/static info, and next offset.
     /// @param self The descriptor bytes.
     /// @param offset Start offset of a type descriptor within `self`.
@@ -167,7 +195,11 @@ library Descriptor {
         returns (uint8 code, bool isDynamic, uint32 staticSize, uint256 next)
     {
         require(offset < self.length, UnexpectedEnd());
-        code = uint8(self[offset]);
+
+        // One word covers the type code and, for composites, the 3-byte meta after it.
+        uint256 word = uint256(LibBytes.load(self, offset));
+        // forge-lint: disable-next-line(unsafe-typecast)
+        code = uint8(word >> (256 - 8 * DF.TYPECODE_SIZE));
 
         // Elementary types: no header, derive from type code.
         if (TypeRule.isElementary(code)) {
@@ -179,9 +211,14 @@ library Descriptor {
         // Unknown type codes revert before attempting to read composite meta.
         require(TypeRule.isComposite(code), UnknownTypeCode(code));
 
-        // Composite types: read 3-byte meta after type code.
+        // Composite types: decode the 3-byte meta after the type code.
         require(offset + DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE <= self.length, UnexpectedEnd());
-        (uint16 staticWords, uint16 nodeLength) = decodeMeta(self, offset + DF.TYPECODE_SIZE);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint24 meta = uint24(word >> (256 - 8 * (DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE)));
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint16 staticWords = uint16(meta >> DF.META_STATIC_WORDS_SHIFT);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint16 nodeLength = uint16(meta & DF.META_NODE_LENGTH_MASK);
 
         // Validate nodeLength covers at least the composite header.
         uint256 minHeader = (code == TypeCode.TUPLE) ? DF.TUPLE_HEADER_SIZE : DF.ARRAY_HEADER_SIZE;

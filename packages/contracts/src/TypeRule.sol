@@ -6,6 +6,31 @@ import { TypeCode } from "./TypeCode.sol";
 /// @title TypeRule
 /// @notice Single source of truth for ABI type properties and validation rules.
 library TypeRule {
+    /// @dev Bitmap with bit `code` set for every elementary type code.
+    /// Type codes fit in a uint8, so one word indexes the whole code space.
+    // forge-lint: disable-next-item(incorrect-shift) bit-index masks over the type code space
+    uint256 private constant ELEMENTARY_MASK = ((1 << (uint256(TypeCode.FUNCTION) + 1)) - (1 << TypeCode.UINT8))
+        | ((1 << (uint256(TypeCode.STRING) + 1)) - (1 << TypeCode.BYTES1));
+
+    /// @dev Bitmap with bit `code` set for every composite type code.
+    // forge-lint: disable-next-item(incorrect-shift) bit-index masks over the type code space
+    uint256 private constant COMPOSITE_MASK =
+        (1 << TypeCode.STATIC_ARRAY) | (1 << TypeCode.DYNAMIC_ARRAY) | (1 << TypeCode.TUPLE);
+
+    /// @dev Bitmap with bit `code` set for every type with a calldata-encoded length prefix.
+    // forge-lint: disable-next-item(incorrect-shift) bit-index masks over the type code space
+    uint256 private constant CALLDATA_LENGTH_MASK =
+        (1 << TypeCode.BYTES) | (1 << TypeCode.STRING) | (1 << TypeCode.DYNAMIC_ARRAY);
+
+    /// @dev Canonicity mode: right-aligned value, canonical iff no bits above the width.
+    uint8 internal constant CANON_RIGHT = 0;
+
+    /// @dev Canonicity mode: left-aligned value, canonical iff no bits below the payload.
+    uint8 internal constant CANON_LEFT = 1;
+
+    /// @dev Canonicity mode: signed integer, canonical iff sign extension is the identity.
+    uint8 internal constant CANON_SIGNED = 2;
+
     /*/////////////////////////////////////////////////////////////////////////
                                      FUNCTIONS
     /////////////////////////////////////////////////////////////////////////*/
@@ -14,33 +39,28 @@ library TypeRule {
     /// @param code The code to test.
     /// @return True if the type has a calldata-encoded length prefix.
     function hasCalldataLength(uint8 code) internal pure returns (bool) {
-        return code == TypeCode.BYTES || code == TypeCode.STRING || code == TypeCode.DYNAMIC_ARRAY;
+        return (CALLDATA_LENGTH_MASK >> code) & 1 != 0;
     }
 
     /// @notice Returns true if `code` is any recognized type code byte (elementary or composite marker).
     /// @param code The code to test.
     /// @return True if the code is a valid type code.
     function isValid(uint8 code) internal pure returns (bool) {
-        return isElementary(code) || isComposite(code);
+        return ((ELEMENTARY_MASK | COMPOSITE_MASK) >> code) & 1 != 0;
     }
 
     /// @notice Returns true if `code` is a composite type marker (array or tuple).
     /// @param code The code to test.
     /// @return True if the code is a composite type.
     function isComposite(uint8 code) internal pure returns (bool) {
-        return code == TypeCode.STATIC_ARRAY || code == TypeCode.DYNAMIC_ARRAY || code == TypeCode.TUPLE;
+        return (COMPOSITE_MASK >> code) & 1 != 0;
     }
 
     /// @notice Returns true if `code` is a single-byte elementary type (fully specified by one byte).
     /// @param code The code to test.
     /// @return True if the code is an elementary type.
     function isElementary(uint8 code) internal pure returns (bool) {
-        // forgefmt: disable-next-item
-        return (code >= TypeCode.UINT8 && code <= TypeCode.UINT256)
-            || (code >= TypeCode.INT8 && code <= TypeCode.INT256)
-            || (code == TypeCode.ADDRESS || code == TypeCode.BOOL || code == TypeCode.FUNCTION)
-            || (code >= TypeCode.BYTES1 && code <= TypeCode.BYTES32)
-            || (code == TypeCode.BYTES || code == TypeCode.STRING);
+        return (ELEMENTARY_MASK >> code) & 1 != 0;
     }
 
     /// @notice Returns true if `code` is a signed integer type (int8 through int256).
@@ -106,12 +126,67 @@ library TypeRule {
         return value;
     }
 
+    /// @notice Returns the canonicity predicate parameters for a type.
+    /// @dev The (mode, bits) pair fully determines canonicity of any word of the type, so
+    /// callers checking many words of one type resolve the spec once and apply
+    /// `checkCanonical` per word. A shift of 256 yields zero, so width-256 types and
+    /// unrecognized codes resolve to a spec that accepts every word.
+    /// @param typeCode The type code to resolve.
+    /// @return mode The predicate mode (CANON_RIGHT, CANON_LEFT, or CANON_SIGNED).
+    /// @return bits The shift width, or the sign byte index for CANON_SIGNED.
+    function canonicalSpec(uint8 typeCode) internal pure returns (uint8 mode, uint256 bits) {
+        unchecked {
+            // Unsigned integers: right-aligned at the declared width.
+            if (typeCode >= TypeCode.UINT8 && typeCode <= TypeCode.UINT256) {
+                return (CANON_RIGHT, uint256(typeCode) << 3);
+            }
+
+            // Signed integers: sign extension from the type's most significant byte.
+            if (typeCode >= TypeCode.INT8 && typeCode <= TypeCode.INT256) {
+                return (CANON_SIGNED, uint256(typeCode - TypeCode.INT8));
+            }
+
+            // Address: right-aligned at 160 bits. Boolean: right-aligned at 1 bit (zero or one).
+            if (typeCode == TypeCode.ADDRESS) return (CANON_RIGHT, 160);
+            if (typeCode == TypeCode.BOOL) return (CANON_RIGHT, 1);
+
+            // Function pointer: encoded identical to bytes24, left-aligned with 8 padding bytes.
+            if (typeCode == TypeCode.FUNCTION) return (CANON_LEFT, 192);
+
+            // Fixed bytes: left-aligned at N payload bytes.
+            if (typeCode >= TypeCode.BYTES1 && typeCode <= TypeCode.BYTES32) {
+                return (CANON_LEFT, (uint256(typeCode) - uint256(TypeCode.BYTES1) + 1) << 3);
+            }
+
+            return (CANON_RIGHT, 256);
+        }
+    }
+
+    /// @notice Returns whether `value` satisfies the canonicity spec from `canonicalSpec`.
+    /// @param mode The predicate mode (CANON_RIGHT, CANON_LEFT, or CANON_SIGNED).
+    /// @param bits The shift width, or the sign byte index for CANON_SIGNED.
+    /// @param value The raw 32-byte word.
+    /// @return True if the word carries no bits outside the spec's declared encoding.
+    function checkCanonical(uint8 mode, uint256 bits, bytes32 value) internal pure returns (bool) {
+        // Right-aligned: no bits above the width. Left-aligned: no bits below the payload.
+        if (mode == CANON_RIGHT) return uint256(value) >> bits == 0;
+        if (mode == CANON_LEFT) return uint256(value) << bits == 0;
+
+        // Signed: canonical words are fixed points of sign extension.
+        bytes32 extended;
+        assembly {
+            extended := signextend(bits, value)
+        }
+        return extended == value;
+    }
+
     /// @notice Returns whether a raw 32-byte word is the canonical encoding of the given type.
     /// @param value The raw 32-byte word.
     /// @param typeCode The type code of the value.
     /// @return True if the word carries no bits outside the type's declared encoding.
     function isCanonical(bytes32 value, uint8 typeCode) internal pure returns (bool) {
-        return canonicalize(value, typeCode) == value;
+        (uint8 mode, uint256 bits) = canonicalSpec(typeCode);
+        return checkCanonical(mode, bits, value);
     }
 
     /// @notice Returns the physical limits of a numeric type.

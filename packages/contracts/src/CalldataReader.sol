@@ -507,7 +507,10 @@ library CalldataReader {
 
             uint256 fieldDescOffset = descOffset + DF.TUPLE_HEADER_SIZE;
             for (uint256 i; i < childIndex; ++i) {
-                uint8 fieldCode = uint8(desc[fieldDescOffset]);
+                // A validated descriptor bounds every field node, so the skip loop reads
+                // each field's code and meta with a single unchecked word load.
+                (uint8 fieldCode, uint16 fieldStaticWords, uint16 nodeLength) =
+                    Descriptor.peekUnchecked(desc, fieldDescOffset);
                 uint256 fieldNodeLength;
                 uint256 headContrib;
 
@@ -515,7 +518,6 @@ library CalldataReader {
                     headContrib = 32;
                     fieldNodeLength = 1;
                 } else {
-                    (uint16 fieldStaticWords, uint16 nodeLength) = Descriptor.decodeMeta(desc, fieldDescOffset + 1);
                     fieldNodeLength = nodeLength;
                     // Dynamic fields (staticWords == 0) still occupy one 32-byte head slot for their offset pointer.
                     uint256 words = fieldStaticWords == 0 ? 1 : uint256(fieldStaticWords);
