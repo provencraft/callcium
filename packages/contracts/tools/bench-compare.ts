@@ -1,3 +1,18 @@
+// Compares the current gas snapshots against the saved baseline.
+//
+// Reading the output: gas snapshots are deterministic, so the same build and the same calldata
+// always produce the same number. Every delta below is a real cost change, never sampling
+// error — the open question is attribution, not significance.
+//
+// - Deltas on rows a change did not target are signal, not noise. `via_ir` inlining is
+//   budget-driven, so adding call sites to a shared internal function can push it past the
+//   budget and de-inline it for every caller, moving rows the change never touched.
+// - A shift under ~50 gas on one untouched row is usually code layout — jump destinations and
+//   PUSH widths — and rarely repays investigation alone. The same small shift repeated across
+//   many rows is an inlining change and does.
+// - Each snapshot includes the harness call frame, so on cheap scenarios the reported
+//   percentage understates the change to the library itself.
+
 import { readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, basename } from "node:path";

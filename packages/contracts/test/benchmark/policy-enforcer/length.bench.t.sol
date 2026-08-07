@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { arg } from "src/Constraint.sol";
+import { Policy } from "src/Policy.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
 import { PolicyEnforcerTest } from "test/unit/PolicyEnforcer.t.sol";
@@ -20,6 +21,9 @@ contract LengthBench is PolicyEnforcerTest {
 
         policyBytes = PolicyBuilder.create("foo(bytes)").add(arg(0).lengthGte(1)).buildUnsafe();
         callDataBytes = abi.encodeWithSignature("foo(bytes)", hex"01");
+
+        Policy.validate(policyArray);
+        Policy.validate(policyBytes);
     }
 
     function test_LengthArray() public {

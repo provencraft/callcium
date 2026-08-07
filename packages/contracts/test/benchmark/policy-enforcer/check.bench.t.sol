@@ -10,48 +10,39 @@ contract CheckBench is PolicyEnforcerBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_Groups1() public {
-        harness.check(groups1Pass.policy, groups1Pass.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "groups_1");
+        _benchCheckPasses(groups1Pass, "groups_1");
     }
 
-    function test_Groups2_PassEarly() public {
-        harness.check(groups2PassEarly.policy, groups2PassEarly.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "groups_2_pass_early");
+    function test_Groups2_PassFirst() public {
+        _benchCheckPasses(groups2PassFirst, "groups_2_pass_first");
     }
 
-    function test_Groups2_PassLate() public {
-        harness.check(groups2PassLate.policy, groups2PassLate.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "groups_2_pass_late");
+    function test_Groups2_PassLast() public {
+        _benchCheckPasses(groups2PassLast, "groups_2_pass_last");
     }
 
-    function test_Groups4_PassEarly() public {
-        harness.check(groups4PassEarly.policy, groups4PassEarly.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "groups_4_pass_early");
+    function test_Groups4_PassFirst() public {
+        _benchCheckPasses(groups4PassFirst, "groups_4_pass_first");
     }
 
-    function test_Groups4_PassLate() public {
-        harness.check(groups4PassLate.policy, groups4PassLate.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "groups_4_pass_late");
+    function test_Groups4_PassLast() public {
+        _benchCheckPasses(groups4PassLast, "groups_4_pass_last");
     }
 
-    function test_Groups8_PassEarly() public {
-        harness.check(groups8PassEarly.policy, groups8PassEarly.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "groups_8_pass_early");
+    function test_Groups8_PassFirst() public {
+        _benchCheckPasses(groups8PassFirst, "groups_8_pass_first");
     }
 
-    function test_Groups8_PassLate() public {
-        harness.check(groups8PassLate.policy, groups8PassLate.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "groups_8_pass_late");
+    function test_Groups8_PassLast() public {
+        _benchCheckPasses(groups8PassLast, "groups_8_pass_last");
     }
 
-    function test_Groups16_PassEarly() public {
-        harness.check(groups16PassEarly.policy, groups16PassEarly.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "groups_16_pass_early");
+    function test_Groups16_PassFirst() public {
+        _benchCheckPasses(groups16PassFirst, "groups_16_pass_first");
     }
 
-    function test_Groups16_PassLate() public {
-        harness.check(groups16PassLate.policy, groups16PassLate.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "groups_16_pass_late");
+    function test_Groups16_PassLast() public {
+        _benchCheckPasses(groups16PassLast, "groups_16_pass_last");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -59,43 +50,35 @@ contract CheckBench is PolicyEnforcerBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_Rules1() public {
-        harness.check(rules1Pass.policy, rules1Pass.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "rules_1");
+        _benchCheckPasses(rules1Pass, "rules_1");
     }
 
     function test_Rules4_AllPass() public {
-        harness.check(rules4AllPass.policy, rules4AllPass.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "rules_4_all_pass");
+        _benchCheckPasses(rules4AllPass, "rules_4_all_pass");
     }
 
     function test_Rules4_FailFirst() public {
-        harness.check(rules4FailFirst.policy, rules4FailFirst.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "rules_4_fail_first");
+        _benchCheckFails(rules4FailFirst, "rules_4_fail_first");
     }
 
     function test_Rules4_FailLast() public {
-        harness.check(rules4FailLast.policy, rules4FailLast.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "rules_4_fail_last");
+        _benchCheckFails(rules4FailLast, "rules_4_fail_last");
     }
 
     function test_Rules8_AllPass() public {
-        harness.check(rules8AllPass.policy, rules8AllPass.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "rules_8_all_pass");
+        _benchCheckPasses(rules8AllPass, "rules_8_all_pass");
     }
 
     function test_Rules8_FailMiddle() public {
-        harness.check(rules8FailMiddle.policy, rules8FailMiddle.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "rules_8_fail_middle");
+        _benchCheckFails(rules8FailMiddle, "rules_8_fail_middle");
     }
 
     function test_Rules16_AllPass() public {
-        harness.check(rules16AllPass.policy, rules16AllPass.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "rules_16_all_pass");
+        _benchCheckPasses(rules16AllPass, "rules_16_all_pass");
     }
 
     function test_Rules32_AllPass() public {
-        harness.check(rules32AllPass.policy, rules32AllPass.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "rules_32_all_pass");
+        _benchCheckPasses(rules32AllPass, "rules_32_all_pass");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -103,38 +86,31 @@ contract CheckBench is PolicyEnforcerBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_Depth1_Elementary() public {
-        harness.check(depth1Elementary.policy, depth1Elementary.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "depth_1_elementary");
+        _benchCheckPasses(depth1Elementary, "depth_1_elementary");
     }
 
     function test_Depth2_StructField() public {
-        harness.check(depth2StructField.policy, depth2StructField.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "depth_2_struct_field");
+        _benchCheckPasses(depth2StructField, "depth_2_struct_field");
     }
 
     function test_Depth3_NestedStruct() public {
-        harness.check(depth3NestedStruct.policy, depth3NestedStruct.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "depth_3_nested_struct");
+        _benchCheckPasses(depth3NestedStruct, "depth_3_nested_struct");
     }
 
     function test_Depth4_DeepNested() public {
-        harness.check(depth4DeepNested.policy, depth4DeepNested.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "depth_4_deep_nested");
+        _benchCheckPasses(depth4DeepNested, "depth_4_deep_nested");
     }
 
     function test_Depth8_VeryDeep() public {
-        harness.check(depth8VeryDeep.policy, depth8VeryDeep.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "depth_8_very_deep");
+        _benchCheckPasses(depth8VeryDeep, "depth_8_very_deep");
     }
 
     function test_Depth2_ArrayElem() public {
-        harness.check(depth2ArrayElem.policy, depth2ArrayElem.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "depth_2_array_elem");
+        _benchCheckPasses(depth2ArrayElem, "depth_2_array_elem");
     }
 
     function test_Depth3_ArrayStructField() public {
-        harness.check(depth3ArrayStructField.policy, depth3ArrayStructField.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "depth_3_array_struct_field");
+        _benchCheckPasses(depth3ArrayStructField, "depth_3_array_struct_field");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -142,98 +118,79 @@ contract CheckBench is PolicyEnforcerBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_OpEq() public {
-        harness.check(opEq.policy, opEq.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_eq");
+        _benchCheckPasses(opEq, "op_eq");
     }
 
     function test_OpGt() public {
-        harness.check(opGt.policy, opGt.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_gt");
+        _benchCheckPasses(opGt, "op_gt");
     }
 
     function test_OpLt() public {
-        harness.check(opLt.policy, opLt.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_lt");
+        _benchCheckPasses(opLt, "op_lt");
     }
 
     function test_OpGte() public {
-        harness.check(opGte.policy, opGte.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_gte");
+        _benchCheckPasses(opGte, "op_gte");
     }
 
     function test_OpLte() public {
-        harness.check(opLte.policy, opLte.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_lte");
+        _benchCheckPasses(opLte, "op_lte");
     }
 
     function test_OpBetween() public {
-        harness.check(opBetween.policy, opBetween.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_between");
+        _benchCheckPasses(opBetween, "op_between");
     }
 
     function test_OpIn_2Members() public {
-        harness.check(opIn2.policy, opIn2.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_in_2");
+        _benchCheckPasses(opIn2, "op_in_2");
     }
 
     function test_OpIn_4Members() public {
-        harness.check(opIn4.policy, opIn4.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_in_4");
+        _benchCheckPasses(opIn4, "op_in_4");
     }
 
     function test_OpIn_6Members() public {
-        harness.check(opIn6.policy, opIn6.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_in_6");
+        _benchCheckPasses(opIn6, "op_in_6");
     }
 
     function test_OpIn_8Members() public {
-        harness.check(opIn8.policy, opIn8.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_in_8");
+        _benchCheckPasses(opIn8, "op_in_8");
     }
 
     function test_OpIn_16Members() public {
-        harness.check(opIn16.policy, opIn16.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_in_16");
+        _benchCheckPasses(opIn16, "op_in_16");
     }
 
     function test_OpIn_32Members() public {
-        harness.check(opIn32.policy, opIn32.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_in_32");
+        _benchCheckPasses(opIn32, "op_in_32");
     }
 
     function test_OpIn_64Members() public {
-        harness.check(opIn64.policy, opIn64.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_in_64");
+        _benchCheckPasses(opIn64, "op_in_64");
     }
 
     function test_OpIn_128Members() public {
-        harness.check(opIn128.policy, opIn128.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_in_128");
+        _benchCheckPasses(opIn128, "op_in_128");
     }
 
     function test_OpBitmaskAll() public {
-        harness.check(opBitmaskAll.policy, opBitmaskAll.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_bitmask_all");
+        _benchCheckPasses(opBitmaskAll, "op_bitmask_all");
     }
 
     function test_OpBitmaskAny() public {
-        harness.check(opBitmaskAny.policy, opBitmaskAny.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_bitmask_any");
+        _benchCheckPasses(opBitmaskAny, "op_bitmask_any");
     }
 
     function test_OpBitmaskNone() public {
-        harness.check(opBitmaskNone.policy, opBitmaskNone.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_bitmask_none");
+        _benchCheckPasses(opBitmaskNone, "op_bitmask_none");
     }
 
     function test_OpNotEq() public {
-        harness.check(opNotEq.policy, opNotEq.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_not_eq");
+        _benchCheckPasses(opNotEq, "op_not_eq");
     }
 
     function test_OpNotIn_4Members() public {
-        harness.check(opNotIn4.policy, opNotIn4.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "op_not_in_4");
+        _benchCheckPasses(opNotIn4, "op_not_in_4");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -241,43 +198,35 @@ contract CheckBench is PolicyEnforcerBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_ScopeCalldataOnly() public {
-        harness.check(scopeCalldataOnly.policy, scopeCalldataOnly.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "scope_calldata_only");
+        _benchCheckPasses(scopeCalldataOnly, "scope_calldata_only");
     }
 
     function test_ScopeContextOnly() public {
-        harness.check(scopeContextOnly.policy, scopeContextOnly.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "scope_context_only");
+        _benchCheckPasses(scopeContextOnly, "scope_context_only");
     }
 
     function test_ScopeMixed() public {
-        harness.check(scopeMixed.policy, scopeMixed.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "scope_mixed");
+        _benchCheckPasses(scopeMixed, "scope_mixed");
     }
 
     function test_CtxMsgSender() public {
-        harness.check(scopeCtxMsgSender.policy, scopeCtxMsgSender.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "ctx_msg_sender");
+        _benchCheckPasses(scopeCtxMsgSender, "ctx_msg_sender");
     }
 
     function test_CtxMsgValue() public {
-        harness.check(scopeCtxMsgValue.policy, scopeCtxMsgValue.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "ctx_msg_value");
+        _benchCheckPasses(scopeCtxMsgValue, "ctx_msg_value");
     }
 
     function test_CtxTimestamp() public {
-        harness.check(scopeCtxTimestamp.policy, scopeCtxTimestamp.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "ctx_timestamp");
+        _benchCheckPasses(scopeCtxTimestamp, "ctx_timestamp");
     }
 
     function test_CtxBlockNumber() public {
-        harness.check(scopeCtxBlockNumber.policy, scopeCtxBlockNumber.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "ctx_block_number");
+        _benchCheckPasses(scopeCtxBlockNumber, "ctx_block_number");
     }
 
     function test_CtxChainId() public {
-        harness.check(scopeCtxChainId.policy, scopeCtxChainId.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "ctx_chain_id");
+        _benchCheckPasses(scopeCtxChainId, "ctx_chain_id");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -285,43 +234,47 @@ contract CheckBench is PolicyEnforcerBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_TypeElementary() public {
-        harness.check(typeElementary.policy, typeElementary.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "type_elementary");
+        _benchCheckPasses(typeElementary, "type_elementary");
     }
 
     function test_TypeAddress() public {
-        harness.check(typeAddress.policy, typeAddress.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "type_address");
+        _benchCheckPasses(typeAddress, "type_address");
     }
 
     function test_TypeBytes32() public {
-        harness.check(typeBytes32.policy, typeBytes32.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "type_bytes32");
+        _benchCheckPasses(typeBytes32, "type_bytes32");
     }
 
     function test_TypeStaticStruct() public {
-        harness.check(typeStaticStruct.policy, typeStaticStruct.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "type_static_struct");
+        _benchCheckPasses(typeStaticStruct, "type_static_struct");
     }
 
     function test_TypeDynStructStatic() public {
-        harness.check(typeDynStructStatic.policy, typeDynStructStatic.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "type_dyn_struct_static");
+        _benchCheckPasses(typeDynStructStatic, "type_dyn_struct_static");
     }
 
     function test_TypeArrayElement() public {
-        harness.check(typeArrayElement.policy, typeArrayElement.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "type_array_element");
+        _benchCheckPasses(typeArrayElement, "type_array_element");
     }
 
     function test_TypeStaticArrayElem() public {
-        harness.check(typeStaticArrayElem.policy, typeStaticArrayElem.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "type_static_array_elem");
+        _benchCheckPasses(typeStaticArrayElem, "type_static_array_elem");
     }
 
     function test_TypeLargeTupleField() public {
-        harness.check(typeLargeTupleField.policy, typeLargeTupleField.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "type_large_tuple_field");
+        _benchCheckPasses(typeLargeTupleField, "type_large_tuple_field");
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                              SENTINEL RULES
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_SentinelRules1() public {
+        _benchCheckPasses(sentinelRules1, "sentinel_rules_1");
+    }
+
+    function test_SentinelRules4() public {
+        _benchCheckPasses(sentinelRules4, "sentinel_rules_4");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -329,22 +282,18 @@ contract CheckBench is PolicyEnforcerBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_LengthEq_DynArray() public {
-        harness.check(lengthEqDynArray.policy, lengthEqDynArray.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "length_eq_dyn_array");
+        _benchCheckPasses(lengthEqDynArray, "length_eq_dyn_array");
     }
 
     function test_LengthGt_DynArray() public {
-        harness.check(lengthGtDynArray.policy, lengthGtDynArray.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "length_gt_dyn_array");
+        _benchCheckPasses(lengthGtDynArray, "length_gt_dyn_array");
     }
 
     function test_LengthBetween_Bytes() public {
-        harness.check(lengthBetweenBytes.policy, lengthBetweenBytes.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "length_between_bytes");
+        _benchCheckPasses(lengthBetweenBytes, "length_between_bytes");
     }
 
     function test_LengthLt_BytesEmpty() public {
-        harness.check(lengthLtBytesEmpty.policy, lengthLtBytesEmpty.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", "length_lt_bytes_empty");
+        _benchCheckPasses(lengthLtBytesEmpty, "length_lt_bytes_empty");
     }
 }

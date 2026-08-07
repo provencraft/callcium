@@ -8,6 +8,12 @@ import { BaseTest } from "test/unit/BaseTest.sol";
 
 /// @dev Base contract for PolicyEnforcer unit tests.
 abstract contract PolicyEnforcerTest is BaseTest {
+    /// @dev Array element with a dynamic member, so the element type is dynamic.
+    struct UintWithBytes {
+        uint256 value;
+        bytes payload;
+    }
+
     PolicyEnforcerHarness internal harness;
 
     function setUp() public virtual {
@@ -24,6 +30,12 @@ abstract contract PolicyEnforcerTest is BaseTest {
     function _encodeStruct2(address addr, uint256 val) internal pure returns (bytes memory) {
         bytes memory data = abi.encodeWithSignature("foo((address,uint256))");
         return abi.encodePacked(data, bytes32(uint256(uint160(addr))), bytes32(val));
+    }
+
+    /// @dev Encodes a call whose sole argument is a dynamic tuple, given the tuple's inline
+    /// encoding. A dynamic argument occupies one head slot holding the offset of that encoding.
+    function _encodeDynTupleArg(string memory sig, bytes memory tupleBody) internal pure returns (bytes memory) {
+        return abi.encodePacked(abi.encodeWithSignature(sig), uint256(0x20), tupleBody);
     }
 
     /// @dev Encodes a nested struct ((address, uint256), uint256) into calldata.
