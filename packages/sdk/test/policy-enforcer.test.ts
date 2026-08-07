@@ -88,6 +88,23 @@ function encodeStaticUint256Array3(first: bigint, second: bigint, third: bigint)
   return `0x${word(first)}${word(second)}${word(third)}`;
 }
 
+/** Encode a selectorless calldata blob containing a dynamic int256 array. */
+function encodeDynamicInt256Array(elements: bigint[]): Hex {
+  return encodeDynamicUint256Array(elements.map((elem) => BigInt.asUintN(256, elem)));
+}
+
+/** Encode a selectorless calldata blob containing a dynamic bytes array; elements are hex bodies of at most 32 bytes. */
+function encodeDynamicBytesArray(elements: string[]): Hex {
+  let heads = "";
+  let tails = "";
+  const headSize = elements.length * 32;
+  for (const elem of elements) {
+    heads += word(BigInt(headSize + tails.length / 2));
+    tails += word(BigInt(elem.length / 2)) + elem.padEnd(64, "0");
+  }
+  return `0x${word(32n)}${word(BigInt(elements.length))}${heads}${tails}`;
+}
+
 /** Encode selectorless calldata for (uint256,address)[] with given tuples. */
 function encodeTupleArray(tuples: Array<{ amount: bigint; addr: bigint }>): Hex {
   let body = word(32n) + word(BigInt(tuples.length));
@@ -106,7 +123,7 @@ function craftPolicy(opts: {
   pathHex: string;
   opCode: number;
   dataHex: string;
-  /** Hint block; the sentinel by default, which resolves the rule by traversal. */
+  /** Hint block; defaults to a hop-free block addressing a uint256 first argument. */
   hintHex?: string;
 }): Hex {
   const desc = opts.descriptor;
@@ -115,7 +132,7 @@ function craftPolicy(opts: {
   const depth = pathBytes.length / 4;
   const dataBytes = opts.dataHex;
   const dataLen = dataBytes.length / 2;
-  const hintBytes = opts.scope === Scope.CALLDATA ? (opts.hintHex ?? "ffffffff00") : "";
+  const hintBytes = opts.scope === Scope.CALLDATA ? (opts.hintHex ?? "0000000000000020") : "";
   const ruleSize = 7 + depth * 2 + hintBytes.length / 2 + dataLen;
 
   const rule =
@@ -194,18 +211,25 @@ describe("enforce", () => {
   });
 
   describe("multi-group (OR semantics)", () => {
-    test("passes when first group matches", () => {
+    // Groups sort by hash, so the group holding each operand is derived from the built policy.
+    function groupIndexOf(operand: bigint): number {
+      return PolicyCoder.decode(POLICY_MULTI_GROUP).groups.findIndex((group) =>
+        group[0].operators[0].endsWith(word(operand)),
+      );
+    }
+
+    test("passes when the eq(2) group matches", () => {
       const callData = encodeUint256(SELECTOR, 2n);
       const result = PolicyEnforcer.check(POLICY_MULTI_GROUP, callData);
       assertPassed(result);
-      expect(result.matchedGroup).toBe(0);
+      expect(result.matchedGroup).toBe(groupIndexOf(2n));
     });
 
-    test("passes when second group matches", () => {
+    test("passes when the eq(1) group matches", () => {
       const callData = encodeUint256(SELECTOR, 1n);
       const result = PolicyEnforcer.check(POLICY_MULTI_GROUP, callData);
       assertPassed(result);
-      expect(result.matchedGroup).toBe(1);
+      expect(result.matchedGroup).toBe(groupIndexOf(1n));
     });
 
     test("fails when no group matches", () => {
@@ -487,6 +511,152 @@ describe("enforce - quantifier edge cases", () => {
     const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n]));
     const violation = firstViolation(result, "VALUE_MISMATCH");
     expect(violation.elementIndex).toBeUndefined();
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Quantified operator coverage
+///////////////////////////////////////////////////////////////////////////
+
+describe("enforce - quantified value operators", () => {
+  test("ALL lt passes and rejects an element at the bound", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lt(4n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n])));
+
+    const failing = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lt(3n)).build();
+    firstViolation(PolicyEnforcer.check(failing, encodeDynamicUint256Array([1n, 2n, 3n])), "VALUE_MISMATCH");
+  });
+
+  test("ALL gte passes and rejects an element below the bound", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gte(1n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n])));
+
+    const failing = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gte(2n)).build();
+    firstViolation(PolicyEnforcer.check(failing, encodeDynamicUint256Array([1n, 2n, 3n])), "VALUE_MISMATCH");
+  });
+
+  test("ALL lte passes and rejects an element above the bound", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lte(3n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n])));
+
+    const failing = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lte(2n)).build();
+    firstViolation(PolicyEnforcer.check(failing, encodeDynamicUint256Array([1n, 2n, 3n])), "VALUE_MISMATCH");
+  });
+
+  test("ALL between passes and rejects an element outside the range", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).between(1n, 3n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n])));
+
+    const failing = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).between(2n, 3n)).build();
+    firstViolation(PolicyEnforcer.check(failing, encodeDynamicUint256Array([1n, 2n, 3n])), "VALUE_MISMATCH");
+  });
+
+  test("ALL isIn passes and rejects an element outside the set", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]")
+      .add(arg(0, Quantifier.ALL).isIn([10n, 20n, 30n]))
+      .build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([10n, 30n])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([10n, 11n])), "VALUE_MISMATCH");
+  });
+
+  test("ALL notIn passes and rejects an element inside the set", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]")
+      .add(arg(0, Quantifier.ALL).notIn([10n, 20n, 30n]))
+      .build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 10n])), "VALUE_MISMATCH");
+  });
+
+  test("ALL bitmaskAll passes and rejects an element missing a bit", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).bitmaskAll(0x0fn)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0x0fn, 0xffn])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0x0fn, 0x07n])), "VALUE_MISMATCH");
+  });
+
+  test("ALL bitmaskAny passes and rejects an element with no mask bit", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).bitmaskAny(0x0fn)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0x01n, 0x08n])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0x01n, 0xf0n])), "VALUE_MISMATCH");
+  });
+
+  test("ALL bitmaskNone passes and rejects an element with a mask bit", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).bitmaskNone(0x0fn)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0xf0n, 0x10n])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0xf0n, 0x01n])), "VALUE_MISMATCH");
+  });
+});
+
+describe("enforce - quantified length operators", () => {
+  test("ALL lengthGt passes and rejects an element at the bound", () => {
+    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthGt(1n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aaaa", "bbbbbb"])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aaaa", "bb"])), "VALUE_MISMATCH");
+  });
+
+  test("ALL lengthLt passes and rejects an element at the bound", () => {
+    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthLt(3n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbb"])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbbbb"])), "VALUE_MISMATCH");
+  });
+
+  test("ALL lengthGte passes and rejects a shorter element", () => {
+    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthGte(2n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aaaa", "bbbbbb"])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aaaa", "bb"])), "VALUE_MISMATCH");
+  });
+
+  test("ALL lengthLte passes and rejects a longer element", () => {
+    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthLte(2n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbb"])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbbbb"])), "VALUE_MISMATCH");
+  });
+
+  test("ALL lengthBetween passes and rejects an element outside the range", () => {
+    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthBetween(1n, 2n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbb"])));
+
+    firstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbbbb"])), "VALUE_MISMATCH");
+  });
+});
+
+describe("enforce - quantified signed ordering", () => {
+  test("ALL lt: negative elements are less than a positive bound", () => {
+    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).lt(1n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-2n, -1n])));
+  });
+
+  test("ALL gt: elements above a negative bound", () => {
+    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).gt(-200n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-100n, 1n])));
+  });
+
+  test("ALL gte: negative bound inclusive", () => {
+    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).gte(-42n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-42n, 0n])));
+  });
+
+  test("ALL lte: negative bound inclusive", () => {
+    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).lte(-42n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-100n, -42n])));
+  });
+
+  test("ALL between: negative range", () => {
+    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).between(-100n, -50n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-75n, -60n])));
+  });
+
+  test("ALL between: range crossing zero", () => {
+    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).between(-50n, 50n)).build();
+    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-10n, 0n, 10n])));
   });
 });
 
@@ -867,24 +1037,26 @@ describe("PolicyEnforcer - value operator on non-scalar target", () => {
 // Hint dispatch
 ///////////////////////////////////////////////////////////////////////////
 
-// A calldata rule resolves its target through its compiled hint; only a sentinel hint resolves by
-// descriptor traversal. Rewriting a stored hint therefore changes what the rule reads.
+// A calldata rule resolves its target through its compiled hint; path bytes are not consulted at
+// evaluation time. Rewriting a stored hint therefore changes what the rule reads.
 
 describe("enforce - hint dispatch", () => {
   test("a concrete hint addresses the target", () => {
     const policy = PolicyBuilder.createRaw("uint256,uint256").add(arg(0).eq(1n)).build();
-    // Re-point the hint at the second argument while the path still names the first.
-    const tampered = tamper(policy, hintOffset(policy), "00000020");
+    // Re-point the target delta at the second argument while the path still names the first.
+    const tampered = tamper(policy, hintOffset(policy) + PolicyFormat.HINT_HEADER_SIZE, "00000020");
 
     assertPassed(PolicyEnforcer.check(tampered, `0x${word(9n)}${word(1n)}`));
   });
 
-  test("a sentinel hint resolves by traversal", () => {
-    const policy = PolicyBuilder.createRaw("uint256,uint256").add(arg(1).eq(1n)).build();
-    const tampered = tamper(policy, hintOffset(policy), "ffffffff00");
+  test("path bytes do not address the target", () => {
+    const policy = PolicyBuilder.createRaw("uint256,uint256").add(arg(0).eq(1n)).build();
+    // Re-point the path at the second argument; the hint still addresses the first.
+    const pathOffset = PolicyCoder.inspect(policy).groups[0].rules[0].path.span.start;
+    const tampered = tamper(policy, pathOffset, "0001");
 
-    assertPassed(PolicyEnforcer.check(tampered, `0x${word(9n)}${word(1n)}`));
-    assertFailed(PolicyEnforcer.check(tampered, `0x${word(1n)}${word(9n)}`));
+    assertPassed(PolicyEnforcer.check(tampered, `0x${word(1n)}${word(9n)}`));
+    assertFailed(PolicyEnforcer.check(tampered, `0x${word(9n)}${word(1n)}`));
   });
 
   test("a quantified hint rejects an oversized array pointer", () => {
@@ -899,9 +1071,14 @@ describe("enforce - hint dispatch", () => {
     const policy = PolicyBuilder.createRaw("(uint256,uint256)[]")
       .add(arg(0, Quantifier.ALL, 0).eq(1n))
       .build();
-    // Re-point the suffix at the second field of each element.
-    const suffixOffset = hintOffset(policy) + PolicyFormat.HINT_SUFFIX_OFFSET;
-    const tampered = tamper(policy, suffixOffset, "00000020");
+    // Re-point the target delta at the second field of each element.
+    const targetDeltaOffset =
+      hintOffset(policy) +
+      PolicyFormat.HINT_HEADER_SIZE +
+      PolicyFormat.HINT_HOP_SIZE +
+      PolicyFormat.HINT_FRAME_PREFIX_SIZE +
+      PolicyFormat.HINT_HEADER_SIZE;
+    const tampered = tamper(policy, targetDeltaOffset, "00000020");
 
     const callData: Hex = `0x${word(32n)}${word(2n)}${word(9n)}${word(1n)}${word(9n)}${word(1n)}`;
     assertPassed(PolicyEnforcer.check(tampered, callData));

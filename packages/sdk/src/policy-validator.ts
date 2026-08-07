@@ -1,6 +1,7 @@
 import { bigintToHex, bytesToHex, hexToBytes } from "./bytes";
 import {
   classifyTypeCode,
+  isQuantifier,
   isValidOperatorData,
   Limits,
   lookupContextProperty,
@@ -973,15 +974,6 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
     const constraint = constraints[constraintIndex]!;
     const normalizedPath: Hex = `0x${constraint.path.slice(2).toLowerCase()}`;
 
-    // A carried hint must equal the compilation of its own path; constraints without an encoding
-    // carry none, and the encoder compiles theirs from the same descriptor.
-    if (constraint.scope === Scope.CALLDATA && constraint.hint !== undefined) {
-      const compiled = bytesToHex(Descriptor.compileHint(descBytes, parsePathSteps(constraint.path)));
-      if (compiled !== constraint.hint.toLowerCase()) {
-        issues.push(ValidationIssue.hintMismatch(groupIndex, constraintIndex));
-      }
-    }
-
     // Find existing context for this (scope, path) pair.
     let ctx: ConstraintContext | undefined;
     for (const existing of contexts) {
@@ -1017,6 +1009,11 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
           }
           throw error;
         }
+        // One array at a time carries a quantifier, so the element chain stays singular.
+        if (steps.filter(isQuantifier).length > 1) {
+          issues.push(ValidationIssue.nestedQuantifier(groupIndex, constraintIndex));
+          continue;
+        }
         if (walk.quantifiedStaticLength > Limits.MAX_QUANTIFIED_ARRAY_LENGTH) {
           issues.push(
             ValidationIssue.quantifierOverStaticLimit(
@@ -1049,6 +1046,21 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
       }
       ctx = initContext(constraint.scope, normalizedPath, typeInfo);
       contexts.push(ctx);
+    }
+
+    // A carried hint must equal the compilation of its own path; constraints without an encoding
+    // carry none, and the encoder compiles theirs from the same descriptor. Reaching here means
+    // the path navigates the descriptor and quantifies at most once, so only the depth the
+    // reference enforcer accepts remains to be established.
+    if (
+      constraint.scope === Scope.CALLDATA &&
+      constraint.hint !== undefined &&
+      parsePathSteps(constraint.path).length <= Limits.MAX_PATH_DEPTH
+    ) {
+      const compiled = bytesToHex(Descriptor.compileHint(descBytes, parsePathSteps(constraint.path)));
+      if (compiled !== constraint.hint.toLowerCase()) {
+        issues.push(ValidationIssue.hintMismatch(groupIndex, constraintIndex));
+      }
     }
 
     validateConstraint(ctx, constraint, groupIndex, constraintIndex, issues);

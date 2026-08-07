@@ -1062,15 +1062,15 @@ describe("hint mismatch", () => {
   }
 
   test("matching hint reports no issue", () => {
-    expect(issueCodes(PolicyValidator.validate(withHint("0x0000000020")))).not.toContain("HINT_MISMATCH");
+    expect(issueCodes(PolicyValidator.validate(withHint("0x0000000000000020")))).not.toContain("HINT_MISMATCH");
   });
 
   test("absent hint reports no issue", () => {
     expect(issueCodes(PolicyValidator.validate(withHint()))).not.toContain("HINT_MISMATCH");
   });
 
-  test("divergent offset reports an error", () => {
-    const issues = PolicyValidator.validate(withHint("0x0000002020"));
+  test("divergent target delta reports an error", () => {
+    const issues = PolicyValidator.validate(withHint("0x0000000020000020"));
     const issue = issues.find((candidate) => candidate.code === "HINT_MISMATCH");
     expect(issue).toBeDefined();
     expect(issue?.severity).toBe("error");
@@ -1079,15 +1079,18 @@ describe("hint mismatch", () => {
     expect(issue?.constraintIndex).toBe(0);
   });
 
-  test("sentinel where the path compiles reports an error", () => {
-    expect(issueCodes(PolicyValidator.validate(withHint("0xffffffff00")))).toContain("HINT_MISMATCH");
+  test("spurious hop reports an error", () => {
+    expect(issueCodes(PolicyValidator.validate(withHint("0x0100000000ffff000000000000000020")))).toContain(
+      "HINT_MISMATCH",
+    );
   });
 
-  test("concrete hint on an unnavigable path reports an error", () => {
-    const data = withHint("0x0000000020");
+  test("unnavigable path reports the path alone", () => {
+    // Compilation is undefined for a path the descriptor rejects, so no hint comparison runs.
+    const data = withHint("0x0000000000000020");
     data.groups[0][0].path = "0x0003";
     const issues = issueCodes(PolicyValidator.validate(data));
-    expect(issues).toContain("HINT_MISMATCH");
+    expect(issues).not.toContain("HINT_MISMATCH");
     expect(issues).toContain("UNNAVIGABLE_PATH");
   });
 

@@ -315,13 +315,13 @@ describe("hint block", () => {
   test("decodes a concrete hint", () => {
     const blob = PolicyBuilder.create("foo(address,uint256)").add(arg(1).eq(42n)).build();
 
-    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBe("0x0000002020");
+    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBe("0x0000000020000020");
   });
 
-  test("decodes a sentinel hint", () => {
+  test("decodes a quantified hint", () => {
     const blob = PolicyBuilder.create("foo(uint256[3])").add(arg(0, Quantifier.ALL).eq(42n)).build();
 
-    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBe("0xffffffff00");
+    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBe("0x4000000000000300010000000000000020");
   });
 
   test("context constraints carry no hint", () => {

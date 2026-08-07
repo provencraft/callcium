@@ -7,6 +7,7 @@ import { console2 } from "forge-std/console2.sol";
 import { CalldataReader } from "src/CalldataReader.sol";
 import { Constraint, arg, baseFee, gasPrice, msgSender, msgValue } from "src/Constraint.sol";
 import { Path } from "src/Path.sol";
+import { Policy } from "src/Policy.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
 import { PolicyEnforcer } from "src/PolicyEnforcer.sol";
 import { PolicyEnforcerHarness } from "test/harnesses/PolicyEnforcerHarness.sol";
@@ -867,17 +868,31 @@ contract EnforcementVectorGenerator is Script {
                           Violation effects across groups
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev OR of [arg0[5] == 1] and [arg1 == 3]: calldata has 3 elements, so the missing
-    ///      index aborts evaluation even though the other group would pass. The operand is chosen
-    ///      so the aborting group sorts first: canonical group order is the hash of the rule bytes.
+    /// @dev Returns a two-group policy whose aborting arg0 group sorts before the passing arg1
+    ///      control group, and the control operand that achieves that order. Canonical group order
+    ///      is the hash of the rule bytes, so the operand is searched rather than fixed.
+    function _abortFirstPolicy(Constraint memory abortConstraint)
+        private
+        pure
+        returns (bytes memory policy, uint256 controlValue)
+    {
+        for (controlValue = 1;; ++controlValue) {
+            policy = PolicyBuilder.create("foo(uint256[],uint256)")
+                .add(abortConstraint)
+                .or()
+                .add(arg(1).eq(controlValue))
+                .build();
+            uint256 firstRule = Policy.ruleAt(policy, Policy.groupAt(policy, 0), 0);
+            if (Policy.pathStep(policy, firstRule, 0) == 0) return (policy, controlValue);
+        }
+    }
+
+    /// @dev OR of [arg0[5] == 1] and a passing arg1 control group: calldata has 3 elements, so the
+    ///      missing index aborts evaluation even though the other group would pass.
     function _vectorAbortArrayIndexMultiGroup() private {
-        bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
-            .add(arg(0, 5).eq(uint256(1)))
-            .or()
-            .add(arg(1).eq(uint256(3)))
-            .build();
+        (bytes memory policy, uint256 controlValue) = _abortFirstPolicy(arg(0, 5).eq(uint256(1)));
         uint256[] memory values = new uint256[](3);
-        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(3));
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, controlValue);
         _addErrorVector(
             "abort-array-index-multi-group",
             "Array index out of bounds aborts evaluation before a later passing group",
@@ -888,17 +903,12 @@ contract EnforcementVectorGenerator is Script {
         );
     }
 
-    /// @dev OR of [ALL(arg0) == 0 over 257 elements] and [arg1 == 3]: the quantifier limit
-    ///      aborts evaluation even though the other group would pass. The operand is chosen so the
-    ///      aborting group sorts first: canonical group order is the hash of the rule bytes.
+    /// @dev OR of [ALL(arg0) == 0 over 257 elements] and a passing arg1 control group: the
+    ///      quantifier limit aborts evaluation even though the other group would pass.
     function _vectorAbortQuantifierLimitMultiGroup() private {
-        bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
-            .add(arg(0, Path.ALL).eq(uint256(0)))
-            .or()
-            .add(arg(1).eq(uint256(3)))
-            .build();
+        (bytes memory policy, uint256 controlValue) = _abortFirstPolicy(arg(0, Path.ALL).eq(uint256(0)));
         uint256[] memory values = new uint256[](257);
-        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(3));
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, controlValue);
         _addErrorVector(
             "abort-quantifier-limit-multi-group",
             "Quantifier limit exceeded aborts evaluation before a later passing group",
@@ -909,19 +919,14 @@ contract EnforcementVectorGenerator is Script {
         );
     }
 
-    /// @dev OR of [length(arg0) >= 10] and [arg1 == 3]: the inflated length word is not backed
-    ///      by calldata, so the out-of-bounds read aborts evaluation even though the other group
-    ///      would pass. The operand is chosen so the aborting group sorts first: canonical group
-    ///      order is the hash of the rule bytes.
+    /// @dev OR of [length(arg0) >= 10] and a passing arg1 control group: the inflated length word
+    ///      is not backed by calldata, so the out-of-bounds read aborts evaluation even though the
+    ///      other group would pass.
     function _vectorAbortCalldataOutOfBoundsMultiGroup() private {
-        bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
-            .add(arg(0).lengthGte(uint256(10)))
-            .or()
-            .add(arg(1).eq(uint256(3)))
-            .build();
-        // Head: offset to array (0x40), arg1 = 3; tail: length word claims 10 elements, only 2 follow.
+        (bytes memory policy, uint256 controlValue) = _abortFirstPolicy(arg(0).lengthGte(uint256(10)));
+        // Head: offset to array (0x40), the control operand; tail: length word claims 10 elements, only 2 follow.
         bytes memory callData = abi.encodePacked(
-            bytes4(keccak256("foo(uint256[],uint256)")), uint256(0x40), uint256(3), uint256(10), uint256(1), uint256(2)
+            bytes4(keccak256("foo(uint256[],uint256)")), uint256(0x40), controlValue, uint256(10), uint256(1), uint256(2)
         );
         _addErrorVector(
             "abort-calldata-oob-multi-group",

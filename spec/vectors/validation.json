@@ -2111,7 +2111,38 @@
     "issues": [
       {
         "code": "QUANTIFIER_OVER_STATIC_LIMIT",
-        "severity": "warning",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "nested-quantifier",
+    "description": "path applying two quantifiers is rejected",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x0201810000098100000520",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000ffffffff",
+              "operators": [
+                "0x05000000000000000000000000000000000000000000000000000000000000000a"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "NESTED_QUANTIFIER",
+        "severity": "error",
         "groupIndex": 0,
         "constraintIndex": 0
       }
@@ -2561,7 +2592,7 @@
               "operators": [
                 "0x01000000000000000000000000000000000000000000000000000000000000002a"
               ],
-              "hint": "0x0000000020"
+              "hint": "0x0000000000000020"
             }
           ]
         }
@@ -2610,7 +2641,7 @@
               "operators": [
                 "0x01000000000000000000000000000000000000000000000000000000000000002a"
               ],
-              "hint": "0x0000002020"
+              "hint": "0x0000000020000020"
             }
           ]
         }
@@ -2627,8 +2658,8 @@
     "builds": false
   },
   {
-    "id": "hint-sentinel-on-compilable-path",
-    "description": "sentinel hint on a path that compiles to concrete offsets",
+    "id": "hint-spurious-hop",
+    "description": "hint carrying a hop the compiled path does not take",
     "policy": {
       "isSelectorless": true,
       "selector": "0x00000000",
@@ -2642,7 +2673,7 @@
               "operators": [
                 "0x01000000000000000000000000000000000000000000000000000000000000002a"
               ],
-              "hint": "0xffffffff00"
+              "hint": "0x0100000000ffff000000000000000020"
             }
           ]
         }

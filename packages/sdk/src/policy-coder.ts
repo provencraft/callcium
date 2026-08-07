@@ -7,7 +7,7 @@ import {
   Scope,
   Limits,
   Op,
-  isQuantifier,
+  TypeCode,
   isValidOperatorData,
   MAX_CONTEXT_PROPERTY_ID,
 } from "./constants";
@@ -52,6 +52,87 @@ export function parsePathSteps(path: Hex): number[] {
 /** Wrap a value with its byte span for positional tracking. */
 function field<T>(value: T, start: number, end: number): Field<T> {
   return { value, span: { start, end } };
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Hint block
+///////////////////////////////////////////////////////////////////////////
+
+/** Throw a RULE_SIZE_MISMATCH error for a rule too small to hold its hint block. */
+function hintOverrun(ruleOffset: number): never {
+  throw new CallciumError("RULE_SIZE_MISMATCH", "Rule is too small to hold a hint block", ruleOffset);
+}
+
+/** Resolve the hint block size at `hintStart` from its header and suffix header bytes. */
+function resolveHintSize(data: Uint8Array, hintStart: number, ruleEnd: number, ruleOffset: number): number {
+  if (hintStart + PF.HINT_HEADER_SIZE > ruleEnd) hintOverrun(ruleOffset);
+  const header = data[hintStart]!;
+  const hopsEnd = hintStart + PF.HINT_HEADER_SIZE + (header & PF.HINT_HOP_COUNT_MASK) * PF.HINT_HOP_SIZE;
+  let hintSize = hopsEnd - hintStart + PF.HINT_TARGET_SIZE;
+
+  // A quantifier frame sits between the main chain and the target, sized by its own header byte.
+  if (header >> PF.HINT_KIND_SHIFT !== PF.HINT_KIND_NONE) {
+    const suffixHeaderOffset = hopsEnd + PF.HINT_FRAME_PREFIX_SIZE;
+    if (suffixHeaderOffset >= ruleEnd) hintOverrun(ruleOffset);
+    const suffixHeader = data[suffixHeaderOffset]!;
+    hintSize +=
+      PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE + (suffixHeader & PF.HINT_HOP_COUNT_MASK) * PF.HINT_HOP_SIZE;
+  }
+
+  if (hintStart + hintSize > ruleEnd) hintOverrun(ruleOffset);
+  return hintSize;
+}
+
+/** Throw a MALFORMED_HINT error with the given detail. */
+function malformedHint(detail: string, ruleOffset: number): never {
+  throw new CallciumError("MALFORMED_HINT", detail, ruleOffset);
+}
+
+/** Require every hop entry in `[start, end)` to carry no reserved or unused state. */
+function validateHops(data: Uint8Array, start: number, end: number, ruleOffset: number): void {
+  for (let offset = start; offset < end; offset += PF.HINT_HOP_SIZE) {
+    const index = readU16(data, offset + PF.HINT_HOP_INDEX_OFFSET);
+    const meta = readU16(data, offset + PF.HINT_HOP_META_OFFSET);
+    if (index === PF.HINT_INDEX_RESERVED) malformedHint("Hop index is a reserved value", ruleOffset);
+
+    // A plain hop carries no element meta; an element hop addresses no offset of its own.
+    if (index === PF.HINT_NO_INDEX) {
+      if (meta !== 0) malformedHint("Plain hop carries a meta word", ruleOffset);
+    } else {
+      if (readU32(data, offset) !== 0) malformedHint("Element hop carries a delta", ruleOffset);
+      if ((meta & PF.HINT_META_RESERVED_MASK) !== 0) malformedHint("Hop meta carries reserved bits", ruleOffset);
+    }
+  }
+}
+
+/** Require the hint block at `hintStart` to carry no reserved or unused state. */
+function validateHint(data: Uint8Array, hintStart: number, hintSize: number, ruleOffset: number): void {
+  const header = data[hintStart]!;
+  const kind = header >> PF.HINT_KIND_SHIFT;
+  if (kind > PF.HINT_KIND_ANY) malformedHint("Header kind is a reserved value", ruleOffset);
+
+  const hopsStart = hintStart + PF.HINT_HEADER_SIZE;
+  const hopsEnd = hopsStart + (header & PF.HINT_HOP_COUNT_MASK) * PF.HINT_HOP_SIZE;
+  validateHops(data, hopsStart, hopsEnd, ruleOffset);
+
+  const targetOffset = hintStart + hintSize - PF.HINT_TARGET_SIZE;
+  if (kind !== PF.HINT_KIND_NONE) {
+    const frameMeta = readU16(data, hopsEnd + PF.HINT_FRAME_META_OFFSET);
+    if ((frameMeta & PF.HINT_META_RESERVED_MASK) !== 0) malformedHint("Frame meta carries reserved bits", ruleOffset);
+    const suffixHeader = data[hopsEnd + PF.HINT_FRAME_PREFIX_SIZE]!;
+    if ((suffixHeader & PF.HINT_SUFFIX_RESERVED_MASK) !== 0) {
+      malformedHint("Suffix header carries reserved bits", ruleOffset);
+    }
+    validateHops(data, hopsEnd + PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE, targetOffset, ruleOffset);
+  }
+
+  // A target meta word describes a dynamic array and is absent for every other type.
+  const targetMeta = readU16(data, targetOffset + PF.HINT_TARGET_META_OFFSET);
+  const targetMetaOk =
+    data[targetOffset + PF.HINT_TARGET_TYPECODE_OFFSET] === TypeCode.DYNAMIC_ARRAY
+      ? (targetMeta & PF.HINT_META_RESERVED_MASK) === 0
+      : targetMeta === 0;
+  if (!targetMetaOk) malformedHint("Target meta carries reserved or unused state", ruleOffset);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -210,24 +291,8 @@ export function decodePolicy(blob: Hex): {
       const hintStart = pathStart + pathLength;
       let hintSize = 0;
       if (scopeValue === Scope.CALLDATA) {
-        if (hintStart + PF.HINT_FIELD_SIZE > ruleEnd) {
-          throw new CallciumError("RULE_SIZE_MISMATCH", "Rule is too small to hold a hint block", ruleOffset);
-        }
-        // Size resolution precedence: a sentinel first field, then a quantifier step in the path.
-        const isSentinel = readU32(data, hintStart) === PF.HINT_SENTINEL_OFFSET;
-        const hasQuantifier = parsePathSteps(pathHex).some(isQuantifier);
-        hintSize = !isSentinel && hasQuantifier ? PF.HINT_QUANTIFIED_SIZE : PF.HINT_STATIC_SIZE;
-        if (hintStart + hintSize > ruleEnd) {
-          throw new CallciumError("RULE_SIZE_MISMATCH", "Rule is too small to hold a hint block", ruleOffset);
-        }
-        // A sentinel offset and the reserved type code appear together or not at all.
-        if (isSentinel !== (data[hintStart + hintSize - 1] === PF.HINT_TYPE_NONE)) {
-          throw new CallciumError(
-            "MALFORMED_HINT",
-            "Hint pairs a sentinel offset with a concrete type code, or the reverse",
-            ruleOffset,
-          );
-        }
+        hintSize = resolveHintSize(data, hintStart, ruleEnd, ruleOffset);
+        validateHint(data, hintStart, hintSize, ruleOffset);
       }
 
       const opCodeOffset = hintStart + hintSize;
@@ -330,6 +395,19 @@ type Rule = { scope: number; path: Uint8Array; operator: Uint8Array; hint: Uint8
 /** Flatten a Constraint into one Rule per operator, compiling its hint against the descriptor. */
 function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
   const path = hexToBytes(constraint.path);
+
+  // Path shape checks precede compilation: the compiler assumes a framed, depth-bounded path.
+  if (path.length === 0) {
+    throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step.");
+  }
+  if ((path.length & 1) !== 0) {
+    throw new CallciumError("INVALID_PATH", "Path byte length must be even.");
+  }
+  const depth = path.length / 2;
+  if (depth > Limits.MAX_PATH_DEPTH) {
+    throw new CallciumError("PATH_TOO_DEEP", `Path depth ${depth} exceeds maximum ${Limits.MAX_PATH_DEPTH}.`);
+  }
+
   const hint =
     constraint.scope === Scope.CALLDATA
       ? Descriptor.compileHint(desc, parsePathSteps(constraint.path))
@@ -364,21 +442,12 @@ function sortRules(rules: Rule[]): void {
   });
 }
 
-/** Serialize a single rule to its wire format bytes. */
+/** Serialize a single rule to its wire format bytes. Path shape is established by `flattenConstraint`. */
 function encodeRule(rule: Rule): Uint8Array {
-  if (rule.path.length === 0) {
-    throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step.");
-  }
-  if ((rule.path.length & 1) !== 0) {
-    throw new CallciumError("INVALID_PATH", "Path byte length must be even.");
-  }
   if (rule.operator.length < 1) {
     throw new CallciumError("INVALID_OPERATOR", "Operator must have at least one byte (opcode).");
   }
   const depth = rule.path.length / 2;
-  if (depth > Limits.MAX_PATH_DEPTH) {
-    throw new CallciumError("PATH_TOO_DEEP", `Path depth ${depth} exceeds maximum ${Limits.MAX_PATH_DEPTH}.`);
-  }
   if (rule.scope === Scope.CONTEXT && depth !== 1) {
     throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope rules must have exactly one path step.");
   }

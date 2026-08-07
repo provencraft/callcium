@@ -214,8 +214,6 @@ contract PolicyCoderConformanceTest is BaseTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_DecodesConformWithSpecification() public {
-        // The shared vectors are regenerated once the SDK mirrors the hop-chain hint block.
-        vm.skip(true);
         (string memory json, PolicyFixture[] memory fixtures) = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             PolicyFixture memory f = fixtures[i];
@@ -235,8 +233,6 @@ contract PolicyCoderConformanceTest is BaseTest {
     }
 
     function test_EncodesConformWithSpecification() public {
-        // The shared vectors are regenerated once the SDK mirrors the hop-chain hint block.
-        vm.skip(true);
         (string memory json, PolicyFixture[] memory fixtures) = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             PolicyFixture memory f = fixtures[i];

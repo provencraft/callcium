@@ -44,6 +44,20 @@ export function unnavigablePath(groupIndex: number, constraintIndex: number): Is
   };
 }
 
+/** Calldata path carrying more than one quantifier step. */
+export function nestedQuantifier(groupIndex: number, constraintIndex: number): Issue {
+  return {
+    severity: "error",
+    category: "typeMismatch",
+    groupIndex,
+    constraintIndex,
+    code: "NESTED_QUANTIFIER",
+    value1: ZERO,
+    value2: ZERO,
+    message: "Path applies more than one quantifier",
+  };
+}
+
 /** Issue for a hint block that does not match its path compiled against the descriptor. */
 export function hintMismatch(groupIndex: number, constraintIndex: number): Issue {
   return {
@@ -510,7 +524,7 @@ export function quantifierOverStaticLimit(
   maxLength: Hex,
 ): Issue {
   return {
-    severity: "warning",
+    severity: "error",
     category: "compatibility",
     groupIndex,
     constraintIndex,

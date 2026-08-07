@@ -130,8 +130,6 @@ contract PolicyValidatorConformanceTest is BaseTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_ValidatesConformWithSpecification() public {
-        // The quantifier-over-static-limit fixture is regenerated once the SDK raises it to an error.
-        vm.skip(true);
         (string memory json, ValidationFixture[] memory fixtures) = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             ValidationFixture memory f = fixtures[i];

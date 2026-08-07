@@ -1,5 +1,5 @@
-import { readU16, readU24, writeBE32 } from "./bytes";
-import { DescriptorFormat as DF, PolicyFormat as PF, TypeCode, isQuantifier } from "./constants";
+import { readU16, readU24, writeBE16, writeBE32 } from "./bytes";
+import { DescriptorFormat as DF, PolicyFormat as PF, Quantifier, TypeCode, isQuantifier } from "./constants";
 import { CallciumError } from "./errors";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -11,6 +11,29 @@ export type TypeInfo = {
   typeCode: number;
   isDynamic: boolean;
   staticSize: number;
+};
+
+///////////////////////////////////////////////////////////////////////////
+// Internal types
+///////////////////////////////////////////////////////////////////////////
+
+/** A hop entry of a compiled chain: [delta, index, meta]. */
+type Hop = [number, number, number];
+
+/** State threaded through the compilation of a path into a hint block. */
+type HintWalk = {
+  /** Hops of the chain currently being compiled. */
+  chain: Hop[];
+  /** Hops of the main chain, captured when a quantifier closes it. */
+  mainHops: Hop[];
+  /** Byte offset of the next node relative to the chain's current base. */
+  delta: number;
+  /** Frame prefix fields, captured when a quantifier closes the main chain. */
+  frame: { arrayDelta: number; count: number; meta: number };
+  /** Header kind the path resolves to. */
+  kind: number;
+  /** Set while the chain already ends inside the current node, which then takes no entry hop. */
+  entered: boolean;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -180,24 +203,144 @@ function arrayElementOffset(offset: number): number {
   return offset + DF.ARRAY_HEADER_SIZE;
 }
 
-/** Build the hint block for a path that does not compile to concrete offsets. */
-function sentinelHint(): Uint8Array {
-  const hint = new Uint8Array(PF.HINT_STATIC_SIZE);
-  writeBE32(hint, 0, PF.HINT_SENTINEL_OFFSET);
-  hint[PF.HINT_STATIC_SIZE - 1] = PF.HINT_TYPE_NONE;
-  return hint;
+/** Build the error for a path step that does not resolve to a hop-chain target. */
+function uncompilablePath(stepIndex: number): CallciumError {
+  return new CallciumError("UNCOMPILABLE_PATH", `Path step ${stepIndex} does not resolve to a hop-chain target.`);
+}
+
+/** Return the combined head slot span of the `count` nodes at `offset`, and the offset of the node past them. */
+function headSpan(desc: Uint8Array, offset: number, count: number): { span: number; nodeOffset: number } {
+  let span = 0;
+  let nodeOffset = offset;
+  for (let i = 0; i < count; i++) {
+    const node = inspect(desc, nodeOffset);
+    // An indirected node occupies a single offset word.
+    span += node.isDynamic ? 32 : node.staticSize;
+    nodeOffset += nodeLength(desc, nodeOffset);
+  }
+  return { span, nodeOffset };
+}
+
+/** Return the meta word describing the array node at `arrayOffset`, and whether its elements are dynamic. */
+function arrayMeta(desc: Uint8Array, arrayOffset: number, code: number): { meta: number; elemIsDynamic: boolean } {
+  const element = inspect(desc, arrayElementOffset(arrayOffset));
+  // A dynamic element occupies one offset word within the element region.
+  let meta = element.isDynamic ? 1 : element.staticSize >> 5;
+  if (element.isDynamic) meta |= PF.HINT_META_ELEM_DYNAMIC;
+  if (code === TypeCode.DYNAMIC_ARRAY) meta |= PF.HINT_META_DYNAMIC_ARRAY;
+  return { meta, elemIsDynamic: element.isDynamic };
+}
+
+/** Append the hop entering an indirected node's payload and rebase the offset accumulator. */
+function enterNode(walk: HintWalk, needed: boolean): void {
+  if (!needed) return;
+  walk.chain.push([walk.delta, PF.HINT_NO_INDEX, 0]);
+  walk.delta = 0;
+}
+
+/** Apply one path step to `walk` and return the descriptor offset the step reaches. */
+function walkStep(desc: Uint8Array, walk: HintWalk, descOffset: number, step: number, stepIndex: number): number {
+  const node = inspect(desc, descOffset);
+
+  // A quantifier reaches an array alone, every other code reading its value as an index.
+  if (node.typeCode === TypeCode.TUPLE) {
+    if (step >= tupleFieldCount(desc, descOffset)) throw uncompilablePath(stepIndex);
+    enterNode(walk, node.isDynamic && !walk.entered);
+
+    const field = headSpan(desc, descOffset + DF.TUPLE_HEADER_SIZE, step);
+    walk.delta += field.span;
+    walk.entered = false;
+    return field.nodeOffset;
+  }
+
+  if (node.typeCode !== TypeCode.STATIC_ARRAY && node.typeCode !== TypeCode.DYNAMIC_ARRAY) {
+    throw uncompilablePath(stepIndex);
+  }
+  if (node.typeCode === TypeCode.STATIC_ARRAY && !isQuantifier(step) && step >= staticArrayLength(desc, descOffset)) {
+    throw uncompilablePath(stepIndex);
+  }
+  const { meta, elemIsDynamic } = arrayMeta(desc, descOffset, node.typeCode);
+
+  if (isQuantifier(step)) {
+    if (walk.kind !== PF.HINT_KIND_NONE) throw uncompilablePath(stepIndex);
+    enterNode(walk, node.isDynamic && !walk.entered);
+
+    const count = node.typeCode === TypeCode.DYNAMIC_ARRAY ? 0 : staticArrayLength(desc, descOffset);
+    walk.frame = { arrayDelta: walk.delta, count, meta };
+    walk.kind = step === Quantifier.ALL ? PF.HINT_KIND_ALL : PF.HINT_KIND_ANY;
+
+    walk.mainHops = walk.chain;
+    walk.chain = [];
+    walk.delta = 0;
+  } else if (node.isDynamic) {
+    // An indirected array holds its elements behind an offset word.
+    enterNode(walk, !walk.entered);
+    walk.chain.push([0, step, meta]);
+    walk.delta = 0;
+  } else {
+    // A static array of static elements is inline, so the index folds into the accumulator.
+    walk.delta += step * (meta & PF.HINT_META_STRIDE_MASK) * 32;
+  }
+
+  walk.entered = elemIsDynamic;
+  return arrayElementOffset(descOffset);
+}
+
+/** Serialize hop entries at `offset` and return the offset past them. */
+function writeHops(out: Uint8Array, offset: number, hops: Hop[]): number {
+  for (const [delta, index, meta] of hops) {
+    writeBE32(out, offset, delta);
+    writeBE16(out, offset + PF.HINT_HOP_INDEX_OFFSET, index);
+    writeBE16(out, offset + PF.HINT_HOP_META_OFFSET, meta);
+    offset += PF.HINT_HOP_SIZE;
+  }
+  return offset;
+}
+
+/** Serialize a completed walk and its target block into the wire hint block. */
+function encodeHint(walk: HintWalk, targetMeta: number, typeCode: number, depth: number): Uint8Array {
+  let suffixHops: Hop[] = [];
+  if (walk.kind === PF.HINT_KIND_NONE) walk.mainHops = walk.chain;
+  else suffixHops = walk.chain;
+
+  const mainHopCount = walk.mainHops.length;
+  const suffixHopCount = suffixHops.length;
+  if (mainHopCount > PF.HINT_HOP_COUNT_MASK || suffixHopCount > PF.HINT_HOP_COUNT_MASK) {
+    throw uncompilablePath(depth);
+  }
+
+  const quantified = walk.kind !== PF.HINT_KIND_NONE;
+  const frameSize = quantified
+    ? PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE + suffixHopCount * PF.HINT_HOP_SIZE
+    : 0;
+  const out = new Uint8Array(PF.HINT_HEADER_SIZE + mainHopCount * PF.HINT_HOP_SIZE + frameSize + PF.HINT_TARGET_SIZE);
+
+  let offset = 0;
+  out[offset] = (walk.kind << PF.HINT_KIND_SHIFT) | mainHopCount;
+  offset = writeHops(out, offset + PF.HINT_HEADER_SIZE, walk.mainHops);
+
+  if (quantified) {
+    writeBE32(out, offset, walk.frame.arrayDelta);
+    writeBE16(out, offset + PF.HINT_FRAME_COUNT_OFFSET, walk.frame.count);
+    writeBE16(out, offset + PF.HINT_FRAME_META_OFFSET, walk.frame.meta);
+    out[offset + PF.HINT_FRAME_PREFIX_SIZE] = suffixHopCount;
+    offset = writeHops(out, offset + PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE, suffixHops);
+  }
+
+  writeBE32(out, offset, walk.delta);
+  writeBE16(out, offset + PF.HINT_TARGET_META_OFFSET, targetMeta);
+  out[offset + PF.HINT_TARGET_TYPECODE_OFFSET] = typeCode;
+  return out;
 }
 
 /**
  * Compile a calldata rule path into its wire hint block.
  *
- * Returns the sentinel block for a path that is not compilable: one that navigates through a
- * dynamic node, quantifies over anything but a dynamic array of static elements, or does not
- * navigate the descriptor at all.
- *
  * @param desc - Raw descriptor bytes.
  * @param steps - Path steps, length >= 1.
  * @returns The hint block bytes.
+ * @throws {CallciumError} When a step leaves the structure the descriptor declares, quantifies over
+ * a non-array node, or repeats a quantifier.
  */
 function compileHint(desc: Uint8Array, steps: number[]): Uint8Array {
   if (steps.length === 0) {
@@ -205,81 +348,30 @@ function compileHint(desc: Uint8Array, steps: number[]): Uint8Array {
   }
 
   const argIndex = steps[0]!;
-  if (argIndex >= paramCount(desc)) return sentinelHint();
+  if (argIndex >= paramCount(desc)) throw uncompilablePath(0);
 
-  // Accumulate the argument's head offset by skipping the preceding parameters.
-  let descOffset: number = DF.HEADER_SIZE;
-  let head = 0;
-  for (let i = 0; i < argIndex; i++) {
-    const param = inspect(desc, descOffset);
-    head += param.isDynamic ? 32 : param.staticSize;
-    descOffset += nodeLength(desc, descOffset);
-  }
+  // The argument's head slot sits past the slots of every preceding parameter.
+  const arg = headSpan(desc, DF.HEADER_SIZE, argIndex);
+  const walk: HintWalk = {
+    chain: [],
+    mainHops: [],
+    delta: arg.span,
+    frame: { arrayDelta: 0, count: 0, meta: 0 },
+    kind: PF.HINT_KIND_NONE,
+    entered: false,
+  };
 
-  let arrayHead = 0;
-  let elemStride = 0;
-  let quantified = false;
-
+  let descOffset = arg.nodeOffset;
   for (let stepIndex = 1; stepIndex < steps.length; stepIndex++) {
-    const childIndex = steps[stepIndex]!;
-    const node = inspect(desc, descOffset);
-
-    if (isQuantifier(childIndex)) {
-      // Only a dynamic array of static elements compiles: calldata supplies the element count,
-      // the descriptor supplies a fixed stride.
-      if (node.typeCode !== TypeCode.DYNAMIC_ARRAY) return sentinelHint();
-      const quantifiedElemOffset = arrayElementOffset(descOffset);
-      const element = inspect(desc, quantifiedElemOffset);
-      if (element.isDynamic) return sentinelHint();
-
-      arrayHead = head;
-      elemStride = element.staticSize;
-      quantified = true;
-      // Offsets past the quantifier are relative to the element.
-      head = 0;
-      descOffset = quantifiedElemOffset;
-      continue;
-    }
-
-    // A dynamic node places its subtree at a calldata-supplied offset, so nothing below it has a
-    // fixed address.
-    if (node.isDynamic) return sentinelHint();
-
-    if (node.typeCode === TypeCode.TUPLE) {
-      if (childIndex >= tupleFieldCount(desc, descOffset)) return sentinelHint();
-      let fieldOffset = descOffset + DF.TUPLE_HEADER_SIZE;
-      for (let i = 0; i < childIndex; i++) {
-        head += inspect(desc, fieldOffset).staticSize;
-        fieldOffset += nodeLength(desc, fieldOffset);
-      }
-      descOffset = fieldOffset;
-    } else if (node.typeCode === TypeCode.STATIC_ARRAY) {
-      if (childIndex >= staticArrayLength(desc, descOffset)) return sentinelHint();
-      const elemOffset = arrayElementOffset(descOffset);
-      head += childIndex * inspect(desc, elemOffset).staticSize;
-      descOffset = elemOffset;
-    } else {
-      return sentinelHint();
-    }
+    descOffset = walkStep(desc, walk, descOffset, steps[stepIndex]!, stepIndex);
   }
 
-  // An offset indistinguishable from the sentinel is not addressable through a hint.
-  if (head >= PF.HINT_SENTINEL_OFFSET || arrayHead >= PF.HINT_SENTINEL_OFFSET) return sentinelHint();
+  const target = inspect(desc, descOffset);
+  enterNode(walk, target.isDynamic && !walk.entered);
 
-  const targetCode = desc[descOffset]!;
-  if (quantified) {
-    const hint = new Uint8Array(PF.HINT_QUANTIFIED_SIZE);
-    writeBE32(hint, 0, arrayHead);
-    writeBE32(hint, PF.HINT_ELEM_STRIDE_OFFSET, elemStride);
-    writeBE32(hint, PF.HINT_SUFFIX_OFFSET, head);
-    hint[PF.HINT_QUANTIFIED_SIZE - 1] = targetCode;
-    return hint;
-  }
+  const targetMeta = target.typeCode === TypeCode.DYNAMIC_ARRAY ? arrayMeta(desc, descOffset, target.typeCode).meta : 0;
 
-  const hint = new Uint8Array(PF.HINT_STATIC_SIZE);
-  writeBE32(hint, 0, head);
-  hint[PF.HINT_STATIC_SIZE - 1] = targetCode;
-  return hint;
+  return encodeHint(walk, targetMeta, target.typeCode, steps.length);
 }
 
 /** Inspect and navigate raw descriptor bytes. */
