@@ -164,20 +164,7 @@ library PolicyCoder {
         require(groupCount <= type(uint8).max, GroupCountOverflow(groupCount));
 
         // Canonicalization step 1: compile hints, then sort rules within each group.
-        // Rules are sorted by (scope, pathDepth, pathBytes, op) so equivalent rule sets always serialize identically.
-        // Hints are compiled first because they are part of the rule bytes the group hash covers.
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
-            Rule[] memory rulesToSort = groups[groupIndex].rules;
-            uint256 ruleCount = rulesToSort.length;
-            for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-                Rule memory rule = rulesToSort[ruleIndex];
-                require(rule.operator.length >= 1, InvalidOperatorBytes(groupIndex, ruleIndex));
-                uint256 pathLength = rule.path.length;
-                require(pathLength != 0 && (pathLength & 1) == 0, InvalidPathBytes(groupIndex, ruleIndex));
-                rule.hint = rule.scope == PF.SCOPE_CALLDATA ? Policy.compileHint(desc, rule.path) : bytes("");
-            }
-            _sort(rulesToSort);
-        }
+        _compileAndSortRules(groups, desc);
 
         // Canonicalization step 2: sort groups by hash of their (now-sorted) rules.
         // This ensures group order is deterministic.
@@ -209,7 +196,6 @@ library PolicyCoder {
                 Rule memory rule = rules[ruleIndex];
 
                 uint256 depth = rule.path.length >> 1;
-                require(depth <= type(uint8).max, PathDepthOverflow(groupIndex, ruleIndex, depth));
                 if (rule.scope == PF.SCOPE_CONTEXT) require(depth == 1, InvalidContextPath(groupIndex, ruleIndex));
 
                 uint256 ruleSize = _ruleSize(rule);
@@ -234,6 +220,30 @@ library PolicyCoder {
             }
         }
         return buffer.data;
+    }
+
+    /// @dev Compiles every calldata rule's hint, then sorts each group's rules in place.
+    /// Rules sort by (scope, pathDepth, pathBytes, op) so equivalent rule sets always serialize
+    /// identically. Hints compile first because they are part of the rule bytes the group hash covers.
+    function _compileAndSortRules(Group[] memory groups, bytes memory desc) private pure {
+        uint256 groupCount = groups.length;
+        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+            Rule[] memory rulesToSort = groups[groupIndex].rules;
+            uint256 ruleCount = rulesToSort.length;
+            for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+                _compileRuleHint(rulesToSort[ruleIndex], desc, groupIndex, ruleIndex);
+            }
+            _sort(rulesToSort);
+        }
+    }
+
+    /// @dev Checks a rule's variable-length fields and compiles the hint of a calldata rule.
+    function _compileRuleHint(Rule memory rule, bytes memory desc, uint256 groupIndex, uint256 ruleIndex) private pure {
+        require(rule.operator.length >= 1, InvalidOperatorBytes(groupIndex, ruleIndex));
+        uint256 pathLength = rule.path.length;
+        require(pathLength != 0 && (pathLength & 1) == 0, InvalidPathBytes(groupIndex, ruleIndex));
+        require(pathLength >> 1 <= type(uint8).max, PathDepthOverflow(groupIndex, ruleIndex, pathLength >> 1));
+        rule.hint = rule.scope == PF.SCOPE_CALLDATA ? Policy.compileHint(desc, rule.path) : bytes("");
     }
 
     /// @dev Sorts rules in-place by (scope, pathDepth, pathBytes, op).

@@ -120,26 +120,71 @@ library PolicyFormat {
                                   COMPILED HINT
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Size of each hint offset field in bytes.
-    uint256 internal constant HINT_FIELD_SIZE = 4;
+    /// @dev Size of the hint header field in bytes.
+    uint256 internal constant HINT_HEADER_SIZE = 1;
 
-    /// @dev Size of a static or sentinel hint block: headOffset(4) + typeCode(1).
-    uint256 internal constant HINT_STATIC_SIZE = HINT_FIELD_SIZE + 1;
+    /// @dev Size of a hop entry: delta(4) + index(2) + meta(2).
+    uint256 internal constant HINT_HOP_SIZE = 8;
 
-    /// @dev Size of a quantified hint block: arrayHead(4) + elemStride(4) + suffixOffset(4) + typeCode(1).
-    uint256 internal constant HINT_QUANTIFIED_SIZE = HINT_FIELD_SIZE * 3 + 1;
+    /// @dev Byte offset of `index` within a hop entry.
+    uint256 internal constant HINT_HOP_INDEX_OFFSET = 4;
 
-    /// @dev Byte offset of `elemStride` within a quantified hint block.
-    uint256 internal constant HINT_ELEM_STRIDE_OFFSET = HINT_FIELD_SIZE;
+    /// @dev Byte offset of `meta` within a hop entry.
+    uint256 internal constant HINT_HOP_META_OFFSET = 6;
 
-    /// @dev Byte offset of `suffixOffset` within a quantified hint block.
-    uint256 internal constant HINT_SUFFIX_OFFSET = HINT_FIELD_SIZE * 2;
+    /// @dev Size of the quantifier frame fields preceding its suffix header: arrayDelta(4) + count(2) + meta(2).
+    uint256 internal constant HINT_FRAME_PREFIX_SIZE = 8;
 
-    /// @dev First hint field value marking a path that does not compile to concrete offsets.
-    uint32 internal constant HINT_SENTINEL_OFFSET = 0xFFFFFFFF;
+    /// @dev Byte offset of `meta` within a quantifier frame.
+    uint256 internal constant HINT_FRAME_META_OFFSET = 6;
 
-    /// @dev Type code of a sentinel hint block: the reserved descriptor code.
-    uint8 internal constant HINT_TYPE_NONE = 0x00;
+    /// @dev Size of the hint target block: targetDelta(4) + targetMeta(2) + typeCode(1).
+    uint256 internal constant HINT_TARGET_SIZE = 7;
+
+    /// @dev Byte offset of `targetMeta` within a hint target block.
+    uint256 internal constant HINT_TARGET_META_OFFSET = 4;
+
+    /// @dev Byte offset of `typeCode` within a hint target block.
+    uint256 internal constant HINT_TARGET_TYPECODE_OFFSET = 6;
+
+    /// @dev Header kind: the rule addresses one target.
+    uint8 internal constant HINT_KIND_NONE = 0x0;
+
+    /// @dev Header kind: universal quantifier.
+    uint8 internal constant HINT_KIND_ALL = 0x1;
+
+    /// @dev Header kind: existential quantifier.
+    uint8 internal constant HINT_KIND_ANY = 0x2;
+
+    /// @dev Highest defined header kind.
+    uint8 internal constant HINT_KIND_MAX = HINT_KIND_ANY;
+
+    /// @dev Bit shift of `kind` within the hint header byte.
+    uint8 internal constant HINT_KIND_SHIFT = 6;
+
+    /// @dev Mask for the hop count within a hint header or suffix header byte.
+    uint8 internal constant HINT_HOP_COUNT_MASK = 0x3F;
+
+    /// @dev Mask for the reserved bits of a suffix header byte.
+    uint8 internal constant HINT_SUFFIX_RESERVED_MASK = 0xC0;
+
+    /// @dev Hop index value marking a crossing that selects no element.
+    uint16 internal constant HINT_NO_INDEX = 0xFFFF;
+
+    /// @dev Hop index value the format reserves.
+    uint16 internal constant HINT_INDEX_RESERVED = 0xFFFE;
+
+    /// @dev Meta bit marking a dynamic element type.
+    uint16 internal constant HINT_META_ELEM_DYNAMIC = 0x8000;
+
+    /// @dev Meta bit marking a dynamic array node.
+    uint16 internal constant HINT_META_DYNAMIC_ARRAY = 0x4000;
+
+    /// @dev Mask for the element head size in words within a meta word.
+    uint16 internal constant HINT_META_STRIDE_MASK = 0x0FFF;
+
+    /// @dev Mask for the reserved bits of a meta word.
+    uint16 internal constant HINT_META_RESERVED_MASK = 0x3000;
 
     /*/////////////////////////////////////////////////////////////////////////
                              CONTEXT PROPERTY IDS

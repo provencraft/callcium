@@ -10,8 +10,8 @@ import { PolicyEnforcerTest } from "test/unit/PolicyEnforcer.t.sol";
 
 /// @dev Pins gas linearity of quantified evaluation: the suffix descent allocates per element,
 ///      so a broken free-memory-pointer rewind shows up as superlinear growth across these sizes.
-///      Both resolution paths are covered — a compilable quantifier addressed through its hint,
-///      and the quantifiers that compile to the sentinel and resolve by traversal instead.
+///      Both element shapes are covered — a static element addressed by stride alone, and a dynamic
+///      element the frame reaches through its own offset word.
 contract QuantifierBench is PolicyEnforcerTest {
     bytes internal policy;
     bytes internal callData8;
@@ -26,6 +26,9 @@ contract QuantifierBench is PolicyEnforcerTest {
     bytes internal staticArrayPolicy;
     bytes internal staticArrayCallData;
 
+    bytes internal dynTargetPolicy;
+    bytes internal dynTargetCallData;
+
     function setUp() public override {
         super.setUp();
         policy = PolicyBuilder.create("foo((uint256,address)[])").add(arg(0, Path.ALL, 1).eq(address(1))).build();
@@ -33,20 +36,34 @@ contract QuantifierBench is PolicyEnforcerTest {
         callData64 = _quantifiedCallData(64);
         callData256 = _quantifiedCallData(256);
 
-        // Dynamic elements: the element offset is calldata-supplied, so the path does not compile.
+        // Dynamic elements: each element is reached through its own offset word.
         dynElemPolicy = PolicyBuilder.create("foo((uint256,bytes)[])").add(arg(0, Path.ALL, 0).eq(uint256(1))).build();
         dynElemCallData8 = _dynElemCallData(8);
         dynElemCallData64 = _dynElemCallData(64);
         dynElemCallData256 = _dynElemCallData(256);
 
-        // Static array: the element count is descriptor-declared, which the hint block cannot carry.
+        // Static array: the element count comes from the frame rather than from calldata.
         staticArrayPolicy = PolicyBuilder.create("foo(uint256[4])").add(arg(0, Path.ALL).eq(uint256(1))).build();
         uint256[4] memory elems = [uint256(1), 1, 1, 1];
         staticArrayCallData = abi.encodeWithSignature("foo(uint256[4])", elems);
 
+        // Dynamic target: every element pays the payload-extent check before the operator.
+        dynTargetPolicy = PolicyBuilder.create("foo(bytes[])").add(arg(0, Path.ALL).lengthEq(2)).build();
+        dynTargetCallData = _dynTargetCallData(64);
+
         Policy.validate(policy);
         Policy.validate(dynElemPolicy);
         Policy.validate(staticArrayPolicy);
+        Policy.validate(dynTargetPolicy);
+    }
+
+    /// @dev ALL over a dynamic array whose elements each carry their own declared length.
+    function _dynTargetCallData(uint256 count) private pure returns (bytes memory) {
+        bytes[] memory elems = new bytes[](count);
+        for (uint256 i; i < count; ++i) {
+            elems[i] = hex"0102";
+        }
+        return abi.encodeWithSignature("foo(bytes[])", elems);
     }
 
     /// @dev ALL over a dynamic array whose elements are themselves dynamic.
@@ -82,23 +99,28 @@ contract QuantifierBench is PolicyEnforcerTest {
         vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "suffix256");
     }
 
-    function test_SentinelDynElem8() public {
+    function test_DynElem8() public {
         harness.enforce(dynElemPolicy, dynElemCallData8);
-        vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "sentinel_dyn_elem_8");
+        vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "dyn_elem_8");
     }
 
-    function test_SentinelDynElem64() public {
+    function test_DynElem64() public {
         harness.enforce(dynElemPolicy, dynElemCallData64);
-        vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "sentinel_dyn_elem_64");
+        vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "dyn_elem_64");
     }
 
-    function test_SentinelDynElem256() public {
+    function test_DynElem256() public {
         harness.enforce(dynElemPolicy, dynElemCallData256);
-        vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "sentinel_dyn_elem_256");
+        vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "dyn_elem_256");
     }
 
-    function test_SentinelStaticArray() public {
+    function test_StaticArrayQuantifier() public {
         harness.enforce(staticArrayPolicy, staticArrayCallData);
-        vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "sentinel_static_array");
+        vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "static_array_quantifier");
+    }
+
+    function test_DynTarget64() public {
+        harness.enforce(dynTargetPolicy, dynTargetCallData);
+        vm.snapshotGasLastCall("PolicyEnforcer.quantifier", "dyn_target_64");
     }
 }

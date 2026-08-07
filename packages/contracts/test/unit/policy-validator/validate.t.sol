@@ -10,6 +10,7 @@ import { IssueCode } from "src/IssueCode.sol";
 import { OpCode } from "src/OpCode.sol";
 import { Path } from "src/Path.sol";
 import { PolicyData } from "src/PolicyCoder.sol";
+import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 import { PolicyValidator } from "src/PolicyValidator.sol";
 import { TypeCode } from "src/TypeCode.sol";
 import { TypeDesc } from "src/TypeDesc.sol";
@@ -1455,6 +1456,58 @@ contract UnnavigablePathTest is PolicyValidatorTest {
     }
 }
 
+contract NestedQuantifierTest is PolicyValidatorTest {
+    function test_TwoQuantifiers_ReturnsError() public pure {
+        bytes memory desc =
+            DescriptorBuilder.create().add(TypeDesc.array_(TypeDesc.array_(TypeDesc.uint256_()))).build();
+
+        Constraint memory c = arg(0, Path.ALL, Path.ALL).eq(uint256(1));
+
+        Issue[] memory issues = PolicyValidator.validate(_createPolicyData("foo(uint256[][])", desc, c));
+
+        assertEq(issues.length, 1);
+        assertEq(issues[0].severity, IssueSeverity.Error);
+        assertEq(issues[0].category, IssueCategory.TypeMismatch);
+        assertEq(issues[0].code, IssueCode.NESTED_QUANTIFIER);
+        assertEq(issues[0].groupIndex, 0);
+        assertEq(issues[0].constraintIndex, 0);
+    }
+
+    function test_SingleQuantifier_ReturnsNoIssue() public pure {
+        bytes memory desc =
+            DescriptorBuilder.create().add(TypeDesc.array_(TypeDesc.array_(TypeDesc.uint256_()))).build();
+
+        Constraint memory c = arg(0, 0, Path.ALL).eq(uint256(1));
+
+        Issue[] memory issues = PolicyValidator.validate(_createPolicyData("foo(uint256[][])", desc, c));
+        _assertNoIssue(issues, IssueCode.NESTED_QUANTIFIER);
+    }
+}
+
+contract QuantifierOverStaticLimitTest is PolicyValidatorTest {
+    /// @dev Builds policy data quantifying over a static array of `length` elements.
+    function _quantifiedOverStatic(uint16 length) private pure returns (PolicyData memory) {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.array_(TypeDesc.uint256_(), length)).build();
+        return _createPolicyData("foo(uint256[])", desc, arg(0, Path.ALL).eq(uint256(1)));
+    }
+
+    function test_BeyondLimit_ReturnsError() public pure {
+        Issue[] memory issues =
+            PolicyValidator.validate(_quantifiedOverStatic(uint16(PF.MAX_QUANTIFIED_ARRAY_LENGTH) + 1));
+
+        Issue memory issue = _findIssue(issues, IssueCode.QUANTIFIER_OVER_STATIC_LIMIT);
+        assertEq(issue.severity, IssueSeverity.Error);
+        assertEq(issue.category, IssueCategory.Compatibility);
+        assertEq(issue.value1, bytes32(PF.MAX_QUANTIFIED_ARRAY_LENGTH + 1));
+        assertEq(issue.value2, bytes32(PF.MAX_QUANTIFIED_ARRAY_LENGTH));
+    }
+
+    function test_AtLimit_ReturnsNoIssue() public pure {
+        Issue[] memory issues = PolicyValidator.validate(_quantifiedOverStatic(uint16(PF.MAX_QUANTIFIED_ARRAY_LENGTH)));
+        _assertNoIssue(issues, IssueCode.QUANTIFIER_OVER_STATIC_LIMIT);
+    }
+}
+
 contract MalformedDescriptorTest is PolicyValidatorTest {
     function test_RevertWhen_UnknownTypeCode() public {
         bytes memory desc = bytes.concat(hex"0201", bytes1(TypeCode.TUPLE + 1));
@@ -1490,7 +1543,7 @@ contract HintMismatchTest is PolicyValidatorTest {
     }
 
     function test_MatchingHint_ReturnsNoIssue() public pure {
-        Issue[] memory issues = PolicyValidator.validate(_withHint(hex"0000000020"));
+        Issue[] memory issues = PolicyValidator.validate(_withHint(hex"0000000000000020"));
         _assertNoIssue(issues, IssueCode.HINT_MISMATCH);
     }
 
@@ -1500,8 +1553,8 @@ contract HintMismatchTest is PolicyValidatorTest {
         _assertNoIssue(issues, IssueCode.HINT_MISMATCH);
     }
 
-    function test_DivergentOffset_ReturnsError() public pure {
-        Issue[] memory issues = PolicyValidator.validate(_withHint(hex"0000002020"));
+    function test_DivergentTargetDelta_ReturnsError() public pure {
+        Issue[] memory issues = PolicyValidator.validate(_withHint(hex"0000000020000020"));
 
         Issue memory issue = _findIssue(issues, IssueCode.HINT_MISMATCH);
         assertEq(issue.severity, IssueSeverity.Error);
@@ -1510,23 +1563,26 @@ contract HintMismatchTest is PolicyValidatorTest {
         assertEq(issue.constraintIndex, 0);
     }
 
-    function test_SentinelWhereCompilable_ReturnsError() public pure {
-        _assertIssue(PolicyValidator.validate(_withHint(hex"ffffffff00")), IssueCode.HINT_MISMATCH);
+    function test_SpuriousHop_ReturnsError() public pure {
+        _assertIssue(
+            PolicyValidator.validate(_withHint(hex"0100000000ffff000000000000000020")), IssueCode.HINT_MISMATCH
+        );
     }
 
-    function test_ConcreteWhereUnnavigable_ReturnsError() public pure {
+    function test_UnnavigablePath_ReportsPathAlone() public pure {
+        // Compilation is undefined for a path the descriptor rejects, so no hint comparison runs.
         Constraint memory c = arg(3).eq(uint256(1));
-        c.hint = hex"0000000020";
+        c.hint = hex"0000000000000020";
 
         Issue[] memory issues = PolicyValidator.validate(_createPolicyData("foo(uint256)", _desc(), c));
 
-        _assertIssue(issues, IssueCode.HINT_MISMATCH);
         _assertIssue(issues, IssueCode.UNNAVIGABLE_PATH);
+        _assertNoIssue(issues, IssueCode.HINT_MISMATCH);
     }
 
     function test_ContextConstraintHintIgnored() public pure {
         Constraint memory c = msgSender().eq(address(1));
-        c.hint = hex"0000000020";
+        c.hint = hex"0000000000000020";
 
         Issue[] memory issues = PolicyValidator.validate(_createPolicyData("foo(uint256)", _desc(), c));
         _assertNoIssue(issues, IssueCode.HINT_MISMATCH);

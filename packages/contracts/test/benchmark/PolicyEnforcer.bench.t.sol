@@ -60,6 +60,15 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     Fixture internal depth3ArrayStructField;
 
     /*/////////////////////////////////////////////////////////////////////////
+                               HOP CHAIN FIXTURES
+    /////////////////////////////////////////////////////////////////////////*/
+
+    Fixture internal hops1;
+    Fixture internal hops2;
+    Fixture internal hops4;
+    Fixture internal hops8;
+
+    /*/////////////////////////////////////////////////////////////////////////
                               OPERATOR FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
@@ -110,11 +119,11 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     Fixture internal typeLargeTupleField;
 
     /*/////////////////////////////////////////////////////////////////////////
-                              SENTINEL RULE FIXTURES
+                             DYNAMIC TUPLE FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
-    Fixture internal sentinelRules1;
-    Fixture internal sentinelRules4;
+    Fixture internal dynTupleRules1;
+    Fixture internal dynTupleRules4;
 
     /*/////////////////////////////////////////////////////////////////////////
                               LENGTH OPERATOR FIXTURES
@@ -133,7 +142,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         _buildOperatorFixtures();
         _buildScopeFixtures();
         _buildValueTypeFixtures();
-        _buildSentinelRuleFixtures();
+        _buildDynTupleRuleFixtures();
         _buildLengthOpFixtures();
     }
 
@@ -309,6 +318,33 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         );
 
         depth3ArrayStructField = _buildArrayStruct();
+
+        hops1 = _buildHopChain(1);
+        hops2 = _buildHopChain(2);
+        hops4 = _buildHopChain(4);
+        hops8 = _buildHopChain(8);
+    }
+
+    /// @dev Builds a fixture whose target sits behind `hopCount` payload entries. Each nesting level
+    /// is a tuple the innermost bytes member makes dynamic, so reaching it costs one hop per level.
+    function _buildHopChain(uint256 hopCount) internal pure returns (Fixture memory) {
+        bytes memory types = bytes("bytes,uint256");
+        for (uint256 i = 1; i < hopCount; ++i) {
+            types = abi.encodePacked("(", types, "),uint256");
+        }
+        string memory sig = string(abi.encodePacked("foo((", types, "))"));
+
+        uint16[] memory steps = new uint16[](hopCount + 1);
+        steps[hopCount] = 1;
+        PolicyDraft memory draft = PolicyBuilder.create(sig).add(arg(Path.encode(steps)).eq(uint256(42)));
+
+        // Every level holds its successor one head behind it, and the innermost bytes is empty.
+        bytes memory callData = abi.encodePacked(abi.encodeWithSignature(sig), uint256(0x20));
+        for (uint256 i; i < hopCount; ++i) {
+            callData = abi.encodePacked(callData, uint256(0x40), i + 1 == hopCount ? uint256(42) : i);
+        }
+
+        return _fixture(draft.buildUnsafe(), abi.encodePacked(callData, uint256(0)));
     }
 
     function _encodeNestedStruct4(
@@ -581,23 +617,23 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                              SENTINEL RULE BUILDERS
+                             DYNAMIC TUPLE BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function _buildSentinelRuleFixtures() internal {
-        // A bytes member makes the whole argument dynamic, so no rule on it compiles to a
-        // concrete hint: every rule resolves by traversal, from the same path prefix.
+    function _buildDynTupleRuleFixtures() internal {
+        // A bytes member makes the whole argument dynamic, so every rule on it enters the tuple
+        // payload through one hop before reaching its own field.
         string memory sig = "foo((address,uint256,uint256,bytes))";
         bytes memory callData =
             _encodeDynTupleArg(sig, abi.encode(address(1), uint256(2), uint256(3), hex"0102"));
 
-        sentinelRules1 = _buildFixture(
+        dynTupleRules1 = _buildFixture(
             PolicyBuilder.create(sig)
                 .add(arg(0, 0).eq(address(1))),
             callData
         );
 
-        sentinelRules4 = _buildFixture(
+        dynTupleRules4 = _buildFixture(
             PolicyBuilder.create(sig)
                 .add(arg(0, 0).eq(address(1)))
                 .add(arg(0, 1).eq(uint256(2)))

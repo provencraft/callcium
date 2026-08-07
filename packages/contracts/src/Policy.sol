@@ -14,6 +14,22 @@ import { LibBytes } from "solady/utils/LibBytes.sol";
 /// @title Policy
 /// @notice Format-aware views for policy blobs.
 library Policy {
+    /// @dev State threaded through the compilation of a path into a hint block.
+    struct HintWalk {
+        /// Hops of the chain currently being compiled.
+        bytes chain;
+        /// Hops of the main chain, captured when a quantifier closes it.
+        bytes mainHops;
+        /// Byte offset of the next node relative to the chain's current base.
+        uint256 delta;
+        /// Frame prefix packed as it appears on the wire: arrayDelta(32) | count(16) | meta(16).
+        uint256 frame;
+        /// Header kind the path resolves to.
+        uint8 kind;
+        /// Set while the chain already ends inside the current node, which then takes no entry hop.
+        bool entered;
+    }
+
     /*/////////////////////////////////////////////////////////////////////////
                                      ERRORS
     ////////////////////////////////////////////////////////////////////////*/
@@ -69,9 +85,13 @@ library Policy {
     /// @param ruleOffset The offset of the inconsistent rule.
     error RuleSizeMismatch(uint256 ruleOffset);
 
-    /// @notice Thrown when a hint block pairs a sentinel offset with a concrete type code, or the reverse.
+    /// @notice Thrown when a hint block carries a reserved or unused state.
     /// @param ruleOffset The offset of the rule with the malformed hint.
     error MalformedHint(uint256 ruleOffset);
+
+    /// @notice Thrown when a path does not address a target reachable by a hop chain.
+    /// @param stepIndex The index of the path step that does not resolve.
+    error UncompilablePath(uint256 stepIndex);
 
     /// @notice Thrown when a rule has an empty path.
     /// @param ruleOffset The offset of the rule with depth zero.
@@ -345,103 +365,56 @@ library Policy {
         pure
         returns (uint256 hintOffset, uint256 hintSize)
     {
-        uint256 pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
         uint256 depth = pathDepth(self, ruleOffset);
-        hintOffset = pathStart + depth * PF.PATH_STEP_SIZE;
+        hintOffset = ruleOffset + PF.RULE_PATH_OFFSET + depth * PF.PATH_STEP_SIZE;
         if (scope(self, ruleOffset) == PF.SCOPE_CONTEXT) return (hintOffset, 0);
 
         uint256 ruleEnd = ruleOffset + Be16.readUnchecked(self, ruleOffset);
-        require(hintOffset + PF.HINT_FIELD_SIZE <= ruleEnd, RuleFieldOutOfBounds(ruleOffset));
+        require(hintOffset + PF.HINT_HEADER_SIZE <= ruleEnd, RuleFieldOutOfBounds(ruleOffset));
 
-        // Size resolution precedence: a sentinel first field, then a quantifier step in the path.
-        hintSize = PF.HINT_STATIC_SIZE;
-        if (
-            uint32(bytes4(LibBytes.load(self, hintOffset))) != PF.HINT_SENTINEL_OFFSET
-                && _hasQuantifier(self, pathStart, depth)
-        ) hintSize = PF.HINT_QUANTIFIED_SIZE;
+        uint8 header = uint8(self[hintOffset]);
+        uint256 hopsEnd = hintOffset + PF.HINT_HEADER_SIZE + uint256(header & PF.HINT_HOP_COUNT_MASK) * PF.HINT_HOP_SIZE;
+        hintSize = hopsEnd - hintOffset + PF.HINT_TARGET_SIZE;
+
+        // A quantifier frame sits between the main chain and the target, sized by its own header byte.
+        if (header >> PF.HINT_KIND_SHIFT != PF.HINT_KIND_NONE) {
+            uint256 suffixHeaderOffset = hopsEnd + PF.HINT_FRAME_PREFIX_SIZE;
+            require(suffixHeaderOffset < ruleEnd, RuleFieldOutOfBounds(ruleOffset));
+            uint8 suffixHeader = uint8(self[suffixHeaderOffset]);
+            hintSize += PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE + uint256(suffixHeader & PF.HINT_HOP_COUNT_MASK)
+            * PF.HINT_HOP_SIZE;
+        }
         require(hintOffset + hintSize <= ruleEnd, RuleFieldOutOfBounds(ruleOffset));
     }
 
     /// @notice Compiles a calldata rule path into its wire hint block.
-    /// @dev Returns the sentinel block for a path that is not compilable: one that navigates
-    /// through a dynamic node, quantifies over anything but a dynamic array of static elements,
-    /// or does not navigate the descriptor at all.
+    /// @dev Reverts when a step leaves the structure the descriptor declares, quantifies over a
+    /// non-array node, or repeats a quantifier.
     /// @param desc The descriptor bytes.
     /// @param path Path encoded as big-endian uint16 steps.
     /// @return The hint block bytes.
     function compileHint(bytes memory desc, bytes memory path) internal pure returns (bytes memory) {
         uint256 depth = Path.validate(path);
         uint256 argIndex = Path.atUnchecked(path, 0);
-        if (argIndex >= Descriptor.paramCount(desc)) return _sentinelHint();
+        require(argIndex < Descriptor.paramCount(desc), UncompilablePath(0));
 
-        // Accumulate the argument's head offset by skipping the preceding parameters.
-        uint256 descOffset = DF.HEADER_SIZE;
-        uint256 head;
-        for (uint256 i; i < argIndex; ++i) {
-            (, bool paramIsDynamic, uint32 paramStaticSize, uint256 paramDescEnd) = Descriptor.inspect(desc, descOffset);
-            head += paramIsDynamic ? 32 : uint256(paramStaticSize);
-            descOffset = paramDescEnd;
-        }
-
-        uint256 arrayHead;
-        uint256 elemStride;
-        bool quantified;
+        // The argument's head slot sits past the slots of every preceding parameter.
+        (uint256 argSpan, uint256 descOffset) = _headSpan(desc, DF.HEADER_SIZE, argIndex);
+        HintWalk memory walk;
+        walk.delta = argSpan;
 
         for (uint256 stepIndex = 1; stepIndex < depth; ++stepIndex) {
-            uint256 childIndex = Path.atUnchecked(path, stepIndex);
-            (uint8 code, bool isDynamic,,) = Descriptor.inspect(desc, descOffset);
-
-            if (childIndex >= Path.ANY) {
-                // Only a dynamic array of static elements compiles: calldata supplies the element
-                // count, the descriptor supplies a fixed stride.
-                if (code != TypeCode.DYNAMIC_ARRAY) return _sentinelHint();
-                uint256 quantifiedElemDescOffset = descOffset + DF.ARRAY_HEADER_SIZE;
-                (, bool elemIsDynamic, uint32 elemStaticSize,) = Descriptor.inspect(desc, quantifiedElemDescOffset);
-                if (elemIsDynamic) return _sentinelHint();
-
-                arrayHead = head;
-                elemStride = elemStaticSize;
-                quantified = true;
-                // Offsets past the quantifier are relative to the element.
-                head = 0;
-                descOffset = quantifiedElemDescOffset;
-                continue;
-            }
-
-            // A dynamic node places its subtree at a calldata-supplied offset, so nothing below it
-            // has a fixed address.
-            if (isDynamic) return _sentinelHint();
-
-            if (code == TypeCode.TUPLE) {
-                if (childIndex >= Descriptor.tupleFieldCount(desc, descOffset)) return _sentinelHint();
-                uint256 fieldDescOffset = descOffset + DF.TUPLE_HEADER_SIZE;
-                for (uint256 i; i < childIndex; ++i) {
-                    (,, uint32 fieldStaticSize, uint256 fieldDescEnd) = Descriptor.inspect(desc, fieldDescOffset);
-                    head += fieldStaticSize;
-                    fieldDescOffset = fieldDescEnd;
-                }
-                descOffset = fieldDescOffset;
-            } else if (code == TypeCode.STATIC_ARRAY) {
-                if (childIndex >= Descriptor.staticArrayLength(desc, descOffset)) return _sentinelHint();
-                uint256 elemDescOffset = descOffset + DF.ARRAY_HEADER_SIZE;
-                (,, uint32 elemStaticSize,) = Descriptor.inspect(desc, elemDescOffset);
-                head += childIndex * uint256(elemStaticSize);
-                descOffset = elemDescOffset;
-            } else {
-                return _sentinelHint();
-            }
+            descOffset = _walkStep(desc, walk, descOffset, Path.atUnchecked(path, stepIndex), stepIndex);
         }
 
-        // An offset indistinguishable from the sentinel is not addressable through a hint.
-        if (head >= PF.HINT_SENTINEL_OFFSET || arrayHead >= PF.HINT_SENTINEL_OFFSET) return _sentinelHint();
+        (uint8 targetCode, bool targetIsDynamic,,) = Descriptor.inspect(desc, descOffset);
+        _enter(walk, targetIsDynamic && !walk.entered);
 
-        (uint8 targetCode,,,) = Descriptor.inspect(desc, descOffset);
-        // forgefmt: disable-next-item
-        return quantified
-            // forge-lint: disable-next-line(unsafe-typecast) bounded above by the sentinel check.
-            ? abi.encodePacked(uint32(arrayHead), uint32(elemStride), uint32(head), targetCode)
-            // forge-lint: disable-next-line(unsafe-typecast) bounded above by the sentinel check.
-            : abi.encodePacked(uint32(head), targetCode);
+        uint16 targetMeta;
+        if (targetCode == TypeCode.DYNAMIC_ARRAY) (targetMeta,) = _arrayMeta(desc, descOffset, targetCode);
+
+        // Packed as the target block it becomes on the wire: targetDelta(32) | targetMeta(16) | typeCode(8).
+        return _encodeHint(walk, (walk.delta << 24) | (uint256(targetMeta) << 8) | targetCode, depth);
     }
 
     /// @notice Returns the operator code for the rule at `ruleOffset`.
@@ -492,14 +465,9 @@ library Policy {
         uint8 ruleScope = uint8(self[ruleOffset + PF.RULE_SCOPE_OFFSET]);
         require(ruleScope == PF.SCOPE_CONTEXT || ruleScope == PF.SCOPE_CALLDATA, InvalidScope(ruleOffset));
 
-        // Hint block: a sentinel offset and the reserved type code appear together or not at all.
         uint256 depth = uint8(self[ruleOffset + PF.RULE_DEPTH_OFFSET]);
         (uint256 hintOffset, uint256 hintSize) = hintView(self, ruleOffset);
-        if (hintSize != 0) {
-            bool sentinelOffset = uint32(bytes4(LibBytes.load(self, hintOffset))) == PF.HINT_SENTINEL_OFFSET;
-            bool noTypeCode = uint8(self[hintOffset + hintSize - 1]) == PF.HINT_TYPE_NONE;
-            require(sentinelOffset == noTypeCode, MalformedHint(ruleOffset));
-        }
+        if (hintSize != 0) _validateHint(self, ruleOffset, hintOffset, hintSize);
 
         // Framing consistency: declared size must match field layout.
         uint256 dataLengthOffset = hintOffset + hintSize + PF.RULE_OPCODE_SIZE;
@@ -535,17 +503,178 @@ library Policy {
         return ruleOffset;
     }
 
-    /// @dev Returns true if any of the `depth` path steps at `pathStart` is a quantifier.
-    function _hasQuantifier(bytes memory self, uint256 pathStart, uint256 depth) private pure returns (bool) {
-        for (uint256 i; i < depth; ++i) {
-            if (Be16.readUnchecked(self, pathStart + i * PF.PATH_STEP_SIZE) >= Path.ANY) return true;
+    /// @dev Returns the combined head slot span of the `count` nodes at `offset`, and the offset of the node past them.
+    function _headSpan(
+        bytes memory desc,
+        uint256 offset,
+        uint256 count
+    )
+        private
+        pure
+        returns (uint256 span, uint256 nodeOffset)
+    {
+        nodeOffset = offset;
+        for (uint256 i; i < count; ++i) {
+            (, bool isDynamic, uint32 staticSize, uint256 next) = Descriptor.inspect(desc, nodeOffset);
+            // An indirected node occupies a single offset word.
+            span += isDynamic ? 32 : staticSize;
+            nodeOffset = next;
         }
-        return false;
     }
 
-    /// @dev Returns the hint block for a path that does not compile to concrete offsets.
-    function _sentinelHint() private pure returns (bytes memory) {
-        return abi.encodePacked(PF.HINT_SENTINEL_OFFSET, PF.HINT_TYPE_NONE);
+    /// @dev Applies one path step to `walk` and returns the descriptor offset the step reaches.
+    function _walkStep(
+        bytes memory desc,
+        HintWalk memory walk,
+        uint256 descOffset,
+        uint16 step,
+        uint256 stepIndex
+    )
+        private
+        pure
+        returns (uint256)
+    {
+        (uint8 code, bool isDynamic,,) = Descriptor.inspect(desc, descOffset);
+
+        // A quantifier reaches an array alone, every other code reading its value as an index.
+        if (code == TypeCode.TUPLE) {
+            require(step < Descriptor.tupleFieldCount(desc, descOffset), UncompilablePath(stepIndex));
+            _enter(walk, isDynamic && !walk.entered);
+
+            (uint256 fieldSpan, uint256 fieldOffset) = _headSpan(desc, descOffset + DF.TUPLE_HEADER_SIZE, step);
+            walk.delta += fieldSpan;
+            walk.entered = false;
+            return fieldOffset;
+        }
+
+        require(code == TypeCode.STATIC_ARRAY || code == TypeCode.DYNAMIC_ARRAY, UncompilablePath(stepIndex));
+        if (code == TypeCode.STATIC_ARRAY && step < Path.ANY) {
+            require(step < Descriptor.staticArrayLength(desc, descOffset), UncompilablePath(stepIndex));
+        }
+        (uint16 meta, bool elemIsDynamic) = _arrayMeta(desc, descOffset, code);
+
+        if (step >= Path.ANY) {
+            require(walk.kind == PF.HINT_KIND_NONE, UncompilablePath(stepIndex));
+            _enter(walk, isDynamic && !walk.entered);
+
+            uint256 count = code == TypeCode.DYNAMIC_ARRAY ? 0 : Descriptor.staticArrayLength(desc, descOffset);
+            walk.frame = (walk.delta << 32) | (count << 16) | meta;
+            walk.kind = step == Path.ALL ? PF.HINT_KIND_ALL : PF.HINT_KIND_ANY;
+
+            walk.mainHops = walk.chain;
+            walk.chain = "";
+            walk.delta = 0;
+        } else if (isDynamic) {
+            // An indirected array holds its elements behind an offset word.
+            _enter(walk, !walk.entered);
+            walk.chain = abi.encodePacked(walk.chain, uint32(0), step, meta);
+            walk.delta = 0;
+        } else {
+            // A static array of static elements is inline, so the index folds into the accumulator.
+            walk.delta += uint256(step) * uint256(meta & PF.HINT_META_STRIDE_MASK) * 32;
+        }
+
+        walk.entered = elemIsDynamic;
+        return descOffset + DF.ARRAY_HEADER_SIZE;
+    }
+
+    /// @dev Appends the hop entering an indirected node's payload and rebases the offset accumulator.
+    function _enter(HintWalk memory walk, bool needed) private pure {
+        if (!needed) return;
+        // forge-lint: disable-next-line(unsafe-typecast) descriptor limits bound head offsets below 2**32.
+        walk.chain = abi.encodePacked(walk.chain, uint32(walk.delta), PF.HINT_NO_INDEX, uint16(0));
+        walk.delta = 0;
+    }
+
+    /// @dev Serializes a completed walk and its packed target block into the wire hint block.
+    function _encodeHint(HintWalk memory walk, uint256 target, uint256 depth) private pure returns (bytes memory) {
+        bytes memory suffixHops;
+        if (walk.kind == PF.HINT_KIND_NONE) walk.mainHops = walk.chain;
+        else suffixHops = walk.chain;
+
+        uint256 mainHopCount = walk.mainHops.length / PF.HINT_HOP_SIZE;
+        uint256 suffixHopCount = suffixHops.length / PF.HINT_HOP_SIZE;
+        require(
+            mainHopCount <= PF.HINT_HOP_COUNT_MASK && suffixHopCount <= PF.HINT_HOP_COUNT_MASK, UncompilablePath(depth)
+        );
+
+        // forge-lint: disable-next-line(unsafe-typecast) bounded above by the hop count check.
+        bytes memory out = abi.encodePacked((walk.kind << PF.HINT_KIND_SHIFT) | uint8(mainHopCount), walk.mainHops);
+
+        if (walk.kind != PF.HINT_KIND_NONE) {
+            // forge-lint: disable-next-line(unsafe-typecast) the frame is packed to its wire width.
+            out = abi.encodePacked(out, uint64(walk.frame), uint8(suffixHopCount), suffixHops);
+        }
+
+        // forge-lint: disable-next-line(unsafe-typecast) the target is packed to its wire width.
+        return abi.encodePacked(out, uint56(target));
+    }
+
+    /// @dev Returns the meta word describing the array node at `arrayOffset`, and whether its elements are dynamic.
+    function _arrayMeta(
+        bytes memory desc,
+        uint256 arrayOffset,
+        uint8 code
+    )
+        private
+        pure
+        returns (uint16 meta, bool elemIsDynamic)
+    {
+        uint32 elemStaticSize;
+        (, elemIsDynamic, elemStaticSize,) = Descriptor.inspect(desc, arrayOffset + DF.ARRAY_HEADER_SIZE);
+        // A dynamic element occupies one offset word within the element region.
+        // forge-lint: disable-next-line(unsafe-typecast) descriptor static words fit the stride field.
+        meta = elemIsDynamic ? 1 : uint16(elemStaticSize >> 5);
+        if (elemIsDynamic) meta |= PF.HINT_META_ELEM_DYNAMIC;
+        if (code == TypeCode.DYNAMIC_ARRAY) meta |= PF.HINT_META_DYNAMIC_ARRAY;
+    }
+
+    /// @dev Requires the hint block at `hintOffset` to carry no reserved or unused state.
+    function _validateHint(bytes memory self, uint256 ruleOffset, uint256 hintOffset, uint256 hintSize) private pure {
+        uint8 header = uint8(self[hintOffset]);
+        uint8 kind = header >> PF.HINT_KIND_SHIFT;
+        require(kind <= PF.HINT_KIND_MAX, MalformedHint(ruleOffset));
+
+        uint256 hopsStart = hintOffset + PF.HINT_HEADER_SIZE;
+        uint256 hopsEnd = hopsStart + uint256(header & PF.HINT_HOP_COUNT_MASK) * PF.HINT_HOP_SIZE;
+        _validateHops(self, ruleOffset, hopsStart, hopsEnd);
+
+        uint256 targetOffset = hintOffset + hintSize - PF.HINT_TARGET_SIZE;
+        if (kind != PF.HINT_KIND_NONE) {
+            uint16 frameMeta = Be16.readUnchecked(self, hopsEnd + PF.HINT_FRAME_META_OFFSET);
+            require(frameMeta & PF.HINT_META_RESERVED_MASK == 0, MalformedHint(ruleOffset));
+            uint8 suffixHeader = uint8(self[hopsEnd + PF.HINT_FRAME_PREFIX_SIZE]);
+            require(suffixHeader & PF.HINT_SUFFIX_RESERVED_MASK == 0, MalformedHint(ruleOffset));
+            _validateHops(self, ruleOffset, hopsEnd + PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE, targetOffset);
+        }
+
+        uint16 targetMeta = Be16.readUnchecked(self, targetOffset + PF.HINT_TARGET_META_OFFSET);
+        uint8 typeCode = uint8(self[targetOffset + PF.HINT_TARGET_TYPECODE_OFFSET]);
+        // A target meta word describes a dynamic array and is absent for every other type.
+        // forgefmt: disable-next-item
+        require(
+            typeCode == TypeCode.DYNAMIC_ARRAY
+                ? targetMeta & PF.HINT_META_RESERVED_MASK == 0
+                : targetMeta == 0,
+            MalformedHint(ruleOffset)
+        );
+    }
+
+    /// @dev Requires every hop entry in `[start, end)` to carry no reserved or unused state.
+    function _validateHops(bytes memory self, uint256 ruleOffset, uint256 start, uint256 end) private pure {
+        for (uint256 offset = start; offset < end; offset += PF.HINT_HOP_SIZE) {
+            uint16 index = Be16.readUnchecked(self, offset + PF.HINT_HOP_INDEX_OFFSET);
+            uint16 meta = Be16.readUnchecked(self, offset + PF.HINT_HOP_META_OFFSET);
+            require(index != PF.HINT_INDEX_RESERVED, MalformedHint(ruleOffset));
+
+            // A plain hop carries no element meta; an element hop addresses no offset of its own.
+            if (index == PF.HINT_NO_INDEX) {
+                require(meta == 0, MalformedHint(ruleOffset));
+            } else {
+                require(uint32(bytes4(LibBytes.load(self, offset))) == 0, MalformedHint(ruleOffset));
+                require(meta & PF.HINT_META_RESERVED_MASK == 0, MalformedHint(ruleOffset));
+            }
+        }
     }
 
     /// @dev Requires the IN operand words to be strictly ascending by unsigned value.

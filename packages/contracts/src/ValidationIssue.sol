@@ -674,6 +674,23 @@ library ValidationIssue {
         });
     }
 
+    /// @notice Creates an issue for a calldata path carrying more than one quantifier step.
+    /// @param groupIndex Group index where the issue was found.
+    /// @param constraintIndex Constraint index within the group.
+    /// @return The constructed validation issue.
+    function nestedQuantifier(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
+        return Issue({
+            severity: IssueSeverity.Error,
+            category: IssueCategory.TypeMismatch,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: IssueCode.NESTED_QUANTIFIER,
+            value1: bytes32(0),
+            value2: bytes32(0),
+            message: "Path applies more than one quantifier"
+        });
+    }
+
     /// @notice Creates an error for a hint block that does not match its compiled path.
     /// @param groupIndex The group index.
     /// @param constraintIndex The constraint index.
@@ -715,7 +732,7 @@ library ValidationIssue {
         });
     }
 
-    /// @notice Creates a warning for a quantifier over a static array beyond the iteration cap.
+    /// @notice Creates an error for a quantifier over a static array beyond the iteration cap.
     /// @return The constructed validation issue.
     function quantifierOverStaticLimit(
         uint32 groupIndex,
@@ -728,7 +745,7 @@ library ValidationIssue {
         returns (Issue memory)
     {
         return Issue({
-            severity: IssueSeverity.Warning,
+            severity: IssueSeverity.Error,
             category: IssueCategory.Compatibility,
             groupIndex: groupIndex,
             constraintIndex: constraintIndex,

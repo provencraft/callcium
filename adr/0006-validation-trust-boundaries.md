@@ -10,13 +10,13 @@ The policy pipeline has four stages: builder (off-chain), coder (off-chain), reg
 
 The threat model assumes that `PolicyManager` access is gated — only trusted entities can store policies. An actor with storage access could simply delete a policy or store a trivial always-pass policy; crafting a subtly malformed blob offers no advantage.
 
-The spec (policy-v1, Section 8.1) defines structural checks that validators MUST perform. The question is where these checks live and what the enforcer can assume about its input.
+The spec (policy-v2, Section 8.1) defines structural checks that validators MUST perform. The question is where these checks live and what the enforcer can assume about its input.
 
 ## Decision
 
 Validation is split into three tiers. Each tier trusts the ones before it.
 
-**Storage time (`Policy.validate()`)** performs every spec Section 8.1 well-formedness check (PWF-1 through PWF-21): header and descriptor validity, size and consumption consistency, scope and context-path rules, path-depth bounds, operator validity, and IN operand ordering. These run once at storage time — never during enforcement.
+**Storage time (`Policy.validate()`)** performs every spec Section 8.1 well-formedness check (PWF-1 through PWF-22): header and descriptor validity, size and consumption consistency, scope and context-path rules, path-depth bounds, operator validity, IN operand ordering, and the shape of every hint block — that its header names a defined kind and that no reserved field carries a value. These run once at storage time — never during enforcement.
 
 IN operand ordering (PWF-21) deserves emphasis: operands must be strictly ascending by lexicographic comparison of their 32-byte encodings, the invariant the enforcer's binary search relies on. An unsorted set silently mis-enforces rather than reverting, so it cannot be deferred to build time.
 
@@ -25,12 +25,15 @@ IN operand ordering (PWF-21) deserves emphasis: operands must be strictly ascend
 **Runtime (`PolicyEnforcer`)** performs only checks that depend on live transaction data:
 
 - Selector match against calldata.
-- Calldata length and bounds during ABI traversal.
+- Calldata bounds on every load along a hint's hop chain, including the requirement that offset arithmetic not wrap (spec Section 7.2).
+- Element index against the live length word when a hop crosses a dynamic array.
+- Calldata backing for the extent a dynamic target's declared length claims (spec Section 7.2).
 - Array length cap for quantifier iteration (DoS protection).
-- Nested quantifier rejection.
-- Path depth <= 32 (self-shielding duplicate of the storage-time check; see ADR-0005).
+- Empty-array rejection under the existential quantifier (spec Section 7.3).
 - Canonical encoding of each resolved scalar (spec Section 7.4).
 - Unknown context property ID (inherent to the assembly switch structure; also checked at storage time).
+
+Path depth is absent from that list: the enforcer reads no path bytes, and its loops are bounded by the hint's own hop-count fields and by the iteration cap (ADR-0005). Nested quantifiers are absent because the hint header encodes one quantifier kind and one frame, so nesting has no representation to reject.
 
 ## Alternatives Considered
 

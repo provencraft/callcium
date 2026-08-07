@@ -13,7 +13,7 @@ import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 contract ValidateTest is PolicyTest {
     /// @dev Builds a single-rule calldata-scope blob with a zero path of the given depth.
     function _pathDepthBlob(uint256 depth) private pure returns (bytes memory) {
-        return _calldataRuleBlob(new bytes(depth * PF.PATH_STEP_SIZE), SENTINEL_HINT);
+        return _calldataRuleBlob(new bytes(depth * PF.PATH_STEP_SIZE), STATIC_HINT);
     }
 
     /// @dev Builds a single-rule calldata-scope blob whose path quantifies over the argument.
@@ -163,52 +163,95 @@ contract ValidateTest is PolicyTest {
                                   HINT BLOCK
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_ConcreteHintAccepted() public view {
-        harness.validate(_calldataRuleBlob(hex"0000", hex"0000000020"));
-    }
-
-    function test_RevertWhen_SentinelOffsetWithConcreteType() public {
-        bytes memory blob = _calldataRuleBlob(hex"0000", hex"ffffffff20");
-        uint256 ruleOffset = _firstRuleOffset(blob);
-        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, ruleOffset));
+    /// @dev Asserts that validating a single-rule blob carrying `hint` reports a malformed hint.
+    function _expectMalformedHint(bytes memory path, bytes memory hint) private {
+        bytes memory blob = _calldataRuleBlob(path, hint);
+        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, _firstRuleOffset(blob)));
         harness.validate(blob);
     }
 
-    function test_RevertWhen_ConcreteOffsetWithNoType() public {
-        bytes memory blob = _calldataRuleBlob(hex"0000", hex"0000000000");
-        uint256 ruleOffset = _firstRuleOffset(blob);
-        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, ruleOffset));
-        harness.validate(blob);
+    function test_HopFreeHintAccepted() public view {
+        harness.validate(_calldataRuleBlob(hex"0000", STATIC_HINT));
     }
 
-    function test_QuantifiedPathTakesQuantifiedHintSize() public view {
-        // A quantified path with a concrete hint resolves to the 13-byte block.
-        bytes memory blob = _quantifiedRuleBlob(hex"00000000000000200000000020");
+    function test_HopChainAccepted() public view {
+        harness.validate(_calldataRuleBlob(hex"0000", hex"0100000000ffff000000000000000070"));
+    }
+
+    function test_HeaderSizesTheBlock() public view {
+        bytes memory hint = hex"0100000000ffff000000000000000070";
+        bytes memory blob = _calldataRuleBlob(hex"0000", hint);
         (, uint256 hintSize) = harness.hintView(blob, _firstRuleOffset(blob));
-        assertEq(hintSize, PF.HINT_QUANTIFIED_SIZE, "quantified hint size");
-        harness.validate(blob);
+        assertEq(hintSize, hint.length, "hop chain hint size");
     }
 
-    function test_SentinelWinsOverQuantifiedPath() public view {
-        // The sentinel prefix resolves the size before the path is consulted.
-        bytes memory blob = _quantifiedRuleBlob(SENTINEL_HINT);
+    function test_SuffixHeaderSizesTheQuantifiedBlock() public view {
+        bytes memory hint = hex"4000000000000300010100000000ffff000000000000000020";
+        bytes memory blob = _quantifiedRuleBlob(hint);
         (, uint256 hintSize) = harness.hintView(blob, _firstRuleOffset(blob));
-        assertEq(hintSize, PF.HINT_STATIC_SIZE, "sentinel hint size");
+        assertEq(hintSize, hint.length, "quantified hint size");
         harness.validate(blob);
     }
 
-    function test_RevertWhen_QuantifiedPathCarriesStaticHint() public {
-        // The resolver takes HINT_QUANTIFIED_SIZE bytes for a quantified path, so a shorter block
-        // runs into the operator fields and the type code it lands on no longer matches its offset.
-        bytes memory blob = _quantifiedRuleBlob(hex"0000000020");
-        uint256 ruleOffset = _firstRuleOffset(blob);
-        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, ruleOffset));
+    function test_RevertWhen_HeaderKindReserved() public {
+        _expectMalformedHint(hex"0000", hex"c000000000000020");
+    }
+
+    function test_RevertWhen_SuffixHeaderReservedBitsSet() public {
+        _expectMalformedHint(hex"0000ffff", hex"4000000000000300014000000000000020");
+    }
+
+    function test_RevertWhen_HopIndexReserved() public {
+        _expectMalformedHint(hex"0000", hex"0100000000fffe000100000000000020");
+    }
+
+    function test_RevertWhen_PlainHopCarriesMeta() public {
+        _expectMalformedHint(hex"0000", hex"0100000000ffff400100000000000020");
+    }
+
+    function test_RevertWhen_ElementHopCarriesDelta() public {
+        _expectMalformedHint(hex"0000", hex"01000000200001400100000000000020");
+    }
+
+    function test_RevertWhen_HopMetaReservedBitsSet() public {
+        _expectMalformedHint(hex"0000", hex"01000000000001100100000000000020");
+    }
+
+    function test_RevertWhen_FrameMetaReservedBitsSet() public {
+        _expectMalformedHint(hex"0000ffff", hex"4000000000000310010000000000000020");
+    }
+
+    function test_RevertWhen_SuffixHopIndexReserved() public {
+        _expectMalformedHint(hex"0000ffff", hex"4000000000000300010100000000fffe000100000000000020");
+    }
+
+    function test_RevertWhen_TargetMetaOnNonArrayType() public {
+        _expectMalformedHint(hex"0000", hex"0000000000400120");
+    }
+
+    function test_RevertWhen_TargetMetaReservedBitsSet() public {
+        _expectMalformedHint(hex"0000", hex"0000000000500181");
+    }
+
+    function test_RevertWhen_RuleSizeDisagreesWithHeader() public {
+        // The header sizes the block, so a rule declaring one byte more than that fails to add up.
+        bytes memory blob = _calldataRuleBlob(hex"0000", hex"000000000000002000");
+        vm.expectRevert(abi.encodeWithSelector(Policy.RuleSizeMismatch.selector, _firstRuleOffset(blob)));
         harness.validate(blob);
+    }
+
+    function test_RevertWhen_HeaderClaimsAbsentHops() public {
+        // The claimed hop overlaps the target block, which then reads as a malformed entry.
+        _expectMalformedHint(hex"0000", hex"0100000000000020");
+    }
+
+    function test_RevertWhen_QuantifiedBlockOmitsItsFrame() public {
+        _expectMalformedHint(hex"0000ffff", hex"400000000000030001");
     }
 
     function test_RevertWhen_EmptyPath() public {
         // A depth-zero calldata rule still resolves a hint block, so the empty path is what fails.
-        bytes memory blob = _calldataRuleBlob(hex"", SENTINEL_HINT);
+        bytes memory blob = _calldataRuleBlob(hex"", STATIC_HINT);
         uint256 ruleOffset = _firstRuleOffset(blob);
         vm.expectRevert(abi.encodeWithSelector(Policy.EmptyPath.selector, ruleOffset));
         harness.validate(blob);

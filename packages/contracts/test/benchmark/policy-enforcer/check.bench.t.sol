@@ -114,6 +114,26 @@ contract CheckBench is PolicyEnforcerBench {
     }
 
     /*/////////////////////////////////////////////////////////////////////////
+                                   HOP CHAINS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_Hops1() public {
+        _benchCheckPasses(hops1, "hops_1");
+    }
+
+    function test_Hops2() public {
+        _benchCheckPasses(hops2, "hops_2");
+    }
+
+    function test_Hops4() public {
+        _benchCheckPasses(hops4, "hops_4");
+    }
+
+    function test_Hops8() public {
+        _benchCheckPasses(hops8, "hops_8");
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
                               OPERATORS
     /////////////////////////////////////////////////////////////////////////*/
 
@@ -266,15 +286,15 @@ contract CheckBench is PolicyEnforcerBench {
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                              SENTINEL RULES
+                             DYNAMIC TUPLE RULES
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_SentinelRules1() public {
-        _benchCheckPasses(sentinelRules1, "sentinel_rules_1");
+    function test_DynTupleRules1() public {
+        _benchCheckPasses(dynTupleRules1, "dyn_tuple_rules_1");
     }
 
-    function test_SentinelRules4() public {
-        _benchCheckPasses(sentinelRules4, "sentinel_rules_4");
+    function test_DynTupleRules4() public {
+        _benchCheckPasses(dynTupleRules4, "dyn_tuple_rules_4");
     }
 
     /*/////////////////////////////////////////////////////////////////////////

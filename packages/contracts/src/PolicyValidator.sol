@@ -149,14 +149,6 @@ library PolicyValidator {
         for (uint32 constraintIndex; constraintIndex < constraintCount; ++constraintIndex) {
             Constraint memory constraint = constraints[constraintIndex];
 
-            // A carried hint must equal the compilation of its own path; constraints without an
-            // encoding carry none, and the encoder compiles theirs from the same descriptor.
-            if (constraint.scope == PF.SCOPE_CALLDATA && constraint.hint.length != 0) {
-                if (!LibBytes.eq(constraint.hint, Policy.compileHint(data.descriptor, constraint.path))) {
-                    issues.push(ValidationIssue.hintMismatch(groupIndex, constraintIndex));
-                }
-            }
-
             // Look up existing context for this (scope, path) pair.
             // ctxIdx == max signals no match found; a new context will be created.
             uint256 ctxIdx = type(uint256).max;
@@ -186,6 +178,11 @@ library PolicyValidator {
                         issues.push(ValidationIssue.unnavigablePath(groupIndex, constraintIndex));
                         continue;
                     }
+                    // One array at a time carries a quantifier, so the element chain stays singular.
+                    if (_quantifierCount(constraint.path) > 1) {
+                        issues.push(ValidationIssue.nestedQuantifier(groupIndex, constraintIndex));
+                        continue;
+                    }
                     if (quantifiedLength > PF.MAX_QUANTIFIED_ARRAY_LENGTH) {
                         issues.push(
                             ValidationIssue.quantifierOverStaticLimit(
@@ -213,6 +210,20 @@ library PolicyValidator {
                 ctxIdx = contextCount - 1;
             } else {
                 ctx = contexts[ctxIdx];
+            }
+
+            // A carried hint must equal the compilation of its own path; constraints without an
+            // encoding carry none, and the encoder compiles theirs from the same descriptor. Reaching
+            // here means the path navigates the descriptor and quantifies at most once, so only the
+            // depth the reference enforcer accepts remains to be established.
+            // forgefmt: disable-next-item
+            if (
+                constraint.scope == PF.SCOPE_CALLDATA && constraint.hint.length != 0
+                    && constraint.path.length / 2 <= PF.MAX_PATH_DEPTH
+            ) {
+                if (!LibBytes.eq(constraint.hint, Policy.compileHint(data.descriptor, constraint.path))) {
+                    issues.push(ValidationIssue.hintMismatch(groupIndex, constraintIndex));
+                }
             }
 
             // Validate operators and accumulate bound/set state into the context.
@@ -902,6 +913,14 @@ library PolicyValidator {
             if (Path.atUnchecked(constraint.path, i) == Path.ANY) return true;
         }
         return false;
+    }
+
+    /// @dev Counts the quantifier steps in a path.
+    function _quantifierCount(bytes memory path) private pure returns (uint256 count) {
+        uint256 depth = path.length / 2;
+        for (uint256 i; i < depth; ++i) {
+            if (Path.atUnchecked(path, i) >= Path.ANY) ++count;
+        }
     }
 
     /// @dev Counts total operators across all constraints in the policy data.

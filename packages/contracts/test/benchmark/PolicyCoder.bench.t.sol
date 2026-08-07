@@ -3,19 +3,31 @@ pragma solidity ^0.8.28;
 
 import { Test } from "forge-std/Test.sol";
 
+import { DescriptorBuilder, DescriptorDraft } from "src/DescriptorBuilder.sol";
 import { OpCode } from "src/OpCode.sol";
 import { Path } from "src/Path.sol";
 import { PolicyCoder } from "src/PolicyCoder.sol";
 import { PolicyFormat as PF } from "src/PolicyFormat.sol";
+import { TypeDesc } from "src/TypeDesc.sol";
 import { PolicyCoderHarness } from "test/harnesses/PolicyCoderHarness.sol";
 
 /// @dev Base contract for PolicyCoder benchmarks with pre-built fixtures.
 // forge-lint: disable-next-item(unsafe-typecast)
 abstract contract PolicyCoderBench is Test {
     bytes4 internal constant SELECTOR = bytes4(keccak256("foo(uint256)"));
-    bytes internal constant DESCRIPTOR = hex"0200";
+
+    /// @dev Nesting depth of the first parameter, which every deep-path fixture descends.
+    uint256 internal constant NESTING_DEPTH = 16;
+
+    /// @dev Field index that descends one nesting level; the other fields of a level terminate.
+    uint16 internal constant DESCEND_FIELD = 1;
+
+    /// @dev Top-level parameter count, one per rule the widest fixture addresses.
+    uint256 internal constant PARAM_COUNT = 100;
 
     PolicyCoderHarness internal harness;
+
+    bytes internal descriptorBlob;
 
     PolicyCoder.Group[] internal singleGroup1Rule;
     PolicyCoder.Group[] internal singleGroup4Rules;
@@ -80,6 +92,7 @@ abstract contract PolicyCoderBench is Test {
 
     function setUp() public virtual {
         harness = new PolicyCoderHarness();
+        descriptorBlob = _buildDescriptor();
         _buildSingleGroupFixtures();
         _buildMultiGroupFixtures();
         _buildPathDepthFixtures();
@@ -91,6 +104,22 @@ abstract contract PolicyCoderBench is Test {
         _buildLargePayloadFixtures();
         _buildBoundaryFixtures();
         _buildEncodedFixtures();
+    }
+
+    /// @dev Builds the descriptor every fixture path navigates: a nested first parameter that
+    /// descends through one field of each level, followed by elementary parameters.
+    function _buildDescriptor() internal pure returns (bytes memory) {
+        bytes memory nested =
+            TypeDesc.tuple_(TypeDesc.uint256_(), TypeDesc.uint256_(), TypeDesc.uint256_(), TypeDesc.uint256_());
+        for (uint256 i = 1; i < NESTING_DEPTH; ++i) {
+            nested = TypeDesc.tuple_(TypeDesc.uint256_(), nested, TypeDesc.uint256_(), TypeDesc.uint256_());
+        }
+
+        DescriptorDraft memory draft = DescriptorBuilder.create().add(nested);
+        for (uint256 i = 1; i < PARAM_COUNT; ++i) {
+            draft = draft.add(TypeDesc.uint256_());
+        }
+        return draft.build();
     }
 
     /// @dev Populates single-group fixtures varying rule count.
@@ -110,9 +139,9 @@ abstract contract PolicyCoderBench is Test {
 
     /// @dev Populates fixtures varying path depth.
     function _buildPathDepthFixtures() internal {
-        pathDepth1 = _makeGroupsWithPath(1, Path.encode(0));
-        pathDepth2 = _makeGroupsWithPath(1, Path.encode(0, 1));
-        pathDepth4 = _makeGroupsWithPath(1, Path.encode(0, 1, 2, 3));
+        pathDepth1 = _makeGroupsWithPath(1, _makeDeepPath(1));
+        pathDepth2 = _makeGroupsWithPath(1, _makeDeepPath(2));
+        pathDepth4 = _makeGroupsWithPath(1, _makeDeepPath(4));
     }
 
     /// @dev Populates fixtures varying operator data size.
@@ -325,11 +354,11 @@ abstract contract PolicyCoderBench is Test {
         longCommonPrefix = _makeLongCommonPrefixGroup();
     }
 
-    /// @dev Creates a path of specified depth with incrementing indices.
+    /// @dev Creates a path of the specified depth descending the nested first parameter.
     function _makeDeepPath(uint256 depth) internal pure returns (bytes memory) {
         uint16[] memory steps = new uint16[](depth);
-        for (uint256 i; i < depth; ++i) {
-            steps[i] = uint16(i);
+        for (uint256 i = 1; i < depth; ++i) {
+            steps[i] = DESCEND_FIELD;
         }
         return Path.encode(steps);
     }
@@ -420,23 +449,23 @@ abstract contract PolicyCoderBench is Test {
 
     /// @dev Pre-encodes all group fixtures into policy blobs for decode benchmarks.
     function _buildEncodedFixtures() internal {
-        encodedSingleGroup1Rule = harness.encode(singleGroup1Rule, SELECTOR, DESCRIPTOR);
-        encodedSingleGroup4Rules = harness.encode(singleGroup4Rules, SELECTOR, DESCRIPTOR);
-        encodedSingleGroup8Rules = harness.encode(singleGroup8Rules, SELECTOR, DESCRIPTOR);
-        encodedSingleGroup16Rules = harness.encode(singleGroup16Rules, SELECTOR, DESCRIPTOR);
+        encodedSingleGroup1Rule = harness.encode(singleGroup1Rule, SELECTOR, descriptorBlob);
+        encodedSingleGroup4Rules = harness.encode(singleGroup4Rules, SELECTOR, descriptorBlob);
+        encodedSingleGroup8Rules = harness.encode(singleGroup8Rules, SELECTOR, descriptorBlob);
+        encodedSingleGroup16Rules = harness.encode(singleGroup16Rules, SELECTOR, descriptorBlob);
 
-        encodedTwoGroups = harness.encode(twoGroups, SELECTOR, DESCRIPTOR);
-        encodedFourGroups = harness.encode(fourGroups, SELECTOR, DESCRIPTOR);
-        encodedEightGroups = harness.encode(eightGroups, SELECTOR, DESCRIPTOR);
+        encodedTwoGroups = harness.encode(twoGroups, SELECTOR, descriptorBlob);
+        encodedFourGroups = harness.encode(fourGroups, SELECTOR, descriptorBlob);
+        encodedEightGroups = harness.encode(eightGroups, SELECTOR, descriptorBlob);
 
-        encodedGroups32 = harness.encode(groups32, SELECTOR, DESCRIPTOR);
-        encodedGroups64 = harness.encode(groups64, SELECTOR, DESCRIPTOR);
-        encodedGroups128 = harness.encode(groups128, SELECTOR, DESCRIPTOR);
-        encodedGroups255 = harness.encode(groups255, SELECTOR, DESCRIPTOR);
+        encodedGroups32 = harness.encode(groups32, SELECTOR, descriptorBlob);
+        encodedGroups64 = harness.encode(groups64, SELECTOR, descriptorBlob);
+        encodedGroups128 = harness.encode(groups128, SELECTOR, descriptorBlob);
+        encodedGroups255 = harness.encode(groups255, SELECTOR, descriptorBlob);
 
-        encodedContextOnly = harness.encode(contextOnly, SELECTOR, DESCRIPTOR);
-        encodedMixedScope = harness.encode(mixedScope, SELECTOR, DESCRIPTOR);
+        encodedContextOnly = harness.encode(contextOnly, SELECTOR, descriptorBlob);
+        encodedMixedScope = harness.encode(mixedScope, SELECTOR, descriptorBlob);
 
-        encodedMixedOpCodes = harness.encode(mixedOpCodes, SELECTOR, DESCRIPTOR);
+        encodedMixedOpCodes = harness.encode(mixedOpCodes, SELECTOR, descriptorBlob);
     }
 }

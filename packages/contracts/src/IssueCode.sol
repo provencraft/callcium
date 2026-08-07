@@ -26,6 +26,8 @@ library IssueCode {
     bytes32 internal constant NON_CANONICAL_OPERAND = "NON_CANONICAL_OPERAND";
     /// Calldata path does not navigate the descriptor.
     bytes32 internal constant UNNAVIGABLE_PATH = "UNNAVIGABLE_PATH";
+    /// Calldata path applies more than one quantifier.
+    bytes32 internal constant NESTED_QUANTIFIER = "NESTED_QUANTIFIER";
     /// Stored hint block differs from the compilation of the path against the descriptor.
     bytes32 internal constant HINT_MISMATCH = "HINT_MISMATCH";
 

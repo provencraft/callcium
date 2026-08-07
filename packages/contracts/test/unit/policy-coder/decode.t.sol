@@ -140,17 +140,17 @@ contract DecodeTest is PolicyCoderTest {
 
         PolicyData memory data = PolicyCoder.decode(policy);
 
-        assertEq(data.groups[0][0].hint, hex"0000002020");
+        assertEq(data.groups[0][0].hint, hex"00_00000020_0000_20");
     }
 
-    function test_DecodesSentinelHintBlock() public pure {
+    function test_DecodesQuantifiedHintBlock() public pure {
         bytes memory policy = PolicyBuilder.create("foo(uint256[3])")
             .add(arg(0, Path.ALL).eq(uint256(42)))
             .buildUnsafe();
 
         PolicyData memory data = PolicyCoder.decode(policy);
 
-        assertEq(data.groups[0][0].hint, hex"ffffffff00");
+        assertEq(data.groups[0][0].hint, hex"40_00000000_0003_0001_00_00000000_0000_20");
     }
 
     function test_ContextConstraintCarriesNoHint() public pure {
@@ -171,7 +171,7 @@ contract DecodeTest is PolicyCoderTest {
         uint256 firstRuleOffset = _firstRuleOffset(PolicyBuilder.create("foo(uint256,uint256)").data.descriptor.length);
         uint256 secondRuleOffset = firstRuleOffset + _readU16(policy, firstRuleOffset);
         (uint256 hintOffset,) = Policy.hintView(policy, secondRuleOffset);
-        _writeU32(policy, hintOffset, 32);
+        _writeU32(policy, hintOffset + PF.HINT_HEADER_SIZE, 32);
 
         PolicyData memory data = PolicyCoder.decode(policy);
 

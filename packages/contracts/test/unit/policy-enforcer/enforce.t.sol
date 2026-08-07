@@ -816,6 +816,89 @@ contract EnforcePathTest is PolicyEnforcerTest {
         bytes memory callData = _encodeNestedStruct3(address(1), 42, 100);
         harness.enforce(policy, callData);
     }
+
+    function test_FieldOfDynamicTuple() public view {
+        bytes memory policy = PolicyBuilder.create("foo((address,uint256,bytes))")
+            .add(arg(0, 1).eq(uint256(42)))
+            .buildUnsafe();
+        bytes memory tupleBody = abi.encode(address(1), uint256(42), bytes("payload"));
+        harness.enforce(policy, _encodeDynTupleArg("foo((address,uint256,bytes))", tupleBody));
+    }
+
+    function test_FieldPastADynamicSibling() public view {
+        // The bytes field ahead of the target occupies one offset word in the tuple head.
+        bytes memory policy = PolicyBuilder.create("foo((bytes,uint256))")
+            .add(arg(0, 1).eq(uint256(42)))
+            .buildUnsafe();
+        bytes memory tupleBody = abi.encode(bytes("payload"), uint256(42));
+        harness.enforce(policy, _encodeDynTupleArg("foo((bytes,uint256))", tupleBody));
+    }
+
+    function test_NestedDynamicTuples() public view {
+        bytes memory policy = PolicyBuilder.create("foo(((bytes,uint256),uint256))")
+            .add(arg(0, 0, 1).eq(uint256(42)))
+            .buildUnsafe();
+        bytes memory inner = abi.encode(bytes("payload"), uint256(42));
+        bytes memory tupleBody = abi.encodePacked(uint256(0x40), uint256(7), inner);
+        harness.enforce(policy, _encodeDynTupleArg("foo(((bytes,uint256),uint256))", tupleBody));
+    }
+
+    function test_ConsecutiveArrayCrossings() public view {
+        uint256[][] memory outer = new uint256[][](2);
+        outer[0] = _uintArray(1);
+        outer[1] = _uintArray(4); // [1, 2, 3, 4]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[][])")
+            .add(arg(0, 1, 2).eq(uint256(3)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[][])", outer));
+    }
+
+    function test_ElementOfDynamicElementArray() public view {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("a");
+        arr[1] = bytes("four");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, 1).lengthEq(4))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(bytes[])", arr));
+    }
+
+    function test_RevertWhen_ElementIndexBeyondArrayLength() public {
+        uint256[] memory arr = _uintArray(2);
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, 5).eq(uint256(6)))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(CalldataReader.ArrayIndexOutOfBounds.selector, 5, 2));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_OffsetWordWouldWrap() public {
+        // An offset word near the top of the range must be rejected, never folded around it.
+        bytes memory policy = PolicyBuilder.create("foo(bytes)").add(arg(0).lengthEq(1)).buildUnsafe();
+        bytes memory callData = abi.encodePacked(bytes4(keccak256("foo(bytes)")), type(uint256).max, uint256(1));
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_ElementOffsetWordWouldWrap() public {
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])").add(arg(0, 0).lengthEq(1)).buildUnsafe();
+        // Element count of one, then an element offset word at the top of the range.
+        bytes memory callData = abi.encodePacked(
+            bytes4(keccak256("foo(bytes[])")), uint256(0x20), uint256(1), type(uint256).max
+        );
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_BytesLengthOverrunsCalldata() public {
+        // The declared byte length must be backed by calldata before the operator sees it.
+        bytes memory policy = PolicyBuilder.create("foo(bytes)").add(arg(0).lengthEq(64)).buildUnsafe();
+        bytes memory callData =
+            abi.encodePacked(bytes4(keccak256("foo(bytes)")), uint256(0x20), uint256(64), uint256(0));
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
+        harness.enforce(policy, callData);
+    }
 }
 
 /// @dev Tests for group semantics (OR between groups, AND within rules)
@@ -1021,6 +1104,50 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
+    function test_All_OverDynamicElements() public view {
+        bytes[] memory arr = new bytes[](3);
+        arr[0] = bytes("aa");
+        arr[1] = bytes("bb");
+        arr[2] = bytes("cc");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthEq(2))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(bytes[])", arr));
+    }
+
+    function test_RevertWhen_All_OverDynamicElements_OneElementFails() public {
+        bytes[] memory arr = new bytes[](3);
+        arr[0] = bytes("aa");
+        arr[1] = bytes("bbb");
+        arr[2] = bytes("cc");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthEq(2))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_All_OverDynamicElementsWithSuffix() public view {
+        UintWithBytes[] memory arr = new UintWithBytes[](2);
+        arr[0] = UintWithBytes({ value: 1, payload: bytes("a") });
+        arr[1] = UintWithBytes({ value: 2, payload: bytes("bb") });
+        bytes memory policy = PolicyBuilder.create("foo((uint256,bytes)[])")
+            .add(arg(0, Path.ALL, 0).lte(uint256(2)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo((uint256,bytes)[])", arr));
+    }
+
+    function test_Any_OverDynamicElements() public view {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("a");
+        arr[1] = bytes("bbbb");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ANY).lengthEq(4))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(bytes[])", arr));
+    }
+
     function test_QuantifierWithOrGroups() public view {
         uint256[] memory arr = _uintArray(3); // [1, 2, 3]
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
@@ -1124,28 +1251,6 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
         vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.QuantifierLimitExceeded.selector, 257, 256));
-        harness.enforce(policy, callData);
-    }
-
-    function test_RevertWhen_NestedQuantifiers() public {
-        uint256[][] memory arr = new uint256[][](2);
-        arr[0] = _uintArray(3);
-        arr[1] = _uintArray(2);
-
-        // Build a valid single-quantifier policy, then tamper path to create nested quantifiers.
-        // arg(0, 0, Path.ANY) = concrete outer index, quantifier on inner array.
-        bytes memory policy = PolicyBuilder.create("foo(uint256[][])")
-            .add(arg(0, 0, Path.ANY).eq(uint256(1)))
-            .buildUnsafe();
-
-        // Tamper path step 1 (the concrete `0`) to ALL, creating two quantifiers.
-        uint16 descLen = Be16.readUnchecked(policy, PF.POLICY_DESC_LENGTH_OFFSET);
-        uint256 ruleOffset = PF.POLICY_HEADER_PREFIX + descLen + PF.POLICY_GROUP_COUNT_SIZE + PF.GROUP_HEADER_SIZE;
-        uint256 pathStep1Offset = ruleOffset + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE;
-        Be16.write(policy, pathStep1Offset, Path.ALL);
-
-        bytes memory callData = abi.encodeWithSignature("foo(uint256[][])", arr);
-        vm.expectRevert(PolicyEnforcer.NestedQuantifiersUnsupported.selector);
         harness.enforce(policy, callData);
     }
 
@@ -1401,33 +1506,35 @@ contract EnforceSelectorlessTest is PolicyEnforcerTest {
 }
 
 /// @dev Tests for hint-driven target resolution.
-/// A calldata rule resolves its target through its compiled hint; only a sentinel hint resolves
-/// by descriptor traversal. Rewriting a stored hint therefore changes what the rule reads.
+/// A calldata rule resolves its target through its compiled hint alone, so rewriting a stored hint
+/// changes what the rule reads while its path stays as it was.
 contract EnforceHintDispatchTest is PolicyEnforcerTest {
-    function test_ConcreteHintAddressesTarget() public view {
+    /// @dev Returns the offset of the target delta of the first rule's hop-free hint block.
+    function _firstTargetDeltaOffset(bytes memory policy) private pure returns (uint256) {
+        return _firstHintOffset(policy) + PF.HINT_HEADER_SIZE;
+    }
+
+    function test_HintAddressesTarget() public view {
         bytes memory policy = PolicyBuilder.create("foo(uint256,uint256)").add(arg(0).eq(uint256(1))).buildUnsafe();
         // Re-point the hint at the second argument while the path still names the first.
-        _writeU32(policy, _firstHintOffset(policy), 32);
+        _writeU32(policy, _firstTargetDeltaOffset(policy), 32);
 
         bytes memory callData = abi.encodeWithSignature("foo(uint256,uint256)", uint256(9), uint256(1));
         assertTrue(harness.check(policy, callData), "the hint selects the read");
     }
 
-    function test_SentinelHintResolvesByTraversal() public view {
+    function test_PathBytesDoNotAddressTheTarget() public view {
         bytes memory policy = PolicyBuilder.create("foo(uint256,uint256)").add(arg(1).eq(uint256(1))).buildUnsafe();
-        // Replacing the concrete hint with the sentinel sends the rule down the traversal path,
-        // which resolves the same target from the descriptor and path.
-        uint256 hintOffset = _firstHintOffset(policy);
-        _writeU32(policy, hintOffset, PF.HINT_SENTINEL_OFFSET);
-        policy[hintOffset + PF.HINT_STATIC_SIZE - 1] = bytes1(PF.HINT_TYPE_NONE);
+        // Rewriting the path leaves resolution untouched; the hint still reaches the second argument.
+        Be16.write(policy, _firstRuleOffset(policy) + PF.RULE_PATH_OFFSET, 0);
 
         assertTrue(
             harness.check(policy, abi.encodeWithSignature("foo(uint256,uint256)", uint256(9), uint256(1))),
-            "traversal reaches the path target"
+            "the hint reaches its own target"
         );
         assertFalse(
             harness.check(policy, abi.encodeWithSignature("foo(uint256,uint256)", uint256(1), uint256(9))),
-            "traversal ignores the other argument"
+            "the rewritten path selects nothing"
         );
     }
 
@@ -1443,13 +1550,15 @@ contract EnforceHintDispatchTest is PolicyEnforcerTest {
     function test_QuantifiedHintAddressesElementField() public view {
         bytes memory policy =
             PolicyBuilder.create("foo((uint256,uint256)[])").add(arg(0, Path.ALL, 0).eq(uint256(1))).buildUnsafe();
-        // Re-point the suffix at the second field of each element.
-        _writeU32(policy, _firstHintOffset(policy) + PF.HINT_SUFFIX_OFFSET, 32);
+        // Re-point the target delta at the second field of each element.
+        uint256 targetDeltaOffset = _firstHintOffset(policy) + PF.HINT_HEADER_SIZE + PF.HINT_HOP_SIZE
+            + PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE;
+        _writeU32(policy, targetDeltaOffset, 32);
 
         TwoUints[] memory elements = new TwoUints[](2);
         elements[0] = TwoUints({ a: 9, b: 1 });
         elements[1] = TwoUints({ a: 9, b: 1 });
         bytes memory callData = abi.encodeWithSignature("foo((uint256,uint256)[])", elements);
-        assertTrue(harness.check(policy, callData), "the suffix offset selects the field");
+        assertTrue(harness.check(policy, callData), "the target delta selects the field");
     }
 }

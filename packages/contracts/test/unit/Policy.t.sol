@@ -11,8 +11,8 @@ import { BaseTest } from "test/unit/BaseTest.sol";
 
 /// @dev Base contract for Policy unit tests.
 abstract contract PolicyTest is BaseTest {
-    /// @dev The sentinel hint block: a path that does not compile to concrete offsets.
-    bytes internal constant SENTINEL_HINT = hex"ffffffff00";
+    /// @dev A hop-free hint block addressing the first argument of `foo(uint256)`.
+    bytes internal constant STATIC_HINT = hex"0000000000000020";
 
     PolicyHarness internal harness;
 
