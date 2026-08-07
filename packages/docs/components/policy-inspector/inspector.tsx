@@ -28,22 +28,36 @@ import { type ExplainedPolicy, explainPolicy, flattenGroup, formatOperands } fro
 
 const plural = (n: number) => (n === 1 ? "" : "s");
 
-/** Read a big-endian uint32 field from a hint block's hex body. */
-const hintField = (body: string, fieldIndex: number) => {
-  const width = PolicyFormat.HINT_FIELD_SIZE * 2;
-  return parseInt(body.slice(fieldIndex * width, fieldIndex * width + width), 16);
-};
+/** Read a big-endian field of `width` bytes at `offset` in a hint block's hex body. */
+const hintField = (body: string, offset: number, width: number) =>
+  parseInt(body.slice(offset * 2, (offset + width) * 2), 16);
 
-/** Describe a compiled hint block: its offsets and the type code of the target it addresses. */
+/** Describe a compiled hint block: its chain shape and the type code of the target it addresses. */
 function formatHint(hint: Hex): string {
   const body = hint.slice(2);
-  if (hintField(body, 0) === PolicyFormat.HINT_SENTINEL_OFFSET) return "sentinel (resolved by path)";
+  const header = hintField(body, 0, PolicyFormat.HINT_HEADER_SIZE);
+  const kind = header >> PolicyFormat.HINT_KIND_SHIFT;
+  const hopCount = header & PolicyFormat.HINT_HOP_COUNT_MASK;
+  const hopsEnd = PolicyFormat.HINT_HEADER_SIZE + hopCount * PolicyFormat.HINT_HOP_SIZE;
 
-  const typeLabel = lookupTypeCode(parseInt(body.slice(-2), 16)).label;
-  if (body.length / 2 === PolicyFormat.HINT_QUANTIFIED_SIZE) {
-    return `array @${hintField(body, 0)}, stride ${hintField(body, 1)}, target +${hintField(body, 2)} : ${typeLabel}`;
+  let targetOffset = hopsEnd;
+  let prefix = "";
+  if (kind !== PolicyFormat.HINT_KIND_NONE) {
+    const arrayDelta = hintField(body, hopsEnd, 4);
+    const suffixHeader = hintField(body, hopsEnd + PolicyFormat.HINT_FRAME_PREFIX_SIZE, 1);
+    const suffixHopCount = suffixHeader & PolicyFormat.HINT_HOP_COUNT_MASK;
+    targetOffset =
+      hopsEnd +
+      PolicyFormat.HINT_FRAME_PREFIX_SIZE +
+      PolicyFormat.HINT_HEADER_SIZE +
+      suffixHopCount * PolicyFormat.HINT_HOP_SIZE;
+    prefix = `${kind === PolicyFormat.HINT_KIND_ALL ? "all" : "any"} over array @${arrayDelta}, `;
   }
-  return `@${hintField(body, 0)} : ${typeLabel}`;
+
+  const targetDelta = hintField(body, targetOffset, 4);
+  const typeLabel = lookupTypeCode(hintField(body, targetOffset + PolicyFormat.HINT_TARGET_TYPECODE_OFFSET, 1)).label;
+  const hops = hopCount === 0 ? "" : `${hopCount} hop${plural(hopCount)}, `;
+  return `${prefix}${hops}target +${targetDelta} : ${typeLabel}`;
 }
 
 ///////////////////////////////////////////////////////////////////////////

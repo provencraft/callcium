@@ -175,8 +175,9 @@ describe("structure", () => {
   it("handles multiple groups", () => {
     const { groups } = _explain(B.MULTI_GROUP);
     expect(groups).toHaveLength(2);
-    expect(groups[0].constraints[0].rules[0].operands).toEqual(["2"]);
-    expect(groups[1].constraints[0].rules[0].operands).toEqual(["1"]);
+    // Groups sort by hash of their rule bytes, so operand order is not fixed.
+    const operands = groups.map((group) => group.constraints[0].rules[0].operands[0]).toSorted();
+    expect(operands).toEqual(["1", "2"]);
   });
 
   it("handles multiple constraints per group", () => {
