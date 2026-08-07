@@ -399,6 +399,25 @@ contract ImpossibleRangeTest is PolicyValidatorTest {
         _assertIssue(issues, IssueCode.IMPOSSIBLE_RANGE);
     }
 
+    function test_ComposedStrictAll_WithLengthEqZero_ReturnsContradiction() public pure {
+        // Strict universality composes as lengthGt(0) + ALL; adding lengthEq(0) contradicts the length rule.
+        bytes memory desc = DescriptorBuilder.fromTypes("uint256[]");
+
+        Constraint[] memory group = new Constraint[](2);
+        group[0] = arg(0).lengthEq(0).lengthGt(0);
+        group[1] = arg(0, Path.ALL).gt(uint256(0));
+
+        // forgefmt: disable-next-item
+        PolicyData memory data = PolicyData({
+            isSelectorless: false, selector: 0x12345678, descriptor: desc, groups: new Constraint[][](1)
+        });
+        data.groups[0] = group;
+
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        _assertIssue(issues, IssueCode.BOUNDS_EXCLUDE_LENGTH);
+    }
+
     function test_NegatedGT_Decomposition_ReturnsContradiction() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
         Constraint memory c = arg(0).gt(uint256(10));

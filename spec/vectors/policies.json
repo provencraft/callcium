@@ -1204,7 +1204,7 @@
   },
   {
     "blob": "0x028b44cef100070201810000052001000100000038003801020000fffe000000000000002000000000200100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "ALL quantifier over a dynamic array of static elements compiles to a quantified hint",
+    "description": "ANY quantifier over a dynamic array of static elements compiles to a quantified hint",
     "error": "",
     "errorArgs": [],
     "id": "quantified-dynamic-array",
@@ -1247,7 +1247,7 @@
   },
   {
     "blob": "0x02692ce76c000902018000300720000301000100000030003001020000fffeffffffff000100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "ALL quantifier over a static array is not compilable, so the hint is the sentinel",
+    "description": "ANY quantifier over a static array is not compilable, so the hint is the sentinel",
     "error": "",
     "errorArgs": [],
     "id": "quantified-static-array",

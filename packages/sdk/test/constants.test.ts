@@ -188,10 +188,6 @@ describe("lookupContextProperty", () => {
 });
 
 describe("lookupQuantifier", () => {
-  test("ALL_OR_EMPTY", () => {
-    expect(lookupQuantifier(Quantifier.ALL_OR_EMPTY)).toEqual({ label: "all or empty" });
-  });
-
   test("ALL", () => {
     expect(lookupQuantifier(Quantifier.ALL)).toEqual({ label: "all" });
   });

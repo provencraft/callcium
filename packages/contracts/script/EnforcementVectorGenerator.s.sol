@@ -103,8 +103,8 @@ contract EnforcementVectorGenerator is Script {
         _vectorQuantifierAnyPass();
         _vectorQuantifierAnyFail();
 
-        // Quantifier ALL_OR_EMPTY: empty array (vacuous truth).
-        _vectorQuantifierAllOrEmptyPass();
+        // Quantifier ALL: empty array (vacuous truth).
+        _vectorQuantifierAllEmptyPass();
 
         // Nested paths: tuple field access, nested tuples.
         _vectorTupleFieldPass();
@@ -539,16 +539,16 @@ contract EnforcementVectorGenerator is Script {
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                          Quantifier ALL_OR_EMPTY
+                          Quantifier ALL on empty array
     /////////////////////////////////////////////////////////////////////////*/
 
-    function _vectorQuantifierAllOrEmptyPass() private {
+    function _vectorQuantifierAllEmptyPass() private {
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
-            .add(arg(0, Path.ALL_OR_EMPTY).gte(uint256(10)))
+            .add(arg(0, Path.ALL).gte(uint256(10)))
             .build();
         uint256[] memory arr = new uint256[](0);
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
-        _addVector("quantifier-all-or-empty-pass", "Quantifier ALL_OR_EMPTY: empty array is vacuous truth", policy, callData, true);
+        _addVector("quantifier-all-empty-pass", "Quantifier ALL: empty array is vacuous truth", policy, callData, true);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -950,11 +950,11 @@ contract EnforcementVectorGenerator is Script {
         );
     }
 
-    /// @dev OR of [ALL(arg0) == 1] and [arg1 == 42] over an empty array: the empty ALL fails
+    /// @dev OR of [ANY(arg0) == 1] and [arg1 == 42] over an empty array: the empty ANY fails
     ///      only its group, the other group passes.
     function _vectorGroupLocalEmptyArrayMultiGroup() private {
         bytes memory policy = PolicyBuilder.create("foo(uint256[],uint256)")
-            .add(arg(0, Path.ALL).eq(uint256(1)))
+            .add(arg(0, Path.ANY).eq(uint256(1)))
             .or()
             .add(arg(1).eq(uint256(42)))
             .build();
@@ -962,7 +962,7 @@ contract EnforcementVectorGenerator is Script {
         bytes memory callData = abi.encodeWithSignature("foo(uint256[],uint256)", values, uint256(42));
         _addVector(
             "group-local-empty-array-multi-group",
-            "Empty array under ALL fails only its group; another group can pass",
+            "Empty array under ANY fails only its group; another group can pass",
             policy,
             callData,
             true

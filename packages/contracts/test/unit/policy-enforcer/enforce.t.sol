@@ -918,26 +918,17 @@ contract EnforceGroupTest is PolicyEnforcerTest {
     }
 }
 
-/// @dev Tests for array quantifiers (ALL, ANY, ALL_OR_EMPTY)
+/// @dev Tests for array quantifiers (ALL, ANY)
 // forgefmt: disable-next-item
 contract EnforceQuantifierTest is PolicyEnforcerTest {
     /*/////////////////////////////////////////////////////////////////////////
                               QUANTIFIER SEMANTICS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_AllOrEmpty_WhenAllElementsMatch() public view {
-        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
-        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
-            .add(arg(0, Path.ALL_OR_EMPTY).lte(uint256(3)))
-            .buildUnsafe();
-        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
-        harness.enforce(policy, callData);
-    }
-
-    function test_AllOrEmpty_OnEmptyArray() public view {
+    function test_All_OnEmptyArray_VacuouslyPasses() public view {
         uint256[] memory arr = new uint256[](0);
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
-            .add(arg(0, Path.ALL_OR_EMPTY).eq(uint256(42)))
+            .add(arg(0, Path.ALL).eq(uint256(42)))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
         harness.enforce(policy, callData);
@@ -990,12 +981,12 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
-    function test_AllOrEmptyWithSuffix() public view {
+    function test_AllWithSuffix() public view {
         TwoUints[] memory arr = new TwoUints[](2);
         arr[0] = TwoUints({ a: 1, b: 10 });
         arr[1] = TwoUints({ a: 2, b: 20 });
         bytes memory policy = PolicyBuilder.create("foo((uint256,uint256)[])")
-            .add(arg(0, Path.ALL_OR_EMPTY, 1).lte(uint256(20)))
+            .add(arg(0, Path.ALL, 1).lte(uint256(20)))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo((uint256,uint256)[])", arr);
         harness.enforce(policy, callData);
@@ -1045,19 +1036,21 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
                                 QUANTIFIER ERRORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_RevertWhen_AllOrEmpty_OneElementFails() public {
+    function test_RevertWhen_All_OneElementFails() public {
         uint256[] memory arr = _uintArray(3); // [1, 2, 3]
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
-            .add(arg(0, Path.ALL_OR_EMPTY).lte(uint256(2)))
+            .add(arg(0, Path.ALL).lte(uint256(2)))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
         vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
         harness.enforce(policy, callData);
     }
 
-    function test_RevertWhen_All_EmptyArray() public {
+    function test_RevertWhen_ComposedStrictAll_EmptyArray() public {
+        // Strict universality composes as lengthGt(0) + ALL in one group; empty arrays fail the length rule.
         uint256[] memory arr = new uint256[](0);
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0).lengthGt(0))
             .add(arg(0, Path.ALL).eq(uint256(42)))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
@@ -1145,11 +1138,11 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
             .add(arg(0, 0, Path.ANY).eq(uint256(1)))
             .buildUnsafe();
 
-        // Tamper path step 1 (the concrete `0`) to ALL_OR_EMPTY, creating two quantifiers.
+        // Tamper path step 1 (the concrete `0`) to ALL, creating two quantifiers.
         uint16 descLen = Be16.readUnchecked(policy, PF.POLICY_DESC_LENGTH_OFFSET);
         uint256 ruleOffset = PF.POLICY_HEADER_PREFIX + descLen + PF.POLICY_GROUP_COUNT_SIZE + PF.GROUP_HEADER_SIZE;
         uint256 pathStep1Offset = ruleOffset + PF.RULE_PATH_OFFSET + PF.PATH_STEP_SIZE;
-        Be16.write(policy, pathStep1Offset, Path.ALL_OR_EMPTY);
+        Be16.write(policy, pathStep1Offset, Path.ALL);
 
         bytes memory callData = abi.encodeWithSignature("foo(uint256[][])", arr);
         vm.expectRevert(PolicyEnforcer.NestedQuantifiersUnsupported.selector);
@@ -1273,13 +1266,13 @@ contract EnforceFuzzTest is PolicyEnforcerTest {
         assertEq(harness.check(policy, callData), expected == actual);
     }
 
-    function testFuzz_AllOrEmpty_Semantics(uint8 length, uint256 threshold) public view {
+    function testFuzz_All_Semantics(uint8 length, uint256 threshold) public view {
         length = uint8(bound(length, 0, 50));
         threshold = bound(threshold, 0, type(uint128).max);
 
         uint256[] memory arr = _uintArray(length);
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
-            .add(arg(0, Path.ALL_OR_EMPTY).lte(threshold))
+            .add(arg(0, Path.ALL).lte(threshold))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
 
@@ -1287,12 +1280,13 @@ contract EnforceFuzzTest is PolicyEnforcerTest {
         assertEq(harness.check(policy, callData), expected);
     }
 
-    function testFuzz_All_Semantics(uint8 length, uint256 threshold) public view {
+    function testFuzz_ComposedStrictAll_Semantics(uint8 length, uint256 threshold) public view {
         length = uint8(bound(length, 0, 50));
         threshold = bound(threshold, 0, type(uint128).max);
 
         uint256[] memory arr = _uintArray(length);
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0).lengthGt(0))
             .add(arg(0, Path.ALL).lte(threshold))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);

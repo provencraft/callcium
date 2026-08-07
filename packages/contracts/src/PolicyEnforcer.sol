@@ -65,7 +65,7 @@ library PolicyEnforcer {
         uint256 dataOffset;
         /// True if the path continues past the quantifier.
         bool hasSuffix;
-        /// True for ALL/ALL_OR_EMPTY, false for ANY.
+        /// True for ALL, false for ANY.
         bool isUniversal;
     }
 
@@ -418,8 +418,8 @@ library PolicyEnforcer {
             length <= PF.MAX_QUANTIFIED_ARRAY_LENGTH, QuantifierLimitExceeded(length, PF.MAX_QUANTIFIED_ARRAY_LENGTH)
         );
 
-        // Empty array semantics: ALL_OR_EMPTY (vacuous truth) vs ANY/ALL (false).
-        if (length == 0) return rule.quantifierType == Path.ALL_OR_EMPTY;
+        // Empty array semantics: ALL (vacuous truth) vs ANY (false).
+        if (length == 0) return rule.quantifierType == Path.ALL;
 
         uint8 typeCode = _hintTypeCode(state.policy, rule.hintOffset, PF.HINT_QUANTIFIED_SIZE);
         // A compilable quantified path targets a static element, so the target is always a scalar.
@@ -429,7 +429,7 @@ library PolicyEnforcer {
 
         uint256 elemStride = _hintField(state.policy, rule.hintOffset, PF.HINT_ELEM_STRIDE_OFFSET);
         uint256 target = arrayBase + 32 + _hintField(state.policy, rule.hintOffset, PF.HINT_SUFFIX_OFFSET);
-        bool isUniversal = rule.quantifierType != Path.ANY;
+        bool isUniversal = rule.quantifierType == Path.ALL;
 
         // Every element shares the target type, so the canonicity spec resolves once.
         (uint8 canonMode, uint256 canonBits) = TypeRule.canonicalSpec(typeCode);
@@ -485,13 +485,13 @@ library PolicyEnforcer {
             QuantifierLimitExceeded(shape.length, PF.MAX_QUANTIFIED_ARRAY_LENGTH)
         );
 
-        // Empty array semantics: ALL_OR_EMPTY (vacuous truth) vs ANY/ALL (false).
-        if (shape.length == 0) return rule.quantifierType == Path.ALL_OR_EMPTY;
+        // Empty array semantics: ALL (vacuous truth) vs ANY (false).
+        if (shape.length == 0) return rule.quantifierType == Path.ALL;
 
         QParams memory params;
         params.opBase = opBase;
         params.hasSuffix = rule.depth > rule.quantifierIndex + 1;
-        params.isUniversal = (rule.quantifierType == Path.ALL_OR_EMPTY || rule.quantifierType == Path.ALL);
+        params.isUniversal = rule.quantifierType == Path.ALL;
         params.opCode = rule.opCode;
         params.dataOffset = rule.dataOffset;
         params.dataLength = rule.dataLength;

@@ -260,9 +260,8 @@ export function isValidOperatorData(opBase: number, dataLength: number): boolean
 ///////////////////////////////////////////////////////////////////////////
 
 const QUANTIFIER_TABLE = [
-  { key: "ALL_OR_EMPTY", code: 0xffff, label: "all or empty" },
-  { key: "ALL", code: 0xfffe, label: "all" },
-  { key: "ANY", code: 0xfffd, label: "any" },
+  { key: "ALL", code: 0xffff, label: "all" },
+  { key: "ANY", code: 0xfffe, label: "any" },
 ] as const;
 
 /** Reserved path step values that trigger quantified evaluation over array elements. */
@@ -273,7 +272,7 @@ export type QuantifierInfo = { label: string };
 
 const quantifierByCode = new Map<number, QuantifierInfo>(QUANTIFIER_TABLE.map((e) => [e.code, { label: e.label }]));
 
-/** Check whether a path step is a quantifier (ALL_OR_EMPTY, ALL, or ANY). */
+/** Check whether a path step is a quantifier (ALL or ANY). */
 export function isQuantifier(step: number): boolean {
   return step >= Quantifier.ANY;
 }

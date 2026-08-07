@@ -11,15 +11,11 @@ import { Be16 } from "./Be16.sol";
 library Path {
     /// @dev Universal quantifier for array paths (∀). Rule must pass for ALL elements.
     /// @dev Only valid immediately after an array node. Empty arrays yield true (vacuous truth).
-    uint16 internal constant ALL_OR_EMPTY = 0xFFFF;
-
-    /// @dev Universal quantifier for array paths (∀). Rule must pass for ALL elements and the array MUST NOT be empty.
-    /// @dev Only valid immediately after an array node. Empty arrays yield false.
-    uint16 internal constant ALL = 0xFFFE;
+    uint16 internal constant ALL = 0xFFFF;
 
     /// @dev Existential quantifier for array paths (∃). Rule must pass for AT LEAST ONE element.
     /// @dev Only valid immediately after an array node. Empty arrays yield false.
-    uint16 internal constant ANY = 0xFFFD;
+    uint16 internal constant ANY = 0xFFFE;
 
     /*/////////////////////////////////////////////////////////////////////////
                                      ERRORS

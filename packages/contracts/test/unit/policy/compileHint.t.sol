@@ -71,9 +71,7 @@ contract CompileHintTest is PolicyTest {
 
     function test_QuantifierWithSuffix() public view {
         // Elements are (address, uint256): stride 64, target field at 32 within the element.
-        assertEq(
-            _compile("foo((address,uint256)[])", Path.encode(0, Path.ALL_OR_EMPTY, 1)), hex"00000000000000400000002020"
-        );
+        assertEq(_compile("foo((address,uint256)[])", Path.encode(0, Path.ALL, 1)), hex"00000000000000400000002020");
     }
 
     /*/////////////////////////////////////////////////////////////////////////

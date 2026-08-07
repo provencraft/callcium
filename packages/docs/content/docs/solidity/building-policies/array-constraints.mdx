@@ -20,19 +20,18 @@ This is the same indexing syntax used for struct fields.
 
 ## Quantifiers
 
-`Path.ALL`, `Path.ANY`, and `Path.ALL_OR_EMPTY` replace a concrete element index to apply a constraint across the entire array. Import them from `Path`:
+`Path.ALL` and `Path.ANY` replace a concrete element index to apply a constraint across the entire array. Import them from `Path`:
 
 ```solidity
 import { Path } from "callcium/Path.sol";
 ```
 
-| Quantifier          | Semantics                                                       | Empty array |
-| ------------------- | --------------------------------------------------------------- | ----------- |
-| `Path.ALL`          | All elements must satisfy the constraint                        | Fails       |
-| `Path.ANY`          | At least one element must satisfy the constraint                | Fails       |
-| `Path.ALL_OR_EMPTY` | All elements must satisfy the constraint, or the array is empty | Passes      |
+| Quantifier | Semantics                                        | Empty array |
+| ---------- | ------------------------------------------------ | ----------- |
+| `Path.ALL` | All elements must satisfy the constraint         | Passes      |
+| `Path.ANY` | At least one element must satisfy the constraint | Fails       |
 
-Use `Path.ALL` as the default when an empty array is an invalid input. Use `Path.ALL_OR_EMPTY` when an empty array is an acceptable no-op.
+`Path.ALL` is vacuously true on an empty array. When an empty array must be rejected, add a length constraint to the same group: `lengthGt(0)` alongside the `ALL` constraint.
 
 ```solidity
 import { arg } from "callcium/Constraint.sol";

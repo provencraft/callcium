@@ -20,19 +20,18 @@ This is the same indexing syntax used for struct fields.
 
 ## Quantifiers
 
-`Quantifier.ALL`, `Quantifier.ANY`, and `Quantifier.ALL_OR_EMPTY` replace a concrete element index to apply a constraint across the entire array. Import them from `@callcium/sdk`:
+`Quantifier.ALL` and `Quantifier.ANY` replace a concrete element index to apply a constraint across the entire array. Import them from `@callcium/sdk`:
 
 ```ts
 import { Quantifier } from "@callcium/sdk";
 ```
 
-| Quantifier                | Semantics                                                       | Empty array |
-| ------------------------- | --------------------------------------------------------------- | ----------- |
-| `Quantifier.ALL`          | All elements must satisfy the constraint                        | Fails       |
-| `Quantifier.ANY`          | At least one element must satisfy the constraint                | Fails       |
-| `Quantifier.ALL_OR_EMPTY` | All elements must satisfy the constraint, or the array is empty | Passes      |
+| Quantifier       | Semantics                                        | Empty array |
+| ---------------- | ------------------------------------------------ | ----------- |
+| `Quantifier.ALL` | All elements must satisfy the constraint         | Passes      |
+| `Quantifier.ANY` | At least one element must satisfy the constraint | Fails       |
 
-Use `Quantifier.ALL` as the default when an empty array is an invalid input. Use `Quantifier.ALL_OR_EMPTY` when an empty array is an acceptable no-op.
+`Quantifier.ALL` is vacuously true on an empty array. When an empty array must be rejected, add a length constraint to the same group: `lengthGt(0)` alongside the `ALL` constraint.
 
 ```ts
 import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";

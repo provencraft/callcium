@@ -44,14 +44,9 @@ const CTX_UINT256: TypeInfo = { typeCode: TypeCode.UINT_MAX, isDynamic: false, s
 
 const QUANTIFIER_OPTIONS = [
   {
-    value: Quantifier.ALL_OR_EMPTY,
-    label: lookupQuantifier(Quantifier.ALL_OR_EMPTY).label,
-    desc: "all elements must pass\nempty array → pass",
-  },
-  {
     value: Quantifier.ALL,
     label: lookupQuantifier(Quantifier.ALL).label,
-    desc: "all elements must pass\nempty array → fail",
+    desc: "all elements must pass\nempty array → pass",
   },
   {
     value: Quantifier.ANY,

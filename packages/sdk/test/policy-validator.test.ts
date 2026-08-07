@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { CallciumError, PolicyBuilder, arg, msgSender, msgValue, Op, Scope, TypeCode } from "../src";
+import { CallciumError, PolicyBuilder, Quantifier, arg, msgSender, msgValue, Op, Scope, TypeCode } from "../src";
 import { bytesToHex } from "../src/bytes";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { PolicyValidator } from "../src/policy-validator";
@@ -335,6 +335,14 @@ describe("PolicyValidator - length domain", () => {
       rawPolicy("bytes", Scope.CALLDATA, "0x0000", [op(Op.LENGTH_EQ, 5n), op(Op.LENGTH_EQ | Op.NOT, 5n)]),
     );
     expect(findIssue(issues, "LENGTH_EQ_NEQ_CONTRADICTION")).toBeDefined();
+  });
+
+  test("reports BOUNDS_EXCLUDE_LENGTH when lengthEq(0) contradicts composed strict ALL", () => {
+    // Strict universality composes as lengthGt(0) + ALL; adding lengthEq(0) contradicts the length rule.
+    const issues = validate("uint256[]", (b) =>
+      b.add(arg(0).lengthEq(0n).lengthGt(0n)).add(arg(0, Quantifier.ALL).gt(0n)),
+    );
+    expect(findIssue(issues, "BOUNDS_EXCLUDE_LENGTH")).toBeDefined();
   });
 
   test("handles LENGTH_BETWEEN correctly", () => {

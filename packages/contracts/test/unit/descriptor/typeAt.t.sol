@@ -158,7 +158,6 @@ contract TypeAtTest is DescriptorTest {
 
         assertEq(desc.typeAt(_path(0, Path.ALL)).code, TypeCode.UINT256);
         assertEq(desc.typeAt(_path(0, Path.ANY)).code, TypeCode.UINT256);
-        assertEq(desc.typeAt(_path(0, Path.ALL_OR_EMPTY)).code, TypeCode.UINT256);
     }
 
     function test_StaticArray_QuantifierBeyondDeclaredLength() public pure {

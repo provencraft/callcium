@@ -305,7 +305,7 @@ function evaluateHintedQuantifier(
   }
 
   if (length === 0) {
-    if (quantifier === Quantifier.ALL_OR_EMPTY) return null;
+    if (quantifier === Quantifier.ALL) return null;
     return {
       group: groupIndex,
       rule: ruleIndex,
@@ -319,7 +319,7 @@ function evaluateHintedQuantifier(
   // A compilable quantified path targets a static element, so the target is always a scalar.
   const node = hintTargetNode(typeCode);
   const elemStride = readU32(hintBytes, PF.HINT_ELEM_STRIDE_OFFSET);
-  const isUniversal = quantifier !== Quantifier.ANY;
+  const isUniversal = quantifier === Quantifier.ALL;
 
   let target = arrayBase + 32 + readU32(hintBytes, PF.HINT_SUFFIX_OFFSET);
   let anyPassed = false;
@@ -655,7 +655,7 @@ function evaluateQuantifier(
 
   // Empty array semantics.
   if (shape.length === 0) {
-    if (quantifier === Quantifier.ALL_OR_EMPTY) {
+    if (quantifier === Quantifier.ALL) {
       return null;
     }
     return {
@@ -667,7 +667,7 @@ function evaluateQuantifier(
     };
   }
 
-  const isUniversal = quantifier === Quantifier.ALL_OR_EMPTY || quantifier === Quantifier.ALL;
+  const isUniversal = quantifier === Quantifier.ALL;
   const hasSuffix = remainingPath.length > 0;
 
   for (let elemIndex = 0; elemIndex < shape.length; elemIndex++) {

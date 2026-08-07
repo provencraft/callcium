@@ -186,7 +186,7 @@ describe("Descriptor.walkPath", () => {
     const desc = DescriptorCoder.fromTypes("address[7]");
     expect(Descriptor.walkPath(desc, [0, Quantifier.ALL]).quantifiedStaticLength).toBe(7);
     expect(Descriptor.walkPath(desc, [0, Quantifier.ANY]).quantifiedStaticLength).toBe(7);
-    expect(Descriptor.walkPath(desc, [0, Quantifier.ALL_OR_EMPTY]).quantifiedStaticLength).toBe(7);
+    expect(Descriptor.walkPath(desc, [0, Quantifier.ALL]).quantifiedStaticLength).toBe(7);
   });
 
   test("quantifier over dynamic array → zero", () => {
@@ -265,7 +265,7 @@ describe("Descriptor.compileHint", () => {
     });
 
     test("quantifier with a suffix", () => {
-      expect(compile("(address,uint256)[]", [0, Quantifier.ALL_OR_EMPTY, 1])).toBe("0x00000000000000400000002020");
+      expect(compile("(address,uint256)[]", [0, Quantifier.ALL, 1])).toBe("0x00000000000000400000002020");
     });
   });
 

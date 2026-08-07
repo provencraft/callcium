@@ -197,7 +197,7 @@ export type NonCanonicalValueViolation = {
   elementIndex?: number;
 };
 
-/** A quantifier (`ANY` or `ALL`) was applied to an empty array. */
+/** An `ANY` quantifier was applied to an empty array. */
 export type QuantifierEmptyArrayViolation = {
   code: "QUANTIFIER_EMPTY_ARRAY";
   group: number;

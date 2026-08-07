@@ -278,12 +278,13 @@ Builders MUST validate operator-type compatibility for context rules using the d
 ### 5.5 Path Quantifiers
 
 ```
-ALL_OR_EMPTY = 0xFFFF     // Universal quantifier (∀): passes for ALL elements; empty arrays yield true
-ALL          = 0xFFFE     // Universal quantifier (∀): passes for ALL elements; empty arrays yield false
-ANY          = 0xFFFD     // Existential quantifier (∃): passes for AT LEAST ONE element; empty arrays yield false
+ALL = 0xFFFF     // Universal quantifier (∀): passes for ALL elements; empty arrays yield true (vacuous)
+ANY = 0xFFFE     // Existential quantifier (∃): passes for AT LEAST ONE element; empty arrays yield false
 ```
 
-Reserved index range: indices `i >= 0xFFFD` are reserved for quantifiers. Valid concrete indices are `0..0xFFFC`.
+Reserved index range: indices `i >= 0xFFFE` are reserved for quantifiers. Valid concrete indices are `0..0xFFFD`.
+
+Strict universality — every element passes and the array is non-empty — is expressed by composing a `LENGTH_GT 0` rule with an `ALL` rule in the same group.
 
 ### 5.6 Operator Codes
 
@@ -357,13 +358,13 @@ Path is encoded as a sequence of big-endian uint16 values:
 - `path[0]`: Top-level parameter index (0-based).
 - `path[1..n]`: Navigation into nested structures.
   - For tuples: field index.
-  - For arrays: element index, `ALL_OR_EMPTY` (0xFFFF), `ALL` (0xFFFE), or `ANY` (0xFFFD).
+  - For arrays: element index, `ALL` (0xFFFF), or `ANY` (0xFFFE).
 
 ### 6.3 Quantifier Constraints
 
-- `ALL_OR_EMPTY`, `ALL`, and `ANY` steps are only valid immediately after array nodes.
+- `ALL` and `ANY` steps are only valid immediately after array nodes.
 - A path MUST contain at most one quantifier step. Nested quantifiers are forbidden in this format version.
-- Valid concrete indices are `0..0xFFFC`.
+- Valid concrete indices are `0..0xFFFD`.
 
 ### 6.4 Examples
 
@@ -377,14 +378,11 @@ path = [0x0001]  // parameter index 1
 path = [0x0000, 0x0001]  // parameter 0, field 1
 
 // Function: baz(address[] recipients)
-// Rule: all recipients in allowlist (universal, vacuous)
-path = [0x0000, 0xFFFF]  // parameter 0, ALL_OR_EMPTY elements
-
-// Rule: all recipients in allowlist (strict universal)
-path = [0x0000, 0xFFFE]  // parameter 0, ALL elements
+// Rule: all recipients in allowlist (universal, vacuous on empty)
+path = [0x0000, 0xFFFF]  // parameter 0, ALL elements
 
 // Rule: at least one recipient in allowlist (existential)
-path = [0x0000, 0xFFFD]  // parameter 0, ANY element
+path = [0x0000, 0xFFFE]  // parameter 0, ANY element
 ```
 
 ### 6.5 Canonical Rule Sort Key
@@ -452,12 +450,12 @@ Lexicographic comparison of byte arrays: compare byte-by-byte from index 0. At t
 
 ### 7.3 Quantifier Handling
 
-When a path contains `ALL_OR_EMPTY`, `ALL`, or `ANY`, the enforcer evaluates the rule against concrete elements. Empty-array semantics are defined in Section 5.5. Dispatch follows the hint block (Section 7.2):
+When a path contains `ALL` or `ANY`, the enforcer evaluates the rule against concrete elements. Empty-array semantics are defined in Section 5.5. Dispatch follows the hint block (Section 7.2):
 
 - Quantified (13-byte) hint: the array base is `baseOffset` plus the offset word at `baseOffset + arrayHead`; the element count is the length word at the array base; the target of element `i` is at `arrayBase + 32 + i*elemStride + suffixOffset`. The quantifier step is the only part of the path consulted at runtime — it selects the empty-array semantics; all addressing comes from the hint.
 - Sentinel hint: the enforcer expands the quantifier into concrete element indices and evaluates each via traversal.
 
-Quantifier steps (`ALL_OR_EMPTY`, `ALL`, `ANY`) are enforcer-level markers and MUST NOT be passed into calldata traversal functions. When expanding via traversal, enforcers MUST substitute concrete element indices.
+Quantifier steps (`ALL`, `ANY`) are enforcer-level markers and MUST NOT be passed into calldata traversal functions. When expanding via traversal, enforcers MUST substitute concrete element indices.
 
 ### 7.4 Canonical Value Encoding
 
@@ -513,7 +511,7 @@ A policy is valid if it is well-formed and satisfies the following invariants. B
 
 - **PV-1**: Every calldata rule's path navigates the descriptor without stepping into an elementary type or past a tuple's field count.
 - **PV-2**: Every operator is compatible with its target's declared type per the compatibility matrix (Section 5.7).
-- **PV-3**: Quantifier steps (`ALL_OR_EMPTY`/`ALL`/`ANY`) appear only immediately after array nodes, and reserved indices (`>= 0xFFFD`) do not appear as explicit indices.
+- **PV-3**: Quantifier steps (`ALL`/`ANY`) appear only immediately after array nodes, and reserved indices (`>= 0xFFFE`) do not appear as explicit indices.
 - **PV-4**: No group contains two byte-identical rules. Rules sharing a path are otherwise permitted: a single rule definition may compile to multiple binary rules on the same path — range composition (e.g., `gte(5)` + `lte(10)`) produces two rules, or may be optimized into a single `BETWEEN`. Definition-level uniqueness — at most one definition per `(scope, pathBytes)` pair within a group — is a builder obligation, not observable in the encoded policy: a multi-operator definition and multiple single-operator definitions on the same path encode identically.
 - **PV-5**: Every group is satisfiable. Builders MUST detect at least: bound contradictions (conflicting equalities, values outside type range, impossible ranges), set contradictions (empty intersection, all values excluded), and bitmask contradictions (conflicting `bitmaskAll`/`bitmaskNone` bits). Builders MAY detect more.
 - **PV-6**: Every calldata rule's hint block equals the deterministic compilation of its path against the embedded descriptor (Section 4.3): the concrete layout with its defined field values when the path is compilable, the sentinel layout when it is not.
@@ -531,7 +529,7 @@ A policy is canonical if it is valid and its encoding satisfies the following in
 | Constant | Value | Category | Invariant | Derivation |
 |:---|:---|:---|:---|:---|
 | `MAX_PATH_DEPTH` | 32 steps | Design | PWF-17 | The 1-byte `pathDepth` field allows 255; capped for evaluation cost. |
-| `MAX_QUANTIFIED_ARRAY_LENGTH` | 256 elements | Design | — | Evaluation-time bound on `ANY`/`ALL`/`ALL_OR_EMPTY` iteration; exceeding it is a `QUANTIFIER_LIMIT_EXCEEDED` violation (Section 9.1). |
+| `MAX_QUANTIFIED_ARRAY_LENGTH` | 256 elements | Design | — | Evaluation-time bound on `ALL`/`ANY` iteration; exceeding it is a `QUANTIFIER_LIMIT_EXCEEDED` violation (Section 9.1). |
 | `MAX_POLICY_SIZE` | 24,575 bytes | Design | — | Storage bound enforced by the onchain registry at store time; not a wire-format invariant. |
 | `RULE_MIN_SIZE` | 9 bytes | Derived | PWF-10 | Minimal parseable rule record: a context rule (no hint block) with one path step and an empty data section (Section 5.2). Not attainable by a well-formed rule — every operator payload is at least 32 bytes (PWF-20); this is a structural lower bound for PWF-10 only. |
 | `IN` set cardinality | [1, 2,047] | Derived | PWF-20 | Lower bound: variadic data is a positive multiple of 32 (Section 4.4); upper bound: `⌊65,535 / 32⌋` from the 2-byte `dataLength`. |
@@ -571,7 +569,7 @@ Violations are calldata-dependent failures: different calldata could change the 
 | `ARRAY_INDEX_OUT_OF_BOUNDS` | Dynamic array in calldata is shorter than the index required by the rule. |
 | `MISSING_CONTEXT` | Recognized context property not provided at runtime. |
 | `QUANTIFIER_LIMIT_EXCEEDED` | Array length exceeds the enforcer iteration limit. |
-| `QUANTIFIER_EMPTY_ARRAY` | `ANY` or `ALL` quantifier evaluated over an empty array. |
+| `QUANTIFIER_EMPTY_ARRAY` | `ANY` quantifier evaluated over an empty array. |
 
 ### 9.2 Integrity Errors
 

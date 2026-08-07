@@ -34,11 +34,9 @@ contract WalkPathTest is DescriptorTest {
 
         (, uint256 all) = desc.walkPath(_path(0, Path.ALL));
         (, uint256 any) = desc.walkPath(_path(0, Path.ANY));
-        (, uint256 allOrEmpty) = desc.walkPath(_path(0, Path.ALL_OR_EMPTY));
 
         assertEq(all, 7);
         assertEq(any, 7);
-        assertEq(allOrEmpty, 7);
     }
 
     function test_QuantifierOverDynamicArray_ZeroLength() public pure {

@@ -414,8 +414,8 @@ describe("enforce - quantifier edge cases", () => {
     firstViolation(result, "QUANTIFIER_EMPTY_ARRAY");
   });
 
-  test("ALL_OR_EMPTY on empty dynamic array passes (vacuously true)", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL_OR_EMPTY).gt(0n)).build();
+  test("ALL on empty dynamic array passes (vacuously true)", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gt(0n)).build();
     const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([]));
     assertPassed(result);
   });
@@ -467,14 +467,17 @@ describe("enforce - quantifier edge cases", () => {
     assertPassed(result);
   });
 
-  test("ALL on empty dynamic array fails with QUANTIFIER_EMPTY_ARRAY", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gt(0n)).build();
+  test("composed strict ALL (lengthGt(0) + ALL) fails on an empty array", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]")
+      .add(arg(0).lengthGt(0n))
+      .add(arg(0, Quantifier.ALL).gt(0n))
+      .build();
     const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([]));
-    firstViolation(result, "QUANTIFIER_EMPTY_ARRAY");
+    firstViolation(result, "VALUE_MISMATCH");
   });
 
-  test("ALL_OR_EMPTY on non-empty array behaves like ALL", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL_OR_EMPTY).gt(0n)).build();
+  test("ALL on non-empty dynamic array fails when one element does not satisfy the rule", () => {
+    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gt(0n)).build();
     const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([5n, 0n]));
     firstViolation(result, "VALUE_MISMATCH");
   });

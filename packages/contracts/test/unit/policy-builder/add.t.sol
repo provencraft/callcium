@@ -58,7 +58,7 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
 
     function test_QuantifierOnArray() public pure {
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256[])");
-        draft = draft.add(arg(0, Path.ALL_OR_EMPTY).eq(uint256(42)));
+        draft = draft.add(arg(0, Path.ALL).eq(uint256(42)));
         assertConstraintAdded(draft, 0);
     }
 
@@ -133,9 +133,9 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
         PolicyDraft memory draft = PolicyBuilder.create("foo((address,uint256))");
 
         vm.expectRevert(
-            abi.encodeWithSelector(PolicyBuilder.QuantifierOnNonArray.selector, Path.encode(0, Path.ALL_OR_EMPTY), 1)
+            abi.encodeWithSelector(PolicyBuilder.QuantifierOnNonArray.selector, Path.encode(0, Path.ALL), 1)
         );
-        draft.add(arg(0, Path.ALL_OR_EMPTY).eq(uint256(1)));
+        draft.add(arg(0, Path.ALL).eq(uint256(1)));
     }
 
     function test_RevertWhen_QuantifierOnNonArray_Elementary() public {
@@ -165,7 +165,7 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
         // uint256[][] — two levels of dynamic arrays.
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256[][])");
 
-        bytes memory path = Path.encode(0, Path.ALL_OR_EMPTY, Path.ANY);
+        bytes memory path = Path.encode(0, Path.ALL, Path.ANY);
         Constraint memory c = Constraint({ scope: PF.SCOPE_CALLDATA, path: path, operators: new bytes[](0), hint: "" });
         c = c.eq(uint256(1));
 

@@ -471,15 +471,15 @@ describe("locate - static array with dynamic elements", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("locate - quantifier", () => {
-  test("ALL_OR_EMPTY on dynamic array returns quantifier result", () => {
+  test("ALL on dynamic array returns quantifier result", () => {
     const arrNode = dynamicArrayNode(UINT256);
     const tree: DescNode[] = [arrNode];
     const callData = concat(word(32), word(3), word(10), word(20), word(30));
 
-    const result = locate(tree, callData, path(0, Quantifier.ALL_OR_EMPTY), 0);
+    const result = locate(tree, callData, path(0, Quantifier.ALL), 0);
     assertQuantifier(result);
     const qr = result.quantifier;
-    expect(qr.quantifier).toBe(Quantifier.ALL_OR_EMPTY);
+    expect(qr.quantifier).toBe(Quantifier.ALL);
     expect(qr.remainingPath.length).toBe(0);
 
     const shapeResult = arrayShape(callData, qr.location);
@@ -681,9 +681,9 @@ describe("locate", () => {
     const tree: DescNode[] = [arrNode];
     const callData = concat(word(32), word(3), word(10), word(20), word(30));
 
-    const result = locate(tree, callData, path(0, Quantifier.ALL_OR_EMPTY), 0);
+    const result = locate(tree, callData, path(0, Quantifier.ALL), 0);
     assertQuantifier(result);
-    expect(result.quantifier.quantifier).toBe(Quantifier.ALL_OR_EMPTY);
+    expect(result.quantifier.quantifier).toBe(Quantifier.ALL);
     // The location points to the array itself, not the elements.
     expect(result.quantifier.location.node).toEqual(arrNode);
     expect(result.quantifier.remainingPath.length).toBe(0);
