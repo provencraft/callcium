@@ -16,7 +16,7 @@ A third force shapes the encoding. A scheme that resolves only the paths it find
 
 **Rule structure gains a compiled hint block** between path and opCode, present for calldata rules only. The block encodes one thing: how to reach the target from the enforcement base offset, as a chain of hops.
 
-A **hop** crosses one dynamic boundary. Every ABI indirection has the same shape — an offset word at a statically known position, relative to the enclosing composite's base — so a hop compiles to a single delta:
+A **hop** crosses one dynamic boundary. Every ABI indirection has the same shape — an offset word at a statically known position, relative to the enclosing composite's base — so a hop compiles to a delta:
 
 ```
 base = baseOffset
@@ -24,6 +24,8 @@ for each hop delta d:             // hopCount hops
     base = base + word(base + d)  // bounds-checked calldata load
 target = base + delta
 ```
+
+Crossing a dynamic array at a concrete element index takes a second hop kind: an element hop carrying the index and the element stride. The runtime check that the index is within the array's length is what descriptor traversal used to provide, and it needs exactly those two values; separating element resolution from payload entry also keeps consecutive array crossings — an element that is itself an array — expressible without special cases.
 
 `hopCount` is zero for a fully static path and one per dynamic node the path crosses. Every calldata path a valid policy can express compiles to this form: nested quantifiers are forbidden (PV-3) and path depth is capped, so the chain is bounded by the same limit as the path it compiles.
 

@@ -106,10 +106,10 @@ An implementation is conformant if and only if it meets all MUST/REQUIRED obliga
 ### 4.3 Rule Structure
 
 ```
-+----------+--------+-----------+---------------+--------------+--------+------------+------------------+
-| ruleSize | scope  | pathDepth | path          | hint         | opCode | dataLength | data             |
-| 2 bytes  | 1 byte | 1 byte    | 2*depth bytes | 0|5|13 bytes | 1 byte | 2 bytes    | dataLength bytes |
-+----------+--------+-----------+---------------+--------------+--------+------------+------------------+
++----------+--------+-----------+---------------+----------------+--------+------------+------------------+
+| ruleSize | scope  | pathDepth | path          | hint           | opCode | dataLength | data             |
+| 2 bytes  | 1 byte | 1 byte    | 2*depth bytes | hintSize bytes | 1 byte | 2 bytes    | dataLength bytes |
++----------+--------+-----------+---------------+----------------+--------+------------+------------------+
 ```
 
 | Offset | Field | Size | Description |
@@ -130,40 +130,55 @@ An implementation is conformant if and only if it meets all MUST/REQUIRED obliga
 
 **Compiled Hint Block:**
 
-The hint block embeds the precomputed calldata offsets of the rule's target, compiled from the rule's path against the embedded descriptor. All offset fields are big-endian uint32, relative to `baseOffset` (Section 7.1), so hint bytes are identical for selector and selectorless policies. `typeCode` carries a descriptor type code (Callcium Descriptor Spec, Section 5). Hint constants are defined in Section 5.8.
+The hint block encodes how to reach the rule's target from `baseOffset` (Section 7.1), compiled from the rule's path against the embedded descriptor. A node is **indirected** when ABI encodes it behind an offset word: composites with zero `staticWords`, and `bytes`/`string`. Addressing is a chain of **hops** of two kinds: a plain hop enters an indirected node's payload through its offset word; an element hop resolves one element of an array the chain has already reached. Every path a valid policy admits (PV-1–PV-3) compiles to this form; there is no fallback form. Hint constants are defined in Section 5.8.
 
-A calldata path is **compilable** when every navigation offset is fixed by the descriptor alone:
+```
++--------+------------------+-----------------------------+---------------------------------+
+| header | hops             | frame (quantified only)     | target                          |
+| 1 byte | 8*hopCount bytes | 9 + 8*suffixHopCount bytes  | 7 bytes                         |
++--------+------------------+-----------------------------+---------------------------------+
+```
 
-- **Unquantified**: every node the path traverses before its final node is static (nonzero `staticWords`, Callcium Descriptor Spec, Section 4.3). The final node itself may be static or dynamic.
-- **Quantified**: every node the path traverses before the quantified array node is static, the array node is a dynamic array, and its element type is static (hence every suffix node after the quantifier is static). A quantifier over a static array is not compilable: its element count is descriptor-declared, which the hint block does not carry.
+| Field | Size | Description |
+|-------|------|-------------|
+| header | 1 | Bits 7–6: `kind` — `HINT_KIND_NONE`, `HINT_KIND_ALL`, or `HINT_KIND_ANY`; value 3 is reserved. Bits 5–0: `hopCount`. |
+| hops | 8 × hopCount | Hop entries of the main chain. |
+| arrayDelta | 4 | Quantified only. Byte offset, relative to the base after the main chain, of the quantified array's data: the length word for a dynamic array, the element region otherwise. |
+| count | 2 | Quantified only. Declared element count for a static array; 0 for a dynamic array, whose count is read from calldata. Unambiguous: a static array's declared length is at least 1 (Callcium Descriptor Spec, DWF-6). |
+| meta | 2 | Quantified only. Meta word of the quantified array. |
+| suffixHeader | 1 | Quantified only. Bits 7–6: reserved. Bits 5–0: `suffixHopCount`. |
+| suffix hops | 8 × suffixHopCount | Quantified only. Hop entries of the element chain, relative to each element's base. |
+| targetDelta | 4 | Byte offset of the target, relative to the final base. |
+| targetMeta | 2 | Meta word of the target when `typeCode` is the dynamic array code; zero otherwise. Consumed by the payload-extent check (Section 7.2). |
+| typeCode | 1 | Descriptor type code of the target (Callcium Descriptor Spec, Section 5). |
 
-A compilable path compiles to a concrete layout; a non-compilable path compiles to the sentinel:
+The frame and suffix hops are present if and only if `kind` is not `HINT_KIND_NONE`, so `hintSize` is `8 + 8*hopCount` for an unquantified rule and `17 + 8*(hopCount + suffixHopCount)` for a quantified rule — a function of the header and suffixHeader bytes alone.
 
-| Layout | Size | Fields | Compiled from |
-|--------|------|--------|---------------|
-| Static | `HINT_STATIC_SIZE` (5) | `[headOffset:4][typeCode:1]` | Compilable unquantified path |
-| Quantified | `HINT_QUANTIFIED_SIZE` (13) | `[arrayHead:4][elemStride:4][suffixOffset:4][typeCode:1]` | Compilable quantified path |
-| Sentinel | `HINT_STATIC_SIZE` (5) | `[HINT_SENTINEL_OFFSET:4][HINT_TYPE_NONE:1]` | Any non-compilable path |
+**Hop entry** — `[delta:4][index:2][meta:2]`:
 
-Field semantics:
+- Plain hop (`index == HINT_NO_INDEX`): `delta` is the byte offset of the entered node's offset word, relative to the current base; `meta` is zero.
+- Element hop (`index != HINT_NO_INDEX`): `index` is the concrete element index and `meta` the meta word of the array the chain has reached; `delta` is zero. The value 0xFFFE never appears in `index`.
 
-- `headOffset`: byte offset of the final path node's head slot. For a static target this addresses the value word; for a dynamic target (`bytes`, `string`, dynamic array — reachable only by `LENGTH_*` operators, Section 5.7) it addresses the offset word, not the payload.
-- `arrayHead`: byte offset of the quantified dynamic array's head slot (its offset word).
-- `elemStride`: element ABI head size in bytes (`elemStaticWords × 32`; Callcium Descriptor Spec, Section 4.4).
-- `suffixOffset`: byte offset of the target within each element (0 when the quantifier is the final path step).
-- `typeCode`: descriptor type code of the resolved target; `HINT_TYPE_NONE` in the sentinel layout only.
+**Meta word** — big-endian uint16 describing an array node:
 
-**Hint size resolution.** `hintSize` is a deterministic function of the rule's own bytes, resolved in precedence order:
+- Bit 15 (`HINT_META_ELEM_DYNAMIC`): set when the element type is dynamic.
+- Bit 14 (`HINT_META_DYNAMIC_ARRAY`): set when the node is a dynamic array.
+- Bits 13–12: reserved.
+- Bits 11–0 (`strideWords`): element head size in words — `elemStaticWords` for static elements (Callcium Descriptor Spec, Section 4.4), 1 for dynamic elements (one offset word per element). The element stride in bytes is `strideWords * 32`.
 
-1. If the first 4 hint bytes equal `HINT_SENTINEL_OFFSET`: the block is the 5-byte sentinel.
-2. Else, if the path contains a quantifier step (Section 5.5): the block is `HINT_QUANTIFIED_SIZE` bytes.
-3. Else: the block is `HINT_STATIC_SIZE` bytes.
+All multi-byte hint fields are big-endian. Delta fields are uint32, relative to the chain's current base; the chain starts at `baseOffset`, so hint bytes are identical for selector and selectorless policies.
 
-A concrete `headOffset` or `arrayHead` can never collide with `HINT_SENTINEL_OFFSET`: both are head-slot offsets reached through static navigation, and the maximum derivable static head offset (255 parameters × 4,095 static words × 32 bytes) is below it.
+**Compilation.** The hint is a deterministic function of the rule's path and the embedded descriptor. Compilation walks the path with a byte accumulator `delta`, initially zero. *Entering* an indirected node emits plain hop `[delta, HINT_NO_INDEX, 0]` and resets `delta` to zero — unless the chain already ends inside it (the node was the dynamic element resolved by a preceding element hop or by the frame's element step), in which case nothing is emitted.
+
+1. A step through a static container adds the child's head offset to `delta`. A node's head slot spans `(staticWords == 0 ? 1 : staticWords) * 32` bytes — an indirected node's slot is its offset word. For a tuple or the parameter list, the head offset is the sum of the head slot spans of preceding fields or parameters; for a static array of static elements, it is `index * elemStaticWords * 32`.
+2. A step into a field of a dynamic tuple enters the tuple; the field's head offset then accumulates per rule 1.
+3. A concrete-index step into a dynamic array, or into a static array of dynamic elements, enters the array, then emits element hop `[0, index, meta(array)]`.
+4. A quantifier step enters the array if it is indirected, closes the main chain with `arrayDelta = delta`, `count` and `meta` from the array node, and resets `delta` to zero; the remaining steps compile into the suffix chain by these same rules.
+5. After the last step: if the target node is indirected, enter it and set `targetDelta = 0`; otherwise `targetDelta = delta`.
+6. `typeCode` is the target node's code; `targetMeta` is `meta(target)` when the target is a dynamic array, zero otherwise; `kind` and the hop counts fill the header and suffixHeader.
 
 **Type Resolution:**
-- For calldata rules with a concrete hint: the target type is the hint's `typeCode`; for valid policies it equals the code resolved by navigating the descriptor using the rule's path (PV-6).
-- For calldata rules with a sentinel hint: the target type is resolved by navigating the descriptor using the rule's path (see Callcium Descriptor Spec, Section 6).
+- For calldata rules: the target type is the hint's `typeCode`; for valid policies it equals the code resolved by navigating the descriptor using the rule's path (PV-6).
 - For context rules: type is implicit from the context property ID.
 
 ### 4.4 Data Encoding
@@ -336,10 +351,14 @@ Value operators (`EQ`, `GT`, `LT`, `GTE`, `LTE`, `BETWEEN`, `IN`, `BITMASK_*`) r
 ### 5.8 Compiled Hint Constants
 
 ```
-HINT_STATIC_SIZE = 5               // headOffset(4) + typeCode(1)
-HINT_QUANTIFIED_SIZE = 13          // arrayHead(4) + elemStride(4) + suffixOffset(4) + typeCode(1)
-HINT_SENTINEL_OFFSET = 0xFFFFFFFF  // first hint field: the path is not compilable
-HINT_TYPE_NONE = 0x00              // sentinel typeCode: the reserved descriptor code (Callcium Descriptor Spec, Section 5.3)
+HINT_HOP_SIZE = 8                    // hop entry: delta(4) + index(2) + meta(2)
+HINT_KIND_NONE = 0x0                 // header kind: unquantified rule
+HINT_KIND_ALL = 0x1                  // header kind: universal quantifier
+HINT_KIND_ANY = 0x2                  // header kind: existential quantifier
+HINT_NO_INDEX = 0xFFFF               // hop index: the crossing selects no element
+HINT_META_ELEM_DYNAMIC = 0x8000      // meta bit 15: element type is dynamic
+HINT_META_DYNAMIC_ARRAY = 0x4000     // meta bit 14: the node is a dynamic array
+HINT_META_STRIDE_MASK = 0x0FFF       // meta bits 11-0: element head size in words
 ```
 
 ---
@@ -434,32 +453,56 @@ Lexicographic comparison of byte arrays: compare byte-by-byte from index 0. At t
 1. Extract version from header byte (`header & VERSION_MASK`); verify `== VERSION`.
 2. If `FLAG_NO_SELECTOR` is not set: verify selector in calldata matches policy selector; set `baseOffset = 4`.
 3. If `FLAG_NO_SELECTOR` is set: skip selector validation; set `baseOffset = 0`.
-4. Extract descriptor from policy header.
+4. Locate the groups region past the embedded descriptor (`descLength`).
 5. Evaluate groups in order; first passing group succeeds (OR semantics).
 6. Within each group, all rules must pass (AND semantics).
 
 ### 7.2 Rule Evaluation
 
 - Context rules (`scope == 0`) resolve the value from the execution environment using the context property ID in `path[0]`.
-- Calldata rules (`scope == 1`) resolve the target location per the hint block, exclusively: a rule with a concrete hint MUST be resolved through the hint, and a rule with a sentinel hint MUST be resolved by traversing calldata using the descriptor and path (see Callcium Descriptor Spec, Section 6) and loading the value at the resolved location. Hint-resolved reads are subject to the same calldata bounds checks as traversal reads (Callcium Descriptor Spec, Section 6.5).
-  - Static hint, static target: the value is the 32-byte word at `baseOffset + headOffset`.
-  - Static hint, dynamic target: the word at `baseOffset + headOffset` is the ABI offset of the target's payload; the payload base is `baseOffset` plus that word (`LENGTH_*` rules only).
-  - Quantified hint: element addressing per Section 7.3.
-- The resolved value is checked against the canonical encoding of its declared type per §7.4, then the value and type code are checked against the operator and data.
-- For `LENGTH_*` operators, the resolved value is the declared length read at the target's payload base: the element count for dynamic arrays, the byte length for `bytes` and `string`. Enforcers MUST verify that the declared payload extent — `length × stride` bytes, where the stride is 1 for `bytes`/`string`, 32 for arrays of dynamic elements (one offset word per element), and the element's ABI head size (`elemStaticWords × 32`; Callcium Descriptor Spec, Section 4.4) for arrays of static elements — lies within calldata bounds before applying the operator; an overrun is a `CALLDATA_OUT_OF_BOUNDS` violation.
+- Calldata rules (`scope == 1`) resolve the target location through the hint block exclusively; path bytes are not consulted at evaluation time. Every `word(x)` below is a bounds-checked 32-byte calldata load: a read past the end of calldata is a `CALLDATA_OUT_OF_BOUNDS` violation. Offset and extent arithmetic MUST NOT wrap: a sum or product that overflows is likewise a `CALLDATA_OUT_OF_BOUNDS` violation. The main chain resolves as:
+
+```
+chain(base, hops):
+    for each hop [delta, index, meta]:
+        if index == HINT_NO_INDEX:
+            base = base + word(base + delta)
+        else:
+            elems = base
+            if meta.DYNAMIC_ARRAY:
+                if index >= word(elems): violation ARRAY_INDEX_OUT_OF_BOUNDS
+                elems = elems + 32
+            slot = elems + index * meta.strideWords * 32
+            base = meta.ELEM_DYNAMIC ? elems + word(slot) : slot
+    return base
+```
+
+  - Unquantified rule: `target = chain(baseOffset, hops) + targetDelta`. For a static target the word at `target` is the value. For a dynamic target the chain ends at the target's payload, so the word at `target` is the declared length (`LENGTH_*` rules only, Section 5.7).
+  - Quantified rule: element addressing per Section 7.3.
+- A static target's resolved value is checked against the canonical encoding of its declared type per §7.4, then the value and type code are checked against the operator and data.
+- For `LENGTH_*` operators, the resolved value is the declared length read at the target's payload base: the element count for dynamic arrays, the byte length for `bytes` and `string`. Enforcers MUST verify that the declared data extent — `length * stride` bytes starting at `target + 32`, where the stride is 1 for `bytes`/`string` and `targetMeta.strideWords * 32` for dynamic arrays — lies within calldata bounds before applying the operator; an overrun is a `CALLDATA_OUT_OF_BOUNDS` violation. Length values are compared as raw unsigned words; the canonical-encoding check of §7.4 does not apply to them.
 
 ### 7.3 Quantifier Handling
 
-When a path contains `ALL` or `ANY`, the enforcer evaluates the rule against concrete elements. Empty-array semantics are defined in Section 5.5. Dispatch follows the hint block (Section 7.2):
+A rule whose hint `kind` is `HINT_KIND_ALL` or `HINT_KIND_ANY` evaluates against concrete elements. The frame resolves the array and its elements:
 
-- Quantified (13-byte) hint: the array base is `baseOffset` plus the offset word at `baseOffset + arrayHead`; the element count is the length word at the array base; the target of element `i` is at `arrayBase + 32 + i*elemStride + suffixOffset`. The quantifier step is the only part of the path consulted at runtime — it selects the empty-array semantics; all addressing comes from the hint.
-- Sentinel hint: the enforcer expands the quantifier into concrete element indices and evaluates each via traversal.
+```
+base = chain(baseOffset, hops)
+elems = base + arrayDelta
+if count == 0: count = word(elems); elems = elems + 32
+for index in 0 .. count-1:
+    slot = elems + index * meta.strideWords * 32
+    elem = meta.ELEM_DYNAMIC ? elems + word(slot) : slot
+    target(index) = chain(elem, suffix hops) + targetDelta
+```
 
-Quantifier steps (`ALL`, `ANY`) are enforcer-level markers and MUST NOT be passed into calldata traversal functions. When expanding via traversal, enforcers MUST substitute concrete element indices.
+Before iterating: a count read from calldata above `MAX_QUANTIFIED_ARRAY_LENGTH` is a `QUANTIFIER_LIMIT_EXCEEDED` violation (a declared count above it cannot occur in a valid policy, PV-7); a count of zero yields the empty-array semantics of Section 5.5 — `HINT_KIND_ALL` passes, `HINT_KIND_ANY` is a `QUANTIFIER_EMPTY_ARRAY` violation. The hint `kind` alone selects these semantics.
+
+Each element's resolved value is evaluated per Section 7.2. Universal quantification fails on the first failing element; existential quantification passes on the first passing element.
 
 ### 7.4 Canonical Value Encoding
 
-Before applying an operator, an enforcer MUST verify that the resolved calldata value carries the encoding defined in §4.5 for its declared type. The declared type is the rule's target type code (Section 4.3, Type Resolution). For the raw 32-byte word loaded at the resolved location, that encoding requires:
+Before applying an operator to a static target's resolved value, an enforcer MUST verify that the value carries the encoding defined in §4.5 for its declared type. The declared type is the rule's target type code (Section 4.3, Type Resolution). Length values are exempt (§7.2). For the raw 32-byte word loaded at the resolved location, that encoding requires:
 
 - **Unsigned integers (`0x01`–`0x20`), `address`, `bool`**: all bits above the type's value width are zero — `N * 8` bits for `uintN`, 160 for `address`, 1 for `bool`.
 - **Signed integers (`0x21`–`0x40`)**: the word is sign-extended from the type's most-significant byte (EVM `SIGNEXTEND`).
@@ -472,7 +515,7 @@ Context values (`scope == 0`) are exempt: per §5.4 they are evaluated as raw 32
 
 ### 7.5 Conformance Boundary
 
-This specification defines evaluation semantics for well-formed policies (Section 8.1). Enforcers are not required to verify validity (Section 8.2) or canonical form (Section 8.3). Evaluating a well-formed but invalid policy may surface implementation-defined integrity errors (Section 9.2). When such a policy is evaluated rather than rejected, a calldata rule's stored hint remains authoritative even where it diverges from the compilation of its path: dispatch follows the hint (Section 7.2). Hint–path agreement is a validity property (PV-6), not an evaluation-time check. Canonical form affects byte identity only, not the verdict.
+This specification defines evaluation semantics for well-formed policies (Section 8.1). Enforcers are not required to verify validity (Section 8.2) or canonical form (Section 8.3). Evaluating a well-formed but invalid policy may surface implementation-defined integrity errors (Section 9.2). When such a policy is evaluated rather than rejected, a calldata rule's stored hint remains authoritative even where it diverges from the compilation of its path: resolution follows the hint (Section 7.2). Hint–path agreement is a validity property (PV-6), not an evaluation-time check. Canonical form affects byte identity only, not the verdict.
 
 ---
 
@@ -494,7 +537,7 @@ A policy is well-formed if it satisfies all of the following invariants. Validat
 - **PWF-10**: Every group has `groupSize >= ruleCount * RULE_MIN_SIZE`.
 - **PWF-11**: The rules of every group exactly fill its declared `groupSize`.
 - **PWF-12**: No trailing bytes remain after the last group.
-- **PWF-13**: Every rule's `ruleSize` equals the computed size (`4 + pathDepth*2 + hintSize + 3 + dataLength`, where `hintSize` is 0 for context rules and resolved per Section 4.3 for calldata rules).
+- **PWF-13**: Every rule's `ruleSize` equals the computed size (`4 + pathDepth*2 + hintSize + 3 + dataLength`, where `hintSize` is 0 for context rules and, for calldata rules, follows from the hint's header and suffixHeader bytes per Section 4.3).
 - **PWF-14**: Every rule's `scope` is 0 or 1.
 - **PWF-15**: Every context rule (`scope == 0`) has `pathDepth == 1`.
 - **PWF-16**: Every context rule's `path[0]` is a defined context property ID (Section 5.4).
@@ -503,18 +546,19 @@ A policy is well-formed if it satisfies all of the following invariants. Validat
 - **PWF-19**: Every rule's `opCode` (masked with `0x7F`) is a defined operator.
 - **PWF-20**: Every rule's `dataLength` matches its operator's data format (Section 4.4).
 - **PWF-21**: Every `IN` operator's operands are strictly ascending by lexicographic comparison of their 32-byte encodings. Strict ascent implies deduplication.
-- **PWF-22**: In every calldata rule's hint block, the first 4 bytes equal `HINT_SENTINEL_OFFSET` if and only if the final byte (`typeCode`) equals `HINT_TYPE_NONE`.
+- **PWF-22**: No calldata rule's hint block carries a reserved or unused state: the header `kind` is not 3, reserved bits of the suffixHeader and of every meta word are zero, no hop `index` is 0xFFFE, a plain hop's `meta` and an element hop's `delta` are zero, and `targetMeta` is zero unless `typeCode` is the dynamic array code.
 
 ### 8.2 Validity
 
 A policy is valid if it is well-formed and satisfies the following invariants. Builders MUST NOT emit an invalid policy. Enforcers are not required to verify these invariants (Section 7.5).
 
-- **PV-1**: Every calldata rule's path navigates the descriptor without stepping into an elementary type or past a tuple's field count.
+- **PV-1**: Every calldata rule's path navigates the descriptor without stepping into an elementary type, past a tuple's field count, or past a static array's declared length.
 - **PV-2**: Every operator is compatible with its target's declared type per the compatibility matrix (Section 5.7).
 - **PV-3**: Quantifier steps (`ALL`/`ANY`) appear only immediately after array nodes, and reserved indices (`>= 0xFFFE`) do not appear as explicit indices.
 - **PV-4**: No group contains two byte-identical rules. Rules sharing a path are otherwise permitted: a single rule definition may compile to multiple binary rules on the same path — range composition (e.g., `gte(5)` + `lte(10)`) produces two rules, or may be optimized into a single `BETWEEN`. Definition-level uniqueness — at most one definition per `(scope, pathBytes)` pair within a group — is a builder obligation, not observable in the encoded policy: a multi-operator definition and multiple single-operator definitions on the same path encode identically.
 - **PV-5**: Every group is satisfiable. Builders MUST detect at least: bound contradictions (conflicting equalities, values outside type range, impossible ranges), set contradictions (empty intersection, all values excluded), and bitmask contradictions (conflicting `bitmaskAll`/`bitmaskNone` bits). Builders MAY detect more.
-- **PV-6**: Every calldata rule's hint block equals the deterministic compilation of its path against the embedded descriptor (Section 4.3): the concrete layout with its defined field values when the path is compilable, the sentinel layout when it is not.
+- **PV-6**: Every calldata rule's hint block equals the deterministic compilation of its path against the embedded descriptor (Section 4.3).
+- **PV-7**: No quantifier applies to a static array whose declared length exceeds `MAX_QUANTIFIED_ARRAY_LENGTH` — the failure is descriptor-fixed, so it is a validity defect rather than a runtime violation.
 
 ### 8.3 Canonical Form
 
@@ -528,8 +572,9 @@ A policy is canonical if it is valid and its encoding satisfies the following in
 
 | Constant | Value | Category | Invariant | Derivation |
 |:---|:---|:---|:---|:---|
-| `MAX_PATH_DEPTH` | 32 steps | Design | PWF-17 | The 1-byte `pathDepth` field allows 255; capped for evaluation cost. |
-| `MAX_QUANTIFIED_ARRAY_LENGTH` | 256 elements | Design | — | Evaluation-time bound on `ALL`/`ANY` iteration; exceeding it is a `QUANTIFIER_LIMIT_EXCEEDED` violation (Section 9.1). |
+| `MAX_PATH_DEPTH` | 32 steps | Design | PWF-17 | The 1-byte `pathDepth` field allows 255; capped to bound per-rule path bytes and compilation work. |
+| Hops per chain | 63 | Format | — | 6-bit `hopCount` fields in the hint header and suffixHeader. Compilation emits at most `pathDepth + 1` hops per chain, so under PWF-17 the field encodes every chain a well-formed policy compiles. |
+| `MAX_QUANTIFIED_ARRAY_LENGTH` | 256 elements | Design | PV-7 | Bound on `ALL`/`ANY` iteration: a calldata length above it is a `QUANTIFIER_LIMIT_EXCEEDED` violation (Section 9.1); a declared static length above it is a validity defect (PV-7). |
 | `MAX_POLICY_SIZE` | 24,575 bytes | Design | — | Storage bound enforced by the onchain registry at store time; not a wire-format invariant. |
 | `RULE_MIN_SIZE` | 9 bytes | Derived | PWF-10 | Minimal parseable rule record: a context rule (no hint block) with one path step and an empty data section (Section 5.2). Not attainable by a well-formed rule — every operator payload is at least 32 bytes (PWF-20); this is a structural lower bound for PWF-10 only. |
 | `IN` set cardinality | [1, 2,047] | Derived | PWF-20 | Lower bound: variadic data is a positive multiple of 32 (Section 4.4); upper bound: `⌊65,535 / 32⌋` from the 2-byte `dataLength`. |
