@@ -663,7 +663,7 @@ library PolicyEnforcer {
         } else if (base == OpCode.BETWEEN) {
             bytes32 lowerRaw;
             bytes32 upperRaw;
-            assembly {
+            assembly ("memory-safe") {
                 let ptr := add(add(policy, 32), dataOffset)
                 lowerRaw := mload(ptr)
                 upperRaw := mload(add(ptr, 32))
@@ -719,7 +719,7 @@ library PolicyEnforcer {
         } else if (base == OpCode.LENGTH_BETWEEN) {
             uint256 lower;
             uint256 upper;
-            assembly {
+            assembly ("memory-safe") {
                 let ptr := add(add(policy, 32), dataOffset)
                 lower := mload(ptr)
                 upper := mload(add(ptr, 32))
@@ -750,7 +750,7 @@ library PolicyEnforcer {
         pure
         returns (bool found)
     {
-        assembly {
+        assembly ("memory-safe") {
             let base := add(add(policy, 32), dataOffset)
             // Linear scan for small sets (<=6 elements).
             switch lt(shr(5, dataLength), 7)

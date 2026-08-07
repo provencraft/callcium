@@ -100,7 +100,7 @@ library TypeRule {
             uint256 byteIndex = uint256(typeCode - TypeCode.INT8);
             if (byteIndex == 31) return value;
             bytes32 out;
-            assembly {
+            assembly ("memory-safe") {
                 out := signextend(byteIndex, value)
             }
             return out;
@@ -174,7 +174,7 @@ library TypeRule {
 
         // Signed: canonical words are fixed points of sign extension.
         bytes32 extended;
-        assembly {
+        assembly ("memory-safe") {
             extended := signextend(bits, value)
         }
         return extended == value;

@@ -257,7 +257,7 @@ library Policy {
         require(groupOffset + PF.GROUP_HEADER_SIZE <= self.length, UnexpectedEnd());
         uint256 offset = groupOffset + PF.GROUP_SIZE_OFFSET;
         uint256 shift = 256 - 8 * PF.GROUP_SIZE_SIZE;
-        assembly {
+        assembly ("memory-safe") {
             let p := add(add(self, 32), offset)
             size := shr(shift, mload(p))
         }

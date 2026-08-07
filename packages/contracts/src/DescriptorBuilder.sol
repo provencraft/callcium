@@ -292,7 +292,7 @@ library DescriptorBuilder {
         pure
         returns (bool result)
     {
-        assembly {
+        assembly ("memory-safe") {
             let length := sub(end, start)
             let literalLength := mload(literal)
 
