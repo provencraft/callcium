@@ -51,4 +51,13 @@ abstract contract PolicyEnforcerTest is BaseTest {
             arr[i] = i + 1;
         }
     }
+
+    /// @dev Returns the default 4-element set [10, 20, 30, 40].
+    function _defaultSet() internal pure returns (uint256[] memory set) {
+        set = new uint256[](4);
+        set[0] = 10;
+        set[1] = 20;
+        set[2] = 30;
+        set[3] = 40;
+    }
 }

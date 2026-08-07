@@ -32,15 +32,6 @@ import { PolicyEnforcerTest } from "../PolicyEnforcer.t.sol";
 /// @dev Tests for value and length operators (eq, gt, lt, between, bitmask, length, etc.)
 // forgefmt: disable-next-item
 contract EnforceOperatorTest is PolicyEnforcerTest {
-    /// @dev Returns the default 4-element set [10, 20, 30, 40].
-    function _defaultSet() private pure returns (uint256[] memory set) {
-        set = new uint256[](4);
-        set[0] = 10;
-        set[1] = 20;
-        set[2] = 30;
-        set[3] = 40;
-    }
-
     /*/////////////////////////////////////////////////////////////////////////
                                   VALUE OPERATORS
     /////////////////////////////////////////////////////////////////////////*/
@@ -1160,6 +1151,199 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
     }
 
     /*/////////////////////////////////////////////////////////////////////////
+                           QUANTIFIED VALUE OPERATORS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_All_Lt() public view {
+        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).lt(uint256(4)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[])", arr));
+    }
+
+    function test_All_Gte() public view {
+        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).gte(uint256(1)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[])", arr));
+    }
+
+    function test_All_Between() public view {
+        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).between(uint256(1), uint256(3)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[])", arr));
+    }
+
+    function test_All_In() public view {
+        uint256[] memory arr = new uint256[](2);
+        arr[0] = 10;
+        arr[1] = 30;
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).isIn(_defaultSet()))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[])", arr));
+    }
+
+    function test_All_BitmaskAll() public view {
+        uint256[] memory arr = new uint256[](2);
+        arr[0] = 0x0F;
+        arr[1] = 0xFF;
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).bitmaskAll(0x0F))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[])", arr));
+    }
+
+    function test_All_BitmaskAny() public view {
+        uint256[] memory arr = new uint256[](2);
+        arr[0] = 0x01;
+        arr[1] = 0x08;
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).bitmaskAny(0x0F))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[])", arr));
+    }
+
+    function test_All_BitmaskNone() public view {
+        uint256[] memory arr = new uint256[](2);
+        arr[0] = 0xF0;
+        arr[1] = 0x10;
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).bitmaskNone(0x0F))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[])", arr));
+    }
+
+    function test_All_NotFlag_NegatesEq() public view {
+        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).neq(uint256(100)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[])", arr));
+    }
+
+    function test_All_NotFlag_NegatesIn() public view {
+        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).notIn(_defaultSet()))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(uint256[])", arr));
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                           QUANTIFIED LENGTH OPERATORS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_All_LengthLt() public view {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("a");
+        arr[1] = bytes("bb");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthLt(3))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(bytes[])", arr));
+    }
+
+    function test_All_LengthLte() public view {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("a");
+        arr[1] = bytes("bb");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthLte(2))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(bytes[])", arr));
+    }
+
+    function test_All_LengthGte() public view {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("aa");
+        arr[1] = bytes("bbb");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthGte(2))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(bytes[])", arr));
+    }
+
+    function test_All_LengthBetween() public view {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("a");
+        arr[1] = bytes("bb");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthBetween(1, 2))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(bytes[])", arr));
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                           QUANTIFIED SIGNED ORDERING
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_All_Lt_SignedNegativeLessThanPositive() public view {
+        int256[] memory arr = new int256[](2);
+        arr[0] = -2;
+        arr[1] = -1;
+        bytes memory policy = PolicyBuilder.create("foo(int256[])")
+            .add(arg(0, Path.ALL).lt(int256(1)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(int256[])", arr));
+    }
+
+    function test_All_Gt_SignedPositiveGreaterThanNegative() public view {
+        int256[] memory arr = new int256[](2);
+        arr[0] = -100;
+        arr[1] = 1;
+        bytes memory policy = PolicyBuilder.create("foo(int256[])")
+            .add(arg(0, Path.ALL).gt(int256(-200)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(int256[])", arr));
+    }
+
+    function test_All_Gte_SignedNegativeEqual() public view {
+        int256[] memory arr = new int256[](2);
+        arr[0] = -42;
+        arr[1] = 0;
+        bytes memory policy = PolicyBuilder.create("foo(int256[])")
+            .add(arg(0, Path.ALL).gte(int256(-42)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(int256[])", arr));
+    }
+
+    function test_All_Lte_SignedNegativeEqual() public view {
+        int256[] memory arr = new int256[](2);
+        arr[0] = -100;
+        arr[1] = -42;
+        bytes memory policy = PolicyBuilder.create("foo(int256[])")
+            .add(arg(0, Path.ALL).lte(int256(-42)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(int256[])", arr));
+    }
+
+    function test_All_Between_SignedNegativeRange() public view {
+        int256[] memory arr = new int256[](2);
+        arr[0] = -75;
+        arr[1] = -60;
+        bytes memory policy = PolicyBuilder.create("foo(int256[])")
+            .add(arg(0, Path.ALL).between(int256(-100), int256(-50)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(int256[])", arr));
+    }
+
+    function test_All_Between_SignedCrossZeroRange() public view {
+        int256[] memory arr = new int256[](3);
+        arr[0] = -10;
+        arr[1] = 0;
+        arr[2] = 10;
+        bytes memory policy = PolicyBuilder.create("foo(int256[])")
+            .add(arg(0, Path.ALL).between(int256(-50), int256(50)))
+            .buildUnsafe();
+        harness.enforce(policy, abi.encodeWithSignature("foo(int256[])", arr));
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
                                 QUANTIFIER ERRORS
     /////////////////////////////////////////////////////////////////////////*/
 
@@ -1274,6 +1458,154 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
         bytes memory callData = abi.encodeWithSignature("foo(bytes[][])", arr);
 
         vm.expectRevert(abi.encodeWithSelector(CalldataReader.NotScalar.selector, TypeCode.BYTES));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_Lt_OneElementFails() public {
+        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).lt(uint256(3)))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_Gte_OneElementFails() public {
+        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).gte(uint256(2)))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_Between_OneElementFails() public {
+        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).between(uint256(2), uint256(3)))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_In_OneElementOutsideSet() public {
+        uint256[] memory arr = new uint256[](2);
+        arr[0] = 10;
+        arr[1] = 11;
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).isIn(_defaultSet()))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_BitmaskAll_OneElementFails() public {
+        uint256[] memory arr = new uint256[](2);
+        arr[0] = 0x0F;
+        arr[1] = 0x07;
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).bitmaskAll(0x0F))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_BitmaskAny_OneElementFails() public {
+        uint256[] memory arr = new uint256[](2);
+        arr[0] = 0x01;
+        arr[1] = 0xF0;
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).bitmaskAny(0x0F))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_BitmaskNone_OneElementFails() public {
+        uint256[] memory arr = new uint256[](2);
+        arr[0] = 0xF0;
+        arr[1] = 0x01;
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).bitmaskNone(0x0F))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_NotFlag_OneElementEqual() public {
+        uint256[] memory arr = _uintArray(3); // [1, 2, 3]
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).neq(uint256(2)))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_NotIn_OneElementInSet() public {
+        uint256[] memory arr = new uint256[](2);
+        arr[0] = 1;
+        arr[1] = 10;
+        bytes memory policy = PolicyBuilder.create("foo(uint256[])")
+            .add(arg(0, Path.ALL).notIn(_defaultSet()))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_LengthLt_OneElementFails() public {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("a");
+        arr[1] = bytes("bbb");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthLt(3))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_LengthLte_OneElementFails() public {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("a");
+        arr[1] = bytes("bbb");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthLte(2))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_LengthGte_OneElementFails() public {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("aa");
+        arr[1] = bytes("b");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthGte(2))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_LengthBetween_OneElementFails() public {
+        bytes[] memory arr = new bytes[](2);
+        arr[0] = bytes("a");
+        arr[1] = bytes("bbb");
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthBetween(1, 2))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
         harness.enforce(policy, callData);
     }
 }
