@@ -429,8 +429,12 @@ library CalldataReader {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @dev Loads 32 bytes from calldata with bounds check.
+    /// @dev Every offset reaching this bound is derived from a buffer length and wire fields whose
+    /// widths keep it far below the top of the range, so the sum cannot wrap.
     function _calldataload(bytes calldata data, uint256 offset) private pure returns (bytes32 word) {
-        require(offset + 32 <= data.length, CalldataOutOfBounds());
+        unchecked {
+            require(offset + 32 <= data.length, CalldataOutOfBounds());
+        }
         word = LibBytes.loadCalldata(data, offset);
     }
 
