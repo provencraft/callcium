@@ -20,6 +20,15 @@ contract EncodeTest is PolicyCoderTest {
     /// @dev Size of the hint block a static path compiles to, which carries no hops.
     uint256 internal constant HOP_FREE_HINT_SIZE = PF.HINT_HEADER_SIZE + PF.HINT_TARGET_SIZE;
 
+    /// @dev Creates a single-constraint group for selectorless policy tests.
+    function _makeOneConstraintGroup() internal pure returns (Constraint[][] memory groups) {
+        groups = new Constraint[][](1);
+        groups[0] = new Constraint[](1);
+        bytes[] memory operators = new bytes[](1);
+        operators[0] = _op1(OpCode.EQ, bytes32(uint256(42)));
+        groups[0][0] = Constraint({ scope: PF.SCOPE_CALLDATA, path: hex"0000", operators: operators, hint: "" });
+    }
+
     /// @dev Returns the descriptor every test in this file encodes against.
     function _descriptor() private pure returns (bytes memory) {
         return PolicyBuilder.create(SIGNATURE).data.descriptor;
@@ -361,15 +370,6 @@ contract EncodeTest is PolicyCoderTest {
         bytes memory blob = PolicyCoder.encode(data);
 
         assertEq(uint8(blob[PF.POLICY_HEADER_OFFSET]), PF.POLICY_VERSION, "header == version for normal");
-    }
-
-    /// @dev Creates a single-constraint group for selectorless policy tests.
-    function _makeOneConstraintGroup() internal pure returns (Constraint[][] memory groups) {
-        groups = new Constraint[][](1);
-        groups[0] = new Constraint[](1);
-        bytes[] memory operators = new bytes[](1);
-        operators[0] = _op1(OpCode.EQ, bytes32(uint256(42)));
-        groups[0][0] = Constraint({ scope: PF.SCOPE_CALLDATA, path: hex"0000", operators: operators, hint: "" });
     }
 
     /*/////////////////////////////////////////////////////////////////////////

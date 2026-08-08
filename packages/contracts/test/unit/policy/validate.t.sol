@@ -11,6 +11,13 @@ import { PolicyBuilder } from "src/PolicyBuilder.sol";
 import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 
 contract ValidateTest is PolicyTest {
+    /// @dev Asserts that validating a single-rule blob carrying `hint` reports a malformed hint.
+    function _expectMalformedHint(bytes memory path, bytes memory hint) private {
+        bytes memory blob = _calldataRuleBlob(path, hint);
+        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, _firstRuleOffset(blob)));
+        harness.validate(blob);
+    }
+
     /// @dev Builds a single-rule calldata-scope blob with a zero path of the given depth.
     function _pathDepthBlob(uint256 depth) private pure returns (bytes memory) {
         return _calldataRuleBlob(new bytes(depth * PF.PATH_STEP_SIZE), STATIC_HINT);
@@ -162,13 +169,6 @@ contract ValidateTest is PolicyTest {
     /*/////////////////////////////////////////////////////////////////////////
                                   HINT BLOCK
     /////////////////////////////////////////////////////////////////////////*/
-
-    /// @dev Asserts that validating a single-rule blob carrying `hint` reports a malformed hint.
-    function _expectMalformedHint(bytes memory path, bytes memory hint) private {
-        bytes memory blob = _calldataRuleBlob(path, hint);
-        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, _firstRuleOffset(blob)));
-        harness.validate(blob);
-    }
 
     function test_HopFreeHintAccepted() public view {
         harness.validate(_calldataRuleBlob(hex"0000", STATIC_HINT));
