@@ -71,6 +71,8 @@ library PolicyEnforcer {
     ////////////////////////////////////////////////////////////////////////*/
 
     /// @dev Evaluates the full policy against calldata. Returns pass/fail with the failing group/rule indices.
+    /// @dev Offsets are wire-bounded: a blob offset never exceeds the buffer length and every field
+    /// added to one is bounded by its own wire width, so no sum in this body can wrap.
     function _evalPolicy(
         bytes memory policy,
         bytes calldata callData
@@ -79,45 +81,48 @@ library PolicyEnforcer {
         view
         returns (bool ok, uint32 failingGroup, uint32 failingRule)
     {
-        // Parse the policy header once; every later field read reuses these offsets.
-        require(policy.length >= PF.POLICY_HEADER_PREFIX, Policy.MalformedHeader());
-        uint8 policyHeader = _byteAt(policy, PF.POLICY_HEADER_OFFSET);
+        unchecked {
+            // Parse the policy header once; every later field read reuses these offsets.
+            require(policy.length >= PF.POLICY_HEADER_PREFIX, Policy.MalformedHeader());
+            uint8 policyHeader = _byteAt(policy, PF.POLICY_HEADER_OFFSET);
 
-        // Determine base offset and validate selector if present.
-        uint256 baseOffset;
-        if (policyHeader & PF.FLAG_NO_SELECTOR == 0) {
-            bytes4 expectedSelector = bytes4(LibBytes.load(policy, PF.POLICY_SELECTOR_OFFSET));
-            require(callData.length >= PF.POLICY_SELECTOR_SIZE, MissingSelector());
-            bytes4 actualSelector = bytes4(LibBytes.loadCalldata(callData, 0));
-            require(expectedSelector == actualSelector, SelectorMismatch(expectedSelector, actualSelector));
-            baseOffset = PF.POLICY_SELECTOR_SIZE;
-        }
+            // Determine base offset and validate selector if present.
+            uint256 baseOffset;
+            if (policyHeader & PF.FLAG_NO_SELECTOR == 0) {
+                bytes4 expectedSelector = bytes4(LibBytes.load(policy, PF.POLICY_SELECTOR_OFFSET));
+                require(callData.length >= PF.POLICY_SELECTOR_SIZE, MissingSelector());
+                bytes4 actualSelector = bytes4(LibBytes.loadCalldata(callData, 0));
+                require(expectedSelector == actualSelector, SelectorMismatch(expectedSelector, actualSelector));
+                baseOffset = PF.POLICY_SELECTOR_SIZE;
+            }
 
-        // Groups sit past the embedded descriptor, whose bytes evaluation never reads.
-        uint256 descLength = Be16.readUnchecked(policy, PF.POLICY_DESC_LENGTH_OFFSET);
-        uint256 groupCountOffset = PF.POLICY_HEADER_PREFIX + descLength;
-        require(policy.length >= groupCountOffset + PF.POLICY_GROUP_COUNT_SIZE, Policy.MalformedHeader());
-        uint8 groups = _byteAt(policy, groupCountOffset);
-        if (groups == 0) return (false, 0, 0);
+            // Groups sit past the embedded descriptor, whose bytes evaluation never reads.
+            uint256 descLength = Be16.readUnchecked(policy, PF.POLICY_DESC_LENGTH_OFFSET);
+            uint256 groupCountOffset = PF.POLICY_HEADER_PREFIX + descLength;
+            require(policy.length >= groupCountOffset + PF.POLICY_GROUP_COUNT_SIZE, Policy.MalformedHeader());
+            uint8 groups = _byteAt(policy, groupCountOffset);
+            if (groups == 0) return (false, 0, 0);
 
-        // Evaluate groups with OR semantics: first passing group succeeds.
-        uint256 groupOffset = groupCountOffset + PF.POLICY_GROUP_COUNT_SIZE;
-        for (uint32 groupIndex; groupIndex < groups; ++groupIndex) {
-            // forgefmt: disable-next-item
-            (bool groupOk, uint32 failingRuleIndex, uint256 groupEnd) = _evalGroup(
+            // Evaluate groups with OR semantics: first passing group succeeds.
+            uint256 groupOffset = groupCountOffset + PF.POLICY_GROUP_COUNT_SIZE;
+            for (uint32 groupIndex; groupIndex < groups; ++groupIndex) {
+                // forgefmt: disable-next-item
+                (bool groupOk, uint32 failingRuleIndex, uint256 groupEnd) = _evalGroup(
                 policy, baseOffset, callData, groupOffset
             );
-            if (groupOk) return (true, 0, 0);
-            failingGroup = groupIndex;
-            failingRule = failingRuleIndex;
-            groupOffset = groupEnd;
-        }
+                if (groupOk) return (true, 0, 0);
+                failingGroup = groupIndex;
+                failingRule = failingRuleIndex;
+                groupOffset = groupEnd;
+            }
 
-        return (false, failingGroup, failingRule);
+            return (false, failingGroup, failingRule);
+        }
     }
 
     /// @dev Evaluates the group at `groupOffset`. Returns the verdict, the failing rule index
     /// (zero when the group passes), and the offset one past the group's last rule.
+    /// @dev Offsets are wire-bounded as in `_evalPolicy`, so no sum in this body can wrap.
     function _evalGroup(
         bytes memory policy,
         uint256 baseOffset,
@@ -128,30 +133,31 @@ library PolicyEnforcer {
         view
         returns (bool groupOk, uint32 failingRule, uint256 groupEnd)
     {
-        // One bounds check covers the whole group header; both fields read unchecked after it.
-        require(groupOffset + PF.GROUP_HEADER_SIZE <= policy.length, Policy.UnexpectedEnd());
-        uint16 ruleCount = Be16.readUnchecked(policy, groupOffset + PF.GROUP_RULECOUNT_OFFSET);
-        uint32 groupSize = uint32(bytes4(LibBytes.load(policy, groupOffset + PF.GROUP_SIZE_OFFSET)));
-        groupEnd = groupOffset + PF.GROUP_HEADER_SIZE + groupSize;
-        require(groupEnd <= policy.length, Policy.GroupOverflow(groupOffset));
+        unchecked {
+            // One bounds check covers the whole group header; both fields read unchecked after it.
+            require(groupOffset + PF.GROUP_HEADER_SIZE <= policy.length, Policy.UnexpectedEnd());
+            uint16 ruleCount = Be16.readUnchecked(policy, groupOffset + PF.GROUP_RULECOUNT_OFFSET);
+            uint32 groupSize = uint32(bytes4(LibBytes.load(policy, groupOffset + PF.GROUP_SIZE_OFFSET)));
+            groupEnd = groupOffset + PF.GROUP_HEADER_SIZE + groupSize;
+            require(groupEnd <= policy.length, Policy.GroupOverflow(groupOffset));
 
-        uint256 ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
-        for (uint32 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-            // The group bounds check above frames the rules region; the closing
-            // `ruleOffset == groupEnd` check rejects any rule that overruns it.
-            uint16 ruleSize = Be16.readUnchecked(policy, ruleOffset);
-            if (!_evalRule(policy, baseOffset, callData, ruleOffset)) return (false, ruleIndex, groupEnd);
+            uint256 ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
+            for (uint32 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+                // The group bounds check above frames the rules region; the closing
+                // `ruleOffset == groupEnd` check rejects any rule that overruns it.
+                uint16 ruleSize = Be16.readUnchecked(policy, ruleOffset);
+                if (!_evalRule(policy, baseOffset, callData, ruleOffset)) return (false, ruleIndex, groupEnd);
 
-            unchecked {
                 ruleOffset += ruleSize;
             }
-        }
 
-        require(ruleOffset == groupEnd, Policy.UnexpectedEnd());
-        return (true, 0, groupEnd);
+            require(ruleOffset == groupEnd, Policy.UnexpectedEnd());
+            return (true, 0, groupEnd);
+        }
     }
 
     /// @dev Evaluates a single rule. Returns true if rule passes.
+    /// @dev Offsets are wire-bounded as in `_evalPolicy`, so no sum in this body can wrap.
     function _evalRule(
         bytes memory policy,
         uint256 baseOffset,
@@ -162,34 +168,37 @@ library PolicyEnforcer {
         view
         returns (bool)
     {
-        uint256 pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
+        unchecked {
+            uint256 pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
 
-        if (_byteAt(policy, ruleOffset + PF.RULE_SCOPE_OFFSET) == PF.SCOPE_CONTEXT) {
-            bytes32 value = _readContext(Be16.readUnchecked(policy, pathStart));
-            // forgefmt: disable-next-item
-            (uint8 contextOpCode, uint256 contextDataOffset, uint16 contextDataLength) = _operatorAt(
+            if (_byteAt(policy, ruleOffset + PF.RULE_SCOPE_OFFSET) == PF.SCOPE_CONTEXT) {
+                bytes32 value = _readContext(Be16.readUnchecked(policy, pathStart));
+                // forgefmt: disable-next-item
+                (uint8 contextOpCode, uint256 contextDataOffset, uint16 contextDataLength) = _operatorAt(
                 policy, pathStart + PF.PATH_STEP_SIZE
             );
-            // forgefmt: disable-next-item
-            return _applyOperator(
+                // forgefmt: disable-next-item
+                return _applyOperator(
                 contextOpCode, value, 32, TypeCode.UINT256, policy, contextDataOffset, contextDataLength
             );
+            }
+
+            // The hint addresses the target on its own; path bytes are skipped by depth arithmetic.
+            uint256 depth = _byteAt(policy, ruleOffset + PF.RULE_DEPTH_OFFSET);
+            uint256 hintOffset = pathStart + depth * PF.PATH_STEP_SIZE;
+            uint8 header = _byteAt(policy, hintOffset);
+            uint256 hopCount = header & PF.HINT_HOP_COUNT_MASK;
+            uint8 kind = header >> PF.HINT_KIND_SHIFT;
+            uint256 hopsOffset = hintOffset + PF.HINT_HEADER_SIZE;
+
+            return kind == PF.HINT_KIND_NONE
+                ? _evalUnquantified(policy, baseOffset, callData, hopsOffset, hopCount)
+                : _evalQuantified(policy, baseOffset, callData, hopsOffset, hopCount, kind);
         }
-
-        // The hint addresses the target on its own; path bytes are skipped by depth arithmetic.
-        uint256 depth = _byteAt(policy, ruleOffset + PF.RULE_DEPTH_OFFSET);
-        uint256 hintOffset = pathStart + depth * PF.PATH_STEP_SIZE;
-        uint8 header = _byteAt(policy, hintOffset);
-        uint256 hopCount = header & PF.HINT_HOP_COUNT_MASK;
-        uint8 kind = header >> PF.HINT_KIND_SHIFT;
-        uint256 hopsOffset = hintOffset + PF.HINT_HEADER_SIZE;
-
-        return kind == PF.HINT_KIND_NONE
-            ? _evalUnquantified(policy, baseOffset, callData, hopsOffset, hopCount)
-            : _evalQuantified(policy, baseOffset, callData, hopsOffset, hopCount, kind);
     }
 
     /// @dev Evaluates the rule whose hop chain reaches a single target.
+    /// @dev Offsets are wire-bounded as in `_evalPolicy`, so no sum in this body can wrap.
     function _evalUnquantified(
         bytes memory policy,
         uint256 baseOffset,
@@ -201,35 +210,39 @@ library PolicyEnforcer {
         pure
         returns (bool)
     {
-        uint256 targetOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
-        uint256 target = _chain(policy, callData, baseOffset, hopsOffset, hopCount);
+        unchecked {
+            uint256 targetOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
+            uint256 target = _chain(policy, callData, baseOffset, hopsOffset, hopCount);
 
-        // The target block right-aligns to targetDelta(32) | targetMeta(16) | typeCode(8).
-        uint256 targetBlock = uint256(LibBytes.load(policy, targetOffset)) >> (256 - 8 * PF.HINT_TARGET_SIZE);
-        // forge-lint: disable-next-line(unsafe-typecast) the low byte of the block is the type code.
-        uint8 typeCode = uint8(targetBlock);
-        target += targetBlock >> 24;
+            // The target block right-aligns to targetDelta(32) | targetMeta(16) | typeCode(8).
+            uint256 targetBlock = uint256(LibBytes.load(policy, targetOffset)) >> (256 - 8 * PF.HINT_TARGET_SIZE);
+            // forge-lint: disable-next-line(unsafe-typecast) the low byte of the block is the type code.
+            uint8 typeCode = uint8(targetBlock);
+            target += targetBlock >> 24;
 
-        // forgefmt: disable-next-item
-        (uint8 opCode, uint256 dataOffset, uint16 dataLength) = _operatorAt(
+            // forgefmt: disable-next-item
+            (uint8 opCode, uint256 dataOffset, uint16 dataLength) = _operatorAt(
             policy, targetOffset + PF.HINT_TARGET_SIZE
         );
-        bytes32 word = CalldataReader.loadWord(callData, target);
+            bytes32 word = CalldataReader.loadWord(callData, target);
 
-        // A dynamic target's chain ends at its payload, so the word there is the declared length.
-        if (TypeRule.hasCalldataLength(typeCode)) {
-            require(!OpRule.isValueOp(opCode & ~OpCode.NOT), CalldataReader.NotScalar(typeCode));
-            uint256 length = uint256(word);
-            _requireExtent(callData, target, length, _payloadStride(typeCode, targetBlock));
-            return _applyOperator(opCode, bytes32(0), length, typeCode, policy, dataOffset, dataLength);
+            // A dynamic target's chain ends at its payload, so the word there is the declared length.
+            if (TypeRule.hasCalldataLength(typeCode)) {
+                require(!OpRule.isValueOp(opCode & ~OpCode.NOT), CalldataReader.NotScalar(typeCode));
+                uint256 length = uint256(word);
+                _requireExtent(callData, target, length, _payloadStride(typeCode, targetBlock));
+                return _applyOperator(opCode, bytes32(0), length, typeCode, policy, dataOffset, dataLength);
+            }
+
+            require(TypeRule.isElementary(typeCode), CalldataReader.NotScalar(typeCode));
+            require(TypeRule.isCanonical(word, typeCode), NonCanonicalValue(typeCode, word));
+            return _applyOperator(opCode, word, 32, typeCode, policy, dataOffset, dataLength);
         }
-
-        require(TypeRule.isElementary(typeCode), CalldataReader.NotScalar(typeCode));
-        require(TypeRule.isCanonical(word, typeCode), NonCanonicalValue(typeCode, word));
-        return _applyOperator(opCode, word, 32, typeCode, policy, dataOffset, dataLength);
     }
 
     /// @dev Evaluates the rule whose frame iterates the elements of one array.
+    /// @dev Offsets are wire-bounded as in `_evalPolicy`, and the element count the frame yields is
+    /// capped, so no sum in this body can wrap.
     function _evalQuantified(
         bytes memory policy,
         uint256 baseOffset,
@@ -242,77 +255,81 @@ library PolicyEnforcer {
         pure
         returns (bool)
     {
-        uint256 frameOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
-        // The frame prefix right-aligns to arrayDelta(32) | count(16) | meta(16).
-        uint256 frame = uint256(LibBytes.load(policy, frameOffset)) >> (256 - 8 * PF.HINT_FRAME_PREFIX_SIZE);
+        unchecked {
+            uint256 frameOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
+            // The frame prefix right-aligns to arrayDelta(32) | count(16) | meta(16).
+            uint256 frame = uint256(LibBytes.load(policy, frameOffset)) >> (256 - 8 * PF.HINT_FRAME_PREFIX_SIZE);
 
-        uint256 elems = _chain(policy, callData, baseOffset, hopsOffset, hopCount) + (frame >> 32);
-        uint256 count = (frame >> 16) & type(uint16).max;
+            uint256 elems = _chain(policy, callData, baseOffset, hopsOffset, hopCount) + (frame >> 32);
+            uint256 count = (frame >> 16) & type(uint16).max;
 
-        // A frame declaring no count spans a dynamic array, whose length word precedes its elements.
-        if (count == 0) {
-            count = uint256(CalldataReader.loadWord(callData, elems));
-            elems += 32;
-        }
-        require(count <= PF.MAX_QUANTIFIED_ARRAY_LENGTH, QuantifierLimitExceeded(count, PF.MAX_QUANTIFIED_ARRAY_LENGTH));
+            // A frame declaring no count spans a dynamic array, whose length word precedes its elements.
+            if (count == 0) {
+                count = uint256(CalldataReader.loadWord(callData, elems));
+                elems += 32;
+            }
+            require(
+                count <= PF.MAX_QUANTIFIED_ARRAY_LENGTH, QuantifierLimitExceeded(count, PF.MAX_QUANTIFIED_ARRAY_LENGTH)
+            );
 
-        bool isUniversal = kind == PF.HINT_KIND_ALL;
-        if (count == 0) return isUniversal;
+            bool isUniversal = kind == PF.HINT_KIND_ALL;
+            if (count == 0) return isUniversal;
 
-        uint256 suffixHeaderOffset = frameOffset + PF.HINT_FRAME_PREFIX_SIZE;
-        uint256 suffixHopCount = _byteAt(policy, suffixHeaderOffset) & PF.HINT_HOP_COUNT_MASK;
-        uint256 suffixHops = suffixHeaderOffset + PF.HINT_HEADER_SIZE;
-        uint256 targetOffset = suffixHops + suffixHopCount * PF.HINT_HOP_SIZE;
+            uint256 suffixHeaderOffset = frameOffset + PF.HINT_FRAME_PREFIX_SIZE;
+            uint256 suffixHopCount = _byteAt(policy, suffixHeaderOffset) & PF.HINT_HOP_COUNT_MASK;
+            uint256 suffixHops = suffixHeaderOffset + PF.HINT_HEADER_SIZE;
+            uint256 targetOffset = suffixHops + suffixHopCount * PF.HINT_HOP_SIZE;
 
-        // Every element shares one target type and one operator, so both resolve before iterating.
-        // The target block right-aligns to targetDelta(32) | targetMeta(16) | typeCode(8).
-        uint256 targetBlock = uint256(LibBytes.load(policy, targetOffset)) >> (256 - 8 * PF.HINT_TARGET_SIZE);
-        // forge-lint: disable-next-line(unsafe-typecast) the low byte of the block is the type code.
-        uint8 typeCode = uint8(targetBlock);
-        uint256 targetDelta = targetBlock >> 24;
-        // forgefmt: disable-next-item
-        (uint8 opCode, uint256 dataOffset, uint16 dataLength) = _operatorAt(
+            // Every element shares one target type and one operator, so both resolve before iterating.
+            // The target block right-aligns to targetDelta(32) | targetMeta(16) | typeCode(8).
+            uint256 targetBlock = uint256(LibBytes.load(policy, targetOffset)) >> (256 - 8 * PF.HINT_TARGET_SIZE);
+            // forge-lint: disable-next-line(unsafe-typecast) the low byte of the block is the type code.
+            uint8 typeCode = uint8(targetBlock);
+            uint256 targetDelta = targetBlock >> 24;
+            // forgefmt: disable-next-item
+            (uint8 opCode, uint256 dataOffset, uint16 dataLength) = _operatorAt(
             policy, targetOffset + PF.HINT_TARGET_SIZE
         );
 
-        bool hasLength = TypeRule.hasCalldataLength(typeCode);
-        uint256 payloadStride;
-        uint8 canonMode;
-        uint256 canonBits;
-        if (hasLength) {
-            require(!OpRule.isValueOp(opCode & ~OpCode.NOT), CalldataReader.NotScalar(typeCode));
-            payloadStride = _payloadStride(typeCode, targetBlock);
-        } else {
-            require(TypeRule.isElementary(typeCode), CalldataReader.NotScalar(typeCode));
-            // Every element shares the target's declared type, so its encoding resolves once.
-            (canonMode, canonBits) = TypeRule.canonicalSpec(typeCode);
-        }
-
-        uint256 elemStride = (frame & PF.HINT_META_STRIDE_MASK) * 32;
-        bool elemIsDynamic = frame & PF.HINT_META_ELEM_DYNAMIC != 0;
-
-        for (uint256 index; index < count; ++index) {
-            uint256 slot = elems + index * elemStride;
-            uint256 elem = elemIsDynamic ? _follow(callData, elems, slot) : slot;
-            uint256 base = suffixHopCount == 0 ? elem : _chain(policy, callData, elem, suffixHops, suffixHopCount);
-            uint256 target = base + targetDelta;
-            bytes32 word = CalldataReader.loadWord(callData, target);
-
-            bool elemResult;
+            bool hasLength = TypeRule.hasCalldataLength(typeCode);
+            uint256 payloadStride;
+            uint8 canonMode;
+            uint256 canonBits;
             if (hasLength) {
-                uint256 length = uint256(word);
-                _requireExtent(callData, target, length, payloadStride);
-                elemResult = _applyOperator(opCode, bytes32(0), length, typeCode, policy, dataOffset, dataLength);
+                require(!OpRule.isValueOp(opCode & ~OpCode.NOT), CalldataReader.NotScalar(typeCode));
+                payloadStride = _payloadStride(typeCode, targetBlock);
             } else {
-                require(TypeRule.checkCanonical(canonMode, canonBits, word), NonCanonicalValue(typeCode, word));
-                elemResult = _applyOperator(opCode, word, 32, typeCode, policy, dataOffset, dataLength);
+                require(TypeRule.isElementary(typeCode), CalldataReader.NotScalar(typeCode));
+                // Every element shares the target's declared type, so its encoding resolves once.
+                (canonMode, canonBits) = TypeRule.canonicalSpec(typeCode);
             }
 
-            // Universal quantification short-circuits on failure, existential on success.
-            if (elemResult != isUniversal) return elemResult;
-        }
+            uint256 elemStride = (frame & PF.HINT_META_STRIDE_MASK) * 32;
+            bool elemIsDynamic = frame & PF.HINT_META_ELEM_DYNAMIC != 0;
 
-        return isUniversal; // Universal: all passed, Existential: none passed.
+            for (uint256 index; index < count; ++index) {
+                uint256 slot = elems + index * elemStride;
+                uint256 elem = elemIsDynamic ? _follow(callData, elems, slot) : slot;
+                uint256 base = suffixHopCount == 0 ? elem : _chain(policy, callData, elem, suffixHops, suffixHopCount);
+                uint256 target = base + targetDelta;
+                bytes32 word = CalldataReader.loadWord(callData, target);
+
+                bool elemResult;
+                if (hasLength) {
+                    uint256 length = uint256(word);
+                    _requireExtent(callData, target, length, payloadStride);
+                    elemResult = _applyOperator(opCode, bytes32(0), length, typeCode, policy, dataOffset, dataLength);
+                } else {
+                    require(TypeRule.checkCanonical(canonMode, canonBits, word), NonCanonicalValue(typeCode, word));
+                    elemResult = _applyOperator(opCode, word, 32, typeCode, policy, dataOffset, dataLength);
+                }
+
+                // Universal quantification short-circuits on failure, existential on success.
+                if (elemResult != isUniversal) return elemResult;
+            }
+
+            return isUniversal; // Universal: all passed, Existential: none passed.
+        }
     }
 
     /// @dev Follows `hopCount` hop entries from `base` and returns the calldata offset they reach.
@@ -330,29 +347,31 @@ library PolicyEnforcer {
         pure
         returns (uint256)
     {
-        for (uint256 i; i < hopCount; ++i) {
-            // A hop right-aligns to delta(32) | index(16) | meta(16), so the meta masks apply directly.
-            uint256 hop =
-                uint256(LibBytes.load(policy, hopsOffset + i * PF.HINT_HOP_SIZE)) >> (256 - 8 * PF.HINT_HOP_SIZE);
-            uint256 index = (hop >> 16) & type(uint16).max;
+        unchecked {
+            for (uint256 i; i < hopCount; ++i) {
+                // A hop right-aligns to delta(32) | index(16) | meta(16), so the meta masks apply directly.
+                uint256 hop =
+                    uint256(LibBytes.load(policy, hopsOffset + i * PF.HINT_HOP_SIZE)) >> (256 - 8 * PF.HINT_HOP_SIZE);
+                uint256 index = (hop >> 16) & type(uint16).max;
 
-            if (index == PF.HINT_NO_INDEX) {
-                base = _follow(callData, base, base + (hop >> 32));
-                continue;
+                if (index == PF.HINT_NO_INDEX) {
+                    base = _follow(callData, base, base + (hop >> 32));
+                    continue;
+                }
+
+                uint256 elems = base;
+                if (hop & PF.HINT_META_DYNAMIC_ARRAY != 0) {
+                    uint256 length = uint256(CalldataReader.loadWord(callData, elems));
+                    require(index < length, CalldataReader.ArrayIndexOutOfBounds(index, length));
+                    elems += 32;
+                }
+
+                uint256 slot = elems + index * (hop & PF.HINT_META_STRIDE_MASK) * 32;
+                base = hop & PF.HINT_META_ELEM_DYNAMIC != 0 ? _follow(callData, elems, slot) : slot;
             }
 
-            uint256 elems = base;
-            if (hop & PF.HINT_META_DYNAMIC_ARRAY != 0) {
-                uint256 length = uint256(CalldataReader.loadWord(callData, elems));
-                require(index < length, CalldataReader.ArrayIndexOutOfBounds(index, length));
-                elems += 32;
-            }
-
-            uint256 slot = elems + index * (hop & PF.HINT_META_STRIDE_MASK) * 32;
-            base = hop & PF.HINT_META_ELEM_DYNAMIC != 0 ? _follow(callData, elems, slot) : slot;
+            return base;
         }
-
-        return base;
     }
 
     /// @dev Returns `from` advanced by the offset word at `at`.
