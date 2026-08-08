@@ -3,15 +3,17 @@ pragma solidity ^0.8.28;
 
 import { PolicyManagerBench } from "../PolicyManager.bench.t.sol";
 
-/// @dev Benchmarks for PolicyRegistry.exists().
+/// @dev Benchmarks for PolicyManager.exists().
 contract ExistsBench is PolicyManagerBench {
     function test_True() public {
-        harness.exists(policyHash);
+        bool found = harness.exists(policyHash);
         vm.snapshotGasLastCall("PolicyManager.exists", "true");
+        assertTrue(found);
     }
 
     function test_False() public {
-        harness.exists(bytes32(uint256(1)));
+        bool found = harness.exists(UNKNOWN_HASH);
         vm.snapshotGasLastCall("PolicyManager.exists", "false");
+        assertFalse(found);
     }
 }

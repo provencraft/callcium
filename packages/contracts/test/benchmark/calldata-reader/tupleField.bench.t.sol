@@ -22,57 +22,90 @@ contract TupleFieldBench is CalldataReaderBench {
     }
 
     function test_Static2First() public {
-        harness.tupleField(descStaticStruct, locStatic2, 0, callDataStaticStruct);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "static2_first");
+        _benchLocation(
+            harness.tupleField(descStaticStruct, locStatic2, 0, callDataStaticStruct),
+            "CalldataReader.tupleField",
+            "static2_first"
+        );
     }
 
     function test_Static2Last() public {
-        harness.tupleField(descStaticStruct, locStatic2, 1, callDataStaticStruct);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "static2_last");
+        _benchLocation(
+            harness.tupleField(descStaticStruct, locStatic2, 1, callDataStaticStruct),
+            "CalldataReader.tupleField",
+            "static2_last"
+        );
     }
 
     function test_Static10First() public {
-        harness.tupleField(descStaticTuple10, locStatic10, 0, callDataStaticTuple10);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "static10_first");
+        _benchLocation(
+            harness.tupleField(descStaticTuple10, locStatic10, 0, callDataStaticTuple10),
+            "CalldataReader.tupleField",
+            "static10_first"
+        );
     }
 
     function test_Static10Middle() public {
-        harness.tupleField(descStaticTuple10, locStatic10, 5, callDataStaticTuple10);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "static10_middle");
+        _benchLocation(
+            harness.tupleField(descStaticTuple10, locStatic10, 5, callDataStaticTuple10),
+            "CalldataReader.tupleField",
+            "static10_middle"
+        );
     }
 
     function test_Static10Last() public {
-        harness.tupleField(descStaticTuple10, locStatic10, 9, callDataStaticTuple10);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "static10_last");
+        _benchLocation(
+            harness.tupleField(descStaticTuple10, locStatic10, 9, callDataStaticTuple10),
+            "CalldataReader.tupleField",
+            "static10_last"
+        );
     }
 
     function test_Static32Last() public {
-        harness.tupleField(descStaticTuple32, locStatic32, 31, callDataStaticTuple32);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "static32_last");
+        _benchLocation(
+            harness.tupleField(descStaticTuple32, locStatic32, 31, callDataStaticTuple32),
+            "CalldataReader.tupleField",
+            "static32_last"
+        );
     }
 
     function test_Dyn10First() public {
-        harness.tupleField(descDynTuple10, locDyn10, 0, callDataDynTuple10);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "dyn10_first");
+        _benchLocation(
+            harness.tupleField(descDynTuple10, locDyn10, 0, callDataDynTuple10),
+            "CalldataReader.tupleField",
+            "dyn10_first"
+        );
     }
 
     function test_Dyn10Middle() public {
-        harness.tupleField(descDynTuple10, locDyn10, 5, callDataDynTuple10);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "dyn10_middle");
+        _benchLocation(
+            harness.tupleField(descDynTuple10, locDyn10, 5, callDataDynTuple10),
+            "CalldataReader.tupleField",
+            "dyn10_middle"
+        );
     }
 
     function test_Dyn10Last() public {
-        harness.tupleField(descDynTuple10, locDyn10, 9, callDataDynTuple10);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "dyn10_last");
+        _benchLocation(
+            harness.tupleField(descDynTuple10, locDyn10, 9, callDataDynTuple10),
+            "CalldataReader.tupleField",
+            "dyn10_last"
+        );
     }
 
     function test_Mixed10StaticLate() public {
-        harness.tupleField(descMixedTuple10, locMixed10, 7, callDataMixedTuple10);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "mixed10_static_late");
+        _benchLocation(
+            harness.tupleField(descMixedTuple10, locMixed10, 7, callDataMixedTuple10),
+            "CalldataReader.tupleField",
+            "mixed10_static_late"
+        );
     }
 
     function test_Mixed10DynLate() public {
-        harness.tupleField(descMixedTuple10, locMixed10, 8, callDataMixedTuple10);
-        vm.snapshotGasLastCall("CalldataReader.tupleField", "mixed10_dyn_late");
+        _benchLocation(
+            harness.tupleField(descMixedTuple10, locMixed10, 8, callDataMixedTuple10),
+            "CalldataReader.tupleField",
+            "mixed10_dyn_late"
+        );
     }
 }

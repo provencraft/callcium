@@ -14,21 +14,24 @@ contract LoadScalarBench is CalldataReaderBench {
         super.setUp();
         locElementary = harness.locate(descElementary, callDataElementary, _path(0), cfg);
         locStructField = harness.locate(descStaticStruct, callDataStaticStruct, _path(0, 1), cfg);
-        locArrayElem = harness.locate(descDynArraySmall, callDataDynArraySmall, _path(0, 1), cfg);
+        locArrayElem = harness.locate(descDynArray, callDataDynArraySmall, _path(0, 1), cfg);
     }
 
     function test_Elementary() public {
-        harness.loadScalar(locElementary, callDataElementary);
+        bytes32 value = harness.loadScalar(locElementary, callDataElementary);
         vm.snapshotGasLastCall("CalldataReader.loadScalar", "elementary");
+        assertEq(uint256(value), 42);
     }
 
     function test_StructField() public {
-        harness.loadScalar(locStructField, callDataStaticStruct);
+        bytes32 value = harness.loadScalar(locStructField, callDataStaticStruct);
         vm.snapshotGasLastCall("CalldataReader.loadScalar", "struct_field");
+        assertEq(uint256(value), 42);
     }
 
     function test_ArrayElem() public {
-        harness.loadScalar(locArrayElem, callDataDynArraySmall);
+        bytes32 value = harness.loadScalar(locArrayElem, callDataDynArraySmall);
         vm.snapshotGasLastCall("CalldataReader.loadScalar", "array_elem");
+        assertEq(uint256(value), 2);
     }
 }

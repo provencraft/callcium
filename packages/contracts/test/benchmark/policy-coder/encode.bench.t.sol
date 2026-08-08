@@ -9,24 +9,23 @@ contract EncodeBench is PolicyCoderBench {
                               SINGLE GROUP SCALING
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev One group, one rule, one 32-byte operand — the floor the path-depth and data-size
+    /// series read against. Both once opened with their own copy of this policy, which encoded to
+    /// the same blob shape and could not diverge from this row.
     function test_SingleGroup1Rule() public {
-        harness.encode(singleGroup1Rule, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "single_group_1rule");
+        _benchEncode(harness.encode(singleGroup1Rule, SELECTOR, descriptorBlob), "single_group_1rule");
     }
 
     function test_SingleGroup4Rules() public {
-        harness.encode(singleGroup4Rules, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "single_group_4rules");
+        _benchEncode(harness.encode(singleGroup4Rules, SELECTOR, descriptorBlob), "single_group_4rules");
     }
 
     function test_SingleGroup8Rules() public {
-        harness.encode(singleGroup8Rules, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "single_group_8rules");
+        _benchEncode(harness.encode(singleGroup8Rules, SELECTOR, descriptorBlob), "single_group_8rules");
     }
 
     function test_SingleGroup16Rules() public {
-        harness.encode(singleGroup16Rules, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "single_group_16rules");
+        _benchEncode(harness.encode(singleGroup16Rules, SELECTOR, descriptorBlob), "single_group_16rules");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -34,169 +33,134 @@ contract EncodeBench is PolicyCoderBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_TwoGroups() public {
-        harness.encode(twoGroups, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "two_groups");
+        _benchEncode(harness.encode(twoGroups, SELECTOR, descriptorBlob), "two_groups");
     }
 
     function test_FourGroups() public {
-        harness.encode(fourGroups, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "four_groups");
+        _benchEncode(harness.encode(fourGroups, SELECTOR, descriptorBlob), "four_groups");
     }
 
     function test_EightGroups() public {
-        harness.encode(eightGroups, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "eight_groups");
+        _benchEncode(harness.encode(eightGroups, SELECTOR, descriptorBlob), "eight_groups");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
                               PATH DEPTH VARIATION
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_PathDepth1() public {
-        harness.encode(pathDepth1, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "path_depth_1");
-    }
-
     function test_PathDepth2() public {
-        harness.encode(pathDepth2, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "path_depth_2");
+        _benchEncode(harness.encode(pathDepth2, SELECTOR, descriptorBlob), "path_depth_2");
     }
 
     function test_PathDepth4() public {
-        harness.encode(pathDepth4, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "path_depth_4");
+        _benchEncode(harness.encode(pathDepth4, SELECTOR, descriptorBlob), "path_depth_4");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
                               DATA SIZE VARIATION
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_DataSize32() public {
-        harness.encode(dataSize32, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "data_size_32");
-    }
-
     function test_DataSize128() public {
-        harness.encode(dataSize128, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "data_size_128");
+        _benchEncode(harness.encode(dataSize128, SELECTOR, descriptorBlob), "data_size_128");
     }
 
     function test_DataSize256() public {
-        harness.encode(dataSize256, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "data_size_256");
+        _benchEncode(harness.encode(dataSize256, SELECTOR, descriptorBlob), "data_size_256");
     }
 
     function test_DataSize512() public {
-        harness.encode(dataSize512, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "data_size_512");
+        _benchEncode(harness.encode(dataSize512, SELECTOR, descriptorBlob), "data_size_512");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                              SORTING STRESS TESTS
+                              SORTING STRESS
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_ReverseSortedRules() public {
-        harness.encode(reverseSortedRules, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "reverse_sorted_rules");
+        _benchEncode(harness.encode(reverseSortedRules, SELECTOR, descriptorBlob), "reverse_sorted_rules");
     }
 
     function test_EqualKeyRules() public {
-        harness.encode(equalKeyRules, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "equal_key_rules");
+        _benchEncode(harness.encode(equalKeyRules, SELECTOR, descriptorBlob), "equal_key_rules");
     }
 
     function test_IdenticalGroups() public {
-        harness.encode(identicalGroups, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "identical_groups");
+        _benchEncode(harness.encode(identicalGroups, SELECTOR, descriptorBlob), "identical_groups");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                            LARGE GROUP COUNT TESTS
+                            LARGE GROUP COUNT
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_Groups32() public {
-        harness.encode(groups32, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "groups_32");
+        _benchEncode(harness.encode(groups32, SELECTOR, descriptorBlob), "groups_32");
     }
 
     function test_Groups64() public {
-        harness.encode(groups64, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "groups_64");
+        _benchEncode(harness.encode(groups64, SELECTOR, descriptorBlob), "groups_64");
     }
 
     function test_Groups128() public {
-        harness.encode(groups128, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "groups_128");
+        _benchEncode(harness.encode(groups128, SELECTOR, descriptorBlob), "groups_128");
     }
 
     function test_Groups255() public {
-        harness.encode(groups255, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "groups_255");
+        _benchEncode(harness.encode(groups255, SELECTOR, descriptorBlob), "groups_255");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                              CONTEXT SCOPE TESTS
+                              CONTEXT SCOPE
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_ContextOnly() public {
-        harness.encode(contextOnly, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "context_only");
+        _benchEncode(harness.encode(contextOnly, SELECTOR, descriptorBlob), "context_only");
     }
 
     function test_MixedScope() public {
-        harness.encode(mixedScope, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "mixed_scope");
+        _benchEncode(harness.encode(mixedScope, SELECTOR, descriptorBlob), "mixed_scope");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                                DEEP PATH TESTS
+                                DEEP PATH
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_PathDepth8() public {
-        harness.encode(pathDepth8, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "path_depth_8");
+        _benchEncode(harness.encode(pathDepth8, SELECTOR, descriptorBlob), "path_depth_8");
     }
 
     function test_PathDepth16() public {
-        harness.encode(pathDepth16, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "path_depth_16");
+        _benchEncode(harness.encode(pathDepth16, SELECTOR, descriptorBlob), "path_depth_16");
     }
 
     function test_LongCommonPrefix() public {
-        harness.encode(longCommonPrefix, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "long_common_prefix");
+        _benchEncode(harness.encode(longCommonPrefix, SELECTOR, descriptorBlob), "long_common_prefix");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                            LARGE PAYLOAD TESTS
+                            LARGE PAYLOAD
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_DataSize1024() public {
-        harness.encode(dataSize1024, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "data_size_1024");
+        _benchEncode(harness.encode(dataSize1024, SELECTOR, descriptorBlob), "data_size_1024");
     }
 
     function test_DataSize2048() public {
-        harness.encode(dataSize2048, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "data_size_2048");
+        _benchEncode(harness.encode(dataSize2048, SELECTOR, descriptorBlob), "data_size_2048");
     }
 
     function test_DataSize4096() public {
-        harness.encode(dataSize4096, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "data_size_4096");
+        _benchEncode(harness.encode(dataSize4096, SELECTOR, descriptorBlob), "data_size_4096");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
-                              BOUNDARY TESTS
+                              BOUNDARY
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_ManyRulesPerGroup() public {
-        harness.encode(manyRulesPerGroup, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "many_rules_per_group");
+        _benchEncode(harness.encode(manyRulesPerGroup, SELECTOR, descriptorBlob), "many_rules_per_group");
     }
 
     function test_MixedOpCodes() public {
-        harness.encode(mixedOpCodes, SELECTOR, descriptorBlob);
-        vm.snapshotGasLastCall("PolicyCoder.encode", "mixed_op_codes");
+        _benchEncode(harness.encode(mixedOpCodes, SELECTOR, descriptorBlob), "mixed_op_codes");
     }
 }

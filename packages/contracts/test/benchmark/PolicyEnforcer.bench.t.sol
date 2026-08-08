@@ -11,14 +11,25 @@ import { LibBytes } from "solady/utils/LibBytes.sol";
 import { PolicyEnforcerTest } from "test/unit/PolicyEnforcer.t.sol";
 
 /// @dev Base contract for PolicyEnforcer benchmarks.
-// forge-lint: disable-next-item(unsafe-typecast)
-// forgefmt: disable-next-item
 abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     /// @dev Fixture for a single benchmark scenario.
     struct Fixture {
         bytes policy;
         bytes callData;
     }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                 SHARED FIXTURES
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev One elementary argument under one equality — the cheapest policy the format expresses.
+    /// Several series anchor on this scenario, and one build keeps those anchor rows exactly equal
+    /// rather than equal up to code layout.
+    Fixture internal elementaryEq;
+
+    /// @dev An element read out of a dynamic array, which no hint can resolve. Anchors both the
+    /// unhinted end of the path-depth series and the array row of the value-type series.
+    Fixture internal arrayElem;
 
     /*/////////////////////////////////////////////////////////////////////////
                               GROUP SCALING FIXTURES
@@ -51,12 +62,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               PATH DEPTH FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
-    Fixture internal depth1Elementary;
-    Fixture internal depth2StructField;
-    Fixture internal depth3NestedStruct;
-    Fixture internal depth4DeepNested;
     Fixture internal depth8VeryDeep;
-    Fixture internal depth2ArrayElem;
     Fixture internal depth3ArrayStructField;
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -72,7 +78,6 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               OPERATOR FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
-    Fixture internal opEq;
     Fixture internal opGt;
     Fixture internal opLt;
     Fixture internal opGte;
@@ -109,14 +114,11 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               VALUE TYPE FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
-    Fixture internal typeElementary;
     Fixture internal typeAddress;
     Fixture internal typeBytes32;
     Fixture internal typeStaticStruct;
     Fixture internal typeDynStructStatic;
-    Fixture internal typeArrayElement;
     Fixture internal typeStaticArrayElem;
-    Fixture internal typeLargeTupleField;
 
     /*/////////////////////////////////////////////////////////////////////////
                              DYNAMIC TUPLE FIXTURES
@@ -136,14 +138,36 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
     function setUp() public virtual override {
         super.setUp();
+        _buildSharedFixtures();
         _buildGroupScalingFixtures();
         _buildRuleScalingFixtures();
         _buildPathDepthFixtures();
+        _buildHopChainFixtures();
         _buildOperatorFixtures();
         _buildScopeFixtures();
         _buildValueTypeFixtures();
         _buildDynTupleRuleFixtures();
         _buildLengthOpFixtures();
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                 SHARED BUILDERS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function _buildSharedFixtures() internal {
+        // forgefmt: disable-next-item
+        elementaryEq = _buildFixture(
+            PolicyBuilder.create("foo(uint256)")
+                .add(arg(0).eq(uint256(42))),
+            abi.encodeWithSignature("foo(uint256)", uint256(42))
+        );
+
+        // forgefmt: disable-next-item
+        arrayElem = _buildFixture(
+            PolicyBuilder.create("foo(uint256[])")
+                .add(arg(0, 5).eq(uint256(6))),
+            abi.encodeWithSignature("foo(uint256[])", _uintArray(10))
+        );
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -189,12 +213,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function _buildRuleScalingFixtures() internal {
-        rules1Pass = _buildFixture(
-            PolicyBuilder.create("foo(uint256)")
-                .add(arg(0).eq(uint256(42))),
-            abi.encodeWithSignature("foo(uint256)", uint256(42))
-        );
-
+        rules1Pass = _buildRulesN(1);
         rules4AllPass = _buildRulesNWithCalldata(4, _u(1, 2, 3, 4));
         rules4FailFirst = _buildRulesNWithCalldata(4, _u(999, 2, 3, 4));
         rules4FailLast = _buildRulesNWithCalldata(4, _u(1, 2, 3, 999));
@@ -208,6 +227,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         string memory sig = _tupleSignature(count);
         PolicyDraft memory draft = PolicyBuilder.create(sig);
         for (uint256 i; i < count; ++i) {
+            // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
             draft = draft.add(arg(0, uint16(i)).eq(i + 1));
         }
         return _fixture(draft.buildUnsafe(), _encodeTupleCalldata(sig, count));
@@ -217,6 +237,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         string memory sig = _tupleSignature(count);
         PolicyDraft memory draft = PolicyBuilder.create(sig);
         for (uint256 i; i < count; ++i) {
+            // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
             draft = draft.add(arg(0, uint16(i)).eq(i + 1));
         }
         bytes memory callData = abi.encodeWithSignature(sig);
@@ -280,45 +301,19 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               PATH DEPTH BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev A static-tuple path compiles to a hint, so its cost does not vary with depth. The
+    /// series therefore records the two ends — `elementaryEq` and `depth8VeryDeep` — and spends its
+    /// remaining rows on array paths, which no hint can resolve and which do scale.
     function _buildPathDepthFixtures() internal {
-        depth1Elementary = _buildFixture(
-            PolicyBuilder.create("foo(uint256)")
-                .add(arg(0).eq(uint256(42))),
-            abi.encodeWithSignature("foo(uint256)", uint256(42))
-        );
-
-        depth2StructField = _buildFixture(
-            PolicyBuilder.create("foo((address,uint256))")
-                .add(arg(0, 1).eq(uint256(42))),
-            _encodeStruct2(address(1), 42)
-        );
-
-        depth3NestedStruct = _buildFixture(
-            PolicyBuilder.create("foo(((address,uint256),uint256))")
-                .add(arg(0, 0, 1).eq(uint256(42))),
-            _encodeNestedStruct3(address(1), 42, 100)
-        );
-
-        depth4DeepNested = _buildFixture(
-            PolicyBuilder.create("foo((((address,uint256),uint256),uint256))")
-                .add(arg(0, 0, 0, 1).eq(uint256(42))),
-            _encodeNestedStruct4(address(1), 42, 100, 200)
-        );
-
         depth8VeryDeep = _buildDeepNested(8);
-
-        uint256[] memory arr = new uint256[](10);
-        for (uint256 i; i < 10; ++i) {
-            arr[i] = i + 1;
-        }
-        depth2ArrayElem = _buildFixture(
-            PolicyBuilder.create("foo(uint256[])")
-                .add(arg(0, 5).eq(uint256(6))),
-            abi.encodeWithSignature("foo(uint256[])", arr)
-        );
-
         depth3ArrayStructField = _buildArrayStruct();
+    }
 
+    /*/////////////////////////////////////////////////////////////////////////
+                               HOP CHAIN BUILDERS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function _buildHopChainFixtures() internal {
         hops1 = _buildHopChain(1);
         hops2 = _buildHopChain(2);
         hops4 = _buildHopChain(4);
@@ -336,7 +331,10 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
         uint16[] memory steps = new uint16[](hopCount + 1);
         steps[hopCount] = 1;
-        PolicyDraft memory draft = PolicyBuilder.create(sig).add(arg(Path.encode(steps)).eq(uint256(42)));
+
+        // forgefmt: disable-next-item
+        PolicyDraft memory draft = PolicyBuilder.create(sig)
+            .add(arg(Path.encode(steps)).eq(uint256(42)));
 
         // Every level holds its successor one head behind it, and the innermost bytes is empty.
         bytes memory callData = abi.encodePacked(abi.encodeWithSignature(sig), uint256(0x20));
@@ -345,20 +343,6 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         }
 
         return _fixture(draft.buildUnsafe(), abi.encodePacked(callData, uint256(0)));
-    }
-
-    function _encodeNestedStruct4(
-        address addr,
-        uint256 val1,
-        uint256 val2,
-        uint256 val3
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory data = abi.encodeWithSignature("foo((((address,uint256),uint256),uint256))");
-        return abi.encodePacked(data, bytes32(uint256(uint160(addr))), bytes32(val1), bytes32(val2), bytes32(val3));
     }
 
     function _buildDeepNested(uint256 depth) internal pure returns (Fixture memory) {
@@ -387,6 +371,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     }
 
     function _buildArrayStruct() internal pure returns (Fixture memory) {
+        // forgefmt: disable-next-item
         bytes memory policy = PolicyBuilder.create("foo((uint256,address)[])")
             .add(arg(0, 2, 0).eq(uint256(42)))
             .buildUnsafe();
@@ -396,6 +381,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         callData = abi.encodePacked(callData, bytes32(uint256(5)));
         for (uint256 i; i < 5; ++i) {
             uint256 val = (i == 2) ? 42 : i * 10;
+            // forge-lint: disable-next-line(unsafe-typecast) loop bound is 5
             callData = abi.encodePacked(callData, bytes32(val), bytes32(uint256(uint160(address(uint160(i))))));
         }
 
@@ -409,36 +395,35 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     function _buildOperatorFixtures() internal {
         bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
 
-        opEq = _buildFixture(
-            PolicyBuilder.create("foo(uint256)")
-                .add(arg(0).eq(uint256(42))),
-            callData
-        );
-
+        // forgefmt: disable-next-item
         opGt = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).gt(uint256(40))),
             callData
         );
 
+        // forgefmt: disable-next-item
         opLt = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).lt(uint256(50))),
             callData
         );
 
+        // forgefmt: disable-next-item
         opGte = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).gte(uint256(42))),
             callData
         );
 
+        // forgefmt: disable-next-item
         opLte = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).lte(uint256(50))),
             callData
         );
 
+        // forgefmt: disable-next-item
         opBetween = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).between(uint256(40), uint256(50))),
@@ -454,34 +439,37 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         opIn64 = _buildIn(64);
         opIn128 = _buildIn(128);
 
+        // forgefmt: disable-next-item
         opBitmaskAll = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).bitmaskAll(0x0F)),
             abi.encodeWithSignature("foo(uint256)", uint256(0xFF))
         );
 
+        // forgefmt: disable-next-item
         opBitmaskAny = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).bitmaskAny(0x0F)),
             abi.encodeWithSignature("foo(uint256)", uint256(0x01))
         );
 
+        // forgefmt: disable-next-item
         opBitmaskNone = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).bitmaskNone(0x0F)),
             abi.encodeWithSignature("foo(uint256)", uint256(0xF0))
         );
 
+        // forgefmt: disable-next-item
         opNotEq = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).neq(uint256(100))),
             callData
         );
 
-        uint256[] memory notSet = new uint256[](4);
-        for (uint256 i; i < 4; ++i) {
-            notSet[i] = i + 1;
-        }
+        uint256[] memory notSet = _uintArray(4);
+
+        // forgefmt: disable-next-item
         opNotIn4 = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).notIn(notSet)),
@@ -490,12 +478,9 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     }
 
     function _buildIn(uint256 count) internal pure returns (Fixture memory) {
-        uint256[] memory set = new uint256[](count);
-        for (uint256 i; i < count; ++i) {
-            set[i] = i + 1;
-        }
+        // forgefmt: disable-next-item
         bytes memory policy = PolicyBuilder.create("foo(uint256)")
-            .add(arg(0).isIn(set))
+            .add(arg(0).isIn(_uintArray(count)))
             .buildUnsafe();
         return _fixture(policy, abi.encodeWithSignature("foo(uint256)", count));
     }
@@ -507,12 +492,14 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     function _buildScopeFixtures() internal {
         bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
 
+        // forgefmt: disable-next-item
         scopeCalldataOnly = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).gte(uint256(0)).gte(uint256(10)).gte(uint256(20)).gte(uint256(30))),
             callData
         );
 
+        // forgefmt: disable-next-item
         scopeContextOnly = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(msgSender().eq(address(this)))
@@ -522,6 +509,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
             callData
         );
 
+        // forgefmt: disable-next-item
         scopeMixed = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(msgSender().eq(address(this)))
@@ -530,30 +518,35 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
             callData
         );
 
+        // forgefmt: disable-next-item
         scopeCtxMsgSender = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(msgSender().eq(address(this))),
             callData
         );
 
+        // forgefmt: disable-next-item
         scopeCtxMsgValue = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(msgValue().eq(uint256(0))),
             callData
         );
 
+        // forgefmt: disable-next-item
         scopeCtxTimestamp = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(blockTimestamp().gt(uint256(0))),
             callData
         );
 
+        // forgefmt: disable-next-item
         scopeCtxBlockNumber = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(blockNumber().gt(uint256(0))),
             callData
         );
 
+        // forgefmt: disable-next-item
         scopeCtxChainId = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(chainId().gt(uint256(0))),
@@ -566,54 +559,42 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function _buildValueTypeFixtures() internal {
-        typeElementary = _buildFixture(
-            PolicyBuilder.create("foo(uint256)")
-                .add(arg(0).eq(uint256(42))),
-            abi.encodeWithSignature("foo(uint256)", uint256(42))
-        );
-
+        // forgefmt: disable-next-item
         typeAddress = _buildFixture(
             PolicyBuilder.create("foo(address)")
                 .add(arg(0).eq(address(1))),
             abi.encodeWithSignature("foo(address)", address(1))
         );
 
+        // forgefmt: disable-next-item
         typeBytes32 = _buildFixture(
             PolicyBuilder.create("foo(bytes32)")
                 .add(arg(0).eq(bytes32(uint256(42)))),
             abi.encodeWithSignature("foo(bytes32)", bytes32(uint256(42)))
         );
 
+        // forgefmt: disable-next-item
         typeStaticStruct = _buildFixture(
             PolicyBuilder.create("foo((address,uint256))")
                 .add(arg(0, 1).eq(uint256(42))),
             _encodeStruct2(address(1), 42)
         );
 
+        // forgefmt: disable-next-item
         typeDynStructStatic = _buildFixture(
             PolicyBuilder.create("foo((address,bytes))")
                 .add(arg(0, 0).eq(address(1))),
             _encodeDynTupleArg("foo((address,bytes))", abi.encode(address(1), hex"0102"))
         );
 
-        uint256[] memory arr = new uint256[](10);
-        for (uint256 i; i < 10; ++i) {
-            arr[i] = i + 1;
-        }
-        typeArrayElement = _buildFixture(
-            PolicyBuilder.create("foo(uint256[])")
-                .add(arg(0, 5).eq(uint256(6))),
-            abi.encodeWithSignature("foo(uint256[])", arr)
-        );
-
         uint256[10] memory staticArr = [uint256(1), 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+        // forgefmt: disable-next-item
         typeStaticArrayElem = _buildFixture(
             PolicyBuilder.create("foo(uint256[10])")
                 .add(arg(0, 5).eq(uint256(6))),
             abi.encodeWithSignature("foo(uint256[10])", staticArr)
         );
-
-        typeLargeTupleField = _buildRulesN(32);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -624,15 +605,16 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         // A bytes member makes the whole argument dynamic, so every rule on it enters the tuple
         // payload through one hop before reaching its own field.
         string memory sig = "foo((address,uint256,uint256,bytes))";
-        bytes memory callData =
-            _encodeDynTupleArg(sig, abi.encode(address(1), uint256(2), uint256(3), hex"0102"));
+        bytes memory callData = _encodeDynTupleArg(sig, abi.encode(address(1), uint256(2), uint256(3), hex"0102"));
 
+        // forgefmt: disable-next-item
         dynTupleRules1 = _buildFixture(
             PolicyBuilder.create(sig)
                 .add(arg(0, 0).eq(address(1))),
             callData
         );
 
+        // forgefmt: disable-next-item
         dynTupleRules4 = _buildFixture(
             PolicyBuilder.create(sig)
                 .add(arg(0, 0).eq(address(1)))
@@ -652,6 +634,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         for (uint256 i; i < 10; ++i) {
             arr10[i] = i;
         }
+        // forgefmt: disable-next-item
         lengthEqDynArray = _buildFixture(
             PolicyBuilder.create("foo(uint256[])")
                 .add(arg(0).lengthEq(10)),
@@ -662,6 +645,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         for (uint256 i; i < 100; ++i) {
             arr100[i] = i;
         }
+        // forgefmt: disable-next-item
         lengthGtDynArray = _buildFixture(
             PolicyBuilder.create("foo(uint256[])")
                 .add(arg(0).lengthGt(50)),
@@ -670,14 +654,17 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
         bytes memory bytesData = new bytes(256);
         for (uint256 i; i < 256; ++i) {
+            // forge-lint: disable-next-line(unsafe-typecast) loop bound is 256
             bytesData[i] = bytes1(uint8(i));
         }
+        // forgefmt: disable-next-item
         lengthBetweenBytes = _buildFixture(
             PolicyBuilder.create("foo(bytes)")
                 .add(arg(0).lengthBetween(100, 300)),
             abi.encodeWithSignature("foo(bytes)", bytesData)
         );
 
+        // forgefmt: disable-next-item
         lengthLtBytesEmpty = _buildFixture(
             PolicyBuilder.create("foo(bytes)")
                 .add(arg(0).lengthLt(1)),
@@ -712,5 +699,12 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         bool ok = harness.check(fixture.policy, fixture.callData);
         vm.snapshotGasLastCall("PolicyEnforcer.check", name);
         assertFalse(ok);
+    }
+
+    /// @dev Snapshots a compliant scenario through the reverting entry point. Returning at all is
+    /// the verdict assertion, since `enforce` reverts on a violation.
+    function _benchEnforce(Fixture memory fixture, string memory name) internal {
+        harness.enforce(fixture.policy, fixture.callData);
+        vm.snapshotGasLastCall("PolicyEnforcer.enforce", name);
     }
 }

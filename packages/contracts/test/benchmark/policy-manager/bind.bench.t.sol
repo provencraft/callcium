@@ -3,10 +3,11 @@ pragma solidity ^0.8.28;
 
 import { PolicyManagerBench } from "../PolicyManager.bench.t.sol";
 
-/// @dev Benchmarks for PolicyRegistry.bind().
+/// @dev Benchmarks for PolicyManager.bind().
 contract BindBench is PolicyManagerBench {
-    function test_Bind() public {
+    function test_Target() public {
         harness.bind(target, policyHash);
-        vm.snapshotGasLastCall("PolicyManager.bind", "bind");
+        vm.snapshotGasLastCall("PolicyManager.bind", "target");
+        assertEq(harness.hashFor(target, SELECTOR), policyHash);
     }
 }

@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import { PolicyManagerBench } from "../PolicyManager.bench.t.sol";
 
-/// @dev Benchmarks for PolicyRegistry.resolve() - the hot path.
+/// @dev Benchmarks for PolicyManager.resolve() - the hot path.
 contract ResolveBench is PolicyManagerBench {
     function setUp() public override {
         super.setUp();
@@ -12,12 +12,14 @@ contract ResolveBench is PolicyManagerBench {
     }
 
     function test_Target() public {
-        harness.resolve(target, SELECTOR);
+        bytes memory resolved = harness.resolve(target, SELECTOR);
         vm.snapshotGasLastCall("PolicyManager.resolve", "target");
+        assertEq(resolved, policy);
     }
 
     function test_Default() public {
-        harness.resolve(address(0xffff), SELECTOR);
+        bytes memory resolved = harness.resolve(UNBOUND_TARGET, SELECTOR);
         vm.snapshotGasLastCall("PolicyManager.resolve", "default");
+        assertEq(resolved, policy);
     }
 }

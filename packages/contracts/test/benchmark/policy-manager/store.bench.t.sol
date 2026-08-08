@@ -2,52 +2,49 @@
 pragma solidity ^0.8.28;
 
 import { PolicyManagerBench } from "../PolicyManager.bench.t.sol";
-import { arg } from "src/Constraint.sol";
-import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
-// forgefmt: disable-next-item
+/// @dev Benchmarks for PolicyManager.store().
 contract StoreBench is PolicyManagerBench {
-    bytes internal newPolicy;
-
-    function setUp() public virtual override {
-        super.setUp();
-        newPolicy = PolicyBuilder.create("bar(uint256)")
-            .add(arg(0).eq(uint256(1337)))
-            .buildUnsafe();
-    }
-
     function test_StoreNewPolicy() public {
-        harness.store(newPolicy);
+        (, address pointer) = harness.store(unstoredPolicy);
         vm.snapshotGasLastCall("PolicyManager.store", "new_policy");
+        assertTrue(pointer != address(0));
     }
 
     function test_StoreExistingPolicy() public {
-        harness.store(policy);
+        (bytes32 hash, address pointer) = harness.store(policy);
         vm.snapshotGasLastCall("PolicyManager.store", "existing_policy");
+        assertEq(hash, policyHash);
+        assertTrue(pointer != address(0));
     }
 
     function test_StoreTuple() public {
-        harness.store(policyTuple);
+        (, address pointer) = harness.store(policyTuple);
         vm.snapshotGasLastCall("PolicyManager.store", "tuple_3fields");
+        assertTrue(pointer != address(0));
     }
 
     function test_StoreNestedTuple() public {
-        harness.store(policyNestedTuple);
+        (, address pointer) = harness.store(policyNestedTuple);
         vm.snapshotGasLastCall("PolicyManager.store", "nested_tuple");
+        assertTrue(pointer != address(0));
     }
 
     function test_StoreArray() public {
-        harness.store(policyArray);
+        (, address pointer) = harness.store(policyArray);
         vm.snapshotGasLastCall("PolicyManager.store", "dynamic_array");
+        assertTrue(pointer != address(0));
     }
 
     function test_StoreComplex() public {
-        harness.store(policyComplex);
+        (, address pointer) = harness.store(policyComplex);
         vm.snapshotGasLastCall("PolicyManager.store", "complex_3params");
+        assertTrue(pointer != address(0));
     }
 
     function test_StoreLargeInSet() public {
-        harness.store(policyLargeIn);
+        (, address pointer) = harness.store(policyLargeIn);
         vm.snapshotGasLastCall("PolicyManager.store", "large_in_set_256");
+        assertTrue(pointer != address(0));
     }
 }

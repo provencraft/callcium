@@ -7,16 +7,23 @@ import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
 /// @notice Harness contract exposing full PolicyBuilder pipelines for benchmarking.
 contract PolicyBuilderHarness {
     /*/////////////////////////////////////////////////////////////////////////
-                              SIGNATURE COMPLEXITY
+                                 SHARED SCENARIO
     /////////////////////////////////////////////////////////////////////////*/
 
-    function simpleElementary(bool safe) external pure returns (bytes memory policy) {
+    /// @notice Builds one elementary argument under one equality — the cheapest pipeline the
+    /// builder runs. Every section anchors its series here, and sharing one function keeps those
+    /// anchor rows exactly equal rather than equal up to code layout.
+    function elementaryEq(bool safe) external pure returns (bytes memory policy) {
         // forgefmt: disable-next-item
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)")
             .add(arg(0).eq(uint256(42)));
 
         policy = safe ? draft.build() : draft.buildUnsafe();
     }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                              SIGNATURE COMPLEXITY
+    /////////////////////////////////////////////////////////////////////////*/
 
     function multipleElementaryTypes(bool safe) external pure returns (bytes memory policy) {
         // forgefmt: disable-next-item
@@ -67,14 +74,6 @@ contract PolicyBuilderHarness {
     /*/////////////////////////////////////////////////////////////////////////
                               CONSTRAINT COUNT
     /////////////////////////////////////////////////////////////////////////*/
-
-    function singleConstraint(bool safe) external pure returns (bytes memory policy) {
-        // forgefmt: disable-next-item
-        PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)")
-            .add(arg(0).eq(uint256(42)));
-
-        policy = safe ? draft.build() : draft.buildUnsafe();
-    }
 
     function fourConstraints(bool safe) external pure returns (bytes memory policy) {
         // forgefmt: disable-next-item
@@ -181,14 +180,6 @@ contract PolicyBuilderHarness {
                               PATH DEPTH
     /////////////////////////////////////////////////////////////////////////*/
 
-    function pathDepth1(bool safe) external pure returns (bytes memory policy) {
-        // forgefmt: disable-next-item
-        PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)")
-            .add(arg(0).eq(uint256(42)));
-
-        policy = safe ? draft.build() : draft.buildUnsafe();
-    }
-
     function pathDepth2(bool safe) external pure returns (bytes memory policy) {
         // forgefmt: disable-next-item
         PolicyDraft memory draft = PolicyBuilder.create("foo((address,uint256))")
@@ -216,14 +207,6 @@ contract PolicyBuilderHarness {
     /*/////////////////////////////////////////////////////////////////////////
                           OPERATOR COMPLEXITY
     /////////////////////////////////////////////////////////////////////////*/
-
-    function singleOperator(bool safe) external pure returns (bytes memory policy) {
-        // forgefmt: disable-next-item
-        PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)")
-            .add(arg(0).eq(uint256(42)));
-
-        policy = safe ? draft.build() : draft.buildUnsafe();
-    }
 
     function chainedOperators(bool safe) external pure returns (bytes memory policy) {
         // forgefmt: disable-next-item

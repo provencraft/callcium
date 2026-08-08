@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import { PolicyManagerHarness } from "test/harnesses/PolicyManagerHarness.sol";
 import { BaseTest } from "test/unit/BaseTest.sol";
 
-/// @dev Base contract for PolicyRegistry unit tests.
+/// @dev Base contract for PolicyManager unit tests.
 abstract contract PolicyManagerTest is BaseTest {
     bytes4 internal constant SELECTOR = bytes4(keccak256("foo(uint256)"));
 

@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import { PolicyManagerBench } from "../PolicyManager.bench.t.sol";
 
-/// @dev Benchmarks for PolicyRegistry.hashFor().
+/// @dev Benchmarks for PolicyManager.hashFor().
 contract HashForBench is PolicyManagerBench {
     function setUp() public override {
         super.setUp();
@@ -12,17 +12,20 @@ contract HashForBench is PolicyManagerBench {
     }
 
     function test_TargetBound() public {
-        harness.hashFor(target, SELECTOR);
+        bytes32 hash = harness.hashFor(target, SELECTOR);
         vm.snapshotGasLastCall("PolicyManager.hashFor", "target_bound");
+        assertEq(hash, policyHash);
     }
 
     function test_DefaultFallback() public {
-        harness.hashFor(address(0xffff), SELECTOR);
+        bytes32 hash = harness.hashFor(UNBOUND_TARGET, SELECTOR);
         vm.snapshotGasLastCall("PolicyManager.hashFor", "default_fallback");
+        assertEq(hash, policyHash);
     }
 
     function test_None() public {
-        harness.hashFor(address(1), bytes4(0x12345678));
+        bytes32 hash = harness.hashFor(UNBOUND_TARGET, UNBOUND_SELECTOR);
         vm.snapshotGasLastCall("PolicyManager.hashFor", "none");
+        assertEq(hash, bytes32(0));
     }
 }

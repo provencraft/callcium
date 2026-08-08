@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import { CalldataReader } from "src/CalldataReader.sol";
 import { DescriptorBuilder } from "src/DescriptorBuilder.sol";
 import { TypeDesc } from "src/TypeDesc.sol";
 
-import { CalldataReaderTest } from "../unit/CalldataReader.t.sol";
+import { CalldataReaderTest } from "test/unit/CalldataReader.t.sol";
 
-// forge-lint: disable-next-item(unsafe-typecast)
 abstract contract CalldataReaderBench is CalldataReaderTest {
     bytes internal descElementary;
     bytes internal callDataElementary;
@@ -17,13 +17,10 @@ abstract contract CalldataReaderBench is CalldataReaderTest {
     bytes internal descDynStruct;
     bytes internal callDataDynStruct;
 
-    bytes internal descDynArraySmall;
+    /// @dev One descriptor serves every `uint256[]` corpus; only the element count varies.
+    bytes internal descDynArray;
     bytes internal callDataDynArraySmall;
-
-    bytes internal descDynArrayMedium;
     bytes internal callDataDynArrayMedium;
-
-    bytes internal descDynArrayLarge;
     bytes internal callDataDynArrayLarge;
 
     bytes internal descStaticArray;
@@ -35,9 +32,6 @@ abstract contract CalldataReaderBench is CalldataReaderTest {
     bytes internal descNested2;
     bytes internal callDataNested2;
 
-    bytes internal descNested3;
-    bytes internal callDataNested3;
-
     bytes internal descNested4;
     bytes internal callDataNested4;
 
@@ -46,8 +40,6 @@ abstract contract CalldataReaderBench is CalldataReaderTest {
     bytes internal callDataBytesMedium;
     bytes internal callDataBytesLarge;
     bytes internal callDataBytesEmpty;
-
-    bytes internal callDataDynArrayEmpty;
 
     bytes internal descStaticArray32;
     bytes internal callDataStaticArray32;
@@ -70,6 +62,14 @@ abstract contract CalldataReaderBench is CalldataReaderTest {
     function setUp() public virtual override {
         super.setUp();
         _buildFixtures();
+    }
+
+    /// @dev Snapshots the harness call just made and rejects a node that did not land inside the
+    /// argument block, so a fixture that stops resolving its path fails instead of recording a
+    /// number under its old label.
+    function _benchLocation(CalldataReader.Location memory loc, string memory group, string memory name) internal {
+        vm.snapshotGasLastCall(group, name);
+        assertGe(loc.head, cfg.baseOffset);
     }
 
     function _buildFixtures() internal {
@@ -96,9 +96,7 @@ abstract contract CalldataReaderBench is CalldataReaderTest {
     }
 
     function _buildArrayFixtures() internal {
-        descDynArraySmall = DescriptorBuilder.fromTypes("uint256[]");
-        descDynArrayMedium = descDynArraySmall;
-        descDynArrayLarge = descDynArraySmall;
+        descDynArray = DescriptorBuilder.fromTypes("uint256[]");
 
         uint256[] memory small = new uint256[](3);
         small[0] = 1;
@@ -129,9 +127,6 @@ abstract contract CalldataReaderBench is CalldataReaderTest {
         }
         callDataStaticArray32 = abi.encodeWithSelector(SELECTOR, staticArr32);
 
-        uint256[] memory emptyArr = new uint256[](0);
-        callDataDynArrayEmpty = abi.encodeWithSelector(SELECTOR, emptyArr);
-
         descBytesArray = DescriptorBuilder.fromTypes("bytes[]");
         bytes[] memory bytesArr = new bytes[](3);
         bytesArr[0] = hex"01";
@@ -147,11 +142,7 @@ abstract contract CalldataReaderBench is CalldataReaderTest {
         callDataNested2 = abi.encodeWithSelector(SELECTOR, address(1), uint256(42), uint256(100));
 
         bytes memory nestedDesc = TypeDesc.tuple_(pairDesc, TypeDesc.uint256_());
-        descNested3 = DescriptorBuilder.create().add(TypeDesc.tuple_(nestedDesc, TypeDesc.address_())).build();
-        callDataNested3 = abi.encodeWithSelector(SELECTOR, address(1), uint256(42), uint256(100), address(2));
-
-        bytes memory deepDesc = TypeDesc.tuple_(nestedDesc, TypeDesc.address_());
-        descNested4 = DescriptorBuilder.create().add(deepDesc).build();
+        descNested4 = DescriptorBuilder.create().add(TypeDesc.tuple_(nestedDesc, TypeDesc.address_())).build();
         callDataNested4 = abi.encodeWithSelector(SELECTOR, address(1), uint256(42), uint256(100), address(2));
     }
 
@@ -160,18 +151,21 @@ abstract contract CalldataReaderBench is CalldataReaderTest {
 
         bytes memory smallBytes = new bytes(32);
         for (uint256 i; i < 32; ++i) {
+            // forge-lint: disable-next-line(unsafe-typecast) loop bound is 32
             smallBytes[i] = bytes1(uint8(i));
         }
         callDataBytesSmall = abi.encodeWithSelector(SELECTOR, smallBytes);
 
         bytes memory mediumBytes = new bytes(256);
         for (uint256 i; i < 256; ++i) {
+            // forge-lint: disable-next-line(unsafe-typecast) loop bound is 256
             mediumBytes[i] = bytes1(uint8(i));
         }
         callDataBytesMedium = abi.encodeWithSelector(SELECTOR, mediumBytes);
 
         bytes memory largeBytes = new bytes(1024);
         for (uint256 i; i < 1024; ++i) {
+            // forge-lint: disable-next-line(unsafe-typecast) the modulo keeps the value in byte range
             largeBytes[i] = bytes1(uint8(i % 256));
         }
         callDataBytesLarge = abi.encodeWithSelector(SELECTOR, largeBytes);

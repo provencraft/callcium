@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import { PolicyBuilderBench } from "../PolicyBuilder.bench.t.sol";
 
 /// @dev Benchmarks for PolicyBuilder.buildUnsafe (no validation).
-contract BuildUncheckedBench is PolicyBuilderBench {
+contract BuildUnsafeBench is PolicyBuilderBench {
     function _safe() internal pure override returns (bool) {
         return false;
     }

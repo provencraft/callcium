@@ -20,22 +20,26 @@ contract LoadSliceBench is CalldataReaderBench {
     }
 
     function test_Small() public {
-        harness.loadSlice(descBytes, locSmall, callDataBytesSmall);
+        CalldataReader.DynamicSlice memory slice = harness.loadSlice(descBytes, locSmall, callDataBytesSmall);
         vm.snapshotGasLastCall("CalldataReader.loadSlice", "small");
+        assertEq(slice.length, 32);
     }
 
     function test_Medium() public {
-        harness.loadSlice(descBytes, locMedium, callDataBytesMedium);
+        CalldataReader.DynamicSlice memory slice = harness.loadSlice(descBytes, locMedium, callDataBytesMedium);
         vm.snapshotGasLastCall("CalldataReader.loadSlice", "medium");
+        assertEq(slice.length, 256);
     }
 
     function test_Large() public {
-        harness.loadSlice(descBytes, locLarge, callDataBytesLarge);
+        CalldataReader.DynamicSlice memory slice = harness.loadSlice(descBytes, locLarge, callDataBytesLarge);
         vm.snapshotGasLastCall("CalldataReader.loadSlice", "large");
+        assertEq(slice.length, 1024);
     }
 
     function test_Empty() public {
-        harness.loadSlice(descBytes, locEmpty, callDataBytesEmpty);
+        CalldataReader.DynamicSlice memory slice = harness.loadSlice(descBytes, locEmpty, callDataBytesEmpty);
         vm.snapshotGasLastCall("CalldataReader.loadSlice", "empty");
+        assertEq(slice.length, 0);
     }
 }

@@ -112,25 +112,18 @@ contract RealisticBench is PolicyEnforcerBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_TokenApproval() public {
-        _benchRealistic(tokenApproval, "token_approval");
+        _benchCheckPasses(tokenApproval, "realistic_token_approval");
     }
 
     function test_SwapStaticParams() public {
-        _benchRealistic(swapStaticParams, "swap_static_params");
+        _benchCheckPasses(swapStaticParams, "realistic_swap_static_params");
     }
 
     function test_SwapWithPath() public {
-        _benchRealistic(swapWithPath, "swap_with_path");
+        _benchCheckPasses(swapWithPath, "realistic_swap_with_path");
     }
 
     function test_BatchTransfer() public {
-        _benchRealistic(batchTransfer, "batch_transfer");
-    }
-
-    /// @dev Snapshots a compliant scenario under this file's snapshot group.
-    function _benchRealistic(Fixture memory fixture, string memory name) private {
-        bool ok = harness.check(fixture.policy, fixture.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.realistic", name);
-        assertTrue(ok);
+        _benchCheckPasses(batchTransfer, "realistic_batch_transfer");
     }
 }

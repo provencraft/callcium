@@ -2,37 +2,39 @@
 pragma solidity ^0.8.28;
 
 import { arg } from "src/Constraint.sol";
-import { Policy } from "src/Policy.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
-import { PolicyEnforcerTest } from "test/unit/PolicyEnforcer.t.sol";
+import { PolicyEnforcerBench } from "../PolicyEnforcer.bench.t.sol";
 
-contract LengthBench is PolicyEnforcerTest {
-    bytes internal policyArray;
-    bytes internal callDataArray;
-    bytes internal policyBytes;
-    bytes internal callDataBytes;
+/// @dev Length-operator cost through the reverting entry point, over both targets that carry a
+///      declared length: a dynamic array and a `bytes` payload.
+contract LengthBench is PolicyEnforcerBench {
+    Fixture internal lengthArray;
+    Fixture internal lengthBytes;
 
     function setUp() public override {
         super.setUp();
 
-        policyArray = PolicyBuilder.create("foo(uint256[])").add(arg(0).lengthGte(1)).buildUnsafe();
-        callDataArray = abi.encodeWithSignature("foo(uint256[])", _uintArray(3));
+        // forgefmt: disable-next-item
+        lengthArray = _buildFixture(
+            PolicyBuilder.create("foo(uint256[])")
+                .add(arg(0).lengthGte(1)),
+            abi.encodeWithSignature("foo(uint256[])", _uintArray(3))
+        );
 
-        policyBytes = PolicyBuilder.create("foo(bytes)").add(arg(0).lengthGte(1)).buildUnsafe();
-        callDataBytes = abi.encodeWithSignature("foo(bytes)", hex"01");
-
-        Policy.validate(policyArray);
-        Policy.validate(policyBytes);
+        // forgefmt: disable-next-item
+        lengthBytes = _buildFixture(
+            PolicyBuilder.create("foo(bytes)")
+                .add(arg(0).lengthGte(1)),
+            abi.encodeWithSignature("foo(bytes)", hex"01")
+        );
     }
 
     function test_LengthArray() public {
-        harness.enforce(policyArray, callDataArray);
-        vm.snapshotGasLastCall("PolicyEnforcer.length", "array");
+        _benchEnforce(lengthArray, "length_array");
     }
 
     function test_LengthBytes() public {
-        harness.enforce(policyBytes, callDataBytes);
-        vm.snapshotGasLastCall("PolicyEnforcer.length", "bytes");
+        _benchEnforce(lengthBytes, "length_bytes");
     }
 }

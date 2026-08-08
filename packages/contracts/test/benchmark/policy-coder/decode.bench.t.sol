@@ -3,30 +3,27 @@ pragma solidity ^0.8.28;
 
 import { PolicyCoderBench } from "../PolicyCoder.bench.t.sol";
 
-/// @dev Benchmarks for PolicyCoder.decode().
+/// @dev Benchmarks for PolicyCoder.decode(). Each case asserts the round trip returns as many
+///      groups as its source fixture encoded, so a blob that stops decoding fails the benchmark.
 contract DecodeBench is PolicyCoderBench {
     /*/////////////////////////////////////////////////////////////////////////
                               SINGLE GROUP SCALING
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_SingleGroup1Rule() public {
-        harness.decode(encodedSingleGroup1Rule);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "single_group_1rule");
+        _benchDecode(harness.decode(encodedSingleGroup1Rule), "single_group_1rule", singleGroup1Rule.length);
     }
 
     function test_SingleGroup4Rules() public {
-        harness.decode(encodedSingleGroup4Rules);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "single_group_4rules");
+        _benchDecode(harness.decode(encodedSingleGroup4Rules), "single_group_4rules", singleGroup4Rules.length);
     }
 
     function test_SingleGroup8Rules() public {
-        harness.decode(encodedSingleGroup8Rules);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "single_group_8rules");
+        _benchDecode(harness.decode(encodedSingleGroup8Rules), "single_group_8rules", singleGroup8Rules.length);
     }
 
     function test_SingleGroup16Rules() public {
-        harness.decode(encodedSingleGroup16Rules);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "single_group_16rules");
+        _benchDecode(harness.decode(encodedSingleGroup16Rules), "single_group_16rules", singleGroup16Rules.length);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -34,18 +31,15 @@ contract DecodeBench is PolicyCoderBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_TwoGroups() public {
-        harness.decode(encodedTwoGroups);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "two_groups");
+        _benchDecode(harness.decode(encodedTwoGroups), "two_groups", twoGroups.length);
     }
 
     function test_FourGroups() public {
-        harness.decode(encodedFourGroups);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "four_groups");
+        _benchDecode(harness.decode(encodedFourGroups), "four_groups", fourGroups.length);
     }
 
     function test_EightGroups() public {
-        harness.decode(encodedEightGroups);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "eight_groups");
+        _benchDecode(harness.decode(encodedEightGroups), "eight_groups", eightGroups.length);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -53,23 +47,19 @@ contract DecodeBench is PolicyCoderBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_Groups32() public {
-        harness.decode(encodedGroups32);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "groups_32");
+        _benchDecode(harness.decode(encodedGroups32), "groups_32", groups32.length);
     }
 
     function test_Groups64() public {
-        harness.decode(encodedGroups64);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "groups_64");
+        _benchDecode(harness.decode(encodedGroups64), "groups_64", groups64.length);
     }
 
     function test_Groups128() public {
-        harness.decode(encodedGroups128);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "groups_128");
+        _benchDecode(harness.decode(encodedGroups128), "groups_128", groups128.length);
     }
 
     function test_Groups255() public {
-        harness.decode(encodedGroups255);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "groups_255");
+        _benchDecode(harness.decode(encodedGroups255), "groups_255", groups255.length);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -77,13 +67,11 @@ contract DecodeBench is PolicyCoderBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_ContextOnly() public {
-        harness.decode(encodedContextOnly);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "context_only");
+        _benchDecode(harness.decode(encodedContextOnly), "context_only", contextOnly.length);
     }
 
     function test_MixedScope() public {
-        harness.decode(encodedMixedScope);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "mixed_scope");
+        _benchDecode(harness.decode(encodedMixedScope), "mixed_scope", mixedScope.length);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -91,7 +79,6 @@ contract DecodeBench is PolicyCoderBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_MixedOpCodes() public {
-        harness.decode(encodedMixedOpCodes);
-        vm.snapshotGasLastCall("PolicyCoder.decode", "mixed_op_codes");
+        _benchDecode(harness.decode(encodedMixedOpCodes), "mixed_op_codes", mixedOpCodes.length);
     }
 }

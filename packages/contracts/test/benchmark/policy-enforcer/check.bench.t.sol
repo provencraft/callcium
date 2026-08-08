@@ -13,35 +13,35 @@ contract CheckBench is PolicyEnforcerBench {
         _benchCheckPasses(groups1Pass, "groups_1");
     }
 
-    function test_Groups2_PassFirst() public {
+    function test_Groups2PassFirst() public {
         _benchCheckPasses(groups2PassFirst, "groups_2_pass_first");
     }
 
-    function test_Groups2_PassLast() public {
+    function test_Groups2PassLast() public {
         _benchCheckPasses(groups2PassLast, "groups_2_pass_last");
     }
 
-    function test_Groups4_PassFirst() public {
+    function test_Groups4PassFirst() public {
         _benchCheckPasses(groups4PassFirst, "groups_4_pass_first");
     }
 
-    function test_Groups4_PassLast() public {
+    function test_Groups4PassLast() public {
         _benchCheckPasses(groups4PassLast, "groups_4_pass_last");
     }
 
-    function test_Groups8_PassFirst() public {
+    function test_Groups8PassFirst() public {
         _benchCheckPasses(groups8PassFirst, "groups_8_pass_first");
     }
 
-    function test_Groups8_PassLast() public {
+    function test_Groups8PassLast() public {
         _benchCheckPasses(groups8PassLast, "groups_8_pass_last");
     }
 
-    function test_Groups16_PassFirst() public {
+    function test_Groups16PassFirst() public {
         _benchCheckPasses(groups16PassFirst, "groups_16_pass_first");
     }
 
-    function test_Groups16_PassLast() public {
+    function test_Groups16PassLast() public {
         _benchCheckPasses(groups16PassLast, "groups_16_pass_last");
     }
 
@@ -53,31 +53,32 @@ contract CheckBench is PolicyEnforcerBench {
         _benchCheckPasses(rules1Pass, "rules_1");
     }
 
-    function test_Rules4_AllPass() public {
+    function test_Rules4AllPass() public {
         _benchCheckPasses(rules4AllPass, "rules_4_all_pass");
     }
 
-    function test_Rules4_FailFirst() public {
+    function test_Rules4FailFirst() public {
         _benchCheckFails(rules4FailFirst, "rules_4_fail_first");
     }
 
-    function test_Rules4_FailLast() public {
+    function test_Rules4FailLast() public {
         _benchCheckFails(rules4FailLast, "rules_4_fail_last");
     }
 
-    function test_Rules8_AllPass() public {
+    function test_Rules8AllPass() public {
         _benchCheckPasses(rules8AllPass, "rules_8_all_pass");
     }
 
-    function test_Rules8_FailMiddle() public {
+    function test_Rules8FailMiddle() public {
         _benchCheckFails(rules8FailMiddle, "rules_8_fail_middle");
     }
 
-    function test_Rules16_AllPass() public {
+    function test_Rules16AllPass() public {
         _benchCheckPasses(rules16AllPass, "rules_16_all_pass");
     }
 
-    function test_Rules32_AllPass() public {
+    /// @dev Also the value-type series' large-tuple row, which addresses 32 fields of one tuple.
+    function test_Rules32AllPass() public {
         _benchCheckPasses(rules32AllPass, "rules_32_all_pass");
     }
 
@@ -85,31 +86,24 @@ contract CheckBench is PolicyEnforcerBench {
                               PATH DEPTH
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_Depth1_Elementary() public {
-        _benchCheckPasses(depth1Elementary, "depth_1_elementary");
+    /// @dev The cheapest policy, and the baseline the operator and value-type series read against
+    /// as well. Those sections once carried their own copies of it, which recorded this number by
+    /// construction and could not diverge from it.
+    function test_Depth1Elementary() public {
+        _benchCheckPasses(elementaryEq, "depth_1_elementary");
     }
 
-    function test_Depth2_StructField() public {
-        _benchCheckPasses(depth2StructField, "depth_2_struct_field");
-    }
-
-    function test_Depth3_NestedStruct() public {
-        _benchCheckPasses(depth3NestedStruct, "depth_3_nested_struct");
-    }
-
-    function test_Depth4_DeepNested() public {
-        _benchCheckPasses(depth4DeepNested, "depth_4_deep_nested");
-    }
-
-    function test_Depth8_VeryDeep() public {
+    function test_Depth8VeryDeep() public {
         _benchCheckPasses(depth8VeryDeep, "depth_8_very_deep");
     }
 
-    function test_Depth2_ArrayElem() public {
-        _benchCheckPasses(depth2ArrayElem, "depth_2_array_elem");
+    /// @dev Also the value-type series' array row: no hint resolves an array element, so this is
+    /// the unhinted baseline for both.
+    function test_Depth2ArrayElem() public {
+        _benchCheckPasses(arrayElem, "depth_2_array_elem");
     }
 
-    function test_Depth3_ArrayStructField() public {
+    function test_Depth3ArrayStructField() public {
         _benchCheckPasses(depth3ArrayStructField, "depth_3_array_struct_field");
     }
 
@@ -137,10 +131,6 @@ contract CheckBench is PolicyEnforcerBench {
                               OPERATORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_OpEq() public {
-        _benchCheckPasses(opEq, "op_eq");
-    }
-
     function test_OpGt() public {
         _benchCheckPasses(opGt, "op_gt");
     }
@@ -161,35 +151,35 @@ contract CheckBench is PolicyEnforcerBench {
         _benchCheckPasses(opBetween, "op_between");
     }
 
-    function test_OpIn_2Members() public {
+    function test_OpIn2Members() public {
         _benchCheckPasses(opIn2, "op_in_2");
     }
 
-    function test_OpIn_4Members() public {
+    function test_OpIn4Members() public {
         _benchCheckPasses(opIn4, "op_in_4");
     }
 
-    function test_OpIn_6Members() public {
+    function test_OpIn6Members() public {
         _benchCheckPasses(opIn6, "op_in_6");
     }
 
-    function test_OpIn_8Members() public {
+    function test_OpIn8Members() public {
         _benchCheckPasses(opIn8, "op_in_8");
     }
 
-    function test_OpIn_16Members() public {
+    function test_OpIn16Members() public {
         _benchCheckPasses(opIn16, "op_in_16");
     }
 
-    function test_OpIn_32Members() public {
+    function test_OpIn32Members() public {
         _benchCheckPasses(opIn32, "op_in_32");
     }
 
-    function test_OpIn_64Members() public {
+    function test_OpIn64Members() public {
         _benchCheckPasses(opIn64, "op_in_64");
     }
 
-    function test_OpIn_128Members() public {
+    function test_OpIn128Members() public {
         _benchCheckPasses(opIn128, "op_in_128");
     }
 
@@ -209,7 +199,7 @@ contract CheckBench is PolicyEnforcerBench {
         _benchCheckPasses(opNotEq, "op_not_eq");
     }
 
-    function test_OpNotIn_4Members() public {
+    function test_OpNotIn4Members() public {
         _benchCheckPasses(opNotIn4, "op_not_in_4");
     }
 
@@ -253,10 +243,6 @@ contract CheckBench is PolicyEnforcerBench {
                               VALUE TYPES
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_TypeElementary() public {
-        _benchCheckPasses(typeElementary, "type_elementary");
-    }
-
     function test_TypeAddress() public {
         _benchCheckPasses(typeAddress, "type_address");
     }
@@ -273,16 +259,8 @@ contract CheckBench is PolicyEnforcerBench {
         _benchCheckPasses(typeDynStructStatic, "type_dyn_struct_static");
     }
 
-    function test_TypeArrayElement() public {
-        _benchCheckPasses(typeArrayElement, "type_array_element");
-    }
-
     function test_TypeStaticArrayElem() public {
         _benchCheckPasses(typeStaticArrayElem, "type_static_array_elem");
-    }
-
-    function test_TypeLargeTupleField() public {
-        _benchCheckPasses(typeLargeTupleField, "type_large_tuple_field");
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -301,19 +279,19 @@ contract CheckBench is PolicyEnforcerBench {
                               LENGTH OPERATORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_LengthEq_DynArray() public {
+    function test_LengthEqDynArray() public {
         _benchCheckPasses(lengthEqDynArray, "length_eq_dyn_array");
     }
 
-    function test_LengthGt_DynArray() public {
+    function test_LengthGtDynArray() public {
         _benchCheckPasses(lengthGtDynArray, "length_gt_dyn_array");
     }
 
-    function test_LengthBetween_Bytes() public {
+    function test_LengthBetweenBytes() public {
         _benchCheckPasses(lengthBetweenBytes, "length_between_bytes");
     }
 
-    function test_LengthLt_BytesEmpty() public {
+    function test_LengthLtBytesEmpty() public {
         _benchCheckPasses(lengthLtBytesEmpty, "length_lt_bytes_empty");
     }
 }
