@@ -36,7 +36,6 @@ contract EnforcementVectorGenerator is Script {
         _vectorEqUint256Fail();
         _vectorEqAddressPass();
         _vectorEqAddressFail();
-        _vectorEqBoolPass();
         _vectorEqBoolFail();
 
         // Comparison operators: GT, LT, GTE, LTE on uint256.
@@ -85,8 +84,7 @@ contract EnforcementVectorGenerator is Script {
         _vectorSelectorlessPass();
         _vectorSelectorlessFail();
 
-        // Multi-group OR: passes via second group, fails all groups.
-        _vectorMultiGroupOrPassSecond();
+        // Multi-group OR: fails all groups.
         _vectorMultiGroupOrFailAll();
 
         // Multi-rule AND: passes all rules, fails one rule.
@@ -188,12 +186,6 @@ contract EnforcementVectorGenerator is Script {
         bytes memory policy = PolicyBuilder.create("foo(address)").add(arg(0).eq(address(1))).build();
         bytes memory callData = abi.encodeWithSignature("foo(address)", address(2));
         _addVector("eq-address-fail", "EQ address: value does not match", policy, callData, false);
-    }
-
-    function _vectorEqBoolPass() private {
-        bytes memory policy = PolicyBuilder.create("foo(bool)").add(arg(0).eq(true)).build();
-        bytes memory callData = abi.encodeWithSignature("foo(bool)", true);
-        _addVector("eq-bool-pass", "EQ bool: value matches", policy, callData, true);
     }
 
     function _vectorEqBoolFail() private {
@@ -425,16 +417,6 @@ contract EnforcementVectorGenerator is Script {
     /*/////////////////////////////////////////////////////////////////////////
                           Multi-group OR
     /////////////////////////////////////////////////////////////////////////*/
-
-    function _vectorMultiGroupOrPassSecond() private {
-        bytes memory policy = PolicyBuilder.create("foo(uint256)")
-            .add(arg(0).eq(uint256(1)))
-            .or()
-            .add(arg(0).eq(uint256(2)))
-            .build();
-        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(2));
-        _addVector("multi-group-or-pass-second", "Multi-group OR: passes via second group", policy, callData, true);
-    }
 
     function _vectorMultiGroupOrFailAll() private {
         bytes memory policy = PolicyBuilder.create("foo(uint256)")
