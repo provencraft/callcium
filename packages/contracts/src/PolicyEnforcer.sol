@@ -108,8 +108,8 @@ library PolicyEnforcer {
             for (uint32 groupIndex; groupIndex < groups; ++groupIndex) {
                 // forgefmt: disable-next-item
                 (bool groupOk, uint32 failingRuleIndex, uint256 groupEnd) = _evalGroup(
-                policy, baseOffset, callData, groupOffset
-            );
+                    policy, baseOffset, callData, groupOffset
+                );
                 if (groupOk) return (true, 0, 0);
                 failingGroup = groupIndex;
                 failingRule = failingRuleIndex;
@@ -175,12 +175,12 @@ library PolicyEnforcer {
                 bytes32 value = _readContext(Be16.readUnchecked(policy, pathStart));
                 // forgefmt: disable-next-item
                 (uint8 contextOpCode, uint256 contextDataOffset, uint16 contextDataLength) = _operatorAt(
-                policy, pathStart + PF.PATH_STEP_SIZE
-            );
+                    policy, pathStart + PF.PATH_STEP_SIZE
+                );
                 // forgefmt: disable-next-item
                 return _applyOperator(
-                contextOpCode, value, 32, TypeCode.UINT256, policy, contextDataOffset, contextDataLength
-            );
+                    contextOpCode, value, 32, TypeCode.UINT256, policy, contextDataOffset, contextDataLength
+                );
             }
 
             // The hint addresses the target on its own; path bytes are skipped by depth arithmetic.
@@ -212,18 +212,21 @@ library PolicyEnforcer {
     {
         unchecked {
             uint256 targetOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
-            uint256 target = _chain(policy, callData, baseOffset, hopsOffset, hopCount);
+            uint256 target = hopCount == 0 ? baseOffset : _chain(policy, callData, baseOffset, hopsOffset, hopCount);
 
-            // The target block right-aligns to targetDelta(32) | targetMeta(16) | typeCode(8).
-            uint256 targetBlock = uint256(LibBytes.load(policy, targetOffset)) >> (256 - 8 * PF.HINT_TARGET_SIZE);
+            // The block and the operator fields behind it are contiguous, so one load right-aligns
+            // targetDelta(32) | targetMeta(16) | typeCode(8) | opCode(8) | dataLength(16).
+            uint256 tail = uint256(LibBytes.load(policy, targetOffset)) >> (256 - 8 * PF.HINT_TARGET_OPERATOR_SIZE);
+            uint256 targetBlock = tail >> (8 * (PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE));
             // forge-lint: disable-next-line(unsafe-typecast) the low byte of the block is the type code.
             uint8 typeCode = uint8(targetBlock);
             target += targetBlock >> 24;
 
-            // forgefmt: disable-next-item
-            (uint8 opCode, uint256 dataOffset, uint16 dataLength) = _operatorAt(
-            policy, targetOffset + PF.HINT_TARGET_SIZE
-        );
+            // forge-lint: disable-next-line(unsafe-typecast) the operator code is one byte of the tail.
+            uint8 opCode = uint8(tail >> (8 * PF.RULE_DATALENGTH_SIZE));
+            // forge-lint: disable-next-line(unsafe-typecast) the data length is the tail's low two bytes.
+            uint16 dataLength = uint16(tail);
+            uint256 dataOffset = targetOffset + PF.HINT_TARGET_OPERATOR_SIZE;
             bytes32 word = CalldataReader.loadWord(callData, target);
 
             // A dynamic target's chain ends at its payload, so the word there is the declared length.
@@ -288,8 +291,8 @@ library PolicyEnforcer {
             uint256 targetDelta = targetBlock >> 24;
             // forgefmt: disable-next-item
             (uint8 opCode, uint256 dataOffset, uint16 dataLength) = _operatorAt(
-            policy, targetOffset + PF.HINT_TARGET_SIZE
-        );
+                policy, targetOffset + PF.HINT_TARGET_SIZE
+            );
 
             bool hasLength = TypeRule.hasCalldataLength(typeCode);
             uint256 payloadStride;

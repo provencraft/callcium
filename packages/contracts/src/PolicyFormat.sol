@@ -147,6 +147,11 @@ library PolicyFormat {
     /// @dev Byte offset of `typeCode` within a hint target block.
     uint256 internal constant HINT_TARGET_TYPECODE_OFFSET = 6;
 
+    /// @dev Span of the hint target block together with the operator fields that follow it.
+    // forgefmt: disable-next-item
+    uint256 internal constant HINT_TARGET_OPERATOR_SIZE =
+        HINT_TARGET_SIZE + RULE_OPCODE_SIZE + RULE_DATALENGTH_SIZE;
+
     /// @dev Header kind: the rule addresses one target.
     uint8 internal constant HINT_KIND_NONE = 0x0;
 
