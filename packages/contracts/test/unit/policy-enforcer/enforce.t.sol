@@ -620,13 +620,6 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
-    function test_RevertWhen_ValueOpOnDynamicTarget() public {
-        bytes memory policy = PolicyBuilder.create("foo(bytes)").add(arg(0).eq(uint256(0))).buildUnsafe();
-        bytes memory callData = abi.encodeWithSignature("foo(bytes)", bytes(hex"1122"));
-
-        vm.expectRevert(abi.encodeWithSelector(CalldataReader.NotScalar.selector, TypeCode.BYTES));
-        harness.enforce(policy, callData);
-    }
 }
 
 /// @dev Tests for context constraints (msg.sender, msg.value, block.*, etc.)
@@ -1438,28 +1431,7 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
-    function test_RevertWhen_ValueOpOnDynamicElement() public {
-        bytes memory policy =
-            PolicyBuilder.create("foo(bytes[])").add(arg(0, Path.ALL).eq(uint256(0))).buildUnsafe();
-        bytes[] memory arr = new bytes[](1);
-        arr[0] = hex"1122";
-        bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
 
-        vm.expectRevert(abi.encodeWithSelector(CalldataReader.NotScalar.selector, TypeCode.BYTES));
-        harness.enforce(policy, callData);
-    }
-
-    function test_RevertWhen_ValueOpOnDynamicSuffixTarget() public {
-        bytes memory policy =
-            PolicyBuilder.create("foo(bytes[][])").add(arg(0, Path.ALL, 0).eq(uint256(0))).buildUnsafe();
-        bytes[][] memory arr = new bytes[][](1);
-        arr[0] = new bytes[](1);
-        arr[0][0] = hex"1122";
-        bytes memory callData = abi.encodeWithSignature("foo(bytes[][])", arr);
-
-        vm.expectRevert(abi.encodeWithSelector(CalldataReader.NotScalar.selector, TypeCode.BYTES));
-        harness.enforce(policy, callData);
-    }
 
     function test_RevertWhen_All_Lt_OneElementFails() public {
         uint256[] memory arr = _uintArray(3); // [1, 2, 3]

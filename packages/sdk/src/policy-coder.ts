@@ -9,11 +9,13 @@ import {
   Op,
   TypeCode,
   isValidOperatorData,
+  isAddressableTarget,
   MAX_CONTEXT_PROPERTY_ID,
 } from "./constants";
 import { Descriptor } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError } from "./errors";
+import { isLengthOp, isLengthValidType } from "./operators";
 
 import type {
   Constraint,
@@ -128,11 +130,19 @@ function validateHint(data: Uint8Array, hintStart: number, hintSize: number, rul
 
   // A target meta word describes a dynamic array and is absent for every other type.
   const targetMeta = readU16(data, targetOffset + PF.HINT_TARGET_META_OFFSET);
+  const targetTypeCode = data[targetOffset + PF.HINT_TARGET_TYPECODE_OFFSET]!;
   const targetMetaOk =
-    data[targetOffset + PF.HINT_TARGET_TYPECODE_OFFSET] === TypeCode.DYNAMIC_ARRAY
-      ? (targetMeta & PF.HINT_META_RESERVED_MASK) === 0
-      : targetMeta === 0;
+    targetTypeCode === TypeCode.DYNAMIC_ARRAY ? (targetMeta & PF.HINT_META_RESERVED_MASK) === 0 : targetMeta === 0;
   if (!targetMetaOk) malformedHint("Target meta carries reserved or unused state", ruleOffset);
+
+  // An operator reads either a scalar word or a declared length, so a target carrying neither —
+  // a tuple, a static array, or an undefined code — addresses nothing.
+  if (!isAddressableTarget(targetTypeCode)) malformedHint("Target type code addresses no value", ruleOffset);
+}
+
+/** Read the type code the hint block at `hintStart` declares for its target. */
+function hintTargetTypeCode(data: Uint8Array, hintStart: number, hintSize: number): number {
+  return data[hintStart + hintSize - PF.HINT_TARGET_SIZE + PF.HINT_TARGET_TYPECODE_OFFSET]!;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -317,6 +327,19 @@ export function decodePolicy(blob: Hex): {
       const opBase = opCodeValue & ~Op.NOT;
       if (opBase === 0 || !isValidOperatorData(opBase, dataLengthValue)) {
         throw new CallciumError("INVALID_OPERATOR", "Unrecognized or malformed operator", ruleOffset);
+      }
+
+      // A length operator reads the declared length a dynamic target resolves to, and a value
+      // operator reads a scalar word, so the target type fixes which family the rule may carry.
+      if (hintSize !== 0) {
+        const targetTypeCode = hintTargetTypeCode(data, hintStart, hintSize);
+        if (isLengthValidType(targetTypeCode) !== isLengthOp(opBase)) {
+          throw new CallciumError(
+            "OPERATOR_TARGET_MISMATCH",
+            "Operator family does not match the type the target declares",
+            ruleOffset,
+          );
+        }
       }
 
       // IN operands must be strictly ascending (unsigned): the enforcer's binary search relies on it.

@@ -5,8 +5,6 @@ import { Be16 } from "./Be16.sol";
 
 import { CalldataReader } from "./CalldataReader.sol";
 import { OpCode } from "./OpCode.sol";
-import { OpRule } from "./OpRule.sol";
-import { Policy } from "./Policy.sol";
 import { PolicyFormat as PF } from "./PolicyFormat.sol";
 import { TypeCode } from "./TypeCode.sol";
 import { TypeRule } from "./TypeRule.sol";
@@ -83,7 +81,6 @@ library PolicyEnforcer {
     {
         unchecked {
             // Parse the policy header once; every later field read reuses these offsets.
-            require(policy.length >= PF.POLICY_HEADER_PREFIX, Policy.MalformedHeader());
             uint8 policyHeader = _byteAt(policy, PF.POLICY_HEADER_OFFSET);
 
             // Determine base offset and validate selector if present.
@@ -99,7 +96,6 @@ library PolicyEnforcer {
             // Groups sit past the embedded descriptor, whose bytes evaluation never reads.
             uint256 descLength = Be16.readUnchecked(policy, PF.POLICY_DESC_LENGTH_OFFSET);
             uint256 groupCountOffset = PF.POLICY_HEADER_PREFIX + descLength;
-            require(policy.length >= groupCountOffset + PF.POLICY_GROUP_COUNT_SIZE, Policy.MalformedHeader());
             uint8 groups = _byteAt(policy, groupCountOffset);
             if (groups == 0) return (false, 0, 0);
 
@@ -134,24 +130,18 @@ library PolicyEnforcer {
         returns (bool groupOk, uint32 failingRule, uint256 groupEnd)
     {
         unchecked {
-            // One bounds check covers the whole group header; both fields read unchecked after it.
-            require(groupOffset + PF.GROUP_HEADER_SIZE <= policy.length, Policy.UnexpectedEnd());
             uint16 ruleCount = Be16.readUnchecked(policy, groupOffset + PF.GROUP_RULECOUNT_OFFSET);
             uint32 groupSize = uint32(bytes4(LibBytes.load(policy, groupOffset + PF.GROUP_SIZE_OFFSET)));
             groupEnd = groupOffset + PF.GROUP_HEADER_SIZE + groupSize;
-            require(groupEnd <= policy.length, Policy.GroupOverflow(groupOffset));
 
             uint256 ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
             for (uint32 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-                // The group bounds check above frames the rules region; the closing
-                // `ruleOffset == groupEnd` check rejects any rule that overruns it.
                 uint16 ruleSize = Be16.readUnchecked(policy, ruleOffset);
                 if (!_evalRule(policy, baseOffset, callData, ruleOffset)) return (false, ruleIndex, groupEnd);
 
                 ruleOffset += ruleSize;
             }
 
-            require(ruleOffset == groupEnd, Policy.UnexpectedEnd());
             return (true, 0, groupEnd);
         }
     }
@@ -231,13 +221,11 @@ library PolicyEnforcer {
 
             // A dynamic target's chain ends at its payload, so the word there is the declared length.
             if (TypeRule.hasCalldataLength(typeCode)) {
-                require(!OpRule.isValueOp(opCode & ~OpCode.NOT), CalldataReader.NotScalar(typeCode));
                 uint256 length = uint256(word);
                 _requireExtent(callData, target, length, _payloadStride(typeCode, targetBlock));
                 return _applyOperator(opCode, bytes32(0), length, typeCode, policy, dataOffset, dataLength);
             }
 
-            require(TypeRule.isElementary(typeCode), CalldataReader.NotScalar(typeCode));
             require(TypeRule.isCanonical(word, typeCode), NonCanonicalValue(typeCode, word));
             return _applyOperator(opCode, word, 32, typeCode, policy, dataOffset, dataLength);
         }
@@ -299,10 +287,8 @@ library PolicyEnforcer {
             uint8 canonMode;
             uint256 canonBits;
             if (hasLength) {
-                require(!OpRule.isValueOp(opCode & ~OpCode.NOT), CalldataReader.NotScalar(typeCode));
                 payloadStride = _payloadStride(typeCode, targetBlock);
             } else {
-                require(TypeRule.isElementary(typeCode), CalldataReader.NotScalar(typeCode));
                 // Every element shares the target's declared type, so its encoding resolves once.
                 (canonMode, canonBits) = TypeRule.canonicalSpec(typeCode);
             }

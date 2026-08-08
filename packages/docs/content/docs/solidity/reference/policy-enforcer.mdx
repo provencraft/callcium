@@ -3,7 +3,7 @@ title: "PolicyEnforcer"
 description: "Enforces that `callData` complies with a `policy`."
 ---
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L18)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L16)
 
 ## Functions
 
@@ -13,7 +13,7 @@ Reverts when `callData` violates `policy`.
 
 Requires a structurally validated policy blob; behavior on an unvalidated blob is undefined.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L54)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L52)
 
 ```solidity
 function enforce(bytes memory policy, bytes calldata callData) internal view;
@@ -33,7 +33,7 @@ Returns true if `callData` complies with `policy`.
 Requires a structurally validated policy blob; behavior on an unvalidated blob is undefined.
 Reverts on abort violations and integrity errors; returns false for group-local violations.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L65)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L63)
 
 ```solidity
 function check(bytes memory policy, bytes calldata callData) internal view returns (bool ok);
@@ -58,7 +58,7 @@ function check(bytes memory policy, bytes calldata callData) internal view retur
 
 Thrown when policy validation fails.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L24)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L22)
 
 ```solidity
 error PolicyViolation(uint32 groupIndex, uint32 ruleIndex);
@@ -68,7 +68,7 @@ error PolicyViolation(uint32 groupIndex, uint32 ruleIndex);
 
 Thrown when the function selector does not match the policy header.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L27)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L25)
 
 ```solidity
 error SelectorMismatch(bytes4 expected, bytes4 actual);
@@ -78,7 +78,7 @@ error SelectorMismatch(bytes4 expected, bytes4 actual);
 
 Thrown when an unknown operator code is encountered.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L30)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L28)
 
 ```solidity
 error UnknownOperator(uint8 opCode);
@@ -88,7 +88,7 @@ error UnknownOperator(uint8 opCode);
 
 Thrown when an unknown context property ID is requested.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L33)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L31)
 
 ```solidity
 error UnknownContextProperty(uint16 contextId);
@@ -98,7 +98,7 @@ error UnknownContextProperty(uint16 contextId);
 
 Thrown when calldata is too short to contain a selector.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L36)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L34)
 
 ```solidity
 error MissingSelector();
@@ -108,7 +108,7 @@ error MissingSelector();
 
 Thrown when array exceeds max length for quantified iteration.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L39)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L37)
 
 ```solidity
 error QuantifierLimitExceeded(uint256 length, uint256 maxLength);
@@ -118,7 +118,7 @@ error QuantifierLimitExceeded(uint256 length, uint256 maxLength);
 
 Thrown when a resolved word is not the canonical encoding of its declared type.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L44)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyEnforcer.sol#L42)
 
 ```solidity
 error NonCanonicalValue(uint8 typeCode, bytes32 value);

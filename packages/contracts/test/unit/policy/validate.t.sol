@@ -6,6 +6,7 @@ import { PolicyTest } from "../Policy.t.sol";
 import { Be16 } from "src/Be16.sol";
 import { arg } from "src/Constraint.sol";
 import { OpCode } from "src/OpCode.sol";
+import { Path } from "src/Path.sol";
 import { Policy } from "src/Policy.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 import { PolicyFormat as PF } from "src/PolicyFormat.sol";
@@ -31,6 +32,10 @@ contract ValidateTest is PolicyTest {
     /// @dev Wraps a single calldata rule with the given path and hint block into a policy blob
     /// for `foo(uint256)`.
     function _calldataRuleBlob(bytes memory path, bytes memory hint) private pure returns (bytes memory) {
+        return _calldataRuleBlob(path, hint, OpCode.EQ);
+    }
+
+    function _calldataRuleBlob(bytes memory path, bytes memory hint, uint8 opCode) private pure returns (bytes memory) {
         // forge-lint: disable-next-item(unsafe-typecast)
         bytes memory rule = bytes.concat(
             bytes2(uint16(PF.RULE_FIXED_OVERHEAD + path.length + hint.length + 32)),
@@ -38,12 +43,19 @@ contract ValidateTest is PolicyTest {
             bytes1(uint8(path.length / PF.PATH_STEP_SIZE)),
             path,
             hint,
-            bytes1(OpCode.EQ),
+            bytes1(opCode),
             bytes2(uint16(32)),
             new bytes(32)
         );
         // forge-lint: disable-next-item(unsafe-typecast)
         return bytes.concat(hex"022fbebd38000302012001", bytes2(uint16(1)), bytes4(uint32(rule.length)), rule);
+    }
+
+    /// @dev Asserts that a single-rule blob pairing `hint` with `opCode` reports a mismatched pair.
+    function _expectOperatorTargetMismatch(bytes memory hint, uint8 opCode) private {
+        bytes memory blob = _calldataRuleBlob(hex"0000", hint, opCode);
+        vm.expectRevert(abi.encodeWithSelector(Policy.OperatorTargetMismatch.selector, _firstRuleOffset(blob)));
+        harness.validate(blob);
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -175,12 +187,12 @@ contract ValidateTest is PolicyTest {
     }
 
     function test_HopChainAccepted() public view {
-        harness.validate(_calldataRuleBlob(hex"0000", hex"0100000000ffff000000000000000070"));
+        harness.validate(_calldataRuleBlob(hex"0000", hex"0100000000ffff000000000000000070", OpCode.LENGTH_EQ));
     }
 
     function test_HeaderSizesTheBlock() public view {
         bytes memory hint = hex"0100000000ffff000000000000000070";
-        bytes memory blob = _calldataRuleBlob(hex"0000", hint);
+        bytes memory blob = _calldataRuleBlob(hex"0000", hint, OpCode.LENGTH_EQ);
         (, uint256 hintSize) = harness.hintView(blob, _firstRuleOffset(blob));
         assertEq(hintSize, hint.length, "hop chain hint size");
     }
@@ -231,6 +243,74 @@ contract ValidateTest is PolicyTest {
 
     function test_RevertWhen_TargetMetaReservedBitsSet() public {
         _expectMalformedHint(hex"0000", hex"0000000000500181");
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                             HINT TARGET ADDRESSABILITY
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_LengthOperatorOnBytesTargetAccepted() public view {
+        harness.validate(_calldataRuleBlob(hex"0000", hex"0000000000000070", OpCode.LENGTH_EQ));
+    }
+
+    function test_LengthOperatorOnDynamicArrayTargetAccepted() public view {
+        harness.validate(_calldataRuleBlob(hex"0000", hex"0000000000010081", OpCode.LENGTH_GTE));
+    }
+
+    function test_NegatedLengthOperatorOnBytesTargetAccepted() public view {
+        harness.validate(_calldataRuleBlob(hex"0000", hex"0000000000000070", OpCode.LENGTH_EQ | OpCode.NOT));
+    }
+
+    function test_RevertWhen_TargetTypeCodeUndefined() public {
+        _expectMalformedHint(hex"0000", hex"0000000000000000");
+    }
+
+    function test_RevertWhen_TargetTypeCodeIsTuple() public {
+        _expectMalformedHint(hex"0000", hex"0000000000000090");
+    }
+
+    function test_RevertWhen_TargetTypeCodeIsStaticArray() public {
+        _expectMalformedHint(hex"0000", hex"0000000000000080");
+    }
+
+    function test_RevertWhen_ValueOperatorOnBytesTarget() public {
+        _expectOperatorTargetMismatch(hex"0000000000000070", OpCode.EQ);
+    }
+
+    function test_RevertWhen_SetOperatorOnDynamicArrayTarget() public {
+        _expectOperatorTargetMismatch(hex"0000000000010081", OpCode.IN);
+    }
+
+    function test_RevertWhen_LengthOperatorOnElementaryTarget() public {
+        _expectOperatorTargetMismatch(STATIC_HINT, OpCode.LENGTH_EQ);
+    }
+
+    function test_RevertWhen_NegatedValueOperatorOnBytesTarget() public {
+        _expectOperatorTargetMismatch(hex"0000000000000070", OpCode.EQ | OpCode.NOT);
+    }
+
+    /// @dev Asserts that a compiled policy pairs an operator its target cannot carry.
+    function _expectBuiltMismatch(bytes memory policy) private {
+        vm.expectRevert(abi.encodeWithSelector(Policy.OperatorTargetMismatch.selector, _firstRuleOffset(policy)));
+        harness.validate(policy);
+    }
+
+    function test_RevertWhen_ValueOpCompilesOntoDynamicTarget() public {
+        _expectBuiltMismatch(PolicyBuilder.create("foo(bytes)").add(arg(0).eq(uint256(0))).buildUnsafe());
+    }
+
+    function test_RevertWhen_ValueOpCompilesOntoDynamicElement() public {
+        // forgefmt: disable-next-item
+        _expectBuiltMismatch(
+            PolicyBuilder.create("foo(bytes[])").add(arg(0, Path.ALL).eq(uint256(0))).buildUnsafe()
+        );
+    }
+
+    function test_RevertWhen_ValueOpCompilesOntoDynamicSuffixTarget() public {
+        // forgefmt: disable-next-item
+        _expectBuiltMismatch(
+            PolicyBuilder.create("foo(bytes[][])").add(arg(0, Path.ALL, 0).eq(uint256(0))).buildUnsafe()
+        );
     }
 
     function test_RevertWhen_RuleSizeDisagreesWithHeader() public {

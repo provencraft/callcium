@@ -162,6 +162,19 @@ function tamper(blob: Hex, byteOffset: number, replacement: string): Hex {
   return `0x${blob.slice(2, hexOffset)}${replacement}${blob.slice(hexOffset + replacement.length)}` as Hex;
 }
 
+/** Assert that `run` throws a CallciumError carrying the given code. */
+function expectRejects(run: () => unknown, code: string): void {
+  try {
+    run();
+    expect.unreachable("should have thrown");
+  } catch (err) {
+    expect(err).toBeInstanceOf(CallciumError);
+    if (err instanceof CallciumError) {
+      expect(err.code).toBe(code);
+    }
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Conformance vectors
 ///////////////////////////////////////////////////////////////////////////
@@ -399,10 +412,9 @@ describe("applyOperator - unknown opcode", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("enforce - LENGTH_* on static type", () => {
-  // PolicyBuilder rejects LENGTH_EQ on static types as an authoring mistake (LENGTH_ON_STATIC).
-  // The enforcer still handles it correctly by using staticSize — these tests verify that
-  // defence-in-depth path by encoding directly via PolicyCoder.
-  test("LENGTH_EQ(32) on uint256 passes using static byte width", () => {
+  // A static target resolves to a scalar word, which carries no declared length, so PWF-24 makes
+  // the pairing malformed. Decoding rejects it before evaluation, whatever the operand.
+  test("LENGTH_EQ on uint256 is rejected as a malformed policy", () => {
     const data: PolicyData = {
       isSelectorless: true,
       selector: "0x00000000",
@@ -410,20 +422,7 @@ describe("enforce - LENGTH_* on static type", () => {
       groups: [[{ scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.LENGTH_EQ, 32n)] }]],
     };
     const policyHex = PolicyCoder.encode(data);
-    const result = PolicyEnforcer.check(policyHex, encodeRawUint256(42n));
-    assertPassed(result);
-  });
-
-  test("LENGTH_EQ(31) on uint256 fails (static size is 32, not 31)", () => {
-    const data: PolicyData = {
-      isSelectorless: true,
-      selector: "0x00000000",
-      descriptor: bytesToHex(DescriptorCoder.fromTypes("uint256")),
-      groups: [[{ scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.LENGTH_EQ, 31n)] }]],
-    };
-    const policyHex = PolicyCoder.encode(data);
-    const result = PolicyEnforcer.check(policyHex, encodeRawUint256(42n));
-    firstViolation(result, "VALUE_MISMATCH");
+    expectRejects(() => PolicyEnforcer.check(policyHex, encodeRawUint256(42n)), "OPERATOR_TARGET_MISMATCH");
   });
 });
 
@@ -1003,33 +1002,19 @@ describe("enforce - context numeric properties", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("PolicyEnforcer - value operator on non-scalar target", () => {
-  test("throws NOT_SCALAR for value op on dynamic target", () => {
+  // A dynamic target resolves to a declared length, which only a LENGTH_* operator reads, so
+  // PWF-24 makes the pairing malformed and decoding rejects it before evaluation.
+  test("rejects a value op on a dynamic target", () => {
     // buildUnsafe: strict build rejects value operators on dynamic targets.
     const policy = PolicyBuilder.createRaw("bytes").add(arg(0).eq(0n)).buildUnsafe();
-    try {
-      PolicyEnforcer.check(policy, encodeBytesArg("1122"));
-      expect.unreachable("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(CallciumError);
-      if (err instanceof CallciumError) {
-        expect(err.code).toBe("NOT_SCALAR");
-      }
-    }
+    expectRejects(() => PolicyEnforcer.check(policy, encodeBytesArg("1122")), "OPERATOR_TARGET_MISMATCH");
   });
 
-  test("throws NOT_SCALAR for value op on dynamic array element", () => {
+  test("rejects a value op on a dynamic array element", () => {
     const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).eq(0n)).buildUnsafe();
     // bytes[] with one 2-byte element: outer offset, length 1, element offset, element.
     const callData: Hex = `0x${word(32n)}${word(1n)}${word(32n)}${word(2n)}${"1122".padEnd(64, "0")}`;
-    try {
-      PolicyEnforcer.check(policy, callData);
-      expect.unreachable("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(CallciumError);
-      if (err instanceof CallciumError) {
-        expect(err.code).toBe("NOT_SCALAR");
-      }
-    }
+    expectRejects(() => PolicyEnforcer.check(policy, callData), "OPERATOR_TARGET_MISMATCH");
   });
 });
 

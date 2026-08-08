@@ -347,6 +347,23 @@ export function classifyTypeCode(code: number): TypeClassInfo {
   unknownTypeCode(code);
 }
 
+/**
+ * Determine whether a type code names a value an operator can read: a scalar word or a declared
+ * length. Tuples, static arrays, and undefined codes address nothing.
+ * @param code - A single-byte descriptor type code.
+ * @returns True when an operator can be applied to a target of this type.
+ */
+export function isAddressableTarget(code: number): boolean {
+  let info: TypeClassInfo;
+  try {
+    // An undefined code is reported by a throw, and addresses nothing either way.
+    info = classifyTypeCode(code);
+  } catch {
+    return false;
+  }
+  return info.typeClass === "elementary" || info.typeClass === "dynamicArray";
+}
+
 /** Compute the Solidity type label for a type code. */
 function typeCodeLabel(code: number): string {
   if (code >= TypeCode.UINT_MIN && code <= TypeCode.UINT_MAX) return `uint${(code - TypeCode.UINT_MIN + 1) * 8}`;

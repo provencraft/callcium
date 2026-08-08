@@ -54,6 +54,7 @@ contract PolicyCoderConformanceTest is BaseTest {
         if (h == keccak256("InvalidScope")) return Policy.InvalidScope.selector;
         if (h == keccak256("MalformedHeader")) return Policy.MalformedHeader.selector;
         if (h == keccak256("MalformedHint")) return Policy.MalformedHint.selector;
+        if (h == keccak256("OperatorTargetMismatch")) return Policy.OperatorTargetMismatch.selector;
         if (h == keccak256("PathTooDeep")) return Policy.PathTooDeep.selector;
         if (h == keccak256("RuleOverflow")) return Policy.RuleOverflow.selector;
         if (h == keccak256("RuleSizeMismatch")) return Policy.RuleSizeMismatch.selector;

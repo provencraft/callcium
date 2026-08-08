@@ -9,6 +9,7 @@ import { OpRule } from "./OpRule.sol";
 import { Path } from "./Path.sol";
 import { PolicyFormat as PF } from "./PolicyFormat.sol";
 import { TypeCode } from "./TypeCode.sol";
+import { TypeRule } from "./TypeRule.sol";
 import { LibBytes } from "solady/utils/LibBytes.sol";
 
 /// @title Policy
@@ -88,6 +89,10 @@ library Policy {
     /// @notice Thrown when a hint block carries a reserved or unused state.
     /// @param ruleOffset The offset of the rule with the malformed hint.
     error MalformedHint(uint256 ruleOffset);
+
+    /// @notice Thrown when a rule's operator family does not match the type its target declares.
+    /// @param ruleOffset The byte offset of the rule within the policy.
+    error OperatorTargetMismatch(uint256 ruleOffset);
 
     /// @notice Thrown when a path does not address a target reachable by a hop chain.
     /// @param stepIndex The index of the path step that does not resolve.
@@ -482,6 +487,8 @@ library Policy {
         uint8 opBase = uint8(self[dataLengthOffset - PF.RULE_OPCODE_SIZE]) & ~OpCode.NOT;
         require(opBase != 0 && OpRule.isValidPayloadSize(opBase, dataLength), UnknownOperator(ruleOffset));
 
+        if (hintSize != 0) _validateOperatorTarget(self, ruleOffset, hintOffset, hintSize, opBase);
+
         // IN operands must be strictly ascending (unsigned); strictness also rejects duplicates.
         if (opBase == OpCode.IN) {
             _validateInAscending(self, dataLengthOffset + PF.RULE_DATALENGTH_SIZE, dataLength, ruleOffset);
@@ -657,6 +664,35 @@ library Policy {
                 ? targetMeta & PF.HINT_META_RESERVED_MASK == 0
                 : targetMeta == 0,
             MalformedHint(ruleOffset)
+        );
+
+        // An operator reads either a scalar word or a declared length, so a target carrying
+        // neither — a tuple, a static array, or an undefined code — addresses nothing.
+        // forgefmt: disable-next-item
+        require(
+            TypeRule.isElementary(typeCode) || TypeRule.hasCalldataLength(typeCode),
+            MalformedHint(ruleOffset)
+        );
+    }
+
+    /// @dev Requires the operator family to match the type the rule's hint target declares.
+    function _validateOperatorTarget(
+        bytes memory self,
+        uint256 ruleOffset,
+        uint256 hintOffset,
+        uint256 hintSize,
+        uint8 opBase
+    )
+        private
+        pure
+    {
+        uint256 typeCodeOffset = hintOffset + hintSize - PF.HINT_TARGET_SIZE + PF.HINT_TARGET_TYPECODE_OFFSET;
+        // A length operator reads the declared length a dynamic target resolves to, and a value
+        // operator reads a scalar word, so the target type fixes which family the rule may carry.
+        // forgefmt: disable-next-item
+        require(
+            TypeRule.hasCalldataLength(uint8(self[typeCodeOffset])) == OpRule.isLengthOp(opBase),
+            OperatorTargetMismatch(ruleOffset)
         );
     }
 

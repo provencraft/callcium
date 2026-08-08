@@ -56,6 +56,7 @@ const ERROR_MAP: Record<string, CallciumErrorCode> = {
   InvalidScope: "INVALID_SCOPE",
   RuleSizeMismatch: "RULE_SIZE_MISMATCH",
   MalformedHint: "MALFORMED_HINT",
+  OperatorTargetMismatch: "OPERATOR_TARGET_MISMATCH",
   GroupSizeMismatch: "GROUP_SIZE_MISMATCH",
   GroupTooSmall: "GROUP_SIZE_MISMATCH",
   GroupOverflow: "GROUP_OVERFLOW",

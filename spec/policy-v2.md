@@ -547,6 +547,8 @@ A policy is well-formed if it satisfies all of the following invariants. Validat
 - **PWF-20**: Every rule's `dataLength` matches its operator's data format (Section 4.4).
 - **PWF-21**: Every `IN` operator's operands are strictly ascending by lexicographic comparison of their 32-byte encodings. Strict ascent implies deduplication.
 - **PWF-22**: No calldata rule's hint block carries a reserved or unused state: the header `kind` is not 3, reserved bits of the suffixHeader and of every meta word are zero, no hop `index` is 0xFFFE, a plain hop's `meta` and an element hop's `delta` are zero, and `targetMeta` is zero unless `typeCode` is the dynamic array code.
+- **PWF-23**: Every calldata rule's hint `typeCode` is an elementary type code or the dynamic array code (Callcium Descriptor Spec, Section 5).
+- **PWF-24**: Every calldata rule's `opCode` (masked with `0x7F`) is a `LENGTH_*` operator when its hint `typeCode` is `bytes`, `string`, or the dynamic array code, and a value operator otherwise (Sections 5.6–5.7).
 
 ### 8.2 Validity
 

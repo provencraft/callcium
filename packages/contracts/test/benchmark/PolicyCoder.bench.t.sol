@@ -25,8 +25,9 @@ abstract contract PolicyCoderBench is Test {
     /// @dev Field index that descends one nesting level; the other fields of a level terminate.
     uint16 internal constant DESCEND_FIELD = 1;
 
-    /// @dev Top-level parameter count, one per rule the widest fixture addresses.
-    uint256 internal constant PARAM_COUNT = 100;
+    /// @dev Top-level parameter count: the nested first parameter, then one elementary parameter
+    /// per rule the widest fixture addresses.
+    uint256 internal constant PARAM_COUNT = 101;
 
     PolicyCoderHarness internal harness;
 
@@ -199,7 +200,7 @@ abstract contract PolicyCoderBench is Test {
                 rules[ruleIndex] = PolicyCoder.Rule({
                     scope: PF.SCOPE_CALLDATA,
                     // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
-                    path: Path.encode(uint16(ruleIndex)),
+                    path: Path.encode(uint16(ruleIndex + 1)),
                     operator: _makeEqOp(groupIndex * rulesPerGroup + ruleIndex + 1),
                     hint: ""
                 });
@@ -220,7 +221,7 @@ abstract contract PolicyCoderBench is Test {
     /// @dev Creates a single group with one rule using the specified operator data.
     function _makeGroupsWithData(bytes memory operator) internal pure returns (PolicyCoder.Group[] memory groups) {
         PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](1);
-        rules[0] = PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: operator, hint: "" });
+        rules[0] = PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: operator, hint: "" });
         groups = new PolicyCoder.Group[](1);
         groups[0] = PolicyCoder.Group({ rules: rules });
     }
@@ -258,7 +259,10 @@ abstract contract PolicyCoderBench is Test {
             // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
             uint16 pathIndex = uint16(ruleCount - 1 - i);
             rules[i] = PolicyCoder.Rule({
-                scope: PF.SCOPE_CALLDATA, path: Path.encode(pathIndex), operator: _makeEqOp(uint256(i + 1)), hint: ""
+                scope: PF.SCOPE_CALLDATA,
+                path: Path.encode(pathIndex + 1),
+                operator: _makeEqOp(uint256(i + 1)),
+                hint: ""
             });
         }
         groups[0] = PolicyCoder.Group({ rules: rules });
@@ -270,7 +274,7 @@ abstract contract PolicyCoderBench is Test {
         PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](ruleCount);
         for (uint256 i; i < ruleCount; ++i) {
             rules[i] = PolicyCoder.Rule({
-                scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(i + 1)), hint: ""
+                scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: _makeEqOp(uint256(i + 1)), hint: ""
             });
         }
         groups[0] = PolicyCoder.Group({ rules: rules });
@@ -282,7 +286,7 @@ abstract contract PolicyCoderBench is Test {
         for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](1);
             rules[0] = PolicyCoder.Rule({
-                scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(42)), hint: ""
+                scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: _makeEqOp(uint256(42)), hint: ""
             });
             groups[groupIndex] = PolicyCoder.Group({ rules: rules });
         }
@@ -346,13 +350,13 @@ abstract contract PolicyCoderBench is Test {
             hint: ""
         });
         rules[1] = PolicyCoder.Rule({
-            scope: PF.SCOPE_CALLDATA, path: Path.encode(0), operator: _makeEqOp(uint256(100)), hint: ""
+            scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: _makeEqOp(uint256(100)), hint: ""
         });
         rules[2] = PolicyCoder.Rule({
             scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_VALUE), operator: _makeEqOp(uint256(0)), hint: ""
         });
         rules[3] = PolicyCoder.Rule({
-            scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: _makeEqOp(uint256(200)), hint: ""
+            scope: PF.SCOPE_CALLDATA, path: Path.encode(2), operator: _makeEqOp(uint256(200)), hint: ""
         });
         groups[0] = PolicyCoder.Group({ rules: rules });
     }
@@ -368,8 +372,19 @@ abstract contract PolicyCoderBench is Test {
         longCommonPrefix = _makeLongCommonPrefixGroup();
     }
 
-    /// @dev Creates a path of the specified depth descending the nested first parameter.
+    /// @dev Creates a path of the specified depth descending the nested first parameter and
+    /// resting on an elementary field, which is what an operator can address.
     function _makeDeepPath(uint256 depth) internal pure returns (bytes memory) {
+        uint16[] memory steps = new uint16[](depth);
+        for (uint256 i = 1; i + 1 < depth; ++i) {
+            steps[i] = DESCEND_FIELD;
+        }
+        return Path.encode(steps);
+    }
+
+    /// @dev Creates a path that descends every level of the nested first parameter, resting on the
+    /// innermost tuple. Every field of that tuple is elementary, so any step extends it.
+    function _makeDescentPath(uint256 depth) internal pure returns (bytes memory) {
         uint16[] memory steps = new uint16[](depth);
         for (uint256 i = 1; i < depth; ++i) {
             steps[i] = DESCEND_FIELD;
@@ -381,18 +396,19 @@ abstract contract PolicyCoderBench is Test {
     function _makeLongCommonPrefixGroup() internal pure returns (PolicyCoder.Group[] memory groups) {
         groups = new PolicyCoder.Group[](1);
         PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](4);
-        bytes memory basePath = _makeDeepPath(6);
+        bytes memory basePath = _makeDescentPath(NESTING_DEPTH);
+        uint256 prefixBytes = basePath.length;
         for (uint256 i; i < 4; ++i) {
-            bytes memory fullPath = new bytes(14);
-            for (uint256 j; j < 12; ++j) {
+            bytes memory fullPath = new bytes(prefixBytes + PF.PATH_STEP_SIZE);
+            for (uint256 j; j < prefixBytes; ++j) {
                 fullPath[j] = basePath[j];
             }
             // forge-lint: disable-next-line(unsafe-typecast) loop bound is 4
             uint16 suffix = uint16(i);
             // forge-lint: disable-next-line(unsafe-typecast) deliberate big-endian split of a uint16
-            fullPath[12] = bytes1(uint8(suffix >> 8));
+            fullPath[prefixBytes] = bytes1(uint8(suffix >> 8));
             // forge-lint: disable-next-line(unsafe-typecast) deliberate big-endian split of a uint16
-            fullPath[13] = bytes1(uint8(suffix));
+            fullPath[prefixBytes + 1] = bytes1(uint8(suffix));
             rules[i] = PolicyCoder.Rule({
                 scope: PF.SCOPE_CALLDATA, path: fullPath, operator: _makeEqOp(uint256(i + 1)), hint: ""
             });
@@ -427,36 +443,36 @@ abstract contract PolicyCoderBench is Test {
         PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](6);
         rules[0] = PolicyCoder.Rule({
             scope: PF.SCOPE_CALLDATA,
-            path: Path.encode(0),
+            path: Path.encode(1),
             operator: abi.encodePacked(OpCode.EQ, bytes32(uint256(100))),
             hint: ""
         });
         rules[1] = PolicyCoder.Rule({
             scope: PF.SCOPE_CALLDATA,
-            path: Path.encode(1),
+            path: Path.encode(2),
             operator: abi.encodePacked(OpCode.GT, bytes32(uint256(50))),
             hint: ""
         });
         rules[2] = PolicyCoder.Rule({
             scope: PF.SCOPE_CALLDATA,
-            path: Path.encode(2),
+            path: Path.encode(3),
             operator: abi.encodePacked(OpCode.LT, bytes32(uint256(200))),
             hint: ""
         });
         rules[3] = PolicyCoder.Rule({
             scope: PF.SCOPE_CALLDATA,
-            path: Path.encode(3),
+            path: Path.encode(4),
             operator: abi.encodePacked(OpCode.GTE, bytes32(uint256(10))),
             hint: ""
         });
         rules[4] = PolicyCoder.Rule({
             scope: PF.SCOPE_CALLDATA,
-            path: Path.encode(4),
+            path: Path.encode(5),
             operator: abi.encodePacked(OpCode.BETWEEN, bytes32(uint256(0)), bytes32(uint256(1000))),
             hint: ""
         });
         rules[5] =
-            PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(5), operator: _makeInOp(4), hint: "" });
+            PolicyCoder.Rule({ scope: PF.SCOPE_CALLDATA, path: Path.encode(6), operator: _makeInOp(4), hint: "" });
         groups[0] = PolicyCoder.Group({ rules: rules });
     }
 

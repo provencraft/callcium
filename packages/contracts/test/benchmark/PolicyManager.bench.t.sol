@@ -70,20 +70,22 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
         }
     }
 
+    /// @dev The series varies descriptor complexity, so each rule addresses a member of its
+    /// signature rather than the composite itself, which no operator can read.
     function _buildDescriptorComplexityFixtures() internal {
         // forgefmt: disable-next-item
         policyTuple = PolicyBuilder.create("baz((address,uint256,bool))")
-            .add(arg(0).eq(uint256(1)))
+            .add(arg(0, 1).eq(uint256(1)))
             .buildUnsafe();
 
         // forgefmt: disable-next-item
         policyNestedTuple = PolicyBuilder.create("qux((address,(uint256,bool)))")
-            .add(arg(0).eq(uint256(1)))
+            .add(arg(0, 1, 0).eq(uint256(1)))
             .buildUnsafe();
 
         // forgefmt: disable-next-item
         policyArray = PolicyBuilder.create("quux(uint256[])")
-            .add(arg(0).eq(uint256(1)))
+            .add(arg(0).lengthEq(1))
             .buildUnsafe();
 
         // forgefmt: disable-next-item
