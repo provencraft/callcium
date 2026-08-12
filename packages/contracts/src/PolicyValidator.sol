@@ -140,8 +140,15 @@ library PolicyValidator {
         // Rules within a group are AND-ed, so constraints on the same path interact.
         // A ConstraintContext accumulates bound/set/bitmask state across all constraints
         // sharing a (scope, path) pair, enabling cross-constraint contradiction detection.
-        ConstraintContext[] memory contexts = new ConstraintContext[](constraintCount);
-        uint256 contextCount;
+        // Every element is replaced before it is read, so the array is allocated as the word per
+        // element it physically is; typing the allocation would fill it with contexts that are all
+        // discarded. Its length grows with each context written, so it never reads past them.
+        uint256[] memory slots = new uint256[](constraintCount);
+        ConstraintContext[] memory contexts;
+        assembly ("memory-safe") {
+            contexts := slots
+            mstore(contexts, 0)
+        }
 
         for (uint32 constraintIndex; constraintIndex < constraintCount; ++constraintIndex) {
             Constraint memory constraint = constraints[constraintIndex];
@@ -149,7 +156,7 @@ library PolicyValidator {
             // Look up existing context for this (scope, path) pair.
             // ctxIdx == max signals no match found; a new context will be created.
             uint256 ctxIdx = type(uint256).max;
-            for (uint256 i; i < contextCount; ++i) {
+            for (uint256 i; i < contexts.length; ++i) {
                 if (contexts[i].scope == constraint.scope && LibBytes.eq(contexts[i].path, constraint.path)) {
                     ctxIdx = i;
                     break;
@@ -203,8 +210,11 @@ library PolicyValidator {
                     });
                 }
                 ctx = _initContext(constraint.scope, constraint.path, typeInfo);
-                contexts[contextCount++] = ctx;
-                ctxIdx = contextCount - 1;
+                ctxIdx = contexts.length;
+                assembly ("memory-safe") {
+                    mstore(contexts, add(ctxIdx, 1))
+                }
+                contexts[ctxIdx] = ctx;
             } else {
                 ctx = contexts[ctxIdx];
             }
@@ -228,9 +238,6 @@ library PolicyValidator {
 
             // Fusible range detection.
             _checkFusibleRange(ctx, constraint.operators, groupIndex, constraintIndex, issues);
-
-            // Write back so later constraints on the same path see accumulated state.
-            contexts[ctxIdx] = ctx;
         }
     }
 
