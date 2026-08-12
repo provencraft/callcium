@@ -110,11 +110,8 @@ library PolicyValidator {
     function validate(PolicyData memory data) internal pure returns (Issue[] memory) {
         Descriptor.validate(data.descriptor);
 
-        // Estimate initial capacity (worst case: one per operator in all constraints); the buffer
-        // grows if a payload- or state-scaled path emits more.
-        uint256 maxIssues = _countOperators(data);
+        // Starts empty and doubles on demand, so a policy without issues pays for no slots.
         IssueCollector.Buffer memory issues;
-        issues.items = new Issue[](maxIssues);
 
         uint256 groupCount = data.groups.length;
         for (uint32 groupIndex; groupIndex < groupCount; ++groupIndex) {
@@ -921,23 +918,6 @@ library PolicyValidator {
         for (uint256 i; i < depth; ++i) {
             if (Path.atUnchecked(path, i) >= Path.ANY) ++count;
         }
-    }
-
-    /// @dev Counts total operators across all constraints in the policy data.
-    function _countOperators(PolicyData memory data) private pure returns (uint256 count) {
-        uint256 groupCount = data.groups.length;
-        for (uint256 i; i < groupCount; ++i) {
-            Constraint[] memory constraints = data.groups[i];
-            uint256 constraintCount = constraints.length;
-            for (uint256 j; j < constraintCount; ++j) {
-                count += constraints[j].operators.length;
-            }
-        }
-        // Each operator can trigger multiple issues (contradiction, redundancy, vacuity, negation-
-        // under-any), plus cross-constraint issues, decompositions (e.g., BETWEEN -> GTE + LTE),
-        // per-path compatibility warnings, per-constraint fusible-range warnings (bounded by the
-        // operator count), and empty groups.
-        count = count * 6 + 20 + data.groups.length;
     }
 
     /// @dev Initializes a constraint context with domain limits for the given type.

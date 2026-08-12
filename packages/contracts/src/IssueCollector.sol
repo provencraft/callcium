@@ -15,7 +15,6 @@ library IssueCollector {
     }
 
     /// @notice Pushes an issue, doubling the backing storage when full.
-    /// @dev The buffer length is a capacity hint; pushes past the pre-sized estimate grow it.
     /// @param buffer The issue buffer to push onto.
     /// @param issue The issue to push.
     function push(Buffer memory buffer, Issue memory issue) internal pure {

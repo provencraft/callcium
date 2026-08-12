@@ -78,7 +78,7 @@ function add(PolicyDraft memory draft, Constraint memory constraint) internal pu
 
 Starts a new constraint group (OR semantics between groups).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L152)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L161)
 
 ```solidity
 function or(PolicyDraft memory draft) internal pure returns (PolicyDraft memory);
@@ -102,7 +102,7 @@ Builds the final policy blob with strict validation.
 
 Validates the policy and reverts on any issue.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L179)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L188)
 
 ```solidity
 function build(PolicyDraft memory draft) internal pure returns (bytes memory);
@@ -126,7 +126,7 @@ Builds the final policy blob without validation.
 
 Skips validation. The resulting policy may be invalid.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L193)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L202)
 
 ```solidity
 function buildUnsafe(PolicyDraft memory draft) internal pure returns (bytes memory);
@@ -150,7 +150,7 @@ Validates the policy without building.
 
 Use for inspection, debugging, or custom error handling.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L203)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L212)
 
 ```solidity
 function validate(PolicyDraft memory draft) internal pure returns (Issue[] memory);
