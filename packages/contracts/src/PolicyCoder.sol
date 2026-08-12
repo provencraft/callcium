@@ -166,10 +166,6 @@ library PolicyCoder {
         // Canonicalization step 1: compile hints, then sort rules within each group.
         _compileAndSortRules(groups, desc);
 
-        // Canonicalization step 2: sort groups by hash of their (now-sorted) rules.
-        // This ensures group order is deterministic.
-        _sortGroups(groups);
-
         // Validate descriptor length fits in 2-byte field.
         uint256 descLength = desc.length;
         require(descLength <= type(uint16).max, DescLengthOverflow(descLength));
@@ -181,45 +177,72 @@ library PolicyCoder {
         // forge-lint: disable-next-line(unsafe-typecast)
         buffer = buffer.pUint8(uint8(groupCount));
 
+        // Canonicalization step 2: a lone group is already in canonical position, so its rules go
+        // straight into the output. Group header: ruleCount(2) | groupSize(4).
+        if (groupCount == 1) {
+            Rule[] memory rules = groups[0].rules;
+            uint256 groupSize = _measureGroup(rules, 0);
+            assert(groupSize <= type(uint32).max);
+            // forge-lint: disable-next-line(unsafe-typecast)
+            buffer = buffer.pUint16(uint16(rules.length)).pUint32(uint32(groupSize));
+            return _emitRules(buffer, rules).data;
+        }
+
+        // Several groups are ordered by ascending hash over their rule bytes, so each is serialized
+        // first and its bytes copied out in that order.
+        bytes[] memory groupRules = new bytes[](groupCount);
         for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             Rule[] memory rules = groups[groupIndex].rules;
-            uint256 ruleCount = rules.length;
-            require(ruleCount != 0, EmptyGroup(groupIndex));
-            require(ruleCount <= type(uint16).max, RuleCountOverflow(groupIndex, ruleCount));
+            assert(_measureGroup(rules, groupIndex) <= type(uint32).max);
+            DynamicBufferLib.DynamicBuffer memory groupBuffer;
+            groupRules[groupIndex] = _emitRules(groupBuffer, rules).data;
+        }
 
-            // First pass: compute sizes and validate format constraints.
-            // We need sizes upfront because the format requires size prefixes before content.
-            // Validations ensure values fit their encoded field widths and that path bytes are well-formed.
-            uint256 groupSize;
-            uint16[] memory ruleSizes = new uint16[](ruleCount);
-            for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-                Rule memory rule = rules[ruleIndex];
-
-                uint256 depth = rule.path.length >> 1;
-                if (rule.scope == PF.SCOPE_CONTEXT) require(depth == 1, InvalidContextPath(groupIndex, ruleIndex));
-
-                uint256 ruleSize = _ruleSize(rule);
-                require(ruleSize <= type(uint16).max, RuleSizeOverflow(groupIndex, ruleIndex, ruleSize));
-
-                // forge-lint: disable-next-line(unsafe-typecast)
-                ruleSizes[ruleIndex] = uint16(ruleSize);
-                groupSize += ruleSize;
-            }
-
-            // Implied by: ruleCount <= uint16.max and each ruleSize <= uint16.max.
-            // Max groupSize = 0xFFFF * 0xFFFF < 2**32.
-            assert(groupSize <= type(uint32).max);
-
-            // Group header: ruleCount(2) | groupSize(4).
+        uint256[] memory order = _groupOrder(groupRules);
+        for (uint256 position; position < groupCount; ++position) {
+            uint256 groupIndex = order[position];
+            bytes memory rules = groupRules[groupIndex];
             // forge-lint: disable-next-line(unsafe-typecast)
-            buffer = buffer.pUint16(uint16(ruleCount)).pUint32(uint32(groupSize));
-
-            // Second pass: emit each rule.
-            for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-                buffer = _emitRule(buffer, ruleSizes[ruleIndex], rules[ruleIndex]);
-            }
+            buffer = buffer.pUint16(uint16(groups[groupIndex].rules.length)).pUint32(uint32(rules.length)).p(rules);
         }
         return buffer.data;
+    }
+
+    /// @dev Returns the total wire size of a group's rules, checking that the group's counts and
+    /// each rule's fields fit their encoded field widths.
+    /// The total is implied to fit uint32: ruleCount and each ruleSize both fit uint16.
+    function _measureGroup(Rule[] memory rules, uint256 groupIndex) private pure returns (uint256 groupSize) {
+        uint256 ruleCount = rules.length;
+        require(ruleCount != 0, EmptyGroup(groupIndex));
+        require(ruleCount <= type(uint16).max, RuleCountOverflow(groupIndex, ruleCount));
+
+        for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+            Rule memory rule = rules[ruleIndex];
+
+            uint256 depth = rule.path.length >> 1;
+            if (rule.scope == PF.SCOPE_CONTEXT) require(depth == 1, InvalidContextPath(groupIndex, ruleIndex));
+
+            uint256 ruleSize = _ruleSize(rule.path.length, rule.hint.length, rule.operator.length - 1);
+            require(ruleSize <= type(uint16).max, RuleSizeOverflow(groupIndex, ruleIndex, ruleSize));
+
+            groupSize += ruleSize;
+        }
+    }
+
+    /// @dev Appends every rule's wire encoding to `buffer`.
+    function _emitRules(
+        DynamicBufferLib.DynamicBuffer memory buffer,
+        Rule[] memory rules
+    )
+        private
+        pure
+        returns (DynamicBufferLib.DynamicBuffer memory)
+    {
+        uint256 ruleCount = rules.length;
+        for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+            buffer = _emitRule(buffer, rules[ruleIndex]);
+        }
+        return buffer;
     }
 
     /// @dev Compiles every calldata rule's hint, then sorts each group's rules in place.
@@ -278,55 +301,42 @@ library PolicyCoder {
         return LibBytes.cmp(left.operator, right.operator) < 0;
     }
 
-    /// @dev Sorts groups in-place by hash of their sorted rules.
-    function _sortGroups(Group[] memory groups) private pure {
-        uint256 groupCount = groups.length;
-        if (groupCount <= 1) return;
+    /// @dev Returns the group indices ordered by ascending hash of each group's serialized rules.
+    function _groupOrder(bytes[] memory groupRules) private pure returns (uint256[] memory order) {
+        uint256 groupCount = groupRules.length;
 
         bytes32[] memory hashes = EfficientHashLib.malloc(groupCount);
+        order = new uint256[](groupCount);
         for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
-            hashes[groupIndex] = _groupHash(groups[groupIndex]);
+            hashes[groupIndex] = groupRules[groupIndex].hash();
+            order[groupIndex] = groupIndex;
         }
 
-        for (uint256 groupIndex = 1; groupIndex < groupCount; ++groupIndex) {
-            Group memory keyGroup = groups[groupIndex];
-            bytes32 keyHash = hashes[groupIndex];
-            uint256 insertPos = groupIndex;
+        for (uint256 position = 1; position < groupCount; ++position) {
+            uint256 keyIndex = order[position];
+            bytes32 keyHash = hashes[position];
+            uint256 insertPos = position;
             while (insertPos > 0 && keyHash < hashes[insertPos - 1]) {
-                groups[insertPos] = groups[insertPos - 1];
+                order[insertPos] = order[insertPos - 1];
                 hashes[insertPos] = hashes[insertPos - 1];
                 unchecked {
                     --insertPos;
                 }
             }
-            groups[insertPos] = keyGroup;
+            order[insertPos] = keyIndex;
             hashes[insertPos] = keyHash;
         }
     }
 
-    /// @dev Computes a canonical hash for a group from its sorted rules.
-    function _groupHash(Group memory group) private pure returns (bytes32) {
-        Rule[] memory rules = group.rules;
-        uint256 ruleCount = rules.length;
-
-        DynamicBufferLib.DynamicBuffer memory buffer;
-        for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
-            // forge-lint: disable-next-line(unsafe-typecast)
-            buffer = _emitRule(buffer, uint16(_ruleSize(rules[ruleIndex])), rules[ruleIndex]);
-        }
-        return buffer.data.hash();
-    }
-
-    /// @dev Returns the wire size of a rule, including its own size field.
-    function _ruleSize(Rule memory rule) private pure returns (uint256) {
-        return PF.RULE_FIXED_OVERHEAD + rule.path.length + rule.hint.length + (rule.operator.length - 1);
+    /// @dev Returns the wire size of a rule with the given field lengths, including its size field.
+    function _ruleSize(uint256 pathLength, uint256 hintLength, uint256 dataLength) private pure returns (uint256) {
+        return PF.RULE_FIXED_OVERHEAD + pathLength + hintLength + dataLength;
     }
 
     /// @dev Appends one rule's wire encoding to `buffer`:
     /// size(2) | scope(1) | depth(1) | path | hint | opCode(1) | dataLength(2) | data.
     function _emitRule(
         DynamicBufferLib.DynamicBuffer memory buffer,
-        uint16 ruleSize,
         Rule memory rule
     )
         private
@@ -335,17 +345,20 @@ library PolicyCoder {
     {
         bytes memory path = rule.path;
         bytes memory operator = rule.operator;
+        bytes memory hint = rule.hint;
         // forge-lint: disable-next-line(unsafe-typecast)
         uint8 depth = uint8(path.length / PF.PATH_STEP_SIZE);
         // forge-lint: disable-next-line(unsafe-typecast)
         uint16 dataLength = uint16(operator.length - 1);
+        // forge-lint: disable-next-line(unsafe-typecast)
+        uint16 ruleSize = uint16(_ruleSize(path.length, hint.length, dataLength));
         // forgefmt: disable-next-item
         return buffer
             .pUint16(ruleSize)
             .pUint8(rule.scope)
             .pUint8(depth)
             .p(path)
-            .p(rule.hint)
+            .p(hint)
             .pUint8(uint8(operator[0]))
             .pUint16(dataLength)
             .p(LibBytes.slice(operator, 1, operator.length));
