@@ -127,21 +127,30 @@ library PolicyBuilder {
             require(usedHashes[i] != constraintKey, DuplicatePathInGroup(constraint.scope, constraint.path));
         }
 
+        // The group and its path hashes hold one entry per constraint, and both are allocated at
+        // that count rounded up to a power of two. A power-of-two count is therefore exactly full,
+        // and the slack of a shorter one is memory no other allocation can claim, so appending is a
+        // length bump and doubling amortizes to a constant.
         Constraint[] memory group = draft.data.groups[groupIndex];
-        uint256 groupLength = group.length;
-        Constraint[] memory nextGroup = new Constraint[](groupLength + 1);
-        for (uint256 i; i < groupLength; ++i) {
-            nextGroup[i] = group[i];
+        if (hashCount == 0 || (hashCount & (hashCount - 1)) == 0) {
+            uint256 capacity = hashCount == 0 ? 1 : hashCount * 2;
+            Constraint[] memory grownGroup = new Constraint[](capacity);
+            bytes32[] memory grownHashes = new bytes32[](capacity);
+            for (uint256 i; i < hashCount; ++i) {
+                grownGroup[i] = group[i];
+                grownHashes[i] = usedHashes[i];
+            }
+            group = grownGroup;
+            usedHashes = grownHashes;
         }
-        nextGroup[groupLength] = constraint;
-        draft.data.groups[groupIndex] = nextGroup;
-
-        bytes32[] memory nextHashes = new bytes32[](hashCount + 1);
-        for (uint256 i; i < hashCount; ++i) {
-            nextHashes[i] = usedHashes[i];
+        assembly ("memory-safe") {
+            mstore(group, add(hashCount, 1))
+            mstore(usedHashes, add(hashCount, 1))
         }
-        nextHashes[hashCount] = constraintKey;
-        draft.usedPathHashes[groupIndex] = nextHashes;
+        group[hashCount] = constraint;
+        usedHashes[hashCount] = constraintKey;
+        draft.data.groups[groupIndex] = group;
+        draft.usedPathHashes[groupIndex] = usedHashes;
 
         return draft;
     }
