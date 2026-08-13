@@ -129,7 +129,7 @@ contract PolicyValidatorConformanceTest is BaseTest {
                                 SPECIFICATION TESTS
     /////////////////////////////////////////////////////////////////////////*/
 
-    function test_ValidatesConformWithSpecification() public {
+    function test_ValidatesConformWithSpecification() public view {
         (string memory json, ValidationFixture[] memory fixtures) = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             ValidationFixture memory f = fixtures[i];

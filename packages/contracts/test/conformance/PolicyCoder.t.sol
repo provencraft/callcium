@@ -233,7 +233,7 @@ contract PolicyCoderConformanceTest is BaseTest {
         }
     }
 
-    function test_EncodesConformWithSpecification() public {
+    function test_EncodesConformWithSpecification() public view {
         (string memory json, PolicyFixture[] memory fixtures) = _fixtures();
         for (uint256 i; i < fixtures.length; ++i) {
             PolicyFixture memory f = fixtures[i];
