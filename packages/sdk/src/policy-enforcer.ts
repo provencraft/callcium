@@ -14,7 +14,16 @@ import { decodePolicy } from "./policy-coder";
 import { load32, readPointer } from "./reader";
 
 import type { ReadResult } from "./reader";
-import type { Context, EnforceResult, Hex, NavigationViolationCode, Violation, ViolationCode } from "./types";
+import type {
+  Context,
+  DecodedRule,
+  EnforceResult,
+  Hex,
+  NavigationViolationCode,
+  Span,
+  Violation,
+  ViolationCode,
+} from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -49,7 +58,7 @@ function addressToBigInt(hex: string): bigint {
  * @throws {CallciumError} If the policy blob is structurally malformed.
  */
 function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
-  const { policy: decoded } = decodePolicy(policy);
+  const { policy: decoded, data: policyBytes } = decodePolicy(policy);
   const callDataBytes = hexToBytes(callData);
 
   // Selector check.
@@ -87,7 +96,7 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
 
     for (let ruleIndex = 0; ruleIndex < group.rules.length; ruleIndex++) {
       const rule = group.rules[ruleIndex]!;
-      const violation = evaluateRule(rule, callDataBytes, baseOffset, groupIndex, ruleIndex, context);
+      const violation = evaluateRule(rule, policyBytes, callDataBytes, baseOffset, groupIndex, ruleIndex, context);
       if (violation !== null) {
         allViolations.push(violation);
         if (ABORT_VIOLATION_CODES.has(violation.code)) {
@@ -126,15 +135,15 @@ function enforce(policy: Hex, callData: Hex, context?: Context): void {
 // Rule evaluation
 ///////////////////////////////////////////////////////////////////////////
 
+/** Read the blob bytes a decoded field spans. */
+function fieldBytes(policyBytes: Uint8Array, field: { span: Span }): Uint8Array {
+  return policyBytes.subarray(field.span.start, field.span.end);
+}
+
 /** Evaluate a single rule against calldata or context, returning a violation or null on pass. */
 function evaluateRule(
-  rule: {
-    scope: { value: number };
-    path: { value: Hex };
-    hint?: { value: Hex };
-    opCode: { value: number };
-    data: { value: Hex };
-  },
+  rule: DecodedRule,
+  policyBytes: Uint8Array,
   callDataBytes: Uint8Array,
   baseOffset: number,
   groupIndex: number,
@@ -143,10 +152,10 @@ function evaluateRule(
 ): Violation | null {
   const scope = rule.scope.value;
   const opCode = rule.opCode.value;
-  const operandData = hexToBytes(rule.data.value);
+  const operandData = fieldBytes(policyBytes, rule.data);
 
   if (scope === Scope.CONTEXT) {
-    const pathBytes = hexToBytes(rule.path.value);
+    const pathBytes = fieldBytes(policyBytes, rule.path);
     return evaluateContextRule(pathBytes, opCode, operandData, groupIndex, ruleIndex, rule.path.value, context);
   }
 
@@ -155,7 +164,7 @@ function evaluateRule(
     throw new CallciumError("MALFORMED_HINT", "Calldata rule carries no hint block");
   }
   return evaluateCalldataRule(
-    hexToBytes(rule.hint.value),
+    fieldBytes(policyBytes, rule.hint),
     callDataBytes,
     baseOffset,
     opCode,

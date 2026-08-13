@@ -148,8 +148,8 @@ function hintTargetTypeCode(data: Uint8Array, hintStart: number, hintSize: numbe
 // Policy decoder
 ///////////////////////////////////////////////////////////////////////////
 
-/** Decode a policy blob, returning its structural representation. */
-export function decodePolicy(blob: Hex): { policy: DecodedPolicy } {
+/** Decode a policy blob, returning the structural representation and the blob bytes it spans. */
+export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Array } {
   const data = hexToBytes(blob);
   if (data.length < PF.DESC_OFFSET + 1) {
     throw new CallciumError("MALFORMED_HEADER", "Policy blob is too short");
@@ -402,7 +402,7 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy } {
     isSelectorless,
   };
 
-  return { policy };
+  return { policy, data };
 }
 
 ///////////////////////////////////////////////////////////////////////////
