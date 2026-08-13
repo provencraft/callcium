@@ -4,7 +4,7 @@ import { Descriptor } from "./descriptor";
 import { CallciumError } from "./errors";
 import { address, array, bool, bytes, bytesN, function_, intN, string_, tuple, uint256, uintN } from "./type-desc";
 
-import type { DecodedParam, DescNode, Hex } from "./types";
+import type { DecodedParam, Hex } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Splitting helpers
@@ -309,7 +309,8 @@ function toTypes(desc: Uint8Array): string {
 // Descriptor binary decoder
 ///////////////////////////////////////////////////////////////////////////
 
-type ParseResult = { node: DescNode; next: number };
+/** Shape of a parsed descriptor node and the offset just past it. */
+type ParseResult = { typeCode: number; isDynamic: boolean; staticSize: number; next: number };
 
 /** Recursively parse a single descriptor node starting at offset. */
 function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult {
@@ -322,14 +323,12 @@ function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult
   const metaOffset = offset + DF.TYPECODE_SIZE;
 
   if (info.typeClass === "elementary") {
-    const node: DescNode = {
-      type: "elementary",
+    return {
       typeCode: code,
       isDynamic: info.isDynamic,
       staticSize: info.isDynamic ? 0 : 32,
-      span: { start: offset, end: metaOffset },
+      next: metaOffset,
     };
-    return { node, next: metaOffset };
   }
 
   // Only composites nest; a leaf below the deepest allowed composite is fine.
@@ -383,23 +382,12 @@ function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult
       );
     }
 
-    const fields: DescNode[] = [];
     let cursor = offset + DF.TUPLE_HEADER_SIZE;
     for (let i = 0; i < fieldCount; i++) {
-      const result = parseNode(data, cursor, depth + 1);
-      fields.push(result.node);
-      cursor = result.next;
+      cursor = parseNode(data, cursor, depth + 1).next;
     }
 
-    const node: DescNode = {
-      type: "tuple",
-      typeCode: code,
-      isDynamic,
-      staticSize,
-      fields,
-      span: { start: offset, end: nodeEnd },
-    };
-    return { node, next: nodeEnd };
+    return { typeCode: code, isDynamic, staticSize, next: nodeEnd };
   }
 
   if (info.typeClass === "staticArray") {
@@ -420,28 +408,11 @@ function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult
       );
     }
 
-    const node: DescNode = {
-      type: "staticArray",
-      typeCode: code,
-      isDynamic,
-      staticSize,
-      element: elemResult.node,
-      length,
-      span: { start: offset, end: nodeEnd },
-    };
-    return { node, next: nodeEnd };
+    return { typeCode: code, isDynamic, staticSize, next: nodeEnd };
   }
 
-  const elemResult = parseNode(data, Descriptor.arrayElementOffset(offset), depth + 1);
-  const node: DescNode = {
-    type: "dynamicArray",
-    typeCode: code,
-    isDynamic: true,
-    staticSize: 0,
-    element: elemResult.node,
-    span: { start: offset, end: nodeEnd },
-  };
-  return { node, next: nodeEnd };
+  parseNode(data, Descriptor.arrayElementOffset(offset), depth + 1);
+  return { typeCode: code, isDynamic: true, staticSize: 0, next: nodeEnd };
 }
 
 /** Convert a zero-based param index to a BE16 hex path step. */
@@ -454,11 +425,8 @@ type DecodedDescriptor = {
   params: DecodedParam[];
 };
 
-/** Decode a binary descriptor blob, returning the structural representation and AST. */
-export function decodeDescriptor(data: Uint8Array): {
-  descriptor: DecodedDescriptor;
-  tree: DescNode[];
-} {
+/** Decode a binary descriptor blob, returning its structural representation. */
+export function decodeDescriptor(data: Uint8Array): { descriptor: DecodedDescriptor } {
   if (data.length < 1) {
     throw new CallciumError("MALFORMED_HEADER", "Descriptor is empty");
   }
@@ -474,7 +442,6 @@ export function decodeDescriptor(data: Uint8Array): {
 
   const declaredCount = data[1]!;
   const params: DecodedParam[] = [];
-  const tree: DescNode[] = [];
   let cursor: number = DF.HEADER_SIZE;
 
   while (cursor < data.length) {
@@ -485,14 +452,13 @@ export function decodeDescriptor(data: Uint8Array): {
       );
     }
 
-    const { node, next } = parseNode(data, cursor, 1);
-    tree.push(node);
+    const { typeCode, isDynamic, staticSize, next } = parseNode(data, cursor, 1);
 
     params.push({
       index: params.length,
-      typeCode: node.typeCode,
-      isDynamic: node.isDynamic,
-      staticSize: node.staticSize,
+      typeCode,
+      isDynamic,
+      staticSize,
       path: indexToPath(params.length),
       span: { start: cursor, end: next },
     });
@@ -507,10 +473,7 @@ export function decodeDescriptor(data: Uint8Array): {
     );
   }
 
-  return {
-    descriptor: { version, params },
-    tree,
-  };
+  return { descriptor: { version, params } };
 }
 
 /** Encode and decode descriptors. */

@@ -19,7 +19,6 @@ import { isLengthOp, isLengthValidType } from "./operators";
 
 import type {
   Constraint,
-  DescNode,
   Field,
   Hex,
   DecodedGroup,
@@ -149,11 +148,8 @@ function hintTargetTypeCode(data: Uint8Array, hintStart: number, hintSize: numbe
 // Policy decoder
 ///////////////////////////////////////////////////////////////////////////
 
-/** Decode a policy blob, returning the structural representation and descriptor AST. */
-export function decodePolicy(blob: Hex): {
-  policy: DecodedPolicy;
-  tree: DescNode[];
-} {
+/** Decode a policy blob, returning its structural representation. */
+export function decodePolicy(blob: Hex): { policy: DecodedPolicy } {
   const data = hexToBytes(blob);
   if (data.length < PF.DESC_OFFSET + 1) {
     throw new CallciumError("MALFORMED_HEADER", "Policy blob is too short");
@@ -194,7 +190,7 @@ export function decodePolicy(blob: Hex): {
 
   // Decode the embedded descriptor, offsetting spans to be relative to the policy blob.
   const descSlice = data.subarray(descStart, descEnd);
-  const { descriptor: desc, tree } = decodeDescriptor(descSlice);
+  const { descriptor: desc } = decodeDescriptor(descSlice);
   const params: DecodedParam[] = desc.params.map((param) => ({
     ...param,
     span: {
@@ -406,7 +402,7 @@ export function decodePolicy(blob: Hex): {
     isSelectorless,
   };
 
-  return { policy, tree };
+  return { policy };
 }
 
 ///////////////////////////////////////////////////////////////////////////
