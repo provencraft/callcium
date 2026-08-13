@@ -5,18 +5,28 @@ import type { Address, Hex } from "./types";
 /** Regex that matches a valid hex body (even number of hex chars). */
 const HEX_BODY_RE = /^[0-9a-fA-F]*$/;
 
+// Nibble value per ASCII code, -1 for every character that is not a hex digit.
+const HEX_DIGITS = "0123456789abcdef";
+const NIBBLE = new Int8Array(128).fill(-1);
+for (let value = 0; value < 16; value++) {
+  NIBBLE[HEX_DIGITS.charCodeAt(value)] = value;
+  NIBBLE[HEX_DIGITS.toUpperCase().charCodeAt(value)] = value;
+}
+
 /** Convert a hex string to a byte array, stripping the 0x prefix if present. */
 export function hexToBytes(hex: string): Uint8Array {
   const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
   if (clean.length % 2 !== 0) {
     throw new CallciumError("INVALID_HEX", "Odd-length hex string");
   }
-  if (!HEX_BODY_RE.test(clean)) {
-    throw new CallciumError("INVALID_HEX", "Invalid hex characters");
-  }
   const bytes = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < clean.length; i += 2) {
-    bytes[i / 2] = parseInt(clean.substring(i, i + 2), 16);
+  for (let i = 0; i < bytes.length; i++) {
+    const high = NIBBLE[clean.charCodeAt(i * 2)] ?? -1;
+    const low = NIBBLE[clean.charCodeAt(i * 2 + 1)] ?? -1;
+    if (high < 0 || low < 0) {
+      throw new CallciumError("INVALID_HEX", "Invalid hex characters");
+    }
+    bytes[i] = (high << 4) | low;
   }
   return bytes;
 }

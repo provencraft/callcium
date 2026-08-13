@@ -9,7 +9,7 @@ description: "Byte and hex utilities."
 
 Validate and brand a hex string as an address. Throws if the runtime length is not exactly 20 bytes.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L81)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L91)
 
 ```ts
 function toAddress(hex: string): templateLiteral;
@@ -29,7 +29,7 @@ function toAddress(hex: string): templateLiteral;
 
 Convert a hex string to a byte array, stripping the 0x prefix if present.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L9)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L17)
 
 ```ts
 function hexToBytes(hex: string): Uint8Array;
@@ -49,7 +49,7 @@ function hexToBytes(hex: string): Uint8Array;
 
 Convert a byte array to a 0x-prefixed lowercase hex string.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L28)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L38)
 
 ```ts
 function bytesToHex(bytes: Uint8Array): templateLiteral;
