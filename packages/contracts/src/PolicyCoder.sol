@@ -181,10 +181,8 @@ library PolicyCoder {
         // straight into the output. Group header: ruleCount(2) | groupSize(4).
         if (groupCount == 1) {
             Rule[] memory rules = groups[0].rules;
-            uint256 groupSize = _measureGroup(rules, 0);
-            assert(groupSize <= type(uint32).max);
             // forge-lint: disable-next-line(unsafe-typecast)
-            buffer = buffer.pUint16(uint16(rules.length)).pUint32(uint32(groupSize));
+            buffer = buffer.pUint16(uint16(rules.length)).pUint32(uint32(_measureGroup(rules, 0)));
             return _emitRules(buffer, rules).data;
         }
 
@@ -193,7 +191,7 @@ library PolicyCoder {
         bytes[] memory groupRules = new bytes[](groupCount);
         for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
             Rule[] memory rules = groups[groupIndex].rules;
-            assert(_measureGroup(rules, groupIndex) <= type(uint32).max);
+            _measureGroup(rules, groupIndex);
             DynamicBufferLib.DynamicBuffer memory groupBuffer;
             groupRules[groupIndex] = _emitRules(groupBuffer, rules).data;
         }
@@ -219,8 +217,9 @@ library PolicyCoder {
         for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
             Rule memory rule = rules[ruleIndex];
 
-            uint256 depth = rule.path.length >> 1;
-            if (rule.scope == PF.SCOPE_CONTEXT) require(depth == 1, InvalidContextPath(groupIndex, ruleIndex));
+            if (rule.scope == PF.SCOPE_CONTEXT) {
+                require(rule.path.length >> 1 == 1, InvalidContextPath(groupIndex, ruleIndex));
+            }
 
             uint256 ruleSize = _ruleSize(rule.path.length, rule.hint.length, rule.operator.length - 1);
             require(ruleSize <= type(uint16).max, RuleSizeOverflow(groupIndex, ruleIndex, ruleSize));
