@@ -71,6 +71,9 @@ function rangeOp(opCode: number, min: bigint, max: bigint): Hex {
   return bytesToHex(buffer);
 }
 
+/** Largest member count whose 32-byte words still fit a rule's 16-bit data length field. */
+export const MAX_SET_MEMBERS = Math.floor(0xffff / 32);
+
 /** Convert values to bigint, sort ascending (unsigned), deduplicate, and pack as set payload. */
 function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   const bigs = values.map((v) => {
@@ -92,6 +95,9 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
 
   if (deduped.length === 0) {
     throw new CallciumError("EMPTY_SET", "Set must contain at least one value");
+  }
+  if (deduped.length > MAX_SET_MEMBERS) {
+    throw new CallciumError("SET_TOO_LARGE", `Set must contain at most ${MAX_SET_MEMBERS} values`);
   }
 
   const buffer = new Uint8Array(1 + deduped.length * 32);

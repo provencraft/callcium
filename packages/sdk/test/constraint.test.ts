@@ -1,8 +1,18 @@
 import { describe, expect, test } from "vitest";
 
 import { Scope, ContextProperty, Op } from "../src/constants";
-import { arg, msgSender, msgValue, blockTimestamp, blockNumber, chainId, txOrigin } from "../src/constraint";
+import {
+  arg,
+  msgSender,
+  msgValue,
+  blockTimestamp,
+  blockNumber,
+  chainId,
+  txOrigin,
+  MAX_SET_MEMBERS,
+} from "../src/constraint";
 import { CallciumError } from "../src/errors";
+import { expectErrorCode } from "./helpers";
 
 ///////////////////////////////////////////////////////////////////////////
 // Target factories
@@ -195,6 +205,22 @@ describe(".isIn() / .notIn()", () => {
         expect(e.code).toBe("EMPTY_SET");
       }
     }
+  });
+
+  test(".isIn() — accepts the largest set a rule's data length can hold", () => {
+    const values = Array.from({ length: MAX_SET_MEMBERS }, (_, i) => BigInt(i));
+    const op = arg(0).isIn(values).operators[0]!;
+    expect((op.length - 4) / 2).toBe(MAX_SET_MEMBERS * 32);
+  });
+
+  test(".isIn() — throws SET_TOO_LARGE one member past the limit", () => {
+    const values = Array.from({ length: MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
+    expectErrorCode(() => arg(0).isIn(values), "SET_TOO_LARGE");
+  });
+
+  test(".notIn() — throws SET_TOO_LARGE one member past the limit", () => {
+    const values = Array.from({ length: MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
+    expectErrorCode(() => arg(0).notIn(values), "SET_TOO_LARGE");
   });
 });
 
