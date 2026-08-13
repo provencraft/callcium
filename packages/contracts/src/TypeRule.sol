@@ -75,7 +75,8 @@ library TypeRule {
     /// @param code The code to test.
     /// @return True if the code is a left-aligned type.
     function isLeftAligned(uint8 code) internal pure returns (bool) {
-        return (code >= TypeCode.BYTES1 && code <= TypeCode.BYTES32) || code == TypeCode.FUNCTION;
+        (uint8 mode,) = canonicalSpec(code);
+        return mode == CANON_LEFT;
     }
 
     /// @notice Canonicalizes a raw 32-byte calldata word to its ABI value for the given type.
