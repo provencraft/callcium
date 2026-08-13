@@ -2,7 +2,6 @@
 pragma solidity ^0.8.28;
 
 import { Be16 } from "./Be16.sol";
-import { Be24 } from "./Be24.sol";
 import { DescriptorFormat as DF } from "./DescriptorFormat.sol";
 import { Path } from "./Path.sol";
 import { TypeCode } from "./TypeCode.sol";
@@ -129,27 +128,6 @@ library Descriptor {
         }
 
         require(parsedCount == declaredCount, ParamCountMismatch(declaredCount, parsedCount));
-    }
-
-    /// @notice Decodes the 3-byte composite metadata at offset.
-    /// @param self The descriptor bytes.
-    /// @param offset Offset of the meta bytes (after the type code).
-    /// @return staticWords Static size in 32-byte words (0 means dynamic).
-    /// @return nodeLength Total bytes for this node's descriptor subtree.
-    function decodeMeta(
-        bytes memory self,
-        uint256 offset
-    )
-        internal
-        pure
-        returns (uint16 staticWords, uint16 nodeLength)
-    {
-        // meta is 24-bit: staticWords(12) | nodeLength(12), both fit in uint16.
-        uint24 meta = Be24.read(self, offset);
-        // forge-lint: disable-next-line(unsafe-typecast)
-        staticWords = uint16(meta >> DF.META_STATIC_WORDS_SHIFT);
-        // forge-lint: disable-next-line(unsafe-typecast)
-        nodeLength = uint16(meta & DF.META_NODE_LENGTH_MASK);
     }
 
     /// @notice Reads the type code and composite meta at `offset` without bounds checks.

@@ -66,19 +66,6 @@ library OpRule {
         return false;
     }
 
-    /// @notice Checks if a value operator is compatible with the given type.
-    /// @dev Value operators (EQ, GT, LT, GTE, LTE, BETWEEN, IN, BITMASK_*) require 32-byte static
-    /// elementary types. Composites with a 32-byte head (a one-element static array, a
-    /// single-static-field tuple) are excluded: the enforcer loads scalars only from
-    /// elementary nodes and would revert on every call.
-    /// @param typeCode The type code of the target value.
-    /// @param isDynamic Whether the type has dynamic ABI encoding.
-    /// @param staticSize The ABI head size in bytes (0 if dynamic).
-    /// @return True if the value operator can be used with this type.
-    function isValueOpCompatible(uint8 typeCode, bool isDynamic, uint32 staticSize) internal pure returns (bool) {
-        return !isDynamic && staticSize == 32 && TypeRule.isElementary(typeCode);
-    }
-
     /// @notice Checks if a length operator is compatible with the given type code.
     /// @dev Length operators work only on types with calldata length: bytes, string, or dynamic arrays.
     /// @param typeCode The type code of the target value.
@@ -108,13 +95,6 @@ library OpRule {
         return opBase >= OpCode.GT && opBase <= OpCode.BETWEEN;
     }
 
-    /// @notice Checks if an operator is a length comparison operator.
-    /// @param opBase The operator code without the NOT flag.
-    /// @return True if this is a length comparison operator.
-    function isLengthComparisonOp(uint8 opBase) internal pure returns (bool) {
-        return opBase >= OpCode.LENGTH_GT && opBase <= OpCode.LENGTH_BETWEEN;
-    }
-
     /// @notice Checks if an operator is a bitmask operator.
     /// @param opBase The operator code without the NOT flag.
     /// @return True if this is a bitmask operator.
@@ -136,14 +116,6 @@ library OpRule {
     /// @return True if bitmask operators can be used with this type.
     function isBitmaskCompatible(uint8 typeCode) internal pure returns (bool) {
         return (typeCode >= TypeCode.UINT8 && typeCode <= TypeCode.UINT256) || typeCode == TypeCode.BYTES32;
-    }
-
-    /// @notice Checks if comparison operators are semantically valid for a type.
-    /// @dev GT/LT/GTE/LTE/BETWEEN are only meaningful for numeric types.
-    /// @param typeCode The type code to check.
-    /// @return True if comparison operators are valid for this type.
-    function isComparisonCompatible(uint8 typeCode) internal pure returns (bool) {
-        return isNumericType(typeCode);
     }
 
     /// @notice Validates operator & type compatibility during semantic validation.
@@ -169,7 +141,7 @@ library OpRule {
             if (!TypeRule.isElementary(typeCode)) return (false, IssueCode.VALUE_OP_ON_COMPOSITE);
 
             // Comparison operators need numeric types.
-            if (isComparisonOp(opBase) && !isComparisonCompatible(typeCode)) {
+            if (isComparisonOp(opBase) && !isNumericType(typeCode)) {
                 return (false, IssueCode.NUMERIC_OP_ON_NON_NUMERIC);
             }
 
