@@ -12,45 +12,6 @@ export type Address = `0x${string}`;
 export type Span = { start: number; end: number };
 
 ///////////////////////////////////////////////////////////////////////////
-// Descriptor AST (internal — not exported from index.ts)
-///////////////////////////////////////////////////////////////////////////
-
-/** Shared properties for all descriptor node variants. */
-type DescNodeBase = {
-  typeCode: number;
-  isDynamic: boolean;
-  /** ABI head size in bytes; 0 if dynamic. */
-  staticSize: number;
-  /** Byte range in the descriptor blob. Present after decoding. */
-  span?: Span;
-};
-
-export type ElementaryNode = DescNodeBase & { type: "elementary" };
-
-export type TupleNode = DescNodeBase & {
-  type: "tuple";
-  /** Tuple field descriptors, in declaration order. */
-  fields: DescNode[];
-};
-
-export type StaticArrayNode = DescNodeBase & {
-  type: "staticArray";
-  /** The element type descriptor. */
-  element: DescNode;
-  /** Fixed number of elements declared in the type. */
-  length: number;
-};
-
-export type DynamicArrayNode = DescNodeBase & {
-  type: "dynamicArray";
-  /** The element type descriptor. */
-  element: DescNode;
-};
-
-/** Recursive AST node representing one type in a descriptor tree. */
-export type DescNode = ElementaryNode | TupleNode | StaticArrayNode | DynamicArrayNode;
-
-///////////////////////////////////////////////////////////////////////////
 // Enforce
 ///////////////////////////////////////////////////////////////////////////
 
