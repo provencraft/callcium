@@ -6,4 +6,9 @@ export default defineConfig({
   dts: true,
   target: "es2024",
   outExtensions: () => ({ js: ".js", dts: ".d.ts" }),
+  sourcemap: true,
+  outputOptions: {
+    sourcemapExcludeSources: true,
+    comments: { legal: true, annotation: true, jsdoc: false },
+  },
 });
