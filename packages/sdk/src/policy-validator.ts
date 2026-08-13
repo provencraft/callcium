@@ -990,7 +990,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
       const steps = parsePathSteps(constraint.path);
       let typeInfo: TypeInfo;
       if (constraint.scope === Scope.CALLDATA) {
-        // Compatibility warnings against the reference enforcer's limits (spec §9.1).
+        // Compatibility warnings against the limits the spec fixes (PWF-17, PV-7).
         if (steps.length > Limits.MAX_PATH_DEPTH) {
           issues.push(
             ValidationIssue.pathDepthExceeded(
@@ -1031,7 +1031,8 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
       } else {
         const ctxId = steps[0]!;
         if (ctxId > MAX_CONTEXT_PROPERTY_ID) {
-          // Mirror the Solidity validator: warn and fall back to uint256 typing.
+          // An unassigned ID declares no type, so the analysis proceeds over the widest
+          // unsigned domain and the warning carries the ID.
           issues.push(
             ValidationIssue.unknownContextProperty(
               groupIndex,
@@ -1052,8 +1053,8 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
 
     // A carried hint must equal the compilation of its own path; constraints without an encoding
     // carry none, and the encoder compiles theirs from the same descriptor. Reaching here means
-    // the path navigates the descriptor and quantifies at most once, so only the depth the
-    // reference enforcer accepts remains to be established.
+    // the path navigates the descriptor and quantifies at most once, so only the depth PWF-17
+    // admits remains to be established.
     if (
       constraint.scope === Scope.CALLDATA &&
       constraint.hint !== undefined &&

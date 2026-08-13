@@ -23,8 +23,8 @@ export function loadWord(callData: Uint8Array, offset: number): ReadResult<Uint8
  * Read an ABI pointer (offset or length) from a 32-byte slot.
  *
  * A number cannot hold a 256-bit word, so the high 28 bytes must be zero for the narrowing to be
- * lossless; a wider value is rejected as out of bounds. The Solidity mirror needs no such step,
- * comparing the full word against the calldata length in `uint256`.
+ * lossless; a wider value is rejected as out of bounds, which is the verdict a bounds comparison
+ * over the full word reaches for any offset that far past the end of calldata.
  */
 export function readPointer(callData: Uint8Array, head: number): ReadResult<number> {
   const word = loadWord(callData, head);

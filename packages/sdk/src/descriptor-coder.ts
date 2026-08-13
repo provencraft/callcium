@@ -256,7 +256,7 @@ function fromTypes(typesCsv: string): Uint8Array {
 // Inverse: descriptor bytes → type string
 ///////////////////////////////////////////////////////////////////////////
 
-/** Reconstruct a Solidity type string from a descriptor node at the given offset. */
+/** Reconstruct an ABI type string from a descriptor node at the given offset. */
 function nodeToTypeString(desc: Uint8Array, offset: number): string {
   const typeCode = desc[offset]!;
 

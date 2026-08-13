@@ -502,7 +502,7 @@ export function vacuousNegatedRange(
 // Compatibility
 ///////////////////////////////////////////////////////////////////////////
 
-/** Path deeper than the reference enforcer's cap. */
+/** Path deeper than the cap PWF-17 fixes. */
 export function pathDepthExceeded(groupIndex: number, constraintIndex: number, depth: Hex, maxDepth: Hex): Issue {
   return {
     severity: "warning",
@@ -512,11 +512,11 @@ export function pathDepthExceeded(groupIndex: number, constraintIndex: number, d
     code: "PATH_DEPTH_EXCEEDED",
     value1: depth,
     value2: maxDepth,
-    message: "Path depth exceeds the reference enforcer cap",
+    message: "Path depth exceeds the maximum a well-formed policy may declare",
   };
 }
 
-/** Quantifier over a static array beyond the reference enforcer's iteration cap. */
+/** Quantifier over a static array beyond the iteration cap PV-7 fixes. */
 export function quantifierOverStaticLimit(
   groupIndex: number,
   constraintIndex: number,
@@ -531,7 +531,7 @@ export function quantifierOverStaticLimit(
     code: "QUANTIFIER_OVER_STATIC_LIMIT",
     value1: arrayLength,
     value2: maxLength,
-    message: "Quantifier over static array exceeds the reference enforcer cap",
+    message: "Quantifier over static array exceeds the maximum quantified length",
   };
 }
 

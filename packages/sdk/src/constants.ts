@@ -188,7 +188,7 @@ const ctxPropByCode = new Map<number, ContextPropertyInfo>(
 /**
  * Map a context property code to its display label and ABI type code.
  * @param code - Context property ID.
- * @returns Display metadata including the Solidity type code for the property value.
+ * @returns Display metadata including the ABI type code for the property value.
  * @throws {CallciumError} If the code is not a recognised context property.
  */
 export function lookupContextProperty(code: number): ContextPropertyInfo {
@@ -364,7 +364,7 @@ export function isAddressableTarget(code: number): boolean {
   return info.typeClass === "elementary" || info.typeClass === "dynamicArray";
 }
 
-/** Compute the Solidity type label for a type code. */
+/** Compute the ABI type label for a type code. */
 function typeCodeLabel(code: number): string {
   if (code >= TypeCode.UINT_MIN && code <= TypeCode.UINT_MAX) return `uint${(code - TypeCode.UINT_MIN + 1) * 8}`;
   if (code >= TypeCode.INT_MIN && code <= TypeCode.INT_MAX) return `int${(code - TypeCode.INT_MIN + 1) * 8}`;
@@ -382,7 +382,7 @@ function typeCodeLabel(code: number): string {
 }
 
 /**
- * Map a raw type code byte to its Solidity label, structural category, and dynamism.
+ * Map a raw type code byte to its ABI type label, structural category, and dynamism.
  * @param code - A single-byte descriptor type code.
  * @returns Label, type class, and whether the type is ABI-dynamic.
  * @throws {CallciumError} If the code is not a recognised type code.
