@@ -41,16 +41,6 @@ export function function_(): Uint8Array {
   return new Uint8Array([TypeCode.FUNCTION]);
 }
 
-/** Build a descriptor node for `uint256`. */
-export function uint256(): Uint8Array {
-  return new Uint8Array([TypeCode.UINT_MAX]);
-}
-
-/** Build a descriptor node for `int256`. */
-export function int256(): Uint8Array {
-  return new Uint8Array([TypeCode.INT_MAX]);
-}
-
 /**
  * Build a descriptor node for `uintN`.
  * @param bits - Bit width, 8–256 in steps of 8.
@@ -95,19 +85,6 @@ export function bytesN(n: number): Uint8Array {
     throw new CallciumError("INVALID_TYPE_STRING", `Invalid bytesN size: ${n}. Must be 1–32.`);
   }
   return new Uint8Array([TypeCode.FIXED_BYTES_MIN + (n - 1)]);
-}
-
-/** Build a descriptor node for `bytes32`. */
-export function bytes32(): Uint8Array {
-  return bytesN(32);
-}
-
-/**
- * Build a descriptor node for an enum type (alias for `uintN`).
- * @param bits - Bit width, default 8.
- */
-export function enum_(bits: number = 8): Uint8Array {
-  return uintN(bits);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -225,12 +202,4 @@ export function tuple(fieldDescs: Uint8Array[]): Uint8Array {
     offset += field.length;
   }
   return buf;
-}
-
-/**
- * Build a descriptor node for a struct (alias for `tuple`).
- * @param fieldDescs - Descriptor bytes for each field, in order.
- */
-export function struct(fieldDescs: Uint8Array[]): Uint8Array {
-  return tuple(fieldDescs);
 }

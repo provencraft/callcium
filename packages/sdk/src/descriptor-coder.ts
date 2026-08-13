@@ -2,7 +2,7 @@ import { readU16, readU24 } from "./bytes";
 import { DescriptorFormat as DF, TypeCode, lookupTypeCode, classifyTypeCode } from "./constants";
 import { Descriptor } from "./descriptor";
 import { CallciumError } from "./errors";
-import { address, array, bool, bytes, bytesN, function_, intN, string_, tuple, uint256, uintN } from "./type-desc";
+import { address, array, bool, bytes, bytesN, function_, intN, string_, tuple, uintN } from "./type-desc";
 
 import type { DecodedParam, Hex } from "./types";
 
@@ -115,9 +115,6 @@ function parseBaseType(input: string, start: number, end: number): Uint8Array {
   if (segment === "function") return function_();
   if (segment === "bytes") return bytes();
   if (segment === "string") return string_();
-  if (segment === "uint256") return uint256();
-  if (segment === "int256") return intN(256);
-
   if (segment.startsWith("(")) return parseTuple(input, start, end);
 
   // uintN

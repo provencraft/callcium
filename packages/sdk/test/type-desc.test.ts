@@ -1,23 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { TypeCode, DescriptorFormat as DF } from "../src/constants";
-import {
-  address,
-  bool,
-  function_,
-  uint256,
-  int256,
-  uintN,
-  intN,
-  bytes,
-  string_,
-  bytesN,
-  bytes32,
-  enum_,
-  array,
-  tuple,
-  struct,
-} from "../src/type-desc";
+import { address, bool, function_, uintN, intN, bytes, string_, bytesN, array, tuple } from "../src/type-desc";
 import { expectErrorCode } from "./helpers";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -39,18 +23,6 @@ describe("bool", () => {
 describe("function_", () => {
   test("returns single byte 0x43", () => {
     expect(function_()).toEqual(new Uint8Array([TypeCode.FUNCTION]));
-  });
-});
-
-describe("uint256", () => {
-  test("returns single byte 0x20", () => {
-    expect(uint256()).toEqual(new Uint8Array([TypeCode.UINT_MAX]));
-  });
-});
-
-describe("int256", () => {
-  test("returns single byte 0x40", () => {
-    expect(int256()).toEqual(new Uint8Array([TypeCode.INT_MAX]));
   });
 });
 
@@ -156,25 +128,9 @@ describe("bytesN", () => {
   });
 });
 
-describe("bytes32", () => {
-  test("shorthand for bytesN(32)", () => {
-    expect(bytes32()).toEqual(bytesN(32));
-  });
-});
-
 ///////////////////////////////////////////////////////////////////////////
 // enum_ alias
 ///////////////////////////////////////////////////////////////////////////
-
-describe("enum_", () => {
-  test("defaults to uint8", () => {
-    expect(enum_()).toEqual(uintN(8));
-  });
-
-  test("accepts explicit bits", () => {
-    expect(enum_(16)).toEqual(uintN(16));
-  });
-});
 
 ///////////////////////////////////////////////////////////////////////////
 // Dynamic array
@@ -182,7 +138,7 @@ describe("enum_", () => {
 
 describe("array (dynamic)", () => {
   test("wraps uint256 in dynamic array", () => {
-    const elem = uint256();
+    const elem = uintN(256);
     const result = array(elem);
     // [0x81][meta:3][elemDesc]
     expect(result[0]).toBe(TypeCode.DYNAMIC_ARRAY);
@@ -209,7 +165,7 @@ describe("array (dynamic)", () => {
   });
 
   test("dynamic array staticWords is always 0", () => {
-    const result = array(uint256());
+    const result = array(uintN(256));
     const meta24 = (result[1] << 16) | (result[2] << 8) | result[3];
     const staticWords = meta24 >> DF.META_STATIC_WORDS_SHIFT;
     expect(staticWords).toBe(0);
@@ -222,7 +178,7 @@ describe("array (dynamic)", () => {
 
 describe("array (static)", () => {
   test("uint256[4] has correct staticWords and length suffix", () => {
-    const elem = uint256();
+    const elem = uintN(256);
     const result = array(elem, 4);
     // [0x80][meta:3][elemDesc][length:be16]
     expect(result[0]).toBe(TypeCode.STATIC_ARRAY);
@@ -251,11 +207,11 @@ describe("array (static)", () => {
   });
 
   test("rejects length 0", () => {
-    expectErrorCode(() => array(uint256(), 0), "INVALID_ARRAY_LENGTH");
+    expectErrorCode(() => array(uintN(256), 0), "INVALID_ARRAY_LENGTH");
   });
 
   test("rejects length > MAX_STATIC_ARRAY_LENGTH", () => {
-    expectErrorCode(() => array(uint256(), DF.MAX_STATIC_ARRAY_LENGTH + 1), "INVALID_ARRAY_LENGTH");
+    expectErrorCode(() => array(uintN(256), DF.MAX_STATIC_ARRAY_LENGTH + 1), "INVALID_ARRAY_LENGTH");
   });
 });
 
@@ -265,7 +221,7 @@ describe("array (static)", () => {
 
 describe("tuple", () => {
   test("single-field tuple has correct fieldCount and staticWords", () => {
-    const fields = [uint256()];
+    const fields = [uintN(256)];
     const result = tuple(fields);
     // [0x90][meta:3][fieldCount:be16][field0]
     expect(result[0]).toBe(TypeCode.TUPLE);
@@ -284,7 +240,7 @@ describe("tuple", () => {
   });
 
   test("two-field tuple sums staticWords", () => {
-    const fields = [uint256(), address()];
+    const fields = [uintN(256), address()];
     const result = tuple(fields);
     const meta24 = (result[1] << 16) | (result[2] << 8) | result[3];
     const staticWords = meta24 >> DF.META_STATIC_WORDS_SHIFT;
@@ -294,7 +250,7 @@ describe("tuple", () => {
   });
 
   test("tuple with dynamic field has staticWords=0", () => {
-    const fields = [uint256(), bytes()];
+    const fields = [uintN(256), bytes()];
     const result = tuple(fields);
     const meta24 = (result[1] << 16) | (result[2] << 8) | result[3];
     const staticWords = meta24 >> DF.META_STATIC_WORDS_SHIFT;
@@ -306,7 +262,7 @@ describe("tuple", () => {
   });
 
   test("rejects fields.length > MAX_TUPLE_FIELDS", () => {
-    const fields = Array.from({ length: DF.MAX_TUPLE_FIELDS + 1 }, () => uint256());
+    const fields = Array.from({ length: DF.MAX_TUPLE_FIELDS + 1 }, () => uintN(256));
     expectErrorCode(() => tuple(fields), "INVALID_TUPLE_FIELD_COUNT");
   });
 });
@@ -318,13 +274,13 @@ describe("tuple", () => {
 describe("static words overflow", () => {
   test("static array rejects staticWords > 4095", () => {
     // tuple(uint256, uint256) has staticWords=2. Array of 2048 → 4096 words, overflow.
-    const pairDesc = tuple([uint256(), uint256()]);
+    const pairDesc = tuple([uintN(256), uintN(256)]);
     expectErrorCode(() => array(pairDesc, 2048), "DESCRIPTOR_TOO_LARGE");
   });
 
   test("static array at boundary 4095 succeeds", () => {
     // uint256[4095] → staticWords = 4095, exactly at 12-bit max.
-    const result = array(uint256(), 4095);
+    const result = array(uintN(256), 4095);
     expect(result[0]).toBe(TypeCode.STATIC_ARRAY);
     const meta24 = (result[1] << 16) | (result[2] << 8) | result[3];
     const staticWords = meta24 >> DF.META_STATIC_WORDS_SHIFT;
@@ -333,13 +289,13 @@ describe("static words overflow", () => {
 
   test("tuple rejects staticWords > 4095 via nested static arrays", () => {
     // Two uint256[2048] arrays → 2 * 2048 = 4096 words, overflow.
-    const bigArray = array(uint256(), 2048);
+    const bigArray = array(uintN(256), 2048);
     expectErrorCode(() => tuple([bigArray, bigArray]), "DESCRIPTOR_TOO_LARGE");
   });
 
   test("tuple with dynamic field skips staticWords check", () => {
     // Even with large static fields, a dynamic field makes staticWords = 0.
-    const bigArray = array(uint256(), 2048);
+    const bigArray = array(uintN(256), 2048);
     const result = tuple([bigArray, bigArray, bytes()]);
     const meta24 = (result[1] << 16) | (result[2] << 8) | result[3];
     const staticWords = meta24 >> DF.META_STATIC_WORDS_SHIFT;
@@ -356,7 +312,7 @@ describe("node length overflow", () => {
     // A tuple with MAX_TUPLE_FIELDS elementary fields produces a descriptor of
     // TUPLE_HEADER_SIZE + MAX_TUPLE_FIELDS = 6 + 4089 = 4095 bytes.
     // Wrapping it in a dynamic array gives nodeLength = ARRAY_HEADER_SIZE + 4095 = 4099.
-    const bigTuple = tuple(Array.from({ length: DF.MAX_TUPLE_FIELDS }, () => uint256()));
+    const bigTuple = tuple(Array.from({ length: DF.MAX_TUPLE_FIELDS }, () => uintN(256)));
     expect(bigTuple.length).toBe(DF.MAX_NODE_LENGTH);
     expectErrorCode(() => array(bigTuple), "DESCRIPTOR_TOO_LARGE");
   });
@@ -365,14 +321,14 @@ describe("node length overflow", () => {
     // Same big tuple as element, but in a static array: nodeLength =
     // ARRAY_HEADER_SIZE + 4095 + ARRAY_LENGTH_SIZE = 4 + 4095 + 2 = 4101.
     // The length=1 passes the MAX_STATIC_ARRAY_LENGTH check but nodeLength overflows.
-    const bigTuple = tuple(Array.from({ length: DF.MAX_TUPLE_FIELDS }, () => uint256()));
+    const bigTuple = tuple(Array.from({ length: DF.MAX_TUPLE_FIELDS }, () => uintN(256)));
     expectErrorCode(() => array(bigTuple, 1), "DESCRIPTOR_TOO_LARGE");
   });
 
   test("tuple rejects nodeLength > MAX_NODE_LENGTH via large fields", () => {
     // Two tuples of ~2045 elementary fields each produce ~2051-byte descriptors.
     // Outer tuple totalFieldBytes = 2 * 2051 = 4102, nodeLength = 6 + 4102 = 4108.
-    const halfTuple = tuple(Array.from({ length: 2045 }, () => uint256()));
+    const halfTuple = tuple(Array.from({ length: 2045 }, () => uintN(256)));
     expect(halfTuple.length).toBe(DF.TUPLE_HEADER_SIZE + 2045);
     expectErrorCode(() => tuple([halfTuple, halfTuple]), "INVALID_TUPLE_FIELD_COUNT");
   });
@@ -382,20 +338,13 @@ describe("node length overflow", () => {
 // struct alias
 ///////////////////////////////////////////////////////////////////////////
 
-describe("struct", () => {
-  test("delegates to tuple", () => {
-    const fields = [uint256(), address()];
-    expect(struct(fields)).toEqual(tuple(fields));
-  });
-});
-
 ///////////////////////////////////////////////////////////////////////////
 // Nested composites
 ///////////////////////////////////////////////////////////////////////////
 
 describe("nested composites", () => {
   test("dynamic array of tuples", () => {
-    const fields = [uint256(), address()];
+    const fields = [uintN(256), address()];
     const tupleDesc = tuple(fields);
     const result = array(tupleDesc);
     expect(result[0]).toBe(TypeCode.DYNAMIC_ARRAY);
@@ -412,7 +361,7 @@ describe("nested composites", () => {
 
   test("static array of tuples propagates elemStaticWords", () => {
     // tuple of (uint256, address) → staticWords=2
-    const fields = [uint256(), address()];
+    const fields = [uintN(256), address()];
     const tupleDesc = tuple(fields);
     const result = array(tupleDesc, 3);
     const meta24 = (result[1] << 16) | (result[2] << 8) | result[3];
@@ -423,7 +372,7 @@ describe("nested composites", () => {
 
   test("tuple containing a static array", () => {
     // uint256[3] → staticWords=3
-    const arrDesc = array(uint256(), 3);
+    const arrDesc = array(uintN(256), 3);
     const result = tuple([arrDesc, bool()]);
     const meta24 = (result[1] << 16) | (result[2] << 8) | result[3];
     const staticWords = meta24 >> DF.META_STATIC_WORDS_SHIFT;
