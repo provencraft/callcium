@@ -326,4 +326,19 @@ contract FromTypesTest is DescriptorBuilderTest {
         vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
         DescriptorBuilder.fromTypes("address,,uint256");
     }
+
+    function test_RevertWhen_CharactersFollowTuple() public {
+        vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
+        DescriptorBuilder.fromTypes("(bool)garbage");
+    }
+
+    function test_RevertWhen_TupleHasUnclosedArraySuffix() public {
+        vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
+        DescriptorBuilder.fromTypes("(uint256,address)[");
+    }
+
+    function test_RevertWhen_CharactersFollowArraySuffix() public {
+        vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
+        DescriptorBuilder.fromTypes("(uint256,address)[]extra");
+    }
 }

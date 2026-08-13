@@ -243,6 +243,18 @@ describe("DescriptorCoder.fromTypes", () => {
     expectErrorCode(() => DescriptorCoder.fromTypes("uint256[03]"), "INVALID_TYPE_STRING");
   });
 
+  test("characters after a tuple's closing paren throw INVALID_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("(bool)garbage"), "INVALID_TYPE_STRING");
+  });
+
+  test("unclosed array suffix after a tuple throws INVALID_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("(uint256,address)["), "INVALID_TYPE_STRING");
+  });
+
+  test("array suffix followed by extra characters throws INVALID_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("(uint256,address)[]extra"), "INVALID_TYPE_STRING");
+  });
+
   test("canonical spellings of the zero-padded rejections parse and round-trip", () => {
     const typesCsv = "uint8,int8,bytes1,uint256[3]";
     expect(DescriptorCoder.toTypes(DescriptorCoder.fromTypes(typesCsv))).toBe(typesCsv);

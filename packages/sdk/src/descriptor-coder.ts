@@ -80,6 +80,9 @@ function parseTuple(input: string, start: number, end: number): Uint8Array {
   if (closePos === -1) {
     throw new CallciumError("INVALID_TYPE_STRING", `Unmatched '(' at position ${start}`);
   }
+  if (closePos !== end - 1) {
+    throw new CallciumError("INVALID_TYPE_STRING", `Unexpected characters after ')' at position ${closePos + 1}`);
+  }
 
   const innerStart = start + 1;
   const innerEnd = closePos;
