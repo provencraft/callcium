@@ -542,23 +542,25 @@ function encode(data: PolicyData): Hex {
     throw new CallciumError("GROUP_COUNT_OVERFLOW", `Group count ${sortedGroups.length} exceeds maximum 255`);
   }
 
-  // Sort groups by keccak256 hash of their serialized rule bytes.
-  const groupsWithHash: { wireBytes: Uint8Array; hash: Uint8Array; ruleCount: number }[] = sortedGroups.map(
-    (rules, groupIndex) => {
-      if (rules.length === 0) {
-        throw new CallciumError("EMPTY_GROUP", `Group ${groupIndex} is empty`);
-      }
-      if (rules.length > 0xffff) {
-        throw new CallciumError(
-          "RULE_COUNT_OVERFLOW",
-          `Group ${groupIndex} rule count ${rules.length} exceeds maximum 65535`,
-        );
-      }
-      const wireBytes = encodeGroupRules(rules);
-      return { wireBytes, hash: keccak_256(wireBytes), ruleCount: rules.length };
-    },
-  );
-  groupsWithHash.sort((a, b) => compareBytes(a.hash, b.hash));
+  const encodedGroups = sortedGroups.map((rules, groupIndex) => {
+    if (rules.length === 0) {
+      throw new CallciumError("EMPTY_GROUP", `Group ${groupIndex} is empty`);
+    }
+    if (rules.length > 0xffff) {
+      throw new CallciumError(
+        "RULE_COUNT_OVERFLOW",
+        `Group ${groupIndex} rule count ${rules.length} exceeds maximum 65535`,
+      );
+    }
+    return { wireBytes: encodeGroupRules(rules), ruleCount: rules.length };
+  });
+
+  // Several groups are ordered by ascending keccak256 over their rule bytes; a lone group is
+  // already in canonical position, so it needs no hash.
+  if (encodedGroups.length > 1) {
+    const hashes = new Map(encodedGroups.map((group) => [group, keccak_256(group.wireBytes)]));
+    encodedGroups.sort((a, b) => compareBytes(hashes.get(a)!, hashes.get(b)!));
+  }
 
   // Build the binary output.
   if (descBytes.length > 0xffff) {
@@ -570,7 +572,7 @@ function encode(data: PolicyData): Hex {
 
   // Pre-compute total size.
   let totalSize = PF.HEADER_SIZE + PF.SELECTOR_SIZE + PF.DESC_LENGTH_SIZE + descBytes.length + PF.GROUP_COUNT_SIZE;
-  for (const g of groupsWithHash) {
+  for (const g of encodedGroups) {
     totalSize += PF.GROUP_HEADER_SIZE + g.wireBytes.length;
   }
 
@@ -593,10 +595,10 @@ function encode(data: PolicyData): Hex {
   offset += descBytes.length;
 
   // Group count.
-  out[offset++] = groupsWithHash.length;
+  out[offset++] = encodedGroups.length;
 
   // Groups.
-  for (const g of groupsWithHash) {
+  for (const g of encodedGroups) {
     // Rule count (BE16).
     writeBE16(out, offset, g.ruleCount);
     offset += PF.GROUP_RULECOUNT_SIZE;
