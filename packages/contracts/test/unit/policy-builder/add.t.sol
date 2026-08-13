@@ -20,8 +20,6 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
 
         assertEq(draft.data.groups.length, 1);
         assertEq(draft.data.groups[0].length, 1);
-        assertEq(draft.usedPathHashes.length, 1);
-        assertEq(draft.usedPathHashes[0].length, 1);
     }
 
     function test_ContextPathSingleStep() public pure {

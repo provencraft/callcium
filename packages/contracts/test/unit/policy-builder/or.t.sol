@@ -20,8 +20,6 @@ contract PolicyBuilderOrTest is PolicyBuilderTest {
         assertEq(draft.data.groups.length, 2);
         assertEq(draft.data.groups[0].length, 1);
         assertEq(draft.data.groups[1].length, 0);
-        assertEq(draft.usedPathHashes[0].length, 1);
-        assertEq(draft.usedPathHashes[1].length, 0);
     }
 
     function test_SubsequentAddGoesToNewGroup() public pure {

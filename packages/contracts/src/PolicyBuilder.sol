@@ -12,14 +12,12 @@ import { PolicyValidator } from "./PolicyValidator.sol";
 import { SignatureParser } from "./SignatureParser.sol";
 import { TypeCode } from "./TypeCode.sol";
 import { Issue } from "./ValidationIssue.sol";
-import { EfficientHashLib } from "solady/utils/EfficientHashLib.sol";
+import { LibBytes } from "solady/utils/LibBytes.sol";
 
 /// @notice Internal state for drafting a policy.
 struct PolicyDraft {
     /// The canonical policy data.
     PolicyData data;
-    /// Path hashes used per group for duplicate detection.
-    bytes32[][] usedPathHashes;
 }
 
 using PolicyBuilder for PolicyDraft global;
@@ -27,8 +25,6 @@ using PolicyBuilder for PolicyDraft global;
 /// @title PolicyBuilder
 /// @notice Fluent API for drafting policies from constraints.
 library PolicyBuilder {
-    using EfficientHashLib for bytes;
-
     /*/////////////////////////////////////////////////////////////////////////
                                         ERRORS
     /////////////////////////////////////////////////////////////////////////*/
@@ -87,8 +83,6 @@ library PolicyBuilder {
         draft.data.descriptor = DescriptorBuilder.fromTypes(typesCsv);
         draft.data.groups = new Constraint[][](1);
         draft.data.groups[0] = new Constraint[](0);
-        draft.usedPathHashes = new bytes32[][](1);
-        draft.usedPathHashes[0] = new bytes32[](0);
     }
 
     /// @notice Creates a draft from a function signature.
@@ -119,38 +113,33 @@ library PolicyBuilder {
         }
 
         // Reject duplicate paths within the same group.
-        bytes32 constraintKey = abi.encodePacked(constraint.scope, constraint.path).hash();
         uint256 groupIndex = draft.data.groups.length - 1;
-        bytes32[] memory usedHashes = draft.usedPathHashes[groupIndex];
-        uint256 hashCount = usedHashes.length;
-        for (uint256 i; i < hashCount; ++i) {
-            require(usedHashes[i] != constraintKey, DuplicatePathInGroup(constraint.scope, constraint.path));
+        Constraint[] memory group = draft.data.groups[groupIndex];
+        uint256 count = group.length;
+        for (uint256 i; i < count; ++i) {
+            // forgefmt: disable-next-item
+            require(
+                group[i].scope != constraint.scope || !LibBytes.eq(group[i].path, constraint.path),
+                DuplicatePathInGroup(constraint.scope, constraint.path)
+            );
         }
 
-        // The group and its path hashes hold one entry per constraint, and both are allocated at
-        // that count rounded up to a power of two. A power-of-two count is therefore exactly full,
-        // and the slack of a shorter one is memory no other allocation can claim, so appending is a
-        // length bump and doubling amortizes to a constant.
-        Constraint[] memory group = draft.data.groups[groupIndex];
-        if (hashCount == 0 || (hashCount & (hashCount - 1)) == 0) {
-            uint256 capacity = hashCount == 0 ? 1 : hashCount * 2;
-            Constraint[] memory grownGroup = new Constraint[](capacity);
-            bytes32[] memory grownHashes = new bytes32[](capacity);
-            for (uint256 i; i < hashCount; ++i) {
+        // The group is allocated at its constraint count rounded up to a power of two. A
+        // power-of-two count is therefore exactly full, and the slack of a shorter one is memory no
+        // other allocation can claim, so appending is a length bump and doubling amortizes to a
+        // constant.
+        if (count == 0 || (count & (count - 1)) == 0) {
+            Constraint[] memory grownGroup = new Constraint[](count == 0 ? 1 : count * 2);
+            for (uint256 i; i < count; ++i) {
                 grownGroup[i] = group[i];
-                grownHashes[i] = usedHashes[i];
             }
             group = grownGroup;
-            usedHashes = grownHashes;
         }
         assembly ("memory-safe") {
-            mstore(group, add(hashCount, 1))
-            mstore(usedHashes, add(hashCount, 1))
+            mstore(group, add(count, 1))
         }
-        group[hashCount] = constraint;
-        usedHashes[hashCount] = constraintKey;
+        group[count] = constraint;
         draft.data.groups[groupIndex] = group;
-        draft.usedPathHashes[groupIndex] = usedHashes;
 
         return draft;
     }
@@ -165,18 +154,12 @@ library PolicyBuilder {
         uint256 newGroupIndex = draft.data.groups.length;
 
         Constraint[][] memory nextGroups = new Constraint[][](newGroupIndex + 1);
-        bytes32[][] memory nextUsed = new bytes32[][](newGroupIndex + 1);
-
         for (uint256 i; i < newGroupIndex; ++i) {
             nextGroups[i] = draft.data.groups[i];
-            nextUsed[i] = draft.usedPathHashes[i];
         }
-
         nextGroups[newGroupIndex] = new Constraint[](0);
-        nextUsed[newGroupIndex] = new bytes32[](0);
 
         draft.data.groups = nextGroups;
-        draft.usedPathHashes = nextUsed;
 
         return draft;
     }
