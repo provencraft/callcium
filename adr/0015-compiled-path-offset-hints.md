@@ -58,7 +58,8 @@ PV-6 requires each hint to equal the deterministic compilation of its path again
 
 ## Consequences
 
-- Descriptor traversal leaves the enforcement path. `CalldataReader` remains a public library for decoding and tooling, but the enforcer carries neither a second addressing mechanism nor a branch selecting one.
+- Descriptor traversal leaves the enforcement path and the codebase. `CalldataReader` and its SDK mirror retain only the bounds-checked word read enforcement performs, so neither carries a second addressing mechanism nor a branch selecting one. Path-driven calldata traversal is not offered as a decoding or tooling surface: tooling addresses values through the spans the policy decoder records, and an onchain consumer needing a path resolved compiles a hint and follows its hops — the mechanism enforcement itself uses — rather than walking the descriptor.
+- The retained word read is the bounds check for every 32-byte load a hop chain performs, and for nothing beyond it. The selector is a four-byte read bounded by `POLICY_SELECTOR_SIZE` at its own read site, because calldata carrying only a selector is valid input that a 32-byte load would reject.
 - Resolution cost scales with the number of dynamic boundaries a path crosses, not with its depth or the node count of the types it passes through. A rule targeting a field of a dynamic struct — the shape one `bytes` member produces — costs one load more than a fully static rule.
 - Quantification over dynamic-element arrays and over static arrays becomes expressible through the hint, since the frame supplies the element count the descriptor declares.
 - Path bytes are inert at runtime, and remain load-bearing for PV-6 recomputation, canonical sorting, duplicate detection, and rendering.

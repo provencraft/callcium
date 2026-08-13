@@ -14,7 +14,7 @@ The policy format allows `pathDepth` up to 255 (1-byte field). Compiled hints (A
 
 The enforcer performs no runtime depth check. It reads no path bytes — paths are skipped by `ruleSize` arithmetic — and every loop enforcement executes is bounded independently of depth: hop chains by their 6-bit `hopCount` fields, quantifier iteration by `MAX_QUANTIFIED_ARRAY_LENGTH`. Those bounds also carry the self-shielding obligation for offchain `staticcall` use against unvalidated policy bytes (ADR-0006): no field a caller controls can make an enforcement loop exceed them.
 
-`CalldataReader` traverses calldata generically with no depth limit of its own; consumers enforce their own limits.
+No component traverses calldata by path at runtime, so no traversal carries a depth limit of its own (ADR-0015).
 
 ## Alternatives Considered
 
