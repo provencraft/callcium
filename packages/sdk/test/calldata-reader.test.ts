@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { load32, readPointer } from "../src/reader";
+import { loadWord, readPointer } from "../src/calldata-reader";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -29,13 +29,13 @@ function concat(...arrays: Uint8Array[]): Uint8Array {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// load32 and readPointer
+// loadWord and readPointer
 ///////////////////////////////////////////////////////////////////////////
 
-describe("load32", () => {
+describe("loadWord", () => {
   test("reads 32 bytes at offset 0", () => {
     const callData = word(42);
-    const result = load32(callData, 0);
+    const result = loadWord(callData, 0);
     expect(result).toBeInstanceOf(Uint8Array);
     if (result instanceof Uint8Array) {
       expect(result[31]).toBe(42);
@@ -44,7 +44,7 @@ describe("load32", () => {
 
   test("reads 32 bytes at nonzero offset", () => {
     const callData = concat(word(0), word(99));
-    const result = load32(callData, 32);
+    const result = loadWord(callData, 32);
     expect(result).toBeInstanceOf(Uint8Array);
     if (result instanceof Uint8Array) {
       expect(result[31]).toBe(99);
@@ -53,23 +53,23 @@ describe("load32", () => {
 
   test("returns CALLDATA_OUT_OF_BOUNDS when offset exceeds bounds", () => {
     const callData = word(1);
-    const result = load32(callData, 1);
+    const result = loadWord(callData, 1);
     expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
   test("returns CALLDATA_OUT_OF_BOUNDS for empty callData", () => {
-    const result = load32(new Uint8Array(0), 0);
+    const result = loadWord(new Uint8Array(0), 0);
     expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
   test("returns CALLDATA_OUT_OF_BOUNDS for negative offset", () => {
-    const result = load32(word(1), -1);
+    const result = loadWord(word(1), -1);
     expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
   test("succeeds at exact boundary (offset + 32 == length)", () => {
     const callData = word(7);
-    const result = load32(callData, 0);
+    const result = loadWord(callData, 0);
     expect(result).toBeInstanceOf(Uint8Array);
   });
 });

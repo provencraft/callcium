@@ -1,4 +1,5 @@
 import { hexToBytes, bytesToHex, readU16, readU32, bigintToHex } from "./bytes";
+import { loadWord, readPointer } from "./calldata-reader";
 import {
   PolicyFormat as PF,
   Scope,
@@ -11,9 +12,8 @@ import {
 import { CallciumError, PolicyViolationError } from "./errors";
 import { applyOperator, toBigInt, isLengthOp, isLengthValidType, canonicalize } from "./operators";
 import { decodePolicy } from "./policy-coder";
-import { load32, readPointer } from "./reader";
 
-import type { ReadResult } from "./reader";
+import type { ReadResult } from "./calldata-reader";
 import type {
   Context,
   DecodedRule,
@@ -288,7 +288,7 @@ function evalTarget(
   if (classifyTypeCode(typeCode).typeClass !== "elementary") {
     throw new CallciumError("NOT_SCALAR", "Operator target does not carry a scalar word.");
   }
-  const word = load32(callData, target);
+  const word = loadWord(callData, target);
   if (!(word instanceof Uint8Array)) return { error: word.code };
 
   const value = toBigInt(word, 0);
