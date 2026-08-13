@@ -38,10 +38,13 @@ import type {
  * @returns Array of numeric step values.
  */
 export function parsePathSteps(path: Hex): number[] {
-  const body = path.slice(2);
+  const bytes = hexToBytes(path);
+  if (bytes.length % PF.PATH_STEP_SIZE !== 0) {
+    throw new CallciumError("INVALID_PATH", `Path byte length ${bytes.length} is not a whole number of steps`);
+  }
   const steps: number[] = [];
-  for (let i = 0; i < body.length; i += 4) {
-    steps.push(parseInt(body.slice(i, i + 4), 16));
+  for (let offset = 0; offset < bytes.length; offset += PF.PATH_STEP_SIZE) {
+    steps.push(readU16(bytes, offset));
   }
   return steps;
 }
