@@ -53,6 +53,8 @@ type SetDomain = {
 type ConstraintContext = {
   scope: number;
   path: Hex;
+  /** Path steps of every constraint sharing this context. */
+  steps: number[];
   typeInfo: TypeInfo;
   numeric: BoundDomain;
   bitmask: BitmaskDomain;
@@ -280,11 +282,12 @@ function emptyBoundDomain(boundIsSigned: boolean, min: bigint, max: bigint): Bou
 }
 
 /** Create a fresh constraint context with domain limits from the type. */
-function initContext(scope: number, path: Hex, typeInfo: TypeInfo): ConstraintContext {
+function initContext(scope: number, path: Hex, steps: number[], typeInfo: TypeInfo): ConstraintContext {
   const { min, max } = getDomainLimits(typeInfo.typeCode);
   return {
     scope,
     path,
+    steps,
     typeInfo,
     numeric: emptyBoundDomain(isSigned(typeInfo.typeCode), min, max),
     bitmask: { mustBeOne: 0n, mustBeZero: 0n },
@@ -837,7 +840,7 @@ function validateConstraint(
   issues: Issue[],
 ): void {
   const operators = constraint.operators;
-  const underAny = constraint.scope === Scope.CALLDATA && parsePathSteps(constraint.path).includes(Quantifier.ANY);
+  const underAny = constraint.scope === Scope.CALLDATA && ctx.steps.includes(Quantifier.ANY);
 
   for (const opHex of operators) {
     const opCode = parseInt(opHex.slice(2, 4), 16);
@@ -984,9 +987,9 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
     }
 
     if (!ctx) {
+      const steps = parsePathSteps(constraint.path);
       let typeInfo: TypeInfo;
       if (constraint.scope === Scope.CALLDATA) {
-        const steps = parsePathSteps(constraint.path);
         // Compatibility warnings against the reference enforcer's limits (spec §9.1).
         if (steps.length > Limits.MAX_PATH_DEPTH) {
           issues.push(
@@ -1026,7 +1029,6 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
         }
         typeInfo = walk.typeInfo;
       } else {
-        const steps = parsePathSteps(constraint.path);
         const ctxId = steps[0]!;
         if (ctxId > MAX_CONTEXT_PROPERTY_ID) {
           // Mirror the Solidity validator: warn and fall back to uint256 typing.
@@ -1044,7 +1046,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
           typeInfo = { typeCode, isDynamic: false, staticSize: 32 };
         }
       }
-      ctx = initContext(constraint.scope, normalizedPath, typeInfo);
+      ctx = initContext(constraint.scope, normalizedPath, steps, typeInfo);
       contexts.push(ctx);
     }
 
@@ -1055,9 +1057,9 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
     if (
       constraint.scope === Scope.CALLDATA &&
       constraint.hint !== undefined &&
-      parsePathSteps(constraint.path).length <= Limits.MAX_PATH_DEPTH
+      ctx.steps.length <= Limits.MAX_PATH_DEPTH
     ) {
-      const compiled = bytesToHex(Descriptor.compileHint(descBytes, parsePathSteps(constraint.path)));
+      const compiled = bytesToHex(Descriptor.compileHint(descBytes, ctx.steps));
       if (compiled !== constraint.hint.toLowerCase()) {
         issues.push(ValidationIssue.hintMismatch(groupIndex, constraintIndex));
       }
