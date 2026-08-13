@@ -247,16 +247,17 @@ function chainResolve(
 ///////////////////////////////////////////////////////////////////////////
 
 type TargetResult =
-  | { passed: boolean; resolvedValue: Hex }
+  | { passed: boolean; value: bigint }
   | { error: NavigationViolationCode }
-  | { error: "NON_CANONICAL_VALUE"; resolvedValue: Hex };
+  | { error: "NON_CANONICAL_VALUE"; value: bigint };
 
 /**
  * Load the value at a resolved target offset and apply the operator.
  *
- * `resolvedValue` is normalised at the decision point: length operators encode
- * the byte/element count as a hex bigint; scalar operators preserve the full
- * 32-byte ABI word so downstream rendering can decode left-aligned `bytesN` faithfully.
+ * `value` is normalised at the decision point: length operators yield the byte/element
+ * count; scalar operators preserve the full 32-byte ABI word so downstream rendering can
+ * decode left-aligned `bytesN` faithfully. Hex formatting happens where a violation is
+ * built, so a passing target allocates no string.
  */
 function evalTarget(
   callData: Uint8Array,
@@ -281,7 +282,7 @@ function evalTarget(
     if (stride !== 0 && length > Math.floor(room / stride)) return { error: "CALLDATA_OUT_OF_BOUNDS" };
 
     const passed = applyOperator(opCode, 0n, length, operandData, typeCode);
-    return { passed, resolvedValue: bigintToHex(BigInt(length)) };
+    return { passed, value: BigInt(length) };
   }
 
   if (classifyTypeCode(typeCode).typeClass !== "elementary") {
@@ -292,11 +293,11 @@ function evalTarget(
 
   const value = toBigInt(word, 0);
   if (canonicalize(value, typeCode) !== value) {
-    return { error: "NON_CANONICAL_VALUE", resolvedValue: bigintToHex(value) };
+    return { error: "NON_CANONICAL_VALUE", value };
   }
 
   const passed = applyOperator(opCode, value, 32, operandData, typeCode);
-  return { passed, resolvedValue: bigintToHex(value) };
+  return { passed, value };
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -309,7 +310,7 @@ type RuleFrame = {
   rule: number;
   path: Hex;
   opCode: number;
-  operandData: Hex;
+  operandData: Uint8Array;
   typeCode: number;
 };
 
@@ -322,7 +323,7 @@ function navigationViolation(frame: RuleFrame, code: NavigationViolationCode, el
     scope: Scope.CALLDATA,
     path: frame.path,
     opCode: frame.opCode,
-    operandData: frame.operandData,
+    operandData: bytesToHex(frame.operandData),
     typeCode: frame.typeCode,
     ...(elementIndex !== undefined && { elementIndex }),
   };
@@ -339,9 +340,9 @@ function targetViolation(frame: RuleFrame, result: TargetResult, elementIndex?: 
         scope: Scope.CALLDATA,
         path: frame.path,
         opCode: frame.opCode,
-        operandData: frame.operandData,
+        operandData: bytesToHex(frame.operandData),
         typeCode: frame.typeCode,
-        resolvedValue: result.resolvedValue,
+        resolvedValue: bigintToHex(result.value),
         ...(elementIndex !== undefined && { elementIndex }),
       };
     }
@@ -356,9 +357,9 @@ function targetViolation(frame: RuleFrame, result: TargetResult, elementIndex?: 
     scope: Scope.CALLDATA,
     path: frame.path,
     opCode: frame.opCode,
-    operandData: frame.operandData,
+    operandData: bytesToHex(frame.operandData),
     typeCode: frame.typeCode,
-    resolvedValue: result.resolvedValue,
+    resolvedValue: bigintToHex(result.value),
     ...(elementIndex !== undefined && { elementIndex }),
   };
 }
@@ -401,7 +402,7 @@ function evaluateCalldataRule(
     rule: ruleIndex,
     path: pathHex,
     opCode,
-    operandData: bytesToHex(operandData),
+    operandData,
     typeCode: block.typeCode,
   };
 
@@ -444,7 +445,7 @@ function evaluateQuantified(
     rule: ruleIndex,
     path: pathHex,
     opCode,
-    operandData: bytesToHex(operandData),
+    operandData,
     typeCode: block.typeCode,
   };
 
