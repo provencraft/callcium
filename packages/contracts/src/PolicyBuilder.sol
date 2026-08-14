@@ -41,20 +41,13 @@ library PolicyBuilder {
     /// @param scope The invalid scope value.
     error InvalidScope(uint8 scope);
 
-    /// @notice Thrown when the first path step exceeds the number of arguments.
-    /// @param argIndex The provided argument index.
-    /// @param paramCount The parameter count from descriptor.
-    error ArgIndexOutOfBounds(uint256 argIndex, uint256 paramCount);
+    /// @notice Thrown when a context-scope path does not have exactly one step.
+    /// @param depth The path depth.
+    error InvalidContextPath(uint256 depth);
 
-    /// @notice Thrown when the path cannot be navigated according to scope rules.
-    /// @param path The encoded be16 path that failed validation.
-    /// @param stepIndex The step index at which navigation failed.
-    error InvalidPathNavigation(bytes path, uint256 stepIndex);
-
-    /// @notice Thrown when a tuple field index is out of bounds.
-    /// @param fieldIndex The provided field index.
-    /// @param fieldCount The tuple field count.
-    error TupleFieldOutOfBounds(uint256 fieldIndex, uint256 fieldCount);
+    /// @notice Thrown when a context-scope path references an undefined context property.
+    /// @param contextPropertyId The referenced property ID.
+    error UnknownContextProperty(uint16 contextPropertyId);
 
     /// @notice Thrown when a quantifier is used on a non-array node.
     /// @param path The encoded be16 path.
@@ -214,17 +207,17 @@ library PolicyBuilder {
     /// @dev Validates that `path` targets a valid context property.
     function _validateContextPath(bytes memory path, uint256 depth) private pure {
         // Context paths must be single-step (no nesting into atomic values like msg.sender).
-        require(depth == 1, InvalidPathNavigation(path, 0));
+        require(depth == 1, InvalidContextPath(depth));
         // The step must reference a valid context property.
         uint16 contextPropertyId = Path.atUnchecked(path, 0);
-        require(contextPropertyId <= PF.CTX_MAX, InvalidPathNavigation(path, 0));
+        require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(contextPropertyId));
     }
 
     /// @dev Validates that `path` can be navigated within calldata described by `desc`.
     function _validateCalldataPath(bytes memory desc, bytes memory path, uint256 depth) private pure {
         uint8 paramCount = Descriptor.paramCount(desc);
         uint16 argIndex = Path.atUnchecked(path, 0);
-        require(argIndex < paramCount, ArgIndexOutOfBounds(argIndex, paramCount));
+        require(argIndex < paramCount, Descriptor.ParamIndexOutOfBounds(argIndex, paramCount));
 
         // Single-step paths only select an argument; no composite descent needed.
         if (depth == 1) return;
@@ -264,16 +257,16 @@ library PolicyBuilder {
 
         if (code == TypeCode.TUPLE) {
             uint16 fieldCount = Descriptor.tupleFieldCount(desc, offset);
-            require(step < fieldCount, TupleFieldOutOfBounds(step, fieldCount));
+            require(step < fieldCount, Descriptor.TupleFieldOutOfBounds(step, fieldCount));
             nextOffset = Descriptor.tupleFieldOffset(desc, offset, step);
         } else if (isArray) {
             if (code == TypeCode.STATIC_ARRAY && !isQuantifier) {
                 uint16 arrayLength = Descriptor.staticArrayLength(desc, offset);
-                require(step < arrayLength, InvalidPathNavigation(path, stepIndex));
+                require(step < arrayLength, Descriptor.StaticArrayIndexOutOfBounds(step, arrayLength));
             }
             nextOffset = offset + DF.ARRAY_HEADER_SIZE;
         } else {
-            revert InvalidPathNavigation(path, stepIndex);
+            revert Descriptor.NotComposite(code);
         }
 
         (nextCode,,,) = Descriptor.inspect(desc, nextOffset);

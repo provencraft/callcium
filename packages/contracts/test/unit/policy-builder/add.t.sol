@@ -3,9 +3,11 @@ pragma solidity ^0.8.28;
 
 import { arg, msgSender } from "src/Constraint.sol";
 import { Constraint } from "src/Constraint.sol";
+import { Descriptor } from "src/Descriptor.sol";
 import { Path } from "src/Path.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
 import { PolicyFormat as PF } from "src/PolicyFormat.sol";
+import { TypeCode } from "src/TypeCode.sol";
 
 import { PolicyBuilderTest } from "test/unit/PolicyBuilder.t.sol";
 
@@ -89,7 +91,7 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
         Constraint memory c = msgSender().eq(address(1));
         c.path = Path.encode(PF.CTX_MAX + 1);
 
-        vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.InvalidPathNavigation.selector, c.path, 0));
+        vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.UnknownContextProperty.selector, PF.CTX_MAX + 1));
         draft.add(c);
     }
 
@@ -99,7 +101,7 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
         Constraint memory c = msgSender().eq(address(1));
         c.path = Path.encode(PF.CTX_MSG_SENDER, 0);
 
-        vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.InvalidPathNavigation.selector, c.path, 0));
+        vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.InvalidContextPath.selector, 2));
         draft.add(c);
     }
 
@@ -116,14 +118,14 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
     function test_RevertWhen_ArgIndexOutOfBounds() public {
         PolicyDraft memory draft = PolicyBuilder.create("bar(address,uint256)");
 
-        vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.ArgIndexOutOfBounds.selector, 2, 2));
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.ParamIndexOutOfBounds.selector, 2, 2));
         draft.add(arg(2).eq(uint256(1)));
     }
 
     function test_RevertWhen_TupleFieldOutOfBounds() public {
         PolicyDraft memory draft = PolicyBuilder.create("foo((address,uint256))");
 
-        vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.TupleFieldOutOfBounds.selector, 2, 2));
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.TupleFieldOutOfBounds.selector, 2, 2));
         draft.add(arg(0, 2).eq(uint256(1)));
     }
 
@@ -148,14 +150,14 @@ contract PolicyBuilderAddTest is PolicyBuilderTest {
     function test_RevertWhen_NonCompositeDescent() public {
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)");
 
-        vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.InvalidPathNavigation.selector, Path.encode(0, 0), 1));
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.NotComposite.selector, TypeCode.UINT256));
         draft.add(arg(0, 0).eq(uint256(1)));
     }
 
     function test_RevertWhen_StaticArrayIndexOutOfBounds() public {
         PolicyDraft memory draft = PolicyBuilder.create("foo(address[3])");
 
-        vm.expectRevert(abi.encodeWithSelector(PolicyBuilder.InvalidPathNavigation.selector, Path.encode(0, 3), 1));
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.StaticArrayIndexOutOfBounds.selector, 3, 3));
         draft.add(arg(0, 3).eq(address(1)));
     }
 
