@@ -60,6 +60,7 @@ const ERROR_MAP: Record<string, CallciumErrorCode> = {
   GroupSizeMismatch: "GROUP_SIZE_MISMATCH",
   GroupTooSmall: "GROUP_TOO_SMALL",
   GroupOverflow: "GROUP_OVERFLOW",
+  TrailingBytes: "TRAILING_BYTES",
   RuleTooSmall: "RULE_TOO_SMALL",
   RuleOverflow: "RULE_OVERFLOW",
   UnknownOperator: "UNKNOWN_OPERATOR",

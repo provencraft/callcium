@@ -48,6 +48,7 @@ contract PolicyCoderConformanceTest is BaseTest {
         if (h == keccak256("EmptyPath")) return Policy.EmptyPath.selector;
         if (h == keccak256("EmptyPolicy")) return Policy.EmptyPolicy.selector;
         if (h == keccak256("GroupOverflow")) return Policy.GroupOverflow.selector;
+        if (h == keccak256("TrailingBytes")) return Policy.TrailingBytes.selector;
         if (h == keccak256("GroupSizeMismatch")) return Policy.GroupSizeMismatch.selector;
         if (h == keccak256("GroupTooSmall")) return Policy.GroupTooSmall.selector;
         if (h == keccak256("InvalidContextPath")) return Policy.InvalidContextPath.selector;
