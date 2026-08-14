@@ -141,7 +141,7 @@ contract ValidateTest is PolicyTest {
         for (uint256 i; i < blob.length; ++i) {
             extended[i] = blob[i];
         }
-        vm.expectRevert(Policy.UnexpectedEnd.selector);
+        vm.expectRevert(Policy.TrailingBytes.selector);
         harness.validate(extended);
     }
 

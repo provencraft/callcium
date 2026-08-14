@@ -48,6 +48,9 @@ library Policy {
     /// @notice Thrown when parsing reaches end of policy blob unexpectedly.
     error UnexpectedEnd();
 
+    /// @notice Thrown when bytes remain after the last group.
+    error TrailingBytes();
+
     /// @notice Thrown when a group index exceeds the declared count.
     /// @param index The requested group index.
     /// @param count The declared group count.
@@ -245,7 +248,7 @@ library Policy {
             offset = groupEnd;
         }
 
-        require(offset == self.length, UnexpectedEnd());
+        require(offset == self.length, TrailingBytes());
     }
 
     /// @notice Returns the byte offset of the `index`-th group in `self`.
