@@ -197,7 +197,7 @@ export function applyOperator(
     }
 
     default:
-      throw new CallciumError("INVALID_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}.`);
+      throw new CallciumError("UNKNOWN_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}.`);
   }
 
   return negate ? !result : result;

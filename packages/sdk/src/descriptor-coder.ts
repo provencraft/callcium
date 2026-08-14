@@ -34,19 +34,33 @@ function commaPositions(input: string, start: number, end: number): number[] {
 // Integer parser
 ///////////////////////////////////////////////////////////////////////////
 
+/** Widest number a type string can spell: the array length field is the widest field one feeds. */
+const MAX_TYPE_STRING_NUMBER = 256 ** DF.ARRAY_LENGTH_SIZE - 1;
+
 /**
  * Parse a decimal integer from input[start..end).
- * Returns -1 if the substring is empty or contains non-digit characters.
+ *
+ * Rejects an empty span, a non-digit, a leading zero, and a value too wide for the fields a type
+ * string feeds. Whether the parsed value is a *valid* width or length is the caller's question.
  */
 function parseUint(input: string, start: number, end: number): number {
-  if (start >= end) return -1;
+  if (start >= end) {
+    throw new CallciumError("MALFORMED_TYPE_STRING", `Missing number at position ${start}`);
+  }
   // A leading zero is never canonical ABI spelling (uint08, bytes01, [03]).
-  if (end - start > 1 && input.charCodeAt(start) === 48) return -1;
+  if (end - start > 1 && input.charCodeAt(start) === 48) {
+    throw new CallciumError("MALFORMED_TYPE_STRING", `Zero-padded number at position ${start}`);
+  }
   let value = 0;
   for (let i = start; i < end; i++) {
     const code = input.charCodeAt(i);
-    if (code < 48 || code > 57) return -1;
+    if (code < 48 || code > 57) {
+      throw new CallciumError("MALFORMED_TYPE_STRING", `Non-digit character at position ${i}`);
+    }
     value = value * 10 + (code - 48);
+  }
+  if (value > MAX_TYPE_STRING_NUMBER) {
+    throw new CallciumError("MALFORMED_TYPE_STRING", `Number at position ${start} is too wide`);
   }
   return value;
 }
@@ -62,7 +76,7 @@ function parseUint(input: string, start: number, end: number): number {
 function parseTuple(input: string, start: number, end: number): Uint8Array {
   // Expect opening paren at start.
   if (input[start] !== "(") {
-    throw new CallciumError("INVALID_TYPE_STRING", `Expected '(' at position ${start}`);
+    throw new CallciumError("MALFORMED_TYPE_STRING", `Expected '(' at position ${start}`);
   }
   // Find matching closing paren.
   let depth = 0;
@@ -78,10 +92,10 @@ function parseTuple(input: string, start: number, end: number): Uint8Array {
     }
   }
   if (closePos === -1) {
-    throw new CallciumError("INVALID_TYPE_STRING", `Unmatched '(' at position ${start}`);
+    throw new CallciumError("MALFORMED_TYPE_STRING", `Unmatched '(' at position ${start}`);
   }
   if (closePos !== end - 1) {
-    throw new CallciumError("INVALID_TYPE_STRING", `Unexpected characters after ')' at position ${closePos + 1}`);
+    throw new CallciumError("MALFORMED_TYPE_STRING", `Unexpected characters after ')' at position ${closePos + 1}`);
   }
 
   const innerStart = start + 1;
@@ -96,10 +110,8 @@ function parseTuple(input: string, start: number, end: number): Uint8Array {
   }
   segments.push([segStart, innerEnd]);
 
-  // An empty tuple `()` is not valid.
-  if (segments.length === 1 && segments[0]![0] === segments[0]![1]) {
-    throw new CallciumError("INVALID_TYPE_STRING", "Empty tuple is not allowed");
-  }
+  // An empty tuple has no fields to parse; the tuple builder rejects the count.
+  if (segments.length === 1 && segments[0]![0] === segments[0]![1]) return tuple([]);
 
   const fieldDescs = segments.map(([fieldStart, fieldEnd]) => parseType(input, fieldStart, fieldEnd));
   return tuple(fieldDescs);
@@ -120,32 +132,9 @@ function parseBaseType(input: string, start: number, end: number): Uint8Array {
   if (segment === "string") return string_();
   if (segment.startsWith("(")) return parseTuple(input, start, end);
 
-  // uintN
-  if (segment.startsWith("uint")) {
-    const bits = parseUint(input, start + 4, end);
-    if (bits === -1) {
-      throw new CallciumError("UNKNOWN_TYPE", `Unrecognised type '${segment}'`);
-    }
-    return uintN(bits);
-  }
-
-  // intN
-  if (segment.startsWith("int")) {
-    const bits = parseUint(input, start + 3, end);
-    if (bits === -1) {
-      throw new CallciumError("UNKNOWN_TYPE", `Unrecognised type '${segment}'`);
-    }
-    return intN(bits);
-  }
-
-  // bytesN
-  if (segment.startsWith("bytes")) {
-    const n = parseUint(input, start + 5, end);
-    if (n === -1) {
-      throw new CallciumError("UNKNOWN_TYPE", `Unrecognised type '${segment}'`);
-    }
-    return bytesN(n);
-  }
+  if (segment.startsWith("uint")) return uintN(parseUint(input, start + 4, end));
+  if (segment.startsWith("int")) return intN(parseUint(input, start + 3, end));
+  if (segment.startsWith("bytes")) return bytesN(parseUint(input, start + 5, end));
 
   throw new CallciumError("UNKNOWN_TYPE", `Unrecognised type '${segment}'`);
 }
@@ -162,7 +151,7 @@ function parseBaseType(input: string, start: number, end: number): Uint8Array {
  */
 function parseType(input: string, start: number, end: number): Uint8Array {
   if (start >= end) {
-    throw new CallciumError("INVALID_TYPE_STRING", "Empty type segment");
+    throw new CallciumError("MALFORMED_TYPE_STRING", "Empty type segment");
   }
 
   // Collect array suffixes by scanning backward.
@@ -179,21 +168,19 @@ function parseType(input: string, start: number, end: number): Uint8Array {
       openPos--;
     }
     if (input[openPos] !== "[") {
-      throw new CallciumError("INVALID_TYPE_STRING", `Unmatched ']' at position ${closePos}`);
+      throw new CallciumError("MALFORMED_TYPE_STRING", `Unmatched ']' at position ${closePos}`);
     }
     const innerStart = openPos + 1;
     const innerEnd = closePos;
-    if (innerStart === innerEnd) {
-      // Dynamic array `[]`.
-      suffixes.unshift(undefined);
-    } else {
-      const length = parseUint(input, innerStart, innerEnd);
-      if (length === -1) {
-        throw new CallciumError("INVALID_TYPE_STRING", `Invalid array length at position ${innerStart}`);
-      }
-      suffixes.unshift(length);
-    }
+    // A dynamic array spells no length at all.
+    suffixes.unshift(innerStart === innerEnd ? undefined : parseUint(input, innerStart, innerEnd));
     baseEnd = openPos;
+  }
+
+  // Every `[` a base carries belongs to a suffix the scan above already took; one left behind is
+  // unclosed. A tuple base is exempt: the brackets inside it belong to its fields.
+  if (input[start] !== "(" && input.slice(start, baseEnd).includes("[")) {
+    throw new CallciumError("MALFORMED_TYPE_STRING", `Unmatched '[' in '${input.slice(start, baseEnd)}'`);
   }
 
   let desc = parseBaseType(input, start, baseEnd);
@@ -215,7 +202,7 @@ function parseType(input: string, start: number, end: number): Uint8Array {
  *
  * @param typesCsv - Comma-separated ABI type strings, e.g. `"address,uint256,(bool,bytes32)[],string"`.
  * @returns Binary descriptor bytes starting with the version+paramCount header.
- * @throws {CallciumError} With code `INVALID_TYPE_STRING` for malformed input.
+ * @throws {CallciumError} With code `MALFORMED_TYPE_STRING` for malformed input.
  * @throws {CallciumError} With code `UNKNOWN_TYPE` for unrecognised type names.
  */
 function fromTypes(typesCsv: string): Uint8Array {
@@ -236,7 +223,7 @@ function fromTypes(typesCsv: string): Uint8Array {
   const paramDescs = segments.map(([start, end]) => parseType(typesCsv, start, end));
   if (paramDescs.length > DF.MAX_PARAMS) {
     throw new CallciumError(
-      "DESCRIPTOR_TOO_LARGE",
+      "TOO_MANY_PARAMS",
       `Parameter count ${paramDescs.length} exceeds maximum ${DF.MAX_PARAMS}.`,
     );
   }
@@ -352,7 +339,7 @@ function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult
   const minHeader = info.typeClass === "tuple" ? DF.TUPLE_HEADER_SIZE : DF.ARRAY_HEADER_SIZE;
   if (nodeLength < minHeader) {
     throw new CallciumError(
-      "MALFORMED_HEADER",
+      "NODE_LENGTH_TOO_SMALL",
       `Composite node length ${nodeLength} is smaller than minimum header ${minHeader}`,
       offset,
     );
@@ -446,10 +433,7 @@ export function decodeDescriptor(data: Uint8Array): { descriptor: DecodedDescrip
 
   while (cursor < data.length) {
     if (params.length >= DF.MAX_PARAMS) {
-      throw new CallciumError(
-        "PARAM_COUNT_MISMATCH",
-        `Descriptor exceeds the maximum of ${DF.MAX_PARAMS} top-level params`,
-      );
+      throw new CallciumError("TOO_MANY_PARAMS", `Descriptor exceeds the maximum of ${DF.MAX_PARAMS} top-level params`);
     }
 
     const { typeCode, isDynamic, staticSize, next } = parseNode(data, cursor, 1);

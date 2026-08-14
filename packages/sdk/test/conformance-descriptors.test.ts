@@ -35,21 +35,19 @@ const vectors: Vector[] = rawVectors;
 // Test helpers
 ///////////////////////////////////////////////////////////////////////////
 
-/** Map conformance vector error names to SDK error codes. */
+/** Vector error names are the canonical invariant names; SDK codes are their SCREAMING_SNAKE form. */
 const ERROR_MAP: Record<string, CallciumErrorCode> = {
   MalformedHeader: "MALFORMED_HEADER",
   UnsupportedVersion: "UNSUPPORTED_VERSION",
   UnexpectedEnd: "UNEXPECTED_END",
   ParamCountMismatch: "PARAM_COUNT_MISMATCH",
   NestingTooDeep: "NESTING_TOO_DEEP",
-  NodeLengthTooSmall: "MALFORMED_HEADER",
+  NodeLengthTooSmall: "NODE_LENGTH_TOO_SMALL",
   NodeOverflow: "NODE_OVERFLOW",
   UnknownTypeCode: "UNKNOWN_TYPE_CODE",
   InvalidTupleFieldCount: "INVALID_TUPLE_FIELD_COUNT",
   InvalidArrayLength: "INVALID_ARRAY_LENGTH",
-  TooManyParams: "PARAM_COUNT_MISMATCH",
-  ArrayLengthTooLarge: "INVALID_ARRAY_LENGTH",
-  TupleFieldCountTooLarge: "INVALID_TUPLE_FIELD_COUNT",
+  TooManyParams: "TOO_MANY_PARAMS",
 };
 
 ///////////////////////////////////////////////////////////////////////////

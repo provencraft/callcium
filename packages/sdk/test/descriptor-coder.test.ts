@@ -173,39 +173,51 @@ describe("DescriptorCoder.fromTypes", () => {
     expectErrorCode(() => DescriptorCoder.fromTypes("foo"), "UNKNOWN_TYPE");
   });
 
-  test("malformed tuple '(' throws INVALID_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("("), "INVALID_TYPE_STRING");
+  test("uint width off the 8-bit grid throws UNKNOWN_TYPE", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint7"), "UNKNOWN_TYPE");
   });
 
-  test("trailing comma 'uint256,' throws INVALID_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint256,"), "INVALID_TYPE_STRING");
+  test("int width off the 8-bit grid throws UNKNOWN_TYPE", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("int7"), "UNKNOWN_TYPE");
   });
 
-  test("empty tuple '()' throws INVALID_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("()"), "INVALID_TYPE_STRING");
+  test("bytes size past 32 throws UNKNOWN_TYPE", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("bytes33"), "UNKNOWN_TYPE");
   });
 
-  test("unclosed array bracket 'uint256[' throws UNKNOWN_TYPE", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint256["), "UNKNOWN_TYPE");
+  test("malformed tuple '(' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("("), "MALFORMED_TYPE_STRING");
   });
 
-  test("unmatched closing bracket ']' throws INVALID_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint256]"), "INVALID_TYPE_STRING");
+  test("trailing comma 'uint256,' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256,"), "MALFORMED_TYPE_STRING");
   });
 
-  test("non-numeric array length 'uint256[abc]' throws INVALID_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[abc]"), "INVALID_TYPE_STRING");
+  test("empty tuple '()' throws INVALID_TUPLE_FIELD_COUNT", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("()"), "INVALID_TUPLE_FIELD_COUNT");
   });
 
-  test("non-numeric bytesN 'bytesXX' throws UNKNOWN_TYPE", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("bytesXX"), "UNKNOWN_TYPE");
+  test("unclosed array bracket 'uint256[' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256["), "MALFORMED_TYPE_STRING");
+  });
+
+  test("unmatched closing bracket ']' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256]"), "MALFORMED_TYPE_STRING");
+  });
+
+  test("non-numeric array length 'uint256[abc]' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[abc]"), "MALFORMED_TYPE_STRING");
+  });
+
+  test("non-numeric bytesN 'bytesXX' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("bytesXX"), "MALFORMED_TYPE_STRING");
   });
 
   test("uint width of 2**256 + 8 is rejected, never a valid narrow width", () => {
     expectErrorCode(
       () =>
         DescriptorCoder.fromTypes("uint115792089237316195423570985008687907853269984665640564039457584007913129639944"),
-      "INVALID_TYPE_STRING",
+      "MALFORMED_TYPE_STRING",
     );
   });
 
@@ -215,44 +227,44 @@ describe("DescriptorCoder.fromTypes", () => {
         DescriptorCoder.fromTypes(
           "uint256[115792089237316195423570985008687907853269984665640564039457584007913129639937]",
         ),
-      "INVALID_ARRAY_LENGTH",
+      "MALFORMED_TYPE_STRING",
     );
   });
 
-  test("non-numeric intN 'intXX' throws UNKNOWN_TYPE", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("intXX"), "UNKNOWN_TYPE");
+  test("non-numeric intN 'intXX' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("intXX"), "MALFORMED_TYPE_STRING");
   });
 
-  test("zero-padded uint width 'uint08' throws UNKNOWN_TYPE", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint08"), "UNKNOWN_TYPE");
+  test("zero-padded uint width 'uint08' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint08"), "MALFORMED_TYPE_STRING");
   });
 
-  test("zero-padded uint width 'uint008' throws UNKNOWN_TYPE", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint008"), "UNKNOWN_TYPE");
+  test("zero-padded uint width 'uint008' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint008"), "MALFORMED_TYPE_STRING");
   });
 
-  test("zero-padded int width 'int08' throws UNKNOWN_TYPE", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("int08"), "UNKNOWN_TYPE");
+  test("zero-padded int width 'int08' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("int08"), "MALFORMED_TYPE_STRING");
   });
 
-  test("zero-padded bytes size 'bytes01' throws UNKNOWN_TYPE", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("bytes01"), "UNKNOWN_TYPE");
+  test("zero-padded bytes size 'bytes01' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("bytes01"), "MALFORMED_TYPE_STRING");
   });
 
-  test("zero-padded array length 'uint256[03]' throws INVALID_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[03]"), "INVALID_TYPE_STRING");
+  test("zero-padded array length 'uint256[03]' throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[03]"), "MALFORMED_TYPE_STRING");
   });
 
-  test("characters after a tuple's closing paren throw INVALID_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("(bool)garbage"), "INVALID_TYPE_STRING");
+  test("characters after a tuple's closing paren throw MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("(bool)garbage"), "MALFORMED_TYPE_STRING");
   });
 
-  test("unclosed array suffix after a tuple throws INVALID_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("(uint256,address)["), "INVALID_TYPE_STRING");
+  test("unclosed array suffix after a tuple throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("(uint256,address)["), "MALFORMED_TYPE_STRING");
   });
 
-  test("array suffix followed by extra characters throws INVALID_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("(uint256,address)[]extra"), "INVALID_TYPE_STRING");
+  test("array suffix followed by extra characters throws MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("(uint256,address)[]extra"), "MALFORMED_TYPE_STRING");
   });
 
   test("canonical spellings of the zero-padded rejections parse and round-trip", () => {

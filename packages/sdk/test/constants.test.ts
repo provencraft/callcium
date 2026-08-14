@@ -95,11 +95,11 @@ describe("lookupOp", () => {
   ///////////////////////////////////////////////////////////////////////////
 
   test("rejects unknown operator code", () => {
-    expectErrorCode(() => lookupOp(0x00), "INVALID_OPERATOR");
+    expectErrorCode(() => lookupOp(0x00), "UNKNOWN_OPERATOR");
   });
 
   test("rejects unknown operator code 0xff", () => {
-    expectErrorCode(() => lookupOp(0xff), "INVALID_OPERATOR");
+    expectErrorCode(() => lookupOp(0xff), "UNKNOWN_OPERATOR");
   });
 });
 
@@ -183,7 +183,7 @@ describe("lookupContextProperty", () => {
   });
 
   test("rejects unknown context property code", () => {
-    expectErrorCode(() => lookupContextProperty(MAX_CONTEXT_PROPERTY_ID + 1), "INVALID_CONTEXT_PROPERTY");
+    expectErrorCode(() => lookupContextProperty(MAX_CONTEXT_PROPERTY_ID + 1), "UNKNOWN_CONTEXT_PROPERTY");
   });
 });
 
@@ -197,7 +197,7 @@ describe("lookupQuantifier", () => {
   });
 
   test("rejects unknown quantifier code", () => {
-    expectErrorCode(() => lookupQuantifier(0x0000), "INVALID_QUANTIFIER");
+    expectErrorCode(() => lookupQuantifier(0x0000), "UNKNOWN_QUANTIFIER");
   });
 });
 

@@ -271,7 +271,7 @@ function evalTarget(
   // A dynamic target's chain ends at its payload, so the word there is the declared length.
   if (isLengthValidType(typeCode)) {
     if (!isLengthOp(opCode)) {
-      throw new CallciumError("NOT_SCALAR", "Value operator on a target without a scalar word.");
+      throw new CallciumError("OPERATOR_TARGET_MISMATCH", "Value operator on a target without a scalar word.");
     }
     const length = readPointer(callData, target);
     if (typeof length !== "number") return { error: length.code };
@@ -286,7 +286,7 @@ function evalTarget(
   }
 
   if (classifyTypeCode(typeCode).typeClass !== "elementary") {
-    throw new CallciumError("NOT_SCALAR", "Operator target does not carry a scalar word.");
+    throw new CallciumError("OPERATOR_TARGET_MISMATCH", "Operator target does not carry a scalar word.");
   }
   const word = loadWord(callData, target);
   if (!(word instanceof Uint8Array)) return { error: word.code };
@@ -552,7 +552,7 @@ function evaluateContextRule(
 
   if (propertyId > MAX_CONTEXT_PROPERTY_ID) {
     throw new CallciumError(
-      "INVALID_CONTEXT_PATH",
+      "UNKNOWN_CONTEXT_PROPERTY",
       `Unknown context property ID 0x${propertyId.toString(16).padStart(4, "0")}`,
     );
   }

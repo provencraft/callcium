@@ -1,5 +1,5 @@
-import { bytesToHex, writeBE16 } from "./bytes";
-import { Op, Scope, ContextProperty } from "./constants";
+import { bytesToHex, toAddress, writeBE16 } from "./bytes";
+import { Op, Scope, ContextProperty, Limits } from "./constants";
 import { CallciumError } from "./errors";
 
 import type { Hex, Constraint } from "./types";
@@ -13,11 +13,7 @@ export type ScalarValue = bigint | number | boolean | string;
 
 /** Strip an optional 0x prefix and validate a 40-hex-char (20-byte) address body. */
 function addressBody(value: string): string {
-  const body = value.startsWith("0x") ? value.slice(2) : value;
-  if (body.length !== 40) {
-    throw new CallciumError("INVALID_CONSTRAINT", `Invalid address length: expected 40 hex chars, got ${body.length}`);
-  }
-  return body;
+  return toAddress(value).slice(2);
 }
 
 /** Convert a scalar value to a 32-byte big-endian word. */
@@ -33,11 +29,7 @@ function encodeWord(value: ScalarValue): Uint8Array {
     // Address encoding: validate 20-byte hex and right-align into 32 bytes.
     const body = addressBody(value);
     for (let i = 0; i < 20; i++) {
-      const byte = parseInt(body.substring(i * 2, i * 2 + 2), 16);
-      if (Number.isNaN(byte)) {
-        throw new CallciumError("INVALID_CONSTRAINT", `Invalid hex character in address at position ${i * 2}`);
-      }
-      word[12 + i] = byte;
+      word[12 + i] = parseInt(body.substring(i * 2, i * 2 + 2), 16);
     }
     return word;
   }
@@ -71,8 +63,8 @@ function rangeOp(opCode: number, min: bigint, max: bigint): Hex {
   return bytesToHex(buffer);
 }
 
-/** Largest member count whose 32-byte words still fit a rule's 16-bit data length field. */
-export const MAX_SET_MEMBERS = Math.floor(0xffff / 32);
+/** Largest member count whose 32-byte words still fit a rule's data length field. */
+export const MAX_SET_MEMBERS = Limits.MAX_SET_MEMBERS;
 
 /** Convert values to bigint, sort ascending (unsigned), deduplicate, and pack as set payload. */
 function setOp(opCode: number, values: readonly ScalarValue[]): Hex {

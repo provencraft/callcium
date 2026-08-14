@@ -125,19 +125,19 @@ describe("Descriptor.typeAt", () => {
     expect(info.isDynamic).toBe(false);
   });
 
-  test("throws INVALID_PATH when descending into elementary type", () => {
+  test("throws NOT_COMPOSITE when descending into elementary type", () => {
     const desc = DescriptorCoder.fromTypes("address");
-    expectErrorCode(() => Descriptor.typeAt(desc, [0, 0]), "INVALID_PATH");
+    expectErrorCode(() => Descriptor.typeAt(desc, [0, 0]), "NOT_COMPOSITE");
   });
 
-  test("throws INVALID_PATH for empty steps", () => {
+  test("throws EMPTY_PATH for empty steps", () => {
     const desc = DescriptorCoder.fromTypes("address");
-    expectErrorCode(() => Descriptor.typeAt(desc, []), "INVALID_PATH");
+    expectErrorCode(() => Descriptor.typeAt(desc, []), "EMPTY_PATH");
   });
 
-  test("throws INVALID_PATH for out-of-bounds param index", () => {
+  test("throws PARAM_INDEX_OUT_OF_BOUNDS for out-of-bounds param index", () => {
     const desc = DescriptorCoder.fromTypes("address");
-    expectErrorCode(() => Descriptor.typeAt(desc, [5]), "INVALID_PATH");
+    expectErrorCode(() => Descriptor.typeAt(desc, [5]), "PARAM_INDEX_OUT_OF_BOUNDS");
   });
 });
 

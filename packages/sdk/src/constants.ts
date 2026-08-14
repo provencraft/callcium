@@ -19,6 +19,7 @@ export const DescriptorFormat = {
   MAX_NODE_LENGTH: 0x0fff,
   MAX_STATIC_ARRAY_LENGTH: 4095,
   MAX_TUPLE_FIELDS: 4089,
+  MAX_STATIC_WORDS: 4095,
   MAX_PARAMS: 255,
   MAX_NESTING_DEPTH: 64,
 } as const satisfies Record<string, number>;
@@ -193,7 +194,7 @@ const ctxPropByCode = new Map<number, ContextPropertyInfo>(
  */
 export function lookupContextProperty(code: number): ContextPropertyInfo {
   const info = ctxPropByCode.get(code);
-  if (!info) throw new CallciumError("INVALID_CONTEXT_PROPERTY", `Unknown context property ${code}`);
+  if (!info) throw new CallciumError("UNKNOWN_CONTEXT_PROPERTY", `Unknown context property ${code}`);
   return info;
 }
 
@@ -205,6 +206,7 @@ export function lookupContextProperty(code: number): ContextPropertyInfo {
 export const Limits = {
   MAX_PATH_DEPTH: 32,
   MAX_QUANTIFIED_ARRAY_LENGTH: 256,
+  MAX_SET_MEMBERS: Math.floor((256 ** PolicyFormat.RULE_DATALENGTH_SIZE - 1) / 32),
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -252,7 +254,7 @@ export function lookupOp(code: number): OpInfo {
   const base = code & ~Op.NOT;
   const info = opByCode.get(base);
   if (!info)
-    throw new CallciumError("INVALID_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}`);
+    throw new CallciumError("UNKNOWN_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}`);
   return info;
 }
 
@@ -300,7 +302,7 @@ export function isQuantifier(step: number): boolean {
  */
 export function lookupQuantifier(code: number): QuantifierInfo {
   const info = quantifierByCode.get(code);
-  if (!info) throw new CallciumError("INVALID_QUANTIFIER", `Unknown quantifier step 0x${code.toString(16)}`);
+  if (!info) throw new CallciumError("UNKNOWN_QUANTIFIER", `Unknown quantifier step 0x${code.toString(16)}`);
   return info;
 }
 

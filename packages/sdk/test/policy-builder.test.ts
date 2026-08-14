@@ -5,6 +5,7 @@ import { arg, msgSender } from "../src/constraint";
 import { CallciumError } from "../src/errors";
 import { PolicyBuilder } from "../src/policy-builder";
 import { PolicyCoder } from "../src/policy-coder";
+import { expectErrorCode } from "./helpers";
 
 import type { Constraint } from "../src/types";
 
@@ -168,10 +169,23 @@ describe("PolicyBuilder", () => {
     expect(PolicyCoder.decode(blob).groups.length).toBe(1);
   });
 
-  test("rejects quantifier on non-array type", () => {
-    expect(() => {
-      PolicyBuilder.create("foo(uint256)").add(arg(0, Quantifier.ALL).eq(1n));
-    }).toThrow(CallciumError);
+  test("rejects quantifier on an elementary type", () => {
+    expectErrorCode(
+      () => PolicyBuilder.create("foo(uint256)").add(arg(0, Quantifier.ALL).eq(1n)),
+      "QUANTIFIER_ON_NON_ARRAY",
+    );
+  });
+
+  test("rejects quantifier on a tuple type", () => {
+    expectErrorCode(
+      () => PolicyBuilder.create("foo((address,uint256))").add(arg(0, Quantifier.ALL).eq(1n)),
+      "QUANTIFIER_ON_NON_ARRAY",
+    );
+  });
+
+  test("rejects a path with an odd byte length", () => {
+    const invalid: Constraint = { scope: Scope.CALLDATA, path: "0x000000", operators: [`0x01${"0".repeat(64)}`] };
+    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(invalid), "MALFORMED_PATH");
   });
 
   test("rejects nested quantifiers", () => {
@@ -235,10 +249,10 @@ describe("PolicyBuilder", () => {
   // Context path validation
   ///////////////////////////////////////////////////////////////////////////
 
-  test("rejects context path that is not exactly 2 bytes", () => {
+  test("rejects context path with more than one step", () => {
     const invalid: Constraint = {
       scope: Scope.CONTEXT,
-      path: "0x000000", // 3 bytes, not 2.
+      path: "0x00000000", // Two steps; a context path carries exactly one.
       operators: [`0x01${"0".repeat(64)}`],
     };
     expect(() => {
@@ -272,7 +286,7 @@ describe("PolicyBuilder", () => {
       expect.unreachable("should have thrown");
     } catch (err) {
       if (err instanceof CallciumError) {
-        expect(err.code).toBe("INVALID_CONTEXT_PROPERTY");
+        expect(err.code).toBe("UNKNOWN_CONTEXT_PROPERTY");
       } else {
         throw err;
       }

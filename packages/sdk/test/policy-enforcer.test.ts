@@ -917,7 +917,7 @@ describe("enforce - tampered policy blobs (attack surface testing)", () => {
     }
   });
 
-  test("unknown context property ID throws INVALID_CONTEXT_PROPERTY", () => {
+  test("unknown context property ID throws UNKNOWN_CONTEXT_PROPERTY", () => {
     // Start from a valid context policy, then tamper the property ID bytes.
     const validPolicy = PolicyBuilder.createRaw("uint256")
       .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
@@ -932,7 +932,7 @@ describe("enforce - tampered policy blobs (attack surface testing)", () => {
     } catch (err) {
       expect(err).toBeInstanceOf(CallciumError);
       if (err instanceof CallciumError) {
-        expect(err.code).toBe("INVALID_CONTEXT_PROPERTY");
+        expect(err.code).toBe("UNKNOWN_CONTEXT_PROPERTY");
         expect(err.message).toContain("ffff");
       }
     }

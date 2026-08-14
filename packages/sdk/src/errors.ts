@@ -1,47 +1,76 @@
-/** Machine-readable error code for structural decoding and validation failures. */
+/**
+ * Machine-readable error code for structural decoding and validation failures.
+ *
+ * Each code names one invariant and matches the Solidity error raised for the same
+ * invariant, transliterated from `PascalCase` to `SCREAMING_SNAKE_CASE`.
+ */
 export type CallciumErrorCode =
+  // Policy and descriptor framing.
   | "UNSUPPORTED_VERSION"
   | "MALFORMED_HEADER"
   | "UNEXPECTED_END"
-  | "NODE_OVERFLOW"
-  | "NESTING_TOO_DEEP"
-  | "UNKNOWN_TYPE_CODE"
-  | "INVALID_OPERATOR"
-  | "UNSORTED_IN_SET"
-  | "INVALID_ARRAY_LENGTH"
-  | "INVALID_TUPLE_FIELD_COUNT"
-  | "PARAM_COUNT_MISMATCH"
+  | "TRAILING_BYTES"
+  // Groups and rules.
   | "EMPTY_POLICY"
   | "EMPTY_GROUP"
-  | "EMPTY_PATH"
-  | "INVALID_CONTEXT_PATH"
-  | "INVALID_CONTEXT_PROPERTY"
-  | "INVALID_QUANTIFIER"
-  | "INVALID_SCOPE"
-  | "RULE_SIZE_MISMATCH"
-  | "MALFORMED_HINT"
-  | "OPERATOR_TARGET_MISMATCH"
+  | "GROUP_TOO_SMALL"
   | "GROUP_SIZE_MISMATCH"
   | "GROUP_OVERFLOW"
+  | "RULE_TOO_SMALL"
+  | "RULE_SIZE_MISMATCH"
+  | "RULE_FIELD_OUT_OF_BOUNDS"
   | "RULE_OVERFLOW"
-  | "TRAILING_BYTES"
-  | "INVALID_SIGNATURE"
-  | "INVALID_TYPE_STRING"
-  | "UNKNOWN_TYPE"
-  | "DESCRIPTOR_TOO_LARGE"
-  | "INVALID_PATH"
-  | "UNCOMPILABLE_PATH"
-  | "NOT_SCALAR"
+  // Paths.
+  | "EMPTY_PATH"
+  | "MALFORMED_PATH"
   | "PATH_TOO_DEEP"
-  | "DUPLICATE_PATH"
-  | "INVALID_CONSTRAINT"
+  | "PARAM_INDEX_OUT_OF_BOUNDS"
+  | "TUPLE_FIELD_OUT_OF_BOUNDS"
+  | "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS"
+  | "NOT_COMPOSITE"
+  | "UNCOMPILABLE_PATH"
+  | "QUANTIFIER_ON_NON_ARRAY"
+  | "NESTED_QUANTIFIER"
+  // Scope and context.
+  | "INVALID_SCOPE"
+  | "INVALID_CONTEXT_PATH"
+  | "UNKNOWN_CONTEXT_PROPERTY"
+  // Operators and hints.
+  | "UNKNOWN_OPERATOR"
+  | "INVALID_OPERATOR_BYTES"
+  | "OPERATOR_TARGET_MISMATCH"
+  | "UNSORTED_IN_SET"
+  | "MALFORMED_HINT"
+  // Constraint building.
+  | "NO_CONSTRAINT_OPERATORS"
+  | "DUPLICATE_PATH_IN_GROUP"
   | "EMPTY_SET"
   | "SET_TOO_LARGE"
   | "INVALID_RANGE"
+  // Descriptor nodes.
+  | "UNKNOWN_TYPE_CODE"
+  | "NODE_LENGTH_TOO_SMALL"
+  | "NODE_LENGTH_TOO_LARGE"
+  | "NODE_OVERFLOW"
+  | "NESTING_TOO_DEEP"
+  | "INVALID_ARRAY_LENGTH"
+  | "INVALID_TUPLE_FIELD_COUNT"
+  | "STATIC_WORDS_TOO_LARGE"
+  | "PARAM_COUNT_MISMATCH"
+  | "TOO_MANY_PARAMS"
+  // Type strings and signatures.
+  | "MALFORMED_TYPE_STRING"
+  | "UNKNOWN_TYPE"
+  | "MALFORMED_SIGNATURE"
+  | "SIGNATURE_CONTAINS_WHITESPACE"
+  | "INVALID_FUNCTION_NAME"
+  // Encoder field widths.
   | "GROUP_COUNT_OVERFLOW"
   | "RULE_COUNT_OVERFLOW"
   | "RULE_SIZE_OVERFLOW"
   | "DESC_LENGTH_OVERFLOW"
+  // Inputs and validation.
+  | "UNKNOWN_QUANTIFIER"
   | "INVALID_HEX"
   | "VALIDATION_ERROR";
 

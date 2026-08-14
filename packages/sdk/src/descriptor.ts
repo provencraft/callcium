@@ -76,7 +76,7 @@ function paramCount(desc: Uint8Array): number {
 function paramOffset(desc: Uint8Array, index: number): number {
   const count = desc[1]!;
   if (index >= count) {
-    throw new CallciumError("INVALID_PATH", `Param index ${index} out of range (paramCount=${count}).`);
+    throw new CallciumError("PARAM_INDEX_OUT_OF_BOUNDS", `Param index ${index} out of range (paramCount=${count}).`);
   }
   let cursor = DF.HEADER_SIZE;
   for (let i = 0; i < index; i++) {
@@ -130,13 +130,16 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
  */
 function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quantifiedStaticLength: number } {
   if (steps.length === 0) {
-    throw new CallciumError("INVALID_PATH", "Path must have at least one step.");
+    throw new CallciumError("EMPTY_PATH", "Path must have at least one step.");
   }
 
   const paramIndex = steps[0]!;
   const count = desc[1]!;
   if (paramIndex >= count) {
-    throw new CallciumError("INVALID_PATH", `Param index ${paramIndex} out of range (paramCount=${count}).`);
+    throw new CallciumError(
+      "PARAM_INDEX_OUT_OF_BOUNDS",
+      `Param index ${paramIndex} out of range (paramCount=${count}).`,
+    );
   }
 
   let cursor = paramOffset(desc, paramIndex);
@@ -149,7 +152,10 @@ function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quan
     if (typeCode === TypeCode.TUPLE) {
       const fields = tupleFieldCount(desc, cursor);
       if (step >= fields) {
-        throw new CallciumError("INVALID_PATH", `Tuple field index ${step} out of range (tuple has ${fields} fields).`);
+        throw new CallciumError(
+          "TUPLE_FIELD_OUT_OF_BOUNDS",
+          `Tuple field index ${step} out of range (tuple has ${fields} fields).`,
+        );
       }
       cursor = tupleFieldOffset(desc, cursor, step);
     } else if (typeCode === TypeCode.STATIC_ARRAY || typeCode === TypeCode.DYNAMIC_ARRAY) {
@@ -161,13 +167,16 @@ function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quan
         } else {
           const length = staticArrayLength(desc, cursor);
           if (step >= length) {
-            throw new CallciumError("INVALID_PATH", `Array index ${step} out of range (length=${length}).`);
+            throw new CallciumError(
+              "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS",
+              `Array index ${step} out of range (length=${length}).`,
+            );
           }
         }
       }
       cursor = arrayElementOffset(cursor);
     } else {
-      throw new CallciumError("INVALID_PATH", `Cannot descend into elementary type at offset ${cursor}.`);
+      throw new CallciumError("NOT_COMPOSITE", `Cannot descend into elementary type at offset ${cursor}.`);
     }
   }
 

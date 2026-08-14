@@ -60,15 +60,15 @@ describe("uintN", () => {
   });
 
   test("rejects bits not multiple of 8", () => {
-    expectErrorCode(() => uintN(7), "INVALID_TYPE_STRING");
+    expectErrorCode(() => uintN(7), "UNKNOWN_TYPE");
   });
 
   test("rejects bits below 8", () => {
-    expectErrorCode(() => uintN(0), "INVALID_TYPE_STRING");
+    expectErrorCode(() => uintN(0), "UNKNOWN_TYPE");
   });
 
   test("rejects bits above 256", () => {
-    expectErrorCode(() => uintN(264), "INVALID_TYPE_STRING");
+    expectErrorCode(() => uintN(264), "UNKNOWN_TYPE");
   });
 });
 
@@ -94,11 +94,11 @@ describe("intN", () => {
   });
 
   test("rejects bits not multiple of 8", () => {
-    expectErrorCode(() => intN(9), "INVALID_TYPE_STRING");
+    expectErrorCode(() => intN(9), "UNKNOWN_TYPE");
   });
 
   test("rejects bits above 256", () => {
-    expectErrorCode(() => intN(512), "INVALID_TYPE_STRING");
+    expectErrorCode(() => intN(512), "UNKNOWN_TYPE");
   });
 });
 
@@ -120,11 +120,11 @@ describe("bytesN", () => {
   });
 
   test("rejects n=0", () => {
-    expectErrorCode(() => bytesN(0), "INVALID_TYPE_STRING");
+    expectErrorCode(() => bytesN(0), "UNKNOWN_TYPE");
   });
 
   test("rejects n=33", () => {
-    expectErrorCode(() => bytesN(33), "INVALID_TYPE_STRING");
+    expectErrorCode(() => bytesN(33), "UNKNOWN_TYPE");
   });
 });
 
@@ -275,7 +275,7 @@ describe("static words overflow", () => {
   test("static array rejects staticWords > 4095", () => {
     // tuple(uint256, uint256) has staticWords=2. Array of 2048 → 4096 words, overflow.
     const pairDesc = tuple([uintN(256), uintN(256)]);
-    expectErrorCode(() => array(pairDesc, 2048), "DESCRIPTOR_TOO_LARGE");
+    expectErrorCode(() => array(pairDesc, 2048), "STATIC_WORDS_TOO_LARGE");
   });
 
   test("static array at boundary 4095 succeeds", () => {
@@ -290,7 +290,7 @@ describe("static words overflow", () => {
   test("tuple rejects staticWords > 4095 via nested static arrays", () => {
     // Two uint256[2048] arrays → 2 * 2048 = 4096 words, overflow.
     const bigArray = array(uintN(256), 2048);
-    expectErrorCode(() => tuple([bigArray, bigArray]), "DESCRIPTOR_TOO_LARGE");
+    expectErrorCode(() => tuple([bigArray, bigArray]), "STATIC_WORDS_TOO_LARGE");
   });
 
   test("tuple with dynamic field skips staticWords check", () => {
@@ -314,7 +314,7 @@ describe("node length overflow", () => {
     // Wrapping it in a dynamic array gives nodeLength = ARRAY_HEADER_SIZE + 4095 = 4099.
     const bigTuple = tuple(Array.from({ length: DF.MAX_TUPLE_FIELDS }, () => uintN(256)));
     expect(bigTuple.length).toBe(DF.MAX_NODE_LENGTH);
-    expectErrorCode(() => array(bigTuple), "DESCRIPTOR_TOO_LARGE");
+    expectErrorCode(() => array(bigTuple), "NODE_LENGTH_TOO_LARGE");
   });
 
   test("static array rejects nodeLength > MAX_NODE_LENGTH", () => {
@@ -322,7 +322,7 @@ describe("node length overflow", () => {
     // ARRAY_HEADER_SIZE + 4095 + ARRAY_LENGTH_SIZE = 4 + 4095 + 2 = 4101.
     // The length=1 passes the MAX_STATIC_ARRAY_LENGTH check but nodeLength overflows.
     const bigTuple = tuple(Array.from({ length: DF.MAX_TUPLE_FIELDS }, () => uintN(256)));
-    expectErrorCode(() => array(bigTuple, 1), "DESCRIPTOR_TOO_LARGE");
+    expectErrorCode(() => array(bigTuple, 1), "NODE_LENGTH_TOO_LARGE");
   });
 
   test("tuple rejects nodeLength > MAX_NODE_LENGTH via large fields", () => {
@@ -330,7 +330,7 @@ describe("node length overflow", () => {
     // Outer tuple totalFieldBytes = 2 * 2051 = 4102, nodeLength = 6 + 4102 = 4108.
     const halfTuple = tuple(Array.from({ length: 2045 }, () => uintN(256)));
     expect(halfTuple.length).toBe(DF.TUPLE_HEADER_SIZE + 2045);
-    expectErrorCode(() => tuple([halfTuple, halfTuple]), "INVALID_TUPLE_FIELD_COUNT");
+    expectErrorCode(() => tuple([halfTuple, halfTuple]), "NODE_LENGTH_TOO_LARGE");
   });
 });
 

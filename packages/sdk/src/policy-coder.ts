@@ -40,7 +40,7 @@ import type {
 export function parsePathSteps(path: Hex): number[] {
   const bytes = hexToBytes(path);
   if (bytes.length % PF.PATH_STEP_SIZE !== 0) {
-    throw new CallciumError("INVALID_PATH", `Path byte length ${bytes.length} is not a whole number of steps`);
+    throw new CallciumError("MALFORMED_PATH", `Path byte length ${bytes.length} is not a whole number of steps`);
   }
   const steps: number[] = [];
   for (let offset = 0; offset < bytes.length; offset += PF.PATH_STEP_SIZE) {
@@ -62,14 +62,13 @@ function field<T>(value: T, start: number, end: number): Field<T> {
 // Hint block
 ///////////////////////////////////////////////////////////////////////////
 
-/** Throw a RULE_SIZE_MISMATCH error for a rule too small to hold its hint block. */
-function hintOverrun(ruleOffset: number): never {
-  throw new CallciumError("RULE_SIZE_MISMATCH", "Rule is too small to hold a hint block", ruleOffset);
-}
-
 /** Resolve the hint block size at `hintStart` from its header and suffix header bytes. */
 function resolveHintSize(data: Uint8Array, hintStart: number, ruleEnd: number, ruleOffset: number): number {
-  if (hintStart + PF.HINT_HEADER_SIZE > ruleEnd) hintOverrun(ruleOffset);
+  const overrun = (): never => {
+    throw new CallciumError("RULE_FIELD_OUT_OF_BOUNDS", "Rule is too small to hold a hint block", ruleOffset);
+  };
+
+  if (hintStart + PF.HINT_HEADER_SIZE > ruleEnd) overrun();
   const header = data[hintStart]!;
   const hopsEnd = hintStart + PF.HINT_HEADER_SIZE + (header & PF.HINT_HOP_COUNT_MASK) * PF.HINT_HOP_SIZE;
   let hintSize = hopsEnd - hintStart + PF.HINT_TARGET_SIZE;
@@ -77,13 +76,13 @@ function resolveHintSize(data: Uint8Array, hintStart: number, ruleEnd: number, r
   // A quantifier frame sits between the main chain and the target, sized by its own header byte.
   if (header >> PF.HINT_KIND_SHIFT !== PF.HINT_KIND_NONE) {
     const suffixHeaderOffset = hopsEnd + PF.HINT_FRAME_PREFIX_SIZE;
-    if (suffixHeaderOffset >= ruleEnd) hintOverrun(ruleOffset);
+    if (suffixHeaderOffset >= ruleEnd) overrun();
     const suffixHeader = data[suffixHeaderOffset]!;
     hintSize +=
       PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE + (suffixHeader & PF.HINT_HOP_COUNT_MASK) * PF.HINT_HOP_SIZE;
   }
 
-  if (hintStart + hintSize > ruleEnd) hintOverrun(ruleOffset);
+  if (hintStart + hintSize > ruleEnd) overrun();
   return hintSize;
 }
 
@@ -229,7 +228,7 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       throw new CallciumError("EMPTY_GROUP", "Group must contain at least one rule", offset);
     }
     if (groupSizeValue < ruleCountValue * PF.RULE_MIN_SIZE) {
-      throw new CallciumError("GROUP_SIZE_MISMATCH", "Declared group size is too small for its rule count", offset);
+      throw new CallciumError("GROUP_TOO_SMALL", "Declared group size is too small for its rule count", offset);
     }
     if (groupEnd > data.length) {
       throw new CallciumError("GROUP_OVERFLOW", "Group extends beyond policy blob", offset);
@@ -246,7 +245,7 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       const ruleSizeValue = readU16(data, ruleOffset);
       if (ruleSizeValue < PF.RULE_MIN_SIZE) {
         throw new CallciumError(
-          "RULE_SIZE_MISMATCH",
+          "RULE_TOO_SMALL",
           `Rule size ${ruleSizeValue} is below minimum ${PF.RULE_MIN_SIZE}`,
           ruleOffset,
         );
@@ -263,37 +262,9 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
 
       const depthOffset = ruleOffset + PF.RULE_DEPTH_OFFSET;
       const depthValue = data[depthOffset]!;
-      if (depthValue === 0) {
-        throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step", ruleOffset);
-      }
-      if (depthValue > Limits.MAX_PATH_DEPTH) {
-        throw new CallciumError(
-          "PATH_TOO_DEEP",
-          `Path depth ${depthValue} exceeds maximum ${Limits.MAX_PATH_DEPTH}`,
-          ruleOffset,
-        );
-      }
-      if (scopeValue === Scope.CONTEXT && depthValue !== 1) {
-        throw new CallciumError(
-          "INVALID_CONTEXT_PATH",
-          "Context-scope rules must have exactly one path step",
-          ruleOffset,
-        );
-      }
-
       const pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
       const pathLength = depthValue * PF.PATH_STEP_SIZE;
       const pathHex = toHex(data, pathStart, pathStart + pathLength);
-      if (scopeValue === Scope.CONTEXT) {
-        const contextPropertyId = readU16(data, pathStart);
-        if (contextPropertyId > MAX_CONTEXT_PROPERTY_ID) {
-          throw new CallciumError(
-            "INVALID_CONTEXT_PROPERTY",
-            `Context rule references undefined context property 0x${contextPropertyId.toString(16).padStart(4, "0")}`,
-            ruleOffset,
-          );
-        }
-      }
 
       // Resolve the hint block; context rules carry none.
       const ruleEnd = ruleOffset + ruleSizeValue;
@@ -325,7 +296,7 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       // Validate operator and data length.
       const opBase = opCodeValue & ~Op.NOT;
       if (opBase === 0 || !isValidOperatorData(opBase, dataLengthValue)) {
-        throw new CallciumError("INVALID_OPERATOR", "Unrecognized or malformed operator", ruleOffset);
+        throw new CallciumError("UNKNOWN_OPERATOR", "Unrecognized or malformed operator", ruleOffset);
       }
 
       // A length operator reads the declared length a dynamic target resolves to, and a value
@@ -350,6 +321,37 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
           if (compareBytes(prev, cur) >= 0) {
             throw new CallciumError("UNSORTED_IN_SET", "IN operands must be strictly ascending", ruleOffset);
           }
+        }
+      }
+
+      // The path must be non-empty and within the depth cap.
+      if (depthValue === 0) {
+        throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step", ruleOffset);
+      }
+      if (depthValue > Limits.MAX_PATH_DEPTH) {
+        throw new CallciumError(
+          "PATH_TOO_DEEP",
+          `Path depth ${depthValue} exceeds maximum ${Limits.MAX_PATH_DEPTH}`,
+          ruleOffset,
+        );
+      }
+
+      // Context-scope rules must have exactly one path step naming a defined property.
+      if (scopeValue === Scope.CONTEXT) {
+        if (depthValue !== 1) {
+          throw new CallciumError(
+            "INVALID_CONTEXT_PATH",
+            "Context-scope rules must have exactly one path step",
+            ruleOffset,
+          );
+        }
+        const contextPropertyId = readU16(data, pathStart);
+        if (contextPropertyId > MAX_CONTEXT_PROPERTY_ID) {
+          throw new CallciumError(
+            "UNKNOWN_CONTEXT_PROPERTY",
+            `Context rule references undefined context property 0x${contextPropertyId.toString(16).padStart(4, "0")}`,
+            ruleOffset,
+          );
         }
       }
 
@@ -416,6 +418,13 @@ type Rule = { scope: number; path: Uint8Array; operator: Uint8Array; hint: Uint8
 
 /** Flatten a Constraint into one Rule per operator, compiling its hint against the descriptor. */
 function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
+  const operators = constraint.operators.map(hexToBytes);
+  for (const operator of operators) {
+    if (operator.length < 1) {
+      throw new CallciumError("INVALID_OPERATOR_BYTES", "Operator must have at least one byte (opcode).");
+    }
+  }
+
   const path = hexToBytes(constraint.path);
 
   // Path shape checks precede compilation: the compiler assumes a framed, depth-bounded path.
@@ -423,7 +432,7 @@ function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
     throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step.");
   }
   if ((path.length & 1) !== 0) {
-    throw new CallciumError("INVALID_PATH", "Path byte length must be even.");
+    throw new CallciumError("MALFORMED_PATH", "Path byte length must be even.");
   }
   const depth = path.length / 2;
   if (depth > Limits.MAX_PATH_DEPTH) {
@@ -434,12 +443,7 @@ function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
     constraint.scope === Scope.CALLDATA
       ? Descriptor.compileHint(desc, parsePathSteps(constraint.path))
       : new Uint8Array(0);
-  return constraint.operators.map((op) => ({
-    scope: constraint.scope,
-    path,
-    operator: hexToBytes(op),
-    hint,
-  }));
+  return operators.map((operator) => ({ scope: constraint.scope, path, operator, hint }));
 }
 
 /** Compare two byte arrays lexicographically. */
@@ -464,11 +468,11 @@ function sortRules(rules: Rule[]): void {
   });
 }
 
-/** Serialize a single rule to its wire format bytes. Path shape is established by `flattenConstraint`. */
+/**
+ * Serialize a single rule to its wire format bytes.
+ * Path shape and operator framing are established by `flattenConstraint`.
+ */
 function encodeRule(rule: Rule): Uint8Array {
-  if (rule.operator.length < 1) {
-    throw new CallciumError("INVALID_OPERATOR", "Operator must have at least one byte (opcode).");
-  }
   const depth = rule.path.length / 2;
   if (rule.scope === Scope.CONTEXT && depth !== 1) {
     throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope rules must have exactly one path step.");
@@ -526,6 +530,13 @@ function buildOperatorHex(rule: DecodedRule): Hex {
 function encode(data: PolicyData): Hex {
   const descBytes = hexToBytes(data.descriptor);
 
+  if (data.groups.length === 0) {
+    throw new CallciumError("EMPTY_POLICY", "Policy must contain at least one group");
+  }
+  if (data.groups.length > 0xff) {
+    throw new CallciumError("GROUP_COUNT_OVERFLOW", `Group count ${data.groups.length} exceeds maximum 255`);
+  }
+
   // Flatten constraints into rules and sort within each group. Hints are compiled first because
   // they are part of the rule bytes the group hash covers.
   const sortedGroups: Rule[][] = data.groups.map((group) => {
@@ -534,11 +545,8 @@ function encode(data: PolicyData): Hex {
     return rules;
   });
 
-  if (sortedGroups.length === 0) {
-    throw new CallciumError("EMPTY_POLICY", "Policy must contain at least one group");
-  }
-  if (sortedGroups.length > 0xff) {
-    throw new CallciumError("GROUP_COUNT_OVERFLOW", `Group count ${sortedGroups.length} exceeds maximum 255`);
+  if (descBytes.length > 0xffff) {
+    throw new CallciumError("DESC_LENGTH_OVERFLOW", `Descriptor length ${descBytes.length} exceeds maximum 65535`);
   }
 
   const encodedGroups = sortedGroups.map((rules, groupIndex) => {
@@ -561,10 +569,6 @@ function encode(data: PolicyData): Hex {
     encodedGroups.sort((a, b) => compareBytes(hashes.get(a)!, hashes.get(b)!));
   }
 
-  // Build the binary output.
-  if (descBytes.length > 0xffff) {
-    throw new CallciumError("DESC_LENGTH_OVERFLOW", `Descriptor length ${descBytes.length} exceeds maximum 65535`);
-  }
   const selectorBytes = data.isSelectorless ? new Uint8Array(4) : hexToBytes(data.selector);
 
   const headerByte = PF.VERSION | (data.isSelectorless ? PF.FLAG_NO_SELECTOR : 0);

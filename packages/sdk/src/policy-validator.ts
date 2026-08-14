@@ -13,7 +13,7 @@ import {
 } from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
-import { CallciumError } from "./errors";
+import { CallciumError, type CallciumErrorCode } from "./errors";
 import { canonicalize, isLeftAligned, isSigned, isLengthOp, isLengthValidType } from "./operators";
 import { parsePathSteps } from "./policy-coder";
 import * as ValidationIssue from "./validation-issue";
@@ -23,6 +23,15 @@ import type { Constraint, Hex, Issue, PolicyData } from "./types";
 ///////////////////////////////////////////////////////////////////////////
 // Internal types
 ///////////////////////////////////////////////////////////////////////////
+
+/** Codes a path walk raises when the path does not navigate the descriptor (PV-1). */
+const NAVIGABILITY_CODES: ReadonlySet<CallciumErrorCode> = new Set<CallciumErrorCode>([
+  "EMPTY_PATH",
+  "PARAM_INDEX_OUT_OF_BOUNDS",
+  "TUPLE_FIELD_OUT_OF_BOUNDS",
+  "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS",
+  "NOT_COMPOSITE",
+]);
 
 type BoundDomain = {
   isSigned: boolean;
@@ -1006,7 +1015,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
           walk = Descriptor.walkPath(descBytes, steps);
         } catch (error) {
           // Navigability faults become issues; anything else propagates.
-          if (error instanceof CallciumError && error.code === "INVALID_PATH") {
+          if (error instanceof CallciumError && NAVIGABILITY_CODES.has(error.code)) {
             issues.push(ValidationIssue.unnavigablePath(groupIndex, constraintIndex));
             continue;
           }

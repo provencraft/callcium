@@ -209,7 +209,7 @@ describe(".isIn() / .notIn()", () => {
 
   test(".isIn() — accepts the largest set a rule's data length can hold", () => {
     const values = Array.from({ length: MAX_SET_MEMBERS }, (_, i) => BigInt(i));
-    const op = arg(0).isIn(values).operators[0]!;
+    const op = arg(0).isIn(values).operators[0];
     expect((op.length - 4) / 2).toBe(MAX_SET_MEMBERS * 32);
   });
 

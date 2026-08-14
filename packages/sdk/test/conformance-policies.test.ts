@@ -58,14 +58,14 @@ const ERROR_MAP: Record<string, CallciumErrorCode> = {
   MalformedHint: "MALFORMED_HINT",
   OperatorTargetMismatch: "OPERATOR_TARGET_MISMATCH",
   GroupSizeMismatch: "GROUP_SIZE_MISMATCH",
-  GroupTooSmall: "GROUP_SIZE_MISMATCH",
+  GroupTooSmall: "GROUP_TOO_SMALL",
   GroupOverflow: "GROUP_OVERFLOW",
-  RuleTooSmall: "RULE_SIZE_MISMATCH",
+  RuleTooSmall: "RULE_TOO_SMALL",
   RuleOverflow: "RULE_OVERFLOW",
-  UnknownOperator: "INVALID_OPERATOR",
+  UnknownOperator: "UNKNOWN_OPERATOR",
   UnsortedInSet: "UNSORTED_IN_SET",
   PathTooDeep: "PATH_TOO_DEEP",
-  UnknownContextProperty: "INVALID_CONTEXT_PROPERTY",
+  UnknownContextProperty: "UNKNOWN_CONTEXT_PROPERTY",
 };
 
 /** Build a PolicyData from a vector's decoded spec. */

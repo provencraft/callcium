@@ -1,4 +1,4 @@
-import { bytesToHex, hexToBytes, readU16 } from "./bytes";
+import { bytesToHex } from "./bytes";
 import { Scope, TypeCode, isQuantifier, MAX_CONTEXT_PROPERTY_ID } from "./constants";
 import { ConstraintBuilder } from "./constraint";
 import { Descriptor } from "./descriptor";
@@ -27,32 +27,27 @@ type PolicyDraft = {
 ///////////////////////////////////////////////////////////////////////////
 
 /** Validate a context-scope path. */
-function validateContextPath(pathBytes: Uint8Array): void {
-  if (pathBytes.length !== 2) {
-    throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope path must be exactly one step (2 bytes).");
+function validateContextPath(steps: number[]): void {
+  if (steps.length !== 1) {
+    throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope path must be exactly one step.");
   }
-  const step = readU16(pathBytes, 0);
+  const step = steps[0]!;
   if (step > MAX_CONTEXT_PROPERTY_ID) {
     throw new CallciumError(
-      "INVALID_CONTEXT_PROPERTY",
+      "UNKNOWN_CONTEXT_PROPERTY",
       `Unknown context property ID 0x${step.toString(16).padStart(4, "0")}.`,
     );
   }
 }
 
 /** Validate a calldata-scope path against the descriptor. */
-function validateCalldataPath(path: Hex, desc: Uint8Array): void {
-  const steps = parsePathSteps(path);
-  if (steps.length === 0) {
-    throw new CallciumError("INVALID_PATH", "Calldata path must have at least one step.");
-  }
-
+function validateCalldataPath(steps: number[], desc: Uint8Array): void {
   const argIndex = steps[0]!;
   const paramCount = Descriptor.paramCount(desc);
   if (argIndex >= paramCount) {
     throw new CallciumError(
-      "INVALID_PATH",
-      `Argument index ${argIndex} out of range (descriptor has ${paramCount} params).`,
+      "PARAM_INDEX_OUT_OF_BOUNDS",
+      `Param index ${argIndex} out of range (descriptor has ${paramCount} params).`,
     );
   }
 
@@ -62,37 +57,40 @@ function validateCalldataPath(path: Hex, desc: Uint8Array): void {
   for (let i = 1; i < steps.length; i++) {
     const step = steps[i]!;
     const info = Descriptor.inspect(desc, offset);
+    const isArray = info.typeCode === TypeCode.STATIC_ARRAY || info.typeCode === TypeCode.DYNAMIC_ARRAY;
+
+    if (isQuantifier(step)) {
+      if (!isArray) {
+        throw new CallciumError("QUANTIFIER_ON_NON_ARRAY", "Quantifier step is only valid on an array node.");
+      }
+      if (hasQuantifier) {
+        throw new CallciumError("NESTED_QUANTIFIER", "Nested quantifiers are not allowed.");
+      }
+      hasQuantifier = true;
+    }
 
     if (info.typeCode === TypeCode.TUPLE) {
-      if (isQuantifier(step)) {
-        throw new CallciumError("INVALID_PATH", "Quantifier step is not valid on a tuple node.");
-      }
       const fieldCount = Descriptor.tupleFieldCount(desc, offset);
       if (step >= fieldCount) {
         throw new CallciumError(
-          "INVALID_PATH",
+          "TUPLE_FIELD_OUT_OF_BOUNDS",
           `Tuple field index ${step} out of range (tuple has ${fieldCount} fields).`,
         );
       }
       offset = Descriptor.tupleFieldOffset(desc, offset, step);
-    } else if (info.typeCode === TypeCode.STATIC_ARRAY || info.typeCode === TypeCode.DYNAMIC_ARRAY) {
-      if (isQuantifier(step)) {
-        if (hasQuantifier) {
-          throw new CallciumError("INVALID_PATH", "Nested quantifiers are not allowed.");
-        }
-        hasQuantifier = true;
-      } else if (info.typeCode === TypeCode.STATIC_ARRAY) {
+    } else if (isArray) {
+      if (!isQuantifier(step) && info.typeCode === TypeCode.STATIC_ARRAY) {
         const arrayLength = Descriptor.staticArrayLength(desc, offset);
         if (step >= arrayLength) {
           throw new CallciumError(
-            "INVALID_PATH",
+            "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS",
             `Array index ${step} out of range (static array has ${arrayLength} elements).`,
           );
         }
       }
       offset = Descriptor.arrayElementOffset(offset);
     } else {
-      throw new CallciumError("INVALID_PATH", "Cannot descend into an elementary type.");
+      throw new CallciumError("NOT_COMPOSITE", "Cannot descend into an elementary type.");
     }
   }
 }
@@ -152,13 +150,19 @@ export class PolicyBuilder {
     };
 
     if (c.operators.length === 0) {
-      throw new CallciumError("INVALID_CONSTRAINT", "Constraint must have at least one operator.");
+      throw new CallciumError("NO_CONSTRAINT_OPERATORS", "Constraint must have at least one operator.");
+    }
+
+    // Path shape is established before the scope decides how to navigate it.
+    const steps = parsePathSteps(c.path);
+    if (steps.length === 0) {
+      throw new CallciumError("EMPTY_PATH", "Path must have at least one step.");
     }
 
     if (c.scope === Scope.CONTEXT) {
-      validateContextPath(hexToBytes(c.path));
+      validateContextPath(steps);
     } else if (c.scope === Scope.CALLDATA) {
-      validateCalldataPath(c.path, this.draft.descriptor);
+      validateCalldataPath(steps, this.draft.descriptor);
     } else {
       throw new CallciumError("INVALID_SCOPE", `Unknown scope value ${c.scope}.`);
     }
@@ -166,7 +170,7 @@ export class PolicyBuilder {
     const key = `${c.scope}:${c.path.toLowerCase()}`;
     const currentHashes = this.draft.pathHashes[this.draft.pathHashes.length - 1]!;
     if (currentHashes.has(key)) {
-      throw new CallciumError("DUPLICATE_PATH", `Duplicate path ${c.path} in the same group.`);
+      throw new CallciumError("DUPLICATE_PATH_IN_GROUP", `Duplicate path ${c.path} in the same group.`);
     }
 
     currentHashes.add(key);
