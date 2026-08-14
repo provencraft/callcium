@@ -95,7 +95,6 @@ contract PolicyCoderConformanceTest is BaseTest {
             groups[groupIndex].rules = new PolicyCoder.Rule[](ruleCount);
             for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
                 string memory rulePath = string.concat(groupPath, ".rules[", vm.toString(ruleIndex), "]");
-                // forge-lint: disable-next-line(unsafe-typecast)
                 groups[groupIndex].rules[ruleIndex].scope =
                     uint8(vm.parseJsonUint(json, string.concat(rulePath, ".scope")));
                 groups[groupIndex].rules[ruleIndex].path = vm.parseJsonBytes(json, string.concat(rulePath, ".path"));

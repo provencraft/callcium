@@ -185,7 +185,6 @@ library PolicyCoder {
         // straight into the output. Group header: ruleCount(2) | groupSize(4).
         if (groupCount == 1) {
             Rule[] memory rules = groups[0].rules;
-            // forge-lint: disable-next-line(unsafe-typecast)
             buffer = buffer.pUint16(uint16(rules.length)).pUint32(uint32(_measureGroup(rules, 0)));
             return _emitRules(buffer, rules).data;
         }
@@ -204,7 +203,6 @@ library PolicyCoder {
         for (uint256 position; position < groupCount; ++position) {
             uint256 groupIndex = order[position];
             bytes memory rules = groupRules[groupIndex];
-            // forge-lint: disable-next-line(unsafe-typecast)
             buffer = buffer.pUint16(uint16(groups[groupIndex].rules.length)).pUint32(uint32(rules.length)).p(rules);
         }
         return buffer.data;
@@ -350,11 +348,8 @@ library PolicyCoder {
         bytes memory path = rule.path;
         bytes memory operator = rule.operator;
         bytes memory hint = rule.hint;
-        // forge-lint: disable-next-line(unsafe-typecast)
         uint8 depth = uint8(path.length / PF.PATH_STEP_SIZE);
-        // forge-lint: disable-next-line(unsafe-typecast)
         uint16 dataLength = uint16(operator.length - 1);
-        // forge-lint: disable-next-line(unsafe-typecast)
         uint16 ruleSize = uint16(_ruleSize(path.length, hint.length, dataLength));
         // forgefmt: disable-next-item
         return buffer

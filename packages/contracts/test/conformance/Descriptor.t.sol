@@ -115,10 +115,8 @@ contract DescriptorConformanceTest is BaseTest {
                 DescriptorParam memory param = f.params[j];
                 // forge-lint: disable-next-line(unsafe-typecast)
                 Descriptor.TypeInfo memory t = f.blob.typeAt(_path(uint16(j)));
-                // forge-lint: disable-next-line(unsafe-typecast)
                 assertEq(t.code, uint8(param.typeCode), string.concat(f.id, ":code"));
                 assertEq(t.isDynamic, param.isDynamic, string.concat(f.id, ":isDynamic"));
-                // forge-lint: disable-next-line(unsafe-typecast)
                 assertEq(t.staticSize, uint32(param.staticSize), string.concat(f.id, ":staticSize"));
             }
         }

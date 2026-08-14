@@ -78,6 +78,7 @@ contract PolicyBuilderBuildTest is PolicyBuilderTest {
         try harness.build(draft) {
             fail();
         } catch (bytes memory reason) {
+            // forge-lint: disable-next-line(unsafe-typecast) the revert reason leads with the error selector.
             assertEq(bytes4(reason), PolicyValidator.ValidationError.selector);
             Issue[] memory issues = abi.decode(LibBytes.slice(reason, 4, reason.length), (Issue[]));
             assertGt(issues.length, 1);

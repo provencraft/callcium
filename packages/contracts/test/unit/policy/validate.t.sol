@@ -36,7 +36,6 @@ contract ValidateTest is PolicyTest {
     }
 
     function _calldataRuleBlob(bytes memory path, bytes memory hint, uint8 opCode) private pure returns (bytes memory) {
-        // forge-lint: disable-next-item(unsafe-typecast)
         bytes memory rule = bytes.concat(
             bytes2(uint16(PF.RULE_FIXED_OVERHEAD + path.length + hint.length + 32)),
             bytes1(PF.SCOPE_CALLDATA),
@@ -47,7 +46,6 @@ contract ValidateTest is PolicyTest {
             bytes2(uint16(32)),
             new bytes(32)
         );
-        // forge-lint: disable-next-item(unsafe-typecast)
         return bytes.concat(hex"022fbebd38000302012001", bytes2(uint16(1)), bytes4(uint32(rule.length)), rule);
     }
 

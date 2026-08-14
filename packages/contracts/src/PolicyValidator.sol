@@ -432,7 +432,6 @@ library PolicyValidator {
         for (uint256 i; i < operators.length; ++i) {
             bytes memory op = operators[i];
             uint8 opCode = uint8(op[0]);
-            // forge-lint: disable-next-line(unsafe-typecast) guarded by the payload size check.
             if (
                 op.length - 1 > type(uint16).max
                     || !OpRule.isValidPayloadSize(opCode & ~OpCode.NOT, uint16(op.length - 1))

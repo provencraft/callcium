@@ -590,7 +590,6 @@ library Policy {
     /// @dev Appends the hop entering an indirected node's payload and rebases the offset accumulator.
     function _enter(HintWalk memory walk, bool needed) private pure {
         if (!needed) return;
-        // forge-lint: disable-next-line(unsafe-typecast) descriptor limits bound head offsets below 2**32.
         walk.chain = abi.encodePacked(walk.chain, uint32(walk.delta), PF.HINT_NO_INDEX, uint16(0));
         walk.delta = 0;
     }
