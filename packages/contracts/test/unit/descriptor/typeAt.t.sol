@@ -291,7 +291,7 @@ contract TypeAtTest is DescriptorTest {
     function test_RevertWhen_ArgIndexOutOfBounds() public {
         bytes memory desc = DescriptorBuilder.fromTypes("address,uint256");
 
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.ArgIndexOutOfBounds.selector, 2, 2));
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.ParamIndexOutOfBounds.selector, 2, 2));
         desc.typeAt(_path(2));
     }
 
@@ -305,7 +305,7 @@ contract TypeAtTest is DescriptorTest {
     function test_RevertWhen_StaticArrayIndexOutOfBounds() public {
         bytes memory desc = DescriptorBuilder.fromTypes("uint256[3]");
 
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.ArrayIndexOutOfBounds.selector, 3, 3));
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.StaticArrayIndexOutOfBounds.selector, 3, 3));
         desc.typeAt(_path(0, 3));
     }
 
@@ -355,7 +355,7 @@ contract TypeAtTest is DescriptorTest {
         }
         bytes memory desc = draft.build();
 
-        vm.expectRevert(abi.encodeWithSelector(Descriptor.ArgIndexOutOfBounds.selector, index, argCount));
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.ParamIndexOutOfBounds.selector, index, argCount));
         desc.typeAt(_path(uint16(index)));
     }
 }

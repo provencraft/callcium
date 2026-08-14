@@ -93,7 +93,7 @@ contract ValidateTest is DescriptorTest {
         // Inner static array: [code:80][meta:000007][elem:41][length:0000].
         // Inner nodeLength=7 = 4+1+2. Outer nodeLength = TUPLE_HEADER_SIZE(6) + 7 = 13 = 0x0d.
         // Inner staticWords=0 (length=0 → 0 words). Outer staticWords=0.
-        vm.expectRevert(Descriptor.InvalidArrayLength.selector);
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.InvalidArrayLength.selector, 8, 0));
         Descriptor.validate(hex"02019000000d000180000007410000");
     }
 

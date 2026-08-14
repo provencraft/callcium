@@ -14,9 +14,9 @@ library Descriptor {
     /// @notice Navigability fault detected while walking a path against a descriptor.
     enum PathFault {
         None,
-        ArgIndexOutOfBounds,
+        ParamIndexOutOfBounds,
         TupleFieldOutOfBounds,
-        ArrayIndexOutOfBounds,
+        StaticArrayIndexOutOfBounds,
         NotComposite
     }
 
@@ -46,11 +46,15 @@ library Descriptor {
     /// @notice Thrown when an unrecognized type code is encountered.
     error UnknownTypeCode(uint8 code);
 
-    /// @notice Thrown when a static array has zero length.
-    error InvalidArrayLength();
+    /// @notice Thrown when a static array length falls outside the range the format allows.
+    /// @param offset The offset of the array node.
+    /// @param length The declared length.
+    error InvalidArrayLength(uint256 offset, uint256 length);
 
-    /// @notice Thrown when a tuple has zero fields.
-    error InvalidTupleFieldCount();
+    /// @notice Thrown when a tuple field count falls outside the range the format allows.
+    /// @param offset The offset of the tuple node.
+    /// @param fieldCount The declared field count.
+    error InvalidTupleFieldCount(uint256 offset, uint256 fieldCount);
 
     /// @notice Thrown when the declared param count does not match the parsed count.
     error ParamCountMismatch(uint8 declared, uint256 parsed);
@@ -61,14 +65,11 @@ library Descriptor {
     /// @notice Thrown when accessing a top-level parameter index out of bounds.
     error ParamIndexOutOfBounds(uint256 index, uint256 count);
 
-    /// @notice Thrown when the argument index in a path is out of bounds.
-    error ArgIndexOutOfBounds(uint256 argIndex, uint256 argCount);
-
     /// @notice Thrown when the tuple field index is out of bounds.
     error TupleFieldOutOfBounds(uint256 fieldIndex, uint256 fieldCount);
 
-    /// @notice Thrown when the array index is out of bounds.
-    error ArrayIndexOutOfBounds(uint256 elementIndex, uint256 length);
+    /// @notice Thrown when the static array index is out of bounds.
+    error StaticArrayIndexOutOfBounds(uint256 elementIndex, uint256 length);
 
     /// @notice Thrown when a composite type is expected but a different type is found.
     error NotComposite(uint8 typeCode);
@@ -78,12 +79,6 @@ library Descriptor {
 
     /// @notice Thrown when a composite node overflows the descriptor buffer.
     error NodeOverflow(uint256 offset);
-
-    /// @notice Thrown when a static array length exceeds the format maximum.
-    error ArrayLengthTooLarge(uint256 offset, uint16 length);
-
-    /// @notice Thrown when a tuple field count exceeds the format maximum.
-    error TupleFieldCountTooLarge(uint256 offset, uint16 fieldCount);
 
     /// @notice Thrown when composite nesting exceeds the maximum depth.
     error NestingTooDeep(uint256 offset);
@@ -277,7 +272,7 @@ library Descriptor {
         require(elementDescEnd + DF.ARRAY_LENGTH_SIZE <= self.length, UnexpectedEnd());
 
         uint16 fixedLength = Be16.readUnchecked(self, elementDescEnd);
-        require(fixedLength != 0, InvalidArrayLength());
+        require(fixedLength != 0, InvalidArrayLength(arrayOffset, fixedLength));
         return fixedLength;
     }
 
@@ -310,9 +305,11 @@ library Descriptor {
         uint256 faultValue1;
         uint256 faultValue2;
         (fault, faultValue1, faultValue2, typeInfo, quantifiedStaticLength) = tryWalkPath(self, path);
-        if (fault == PathFault.ArgIndexOutOfBounds) revert ArgIndexOutOfBounds(faultValue1, faultValue2);
+        if (fault == PathFault.ParamIndexOutOfBounds) revert ParamIndexOutOfBounds(faultValue1, faultValue2);
         if (fault == PathFault.TupleFieldOutOfBounds) revert TupleFieldOutOfBounds(faultValue1, faultValue2);
-        if (fault == PathFault.ArrayIndexOutOfBounds) revert ArrayIndexOutOfBounds(faultValue1, faultValue2);
+        if (fault == PathFault.StaticArrayIndexOutOfBounds) {
+            revert StaticArrayIndexOutOfBounds(faultValue1, faultValue2);
+        }
         // forge-lint: disable-next-line(unsafe-typecast)
         if (fault == PathFault.NotComposite) revert NotComposite(uint8(faultValue1));
     }
@@ -346,7 +343,7 @@ library Descriptor {
         require(formatVersion == DF.VERSION, UnsupportedVersion(formatVersion));
         uint256 argIndex = Path.atUnchecked(path, 0);
         uint256 argCount = paramCount(self);
-        if (argIndex >= argCount) return (PathFault.ArgIndexOutOfBounds, argIndex, argCount, typeInfo, 0);
+        if (argIndex >= argCount) return (PathFault.ParamIndexOutOfBounds, argIndex, argCount, typeInfo, 0);
         uint256 descOffset = atUnchecked(self, argIndex);
 
         // Descend through subsequent path steps.
@@ -368,8 +365,11 @@ library Descriptor {
                 if (childIndex < Path.ANY) {
                     uint256 arrayLength = staticArrayLength(self, descOffset);
                     if (childIndex >= arrayLength) {
-                        return
-                            (PathFault.ArrayIndexOutOfBounds, childIndex, arrayLength, typeInfo, quantifiedStaticLength);
+                        // forgefmt: disable-next-item
+                        return (
+                            PathFault.StaticArrayIndexOutOfBounds, childIndex, arrayLength, typeInfo,
+                            quantifiedStaticLength
+                        );
                     }
                 } else {
                     quantifiedStaticLength = staticArrayLength(self, descOffset);
@@ -400,8 +400,7 @@ library Descriptor {
 
         if (code == TypeCode.TUPLE) {
             uint16 fields = tupleFieldCount(self, offset);
-            require(fields > 0, InvalidTupleFieldCount());
-            require(fields <= DF.MAX_TUPLE_FIELDS, TupleFieldCountTooLarge(offset, fields));
+            require(fields > 0 && fields <= DF.MAX_TUPLE_FIELDS, InvalidTupleFieldCount(offset, fields));
             uint256 child = offset + DF.TUPLE_HEADER_SIZE;
             for (uint256 i; i < fields; ++i) {
                 child = _validateNode(self, child, depth + 1);
@@ -412,8 +411,7 @@ library Descriptor {
             // Read and validate the length suffix after the element descriptor.
             require(elemEnd + DF.ARRAY_LENGTH_SIZE <= self.length, UnexpectedEnd());
             uint16 length = Be16.readUnchecked(self, elemEnd);
-            require(length > 0, InvalidArrayLength());
-            require(length <= DF.MAX_STATIC_ARRAY_LENGTH, ArrayLengthTooLarge(offset, length));
+            require(length > 0 && length <= DF.MAX_STATIC_ARRAY_LENGTH, InvalidArrayLength(offset, length));
         } else if (code == TypeCode.DYNAMIC_ARRAY) {
             // Validate element type recursively.
             _validateNode(self, offset + DF.ARRAY_HEADER_SIZE, depth + 1);

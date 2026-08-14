@@ -15,17 +15,14 @@ library TypeDesc {
     /// @notice Thrown when a provided type descriptor is empty.
     error EmptyType();
 
-    /// @notice Thrown when a provided length is invalid.
-    error InvalidLength();
+    /// @notice Thrown when a tuple field count falls outside the range the format allows.
+    error InvalidTupleFieldCount(uint256 count, uint256 max);
 
-    /// @notice Thrown when tuple field count exceeds the maximum.
-    error TupleFieldCountTooLarge(uint256 count, uint256 max);
+    /// @notice Thrown when a static array length falls outside the range the format allows.
+    error InvalidArrayLength(uint256 length, uint256 max);
 
-    /// @notice Thrown when static array length exceeds the maximum.
-    error ArrayLengthTooLarge(uint256 length, uint256 max);
-
-    /// @notice Thrown when static array product (length * elemStaticWords) exceeds the maximum.
-    error ArrayProductTooLarge(uint256 product, uint256 max);
+    /// @notice Thrown when a node's static word count exceeds the maximum.
+    error StaticWordsTooLarge(uint256 staticWords, uint256 max);
 
     /// @notice Thrown when descriptor node length exceeds the maximum.
     error NodeLengthTooLarge(uint256 nodeLength, uint256 max);
@@ -153,9 +150,12 @@ library TypeDesc {
     /// @param length The fixed array length.
     /// @return desc The type descriptor bytes for T[length].
     function array_(bytes memory elemDesc, uint16 length) internal pure returns (bytes memory desc) {
-        require(length != 0, InvalidLength());
+        // forgefmt: disable-next-item
+        require(
+            length != 0 && length <= DF.MAX_STATIC_ARRAY_LENGTH,
+            InvalidArrayLength(length, DF.MAX_STATIC_ARRAY_LENGTH)
+        );
         require(elemDesc.length != 0, EmptyType());
-        require(length <= DF.MAX_STATIC_ARRAY_LENGTH, ArrayLengthTooLarge(length, DF.MAX_STATIC_ARRAY_LENGTH));
 
         uint256 elemLength = elemDesc.length;
         uint256 nodeLength = DF.ARRAY_HEADER_SIZE + elemLength + DF.ARRAY_LENGTH_SIZE;
@@ -170,7 +170,7 @@ library TypeDesc {
             staticWords = 0;
         } else {
             uint256 product = uint256(length) * uint256(elemStaticWords);
-            require(product <= DF.MAX_STATIC_WORDS, ArrayProductTooLarge(product, DF.MAX_STATIC_WORDS));
+            require(product <= DF.MAX_STATIC_WORDS, StaticWordsTooLarge(product, DF.MAX_STATIC_WORDS));
             // forge-lint: disable-next-line(unsafe-typecast)
             staticWords = uint16(product);
         }
@@ -203,8 +203,11 @@ library TypeDesc {
     /// @return desc The type descriptor bytes for tuple.
     function tuple_(bytes[] memory fields) internal pure returns (bytes memory desc) {
         uint256 fieldCount = fields.length;
-        require(fieldCount != 0, InvalidLength());
-        require(fieldCount <= DF.MAX_TUPLE_FIELDS, TupleFieldCountTooLarge(fieldCount, DF.MAX_TUPLE_FIELDS));
+        // forgefmt: disable-next-item
+        require(
+            fieldCount != 0 && fieldCount <= DF.MAX_TUPLE_FIELDS,
+            InvalidTupleFieldCount(fieldCount, DF.MAX_TUPLE_FIELDS)
+        );
 
         // Calculate total size and staticWords.
         uint256 totalFieldsLength;
@@ -229,7 +232,7 @@ library TypeDesc {
         if (anyDynamic) {
             staticWords = 0;
         } else {
-            require(sumStaticWords <= DF.MAX_STATIC_WORDS, ArrayProductTooLarge(sumStaticWords, DF.MAX_STATIC_WORDS));
+            require(sumStaticWords <= DF.MAX_STATIC_WORDS, StaticWordsTooLarge(sumStaticWords, DF.MAX_STATIC_WORDS));
             // forge-lint: disable-next-line(unsafe-typecast)
             staticWords = uint16(sumStaticWords);
         }

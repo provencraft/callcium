@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import { DescriptorBuilderTest } from "../DescriptorBuilder.t.sol";
 import { DescriptorBuilder } from "src/DescriptorBuilder.sol";
+import { DescriptorFormat as DF } from "src/DescriptorFormat.sol";
 import { TypeDesc } from "src/TypeDesc.sol";
 
 contract FromTypesTest is DescriptorBuilderTest {
@@ -231,7 +232,7 @@ contract FromTypesTest is DescriptorBuilderTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_RevertWhen_EmptyTuple() public {
-        vm.expectRevert(TypeDesc.InvalidLength.selector);
+        vm.expectRevert(abi.encodeWithSelector(TypeDesc.InvalidTupleFieldCount.selector, 0, DF.MAX_TUPLE_FIELDS));
         DescriptorBuilder.fromTypes("()");
     }
 

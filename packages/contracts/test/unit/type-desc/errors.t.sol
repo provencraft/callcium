@@ -12,7 +12,7 @@ contract TypeDescErrorsTest is DescriptorTest {
         bytes memory inner = TypeDesc.array_(TypeDesc.address_(), uint16(DF.MAX_STATIC_ARRAY_LENGTH));
         // Outer: length 2 causes 2 * DF.MAX_STATIC_ARRAY_LENGTH > DF.MAX_STATIC_WORDS.
         uint256 product = DF.MAX_STATIC_ARRAY_LENGTH * 2;
-        vm.expectRevert(abi.encodeWithSelector(TypeDesc.ArrayProductTooLarge.selector, product, DF.MAX_STATIC_WORDS));
+        vm.expectRevert(abi.encodeWithSelector(TypeDesc.StaticWordsTooLarge.selector, product, DF.MAX_STATIC_WORDS));
         TypeDesc.array_(inner, 2);
     }
 

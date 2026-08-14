@@ -304,7 +304,10 @@
     "blob": "0x0201900000060000",
     "description": "MUST reject: tuple with fieldCount=0 (must have at least one field)",
     "error": "InvalidTupleFieldCount",
-    "errorArgs": [],
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ],
     "id": "tuple-zero-fields",
     "params": [],
     "version": 0
@@ -313,7 +316,10 @@
     "blob": "0x020180000007410000",
     "description": "MUST reject: static array with length=0 (must be at least 1)",
     "error": "InvalidArrayLength",
-    "errorArgs": [],
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ],
     "id": "static-array-zero-length",
     "params": [],
     "version": 0
@@ -330,7 +336,7 @@
   {
     "blob": "0x020180000007411000",
     "description": "MUST reject: static array length=4096 exceeds the maximum of 4095",
-    "error": "ArrayLengthTooLarge",
+    "error": "InvalidArrayLength",
     "errorArgs": [
       "0x0000000000000000000000000000000000000000000000000000000000000002",
       "0x0000000000000000000000000000000000000000000000000000000000001000"
@@ -342,7 +348,7 @@
   {
     "blob": "0x0201900000080ffa0101",
     "description": "MUST reject: tuple fieldCount=4090 exceeds the maximum of 4089",
-    "error": "TupleFieldCountTooLarge",
+    "error": "InvalidTupleFieldCount",
     "errorArgs": [
       "0x0000000000000000000000000000000000000000000000000000000000000002",
       "0x0000000000000000000000000000000000000000000000000000000000000ffa"
