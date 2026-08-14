@@ -112,7 +112,7 @@ function validateHops(data: Uint8Array, start: number, end: number, ruleOffset: 
 function validateHint(data: Uint8Array, hintStart: number, hintSize: number, ruleOffset: number): void {
   const header = data[hintStart]!;
   const kind = header >> PF.HINT_KIND_SHIFT;
-  if (kind > PF.HINT_KIND_ANY) malformedHint("Header kind is a reserved value", ruleOffset);
+  if (kind > PF.HINT_KIND_MAX) malformedHint("Header kind is a reserved value", ruleOffset);
 
   const hopsStart = hintStart + PF.HINT_HEADER_SIZE;
   const hopsEnd = hopsStart + (header & PF.HINT_HOP_COUNT_MASK) * PF.HINT_HOP_SIZE;
