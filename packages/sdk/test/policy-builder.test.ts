@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { Quantifier, Scope } from "../src/constants";
 import { arg, msgSender } from "../src/constraint";
-import { CallciumError } from "../src/errors";
+import { CallciumError, ValidationError } from "../src/errors";
 import { PolicyBuilder } from "../src/policy-builder";
 import { PolicyCoder } from "../src/policy-coder";
 import { expectErrorCode } from "./helpers";
@@ -146,6 +146,23 @@ describe("PolicyBuilder", () => {
     expect(() => {
       PolicyBuilder.create("foo(string)").add(arg(0).eq(42n)).build();
     }).toThrow(CallciumError);
+  });
+
+  test("build() carries every issue the validator reported", () => {
+    // Two independent defects: a vacuous bound on arg 0 and a value operator on a dynamic type.
+    let caught: unknown;
+    try {
+      PolicyBuilder.create("foo(uint256,string)").add(arg(0).gte(0n)).add(arg(1).eq(42n)).build();
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(ValidationError);
+    if (caught instanceof ValidationError) {
+      expect(caught.code).toBe("VALIDATION_ERROR");
+      expect(caught.issues.length).toBeGreaterThan(1);
+      expect(caught.message).toBe(caught.issues[0].message);
+      expect(caught.issues.map((issue) => issue.code)).toContain("VALUE_OP_ON_DYNAMIC");
+    }
   });
 
   test("build() throws on warning-severity issues (strict gate)", () => {

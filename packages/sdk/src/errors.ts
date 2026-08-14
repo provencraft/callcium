@@ -93,9 +93,26 @@ export class CallciumError extends Error {
 }
 
 /**
+ * Thrown by `PolicyBuilder.build` when validation reports any issue.
+ *
+ * Carries every issue the validator found. The `Error.message` is the first issue's
+ * message — a diagnostic summary, not a presentation contract. Consumers rendering
+ * issues to users should iterate `issues` directly.
+ */
+export class ValidationError extends CallciumError {
+  public readonly issues: import("./types").Issue[];
+
+  constructor(issues: import("./types").Issue[]) {
+    super("VALIDATION_ERROR", issues[0]?.message ?? "Policy validation failed");
+    this.name = "ValidationError";
+    this.issues = issues;
+    Object.setPrototypeOf(this, ValidationError.prototype);
+  }
+}
+
+/**
  * Thrown by `PolicyEnforcer.enforce` when calldata fails policy enforcement.
- * Distinct from `CallciumError("VALIDATION_ERROR")`, which signals static
- * issues in the policy itself.
+ * Distinct from `ValidationError`, which signals static issues in the policy itself.
  *
  * Carries the full list of structured violations (one per failed group). The
  * `Error.message` is a minimal non-lossy diagnostic summary built from the

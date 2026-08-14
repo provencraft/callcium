@@ -152,7 +152,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
     title: "Errors",
     description: "Error classes thrown by the SDK.",
     sections: {
-      primary: ["CallciumError", "PolicyViolationError"],
+      primary: ["CallciumError", "ValidationError", "PolicyViolationError"],
       helpers: [],
       types: ["CallciumErrorCode"],
     },

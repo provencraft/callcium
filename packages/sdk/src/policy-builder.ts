@@ -3,7 +3,7 @@ import { Scope, TypeCode, isQuantifier, MAX_CONTEXT_PROPERTY_ID } from "./consta
 import { ConstraintBuilder } from "./constraint";
 import { Descriptor } from "./descriptor";
 import { DescriptorCoder } from "./descriptor-coder";
-import { CallciumError } from "./errors";
+import { CallciumError, ValidationError } from "./errors";
 import { PolicyCoder, parsePathSteps } from "./policy-coder";
 import { PolicyValidator } from "./policy-validator";
 import { SignatureParser } from "./signature";
@@ -194,14 +194,15 @@ export class PolicyBuilder {
    * Throws on any issue, regardless of severity. Use {@link validate} to
    * inspect issues, or {@link buildUnsafe} to encode without validation.
    * @returns The policy as a 0x-prefixed hex string.
-   * @throws {CallciumError} If any group is empty or validation finds any issue.
+   * @throws {CallciumError} If any group is empty.
+   * @throws {ValidationError} If validation finds any issue.
    */
   build(): Hex {
     this.checkGroups();
     const policyData = this.toPolicyData();
     const issues = PolicyValidator.validate(policyData);
     if (issues.length > 0) {
-      throw new CallciumError("VALIDATION_ERROR", issues[0]!.message);
+      throw new ValidationError(issues);
     }
     return PolicyCoder.encode(policyData);
   }

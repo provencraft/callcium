@@ -101,5 +101,5 @@ export type {
 // Errors
 ///////////////////////////////////////////////////////////////////////////
 
-export { CallciumError, PolicyViolationError } from "./errors";
+export { CallciumError, PolicyViolationError, ValidationError } from "./errors";
 export type { CallciumErrorCode } from "./errors";
