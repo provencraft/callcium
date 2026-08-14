@@ -276,7 +276,7 @@ contract TypeAtTest is DescriptorTest {
         bytes memory desc = DescriptorBuilder.fromTypes("address");
         bytes memory emptyPath = "";
 
-        vm.expectRevert(Path.MalformedPath.selector);
+        vm.expectRevert(Path.EmptyPath.selector);
         desc.typeAt(emptyPath);
     }
 

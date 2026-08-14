@@ -14,7 +14,7 @@ contract PathValidateTest is PathTest {
 
     function test_RevertWhen_Validate_EmptyPath() public {
         bytes memory p = new bytes(0);
-        vm.expectRevert(Path.MalformedPath.selector);
+        vm.expectRevert(Path.EmptyPath.selector);
         Path.validate(p);
     }
 

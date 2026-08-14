@@ -116,7 +116,8 @@ library Path {
     /// @return The number of steps in the path.
     function validate(bytes memory self) internal pure returns (uint256) {
         uint256 length = self.length;
-        require(length != 0 && length % 2 == 0, MalformedPath());
+        require(length != 0, EmptyPath());
+        require(length % 2 == 0, MalformedPath());
         return length / 2;
     }
 
