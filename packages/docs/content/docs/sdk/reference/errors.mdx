@@ -8,20 +8,29 @@ description: "Error classes thrown by the SDK."
 Thrown when a policy or descriptor blob is structurally malformed.
 The optional `offset` indicates the byte position in the source blob where the error was detected.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L52)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L81)
+
+## ValidationError
+
+Thrown by `PolicyBuilder.build` when validation reports any issue.
+
+Carries every issue the validator found. The `Error.message` is the first issue's
+message — a diagnostic summary, not a presentation contract. Consumers rendering
+issues to users should iterate `issues` directly.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L102)
 
 ## PolicyViolationError
 
 Thrown by `PolicyEnforcer.enforce` when calldata fails policy enforcement.
-Distinct from `CallciumError("VALIDATION_ERROR")`, which signals static
-issues in the policy itself.
+Distinct from `ValidationError`, which signals static issues in the policy itself.
 
 Carries the full list of structured violations (one per failed group). The
 `Error.message` is a minimal non-lossy diagnostic summary built from the
 first violation's structured fields — not a presentation contract. Consumers
 rendering violations to users should iterate `violations` directly.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L76)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L122)
 
 ## Types
 
@@ -29,5 +38,8 @@ rendering violations to users should iterate `violations` directly.
 
 Machine-readable error code for structural decoding and validation failures.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L2)
+Each code names one invariant and matches the Solidity error raised for the same
+invariant, transliterated from `PascalCase` to `SCREAMING_SNAKE_CASE`.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L7)
 <auto-type-table path="../../../../../sdk/src/errors.ts" name="CallciumErrorCode" />

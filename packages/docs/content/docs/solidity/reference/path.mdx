@@ -224,7 +224,7 @@ function validate(bytes memory self) internal pure returns (uint256);
 
 Returns the step at a given step index in the path.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L127)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L128)
 
 ```solidity
 function at(bytes memory self, uint256 stepIndex) internal pure returns (uint16);
@@ -247,7 +247,7 @@ function at(bytes memory self, uint256 stepIndex) internal pure returns (uint16)
 
 Returns the step at a given step index without bounds checks. Caller must ensure `stepIndex < depth`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L137)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L138)
 
 ```solidity
 function atUnchecked(bytes memory self, uint256 stepIndex) internal pure returns (uint16);
