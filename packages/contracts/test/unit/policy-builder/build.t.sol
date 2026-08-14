@@ -1,14 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import { LibBytes } from "solady/utils/LibBytes.sol";
 import { Constraint, arg } from "src/Constraint.sol";
+import { IssueCode } from "src/IssueCode.sol";
 import { Policy } from "src/Policy.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
 import { PolicyCoder, PolicyData } from "src/PolicyCoder.sol";
+import { PolicyValidator } from "src/PolicyValidator.sol";
+import { Issue } from "src/ValidationIssue.sol";
 
+import { PolicyBuilderHarness } from "test/harnesses/PolicyBuilderHarness.sol";
 import { PolicyBuilderTest } from "test/unit/PolicyBuilder.t.sol";
 
 contract PolicyBuilderBuildTest is PolicyBuilderTest {
+    PolicyBuilderHarness internal harness = new PolicyBuilderHarness();
+
     /*/////////////////////////////////////////////////////////////////////////
                                  BUILD OUTPUT
     /////////////////////////////////////////////////////////////////////////*/
@@ -55,6 +62,32 @@ contract PolicyBuilderBuildTest is PolicyBuilderTest {
 
         uint256 groupCount = Policy.groupCount(policy);
         assertEq(groupCount, 2);
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                               STRICT VALIDATION
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_RevertWhen_ValidationFails_CarriesEveryIssue() public {
+        // Two independent defects: a vacuous bound on arg 0 and a value operator on a dynamic type.
+        // forgefmt: disable-next-item
+        PolicyDraft memory draft = PolicyBuilder.create("foo(uint256,string)")
+            .add(arg(0).gte(uint256(0)))
+            .add(arg(1).eq(uint256(42)));
+
+        try harness.build(draft) {
+            fail();
+        } catch (bytes memory reason) {
+            assertEq(bytes4(reason), PolicyValidator.ValidationError.selector);
+            Issue[] memory issues = abi.decode(LibBytes.slice(reason, 4, reason.length), (Issue[]));
+            assertGt(issues.length, 1);
+
+            bool foundTypeMismatch;
+            for (uint256 i; i < issues.length; ++i) {
+                if (issues[i].code == IssueCode.VALUE_OP_ON_DYNAMIC) foundTypeMismatch = true;
+            }
+            assertTrue(foundTypeMismatch);
+        }
     }
 
     /*/////////////////////////////////////////////////////////////////////////

@@ -6,6 +6,11 @@ import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
 
 /// @notice Harness contract exposing full PolicyBuilder pipelines for benchmarking.
 contract PolicyBuilderHarness {
+    /// @notice Builds the given draft across an external boundary so callers can catch the revert.
+    function build(PolicyDraft memory draft) external pure returns (bytes memory) {
+        return draft.build();
+    }
+
     /*/////////////////////////////////////////////////////////////////////////
                                  SHARED SCENARIO
     /////////////////////////////////////////////////////////////////////////*/
