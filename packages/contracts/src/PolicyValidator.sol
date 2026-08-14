@@ -264,7 +264,6 @@ library PolicyValidator {
             bytes memory op = operators[i];
             uint8 opCode = uint8(op[0]);
             uint8 base = opCode & ~OpCode.NOT;
-            bool isNegated = (opCode & OpCode.NOT) != 0;
 
             // An unassigned opcode or mismatched payload size has no defined semantics to analyze.
             uint256 dataLength = op.length - 1;
@@ -281,6 +280,8 @@ library PolicyValidator {
                 );
                 continue;
             }
+
+            bool isNegated = (opCode & OpCode.NOT) != 0;
 
             // A negated operator under any() is satisfied by a single decoy element.
             if (underAny && isNegated) {
@@ -466,10 +467,6 @@ library PolicyValidator {
         private
         pure
     {
-        bool changedEq = false;
-        bool changedLower = false;
-        bool changedUpper = false;
-
         // Negation handling.
         // Negated comparisons are converted to their positive equivalents: !gt(v) -> lte(v), etc.
         // Negated equality (neq) is handled separately as a hole.
@@ -512,6 +509,10 @@ library PolicyValidator {
         } else if (base == OpCode.LT && value == domain.min) {
             issues.push(ValidationIssue.impossibleLt(isLength, groupIndex, constraintIndex, value));
         }
+
+        bool changedEq;
+        bool changedLower;
+        bool changedUpper;
 
         // Equality handling.
         if (base == OpCode.EQ) {

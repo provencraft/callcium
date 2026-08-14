@@ -84,12 +84,12 @@ function parse(signature: string): ParsedSignature {
     }
   }
 
-  const types = signature.slice(openParen + 1, signature.length - 1);
   const encoded = new Uint8Array(signature.length);
   for (let i = 0; i < signature.length; i++) encoded[i] = signature.charCodeAt(i);
   const hash = keccak_256(encoded);
-  const selector = bytesToHex(hash.subarray(0, 4));
 
+  const selector = bytesToHex(hash.subarray(0, 4));
+  const types = signature.slice(openParen + 1, signature.length - 1);
   return { selector, types };
 }
 

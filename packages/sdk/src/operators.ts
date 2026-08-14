@@ -132,7 +132,6 @@ export function applyOperator(
   operandData: Uint8Array,
   typeCode: number,
 ): boolean {
-  const negate = (opCode & Op.NOT) !== 0;
   let base = opCode & ~Op.NOT;
 
   // Length operators reuse the value-comparison core: the runtime count becomes the compared
@@ -200,5 +199,6 @@ export function applyOperator(
       throw new CallciumError("UNKNOWN_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}.`);
   }
 
+  const negate = (opCode & Op.NOT) !== 0;
   return negate ? !result : result;
 }

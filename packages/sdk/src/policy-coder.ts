@@ -95,9 +95,9 @@ function malformedHint(detail: string, ruleOffset: number): never {
 function validateHops(data: Uint8Array, start: number, end: number, ruleOffset: number): void {
   for (let offset = start; offset < end; offset += PF.HINT_HOP_SIZE) {
     const index = readU16(data, offset + PF.HINT_HOP_INDEX_OFFSET);
-    const meta = readU16(data, offset + PF.HINT_HOP_META_OFFSET);
     if (index === PF.HINT_INDEX_RESERVED) malformedHint("Hop index is a reserved value", ruleOffset);
 
+    const meta = readU16(data, offset + PF.HINT_HOP_META_OFFSET);
     // A plain hop carries no element meta; an element hop addresses no offset of its own.
     if (index === PF.HINT_NO_INDEX) {
       if (meta !== 0) malformedHint("Plain hop carries a meta word", ruleOffset);
@@ -166,12 +166,11 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
     throw new CallciumError("MALFORMED_HEADER", "Reserved header bits must be zero");
   }
 
-  const isSelectorless = (headerByte & PF.FLAG_NO_SELECTOR) !== 0;
-
   const selectorStart = PF.SELECTOR_OFFSET;
   const selectorEnd = selectorStart + PF.SELECTOR_SIZE;
   const selectorHex = toHex(data, selectorStart, selectorEnd);
 
+  const isSelectorless = (headerByte & PF.FLAG_NO_SELECTOR) !== 0;
   if (isSelectorless && selectorHex !== "0x00000000") {
     throw new CallciumError("MALFORMED_HEADER", "Selectorless policy must have a zeroed selector slot");
   }
@@ -217,13 +216,13 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       throw new CallciumError("UNEXPECTED_END", "Unexpected end while reading group header", offset);
     }
 
-    const ruleCountStart = offset;
-    const ruleCountValue = readU16(data, ruleCountStart);
     const groupSizeStart = offset + PF.GROUP_RULECOUNT_SIZE;
     const groupSizeValue = readU32(data, groupSizeStart);
     const groupBodyStart = offset + PF.GROUP_HEADER_SIZE;
     const groupEnd = groupBodyStart + groupSizeValue;
 
+    const ruleCountStart = offset;
+    const ruleCountValue = readU16(data, ruleCountStart);
     if (ruleCountValue === 0) {
       throw new CallciumError("EMPTY_GROUP", "Group must contain at least one rule", offset);
     }
@@ -264,7 +263,6 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       const depthValue = data[depthOffset]!;
       const pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
       const pathLength = depthValue * PF.PATH_STEP_SIZE;
-      const pathHex = toHex(data, pathStart, pathStart + pathLength);
 
       // Resolve the hint block; context rules carry none.
       const ruleEnd = ruleOffset + ruleSizeValue;
@@ -276,12 +274,8 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       }
 
       const opCodeOffset = hintStart + hintSize;
-      const opCodeValue = data[opCodeOffset]!;
-
       const dataLengthOffset = opCodeOffset + PF.RULE_OPCODE_SIZE;
       const dataLengthValue = readU16(data, dataLengthOffset);
-
-      const dataStart = dataLengthOffset + PF.RULE_DATALENGTH_SIZE;
 
       // Validate ruleSize matches the computed layout.
       const expectedRuleSize = PF.RULE_FIXED_OVERHEAD + pathLength + hintSize + dataLengthValue;
@@ -294,6 +288,7 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       }
 
       // Validate operator and data length.
+      const opCodeValue = data[opCodeOffset]!;
       const opBase = opCodeValue & ~Op.NOT;
       if (opBase === 0 || !isValidOperatorData(opBase, dataLengthValue)) {
         throw new CallciumError("UNKNOWN_OPERATOR", "Unrecognized or malformed operator", ruleOffset);
@@ -311,6 +306,8 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
           );
         }
       }
+
+      const dataStart = dataLengthOffset + PF.RULE_DATALENGTH_SIZE;
 
       // IN operands must be strictly ascending (unsigned): the enforcer's binary search relies on it.
       if (opBase === Op.IN) {
@@ -355,6 +352,7 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
         }
       }
 
+      const pathHex = toHex(data, pathStart, pathStart + pathLength);
       rules.push({
         ruleSize: field(ruleSizeValue, ruleOffset, ruleOffset + PF.RULE_SIZE_SIZE),
         scope: field(scopeValue, scopeOffset, scopeOffset + 1),
@@ -477,7 +475,6 @@ function encodeRule(rule: Rule): Uint8Array {
   if (rule.scope === Scope.CONTEXT && depth !== 1) {
     throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope rules must have exactly one path step.");
   }
-  const opCode = rule.operator[0]!;
   const data = rule.operator.subarray(1);
   const ruleSize = PF.RULE_FIXED_OVERHEAD + rule.path.length + rule.hint.length + data.length;
   if (ruleSize > 0xffff) {
@@ -491,7 +488,7 @@ function encodeRule(rule: Rule): Uint8Array {
   buf.set(rule.path, 4);
   buf.set(rule.hint, 4 + rule.path.length);
   const opOffset = 4 + rule.path.length + rule.hint.length;
-  buf[opOffset] = opCode;
+  buf[opOffset] = rule.operator[0]!;
   writeBE16(buf, opOffset + 1, data.length);
   buf.set(data, opOffset + 3);
 

@@ -427,7 +427,6 @@ export function decodeDescriptor(data: Uint8Array): { descriptor: DecodedDescrip
     throw new CallciumError("MALFORMED_HEADER", "Descriptor too short for header");
   }
 
-  const declaredCount = data[1]!;
   const params: DecodedParam[] = [];
   let cursor: number = DF.HEADER_SIZE;
 
@@ -450,6 +449,7 @@ export function decodeDescriptor(data: Uint8Array): { descriptor: DecodedDescrip
     cursor = next;
   }
 
+  const declaredCount = data[1]!;
   if (params.length !== declaredCount) {
     throw new CallciumError(
       "PARAM_COUNT_MISMATCH",

@@ -300,11 +300,11 @@ library Policy {
     function ruleAt(bytes memory self, uint256 groupOffset, uint256 index) internal pure returns (uint256 ruleOffset) {
         uint32 rulesRegionSize = groupSize(self, groupOffset);
         uint256 start = groupOffset + PF.GROUP_HEADER_SIZE;
-        uint256 end = start + rulesRegionSize;
         uint256 count = ruleCount(self, groupOffset);
         require(index < count, RuleIndexOutOfBounds(groupOffset, index, count));
 
         ruleOffset = start;
+        uint256 end = start + rulesRegionSize;
         for (uint256 i; i < index; ++i) {
             uint16 ruleTotalSize = ruleSize(self, ruleOffset);
             ruleOffset += ruleTotalSize;
@@ -703,9 +703,9 @@ library Policy {
     function _validateHops(bytes memory self, uint256 ruleOffset, uint256 start, uint256 end) private pure {
         for (uint256 offset = start; offset < end; offset += PF.HINT_HOP_SIZE) {
             uint16 index = Be16.readUnchecked(self, offset + PF.HINT_HOP_INDEX_OFFSET);
-            uint16 meta = Be16.readUnchecked(self, offset + PF.HINT_HOP_META_OFFSET);
             require(index != PF.HINT_INDEX_RESERVED, MalformedHint(ruleOffset));
 
+            uint16 meta = Be16.readUnchecked(self, offset + PF.HINT_HOP_META_OFFSET);
             // A plain hop carries no element meta; an element hop addresses no offset of its own.
             if (index == PF.HINT_NO_INDEX) {
                 require(meta == 0, MalformedHint(ruleOffset));

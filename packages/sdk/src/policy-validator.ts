@@ -324,10 +324,6 @@ function updateBound(
   constraintIndex: number,
   issues: Issue[],
 ): void {
-  let changedEq = false;
-  let changedLower = false;
-  let changedUpper = false;
-
   // Negation handling.
   if (isNegated) {
     if (base === Op.EQ) {
@@ -368,6 +364,10 @@ function updateBound(
   } else if (base === Op.LT && value === domain.min) {
     issues.push(ValidationIssue.impossibleLt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   }
+
+  let changedEq = false;
+  let changedLower = false;
+  let changedUpper = false;
 
   // Equality handling.
   if (base === Op.EQ) {
@@ -854,7 +854,6 @@ function validateConstraint(
   for (const opHex of operators) {
     const opCode = parseInt(opHex.slice(2, 4), 16);
     const base = opCode & ~Op.NOT;
-    const isNegated = (opCode & Op.NOT) !== 0;
 
     // An unassigned opcode or mismatched payload size has no defined semantics to analyze.
     const dataLength = (opHex.length - 4) / 2;
@@ -870,6 +869,8 @@ function validateConstraint(
       );
       continue;
     }
+
+    const isNegated = (opCode & Op.NOT) !== 0;
 
     // A negated operator under any() is satisfied by a single decoy element.
     if (underAny && isNegated) {
@@ -1093,10 +1094,10 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
  * defined only over a well-formed descriptor.
  */
 function validate(data: PolicyData): Issue[] {
-  const issues: Issue[] = [];
   const descBytes = hexToBytes(data.descriptor);
   decodeDescriptor(descBytes);
 
+  const issues: Issue[] = [];
   for (let groupIndex = 0; groupIndex < data.groups.length; groupIndex++) {
     if (data.groups[groupIndex]!.length === 0) {
       issues.push(ValidationIssue.emptyGroup(groupIndex));

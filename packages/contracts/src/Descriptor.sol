@@ -109,8 +109,6 @@ library Descriptor {
         uint8 formatVersion = version(self);
         require(formatVersion == DF.VERSION, UnsupportedVersion(formatVersion));
 
-        uint8 declaredCount = paramCount(self);
-
         uint256 cursor = DF.HEADER_SIZE;
         uint256 parsedCount;
         uint256 descLength = self.length;
@@ -122,6 +120,7 @@ library Descriptor {
             require(parsedCount <= DF.MAX_PARAMS, TooManyParams());
         }
 
+        uint8 declaredCount = paramCount(self);
         require(parsedCount == declaredCount, ParamCountMismatch(declaredCount, parsedCount));
     }
 

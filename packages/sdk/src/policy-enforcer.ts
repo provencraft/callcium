@@ -150,10 +150,10 @@ function evaluateRule(
   ruleIndex: number,
   context?: Context,
 ): Violation | null {
-  const scope = rule.scope.value;
   const opCode = rule.opCode.value;
   const operandData = fieldBytes(policyBytes, rule.data);
 
+  const scope = rule.scope.value;
   if (scope === Scope.CONTEXT) {
     const pathBytes = fieldBytes(policyBytes, rule.path);
     return evaluateContextRule(pathBytes, opCode, operandData, groupIndex, ruleIndex, rule.path.value, context);
@@ -213,7 +213,6 @@ function chainResolve(
   for (let i = 0; i < hopCount; i++) {
     const hop = hopsOffset + i * PF.HINT_HOP_SIZE;
     const index = readU16(hint, hop + PF.HINT_HOP_INDEX_OFFSET);
-    const meta = readU16(hint, hop + PF.HINT_HOP_META_OFFSET);
 
     if (index === PF.HINT_NO_INDEX) {
       const next = follow(callData, base, base + readU32(hint, hop));
@@ -222,6 +221,7 @@ function chainResolve(
       continue;
     }
 
+    const meta = readU16(hint, hop + PF.HINT_HOP_META_OFFSET);
     let elems = base;
     if ((meta & PF.HINT_META_DYNAMIC_ARRAY) !== 0) {
       const length = readPointer(callData, elems);
@@ -431,10 +431,6 @@ function evaluateQuantified(
   pathHex: Hex,
 ): Violation | null {
   const frameOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
-  const arrayDelta = readU32(hint, frameOffset);
-  let count = readU16(hint, frameOffset + PF.HINT_FRAME_COUNT_OFFSET);
-  const meta = readU16(hint, frameOffset + PF.HINT_FRAME_META_OFFSET);
-
   const suffixHeaderOffset = frameOffset + PF.HINT_FRAME_PREFIX_SIZE;
   const suffixHopCount = hint[suffixHeaderOffset]! & PF.HINT_HOP_COUNT_MASK;
   const suffixHopsOffset = suffixHeaderOffset + PF.HINT_HEADER_SIZE;
@@ -451,9 +447,12 @@ function evaluateQuantified(
 
   const chained = chainResolve(hint, callDataBytes, baseOffset, hopsOffset, hopCount);
   if (typeof chained !== "number") return navigationViolation(frame, chained.code);
+
+  const arrayDelta = readU32(hint, frameOffset);
   let elems = chained + arrayDelta;
 
   // A frame declaring no count spans a dynamic array, whose length word precedes its elements.
+  let count = readU16(hint, frameOffset + PF.HINT_FRAME_COUNT_OFFSET);
   if (count === 0) {
     const length = readPointer(callDataBytes, elems);
     if (typeof length !== "number") return navigationViolation(frame, length.code);
@@ -484,6 +483,7 @@ function evaluateQuantified(
     };
   }
 
+  const meta = readU16(hint, frameOffset + PF.HINT_FRAME_META_OFFSET);
   const elemStride = (meta & PF.HINT_META_STRIDE_MASK) * 32;
   const elemIsDynamic = (meta & PF.HINT_META_ELEM_DYNAMIC) !== 0;
 
