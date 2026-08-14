@@ -56,14 +56,15 @@ export type ConstraintConfig = {
   /** Stable identity for React keying. Assigned by the engine on creation. */
   id: string;
   scope: "calldata" | "context";
-  /** Path steps for calldata scope (arg index + field/array indices). */
+  /**
+   * Path steps for calldata scope: arg index, then field/array indices. A quantifier
+   * sentinel is its own step, immediately after the array it quantifies.
+   */
   path?: number[];
   /** Context property name for context scope. */
   contextProperty?: keyof typeof CONTEXT_FACTORIES;
   /** Operator rules. At least one required. */
   rules: OperatorRule[];
-  /** Quantifier for array paths (optional). */
-  quantifier?: number;
 };
 
 /** A named constraint group (OR-branch). */
@@ -326,12 +327,7 @@ function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
     const factory = CONTEXT_FACTORIES[config.contextProperty];
     builder = factory();
   } else {
-    const steps = [...config.path!];
-    if (config.quantifier !== undefined) {
-      // Quantifier goes after the base arg index (position 1), before post-array field steps.
-      // SDK expects: arg(argIndex, Quantifier, fieldIndex, ...).
-      steps.splice(1, 0, config.quantifier);
-    }
+    const steps = config.path!;
     // arg() has fixed overloads (1-4 params), dispatch by length.
     switch (steps.length) {
       case 1:

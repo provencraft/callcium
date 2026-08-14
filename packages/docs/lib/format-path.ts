@@ -48,22 +48,16 @@ export function formatOpLabel(opCode: number, negated: boolean): string {
 /**
  * Format a calldata constraint path in dot-bracket notation.
  *
- * Handles two calling patterns:
- * 1. Builder: `path` has explicit steps, `quantifier` is separate.
- * 2. Inspector: `path` has all steps including quantifier inline (detected via `isQuantifier`).
- *
- * Uses `ParamNode` tree for named resolution when available.
+ * `path` carries every step, quantifier sentinels included (detected via
+ * `isQuantifier`). Uses `ParamNode` tree for named resolution when available.
  *
  * Examples:
  *   - `transfers[all].amount` (named)
  *   - `arg(0)[all].field(1)` (unnamed)
  *   - `arg(1)` (scalar)
  */
-export function formatCalldataPath(path: number[], quantifier: number | undefined, params?: ParamNode[]): string {
-  if (path.length === 0) return "arg(?)";
-
-  // Encoding places a separate quantifier right after the base arg index; mirror it.
-  const steps = quantifier === undefined ? path : [path[0], quantifier, ...path.slice(1)];
+export function formatCalldataPath(steps: number[], params?: ParamNode[]): string {
+  if (steps.length === 0) return "arg(?)";
 
   const argIndex = steps[0];
   let node: ParamNode | undefined = params?.[argIndex];
@@ -136,12 +130,11 @@ export function formatContextPath(contextProperty: string | number): string {
 export function formatPath(options: {
   scope: "calldata" | "context";
   path?: number[];
-  quantifier?: number;
   contextProperty?: string | number;
   params?: ParamNode[];
 }): string {
   if (options.scope === "context") {
     return formatContextPath(options.contextProperty ?? "context");
   }
-  return formatCalldataPath(options.path ?? [], options.quantifier, options.params);
+  return formatCalldataPath(options.path ?? [], options.params);
 }

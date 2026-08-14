@@ -23,7 +23,7 @@ function formatPath(path: Hex, scope: number, params?: ParamNode[]): string {
     return formatContextPath(propertyId);
   }
   if (scope === Scope.CALLDATA) {
-    return formatCalldataPath(parsePathSteps(path), undefined, params);
+    return formatCalldataPath(parsePathSteps(path), params);
   }
   return path;
 }

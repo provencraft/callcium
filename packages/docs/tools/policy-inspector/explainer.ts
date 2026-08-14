@@ -190,7 +190,7 @@ function explainConstraint(rules: DecodedRule[], descBytes: Uint8Array, paramNod
   if (isContext) {
     ({ pathLabel, targetType, leafTypeCode } = resolveContextPath(steps));
   } else {
-    pathLabel = formatCalldataPath(steps, undefined, paramNodes);
+    pathLabel = formatCalldataPath(steps, paramNodes);
     const leaf = Descriptor.typeAt(descBytes, steps);
     targetType = lookupTypeCode(leaf.typeCode).label;
     leafTypeCode = leaf.typeCode;

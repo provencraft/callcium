@@ -163,9 +163,19 @@ describe("addConstraint", () => {
     const s1 = createSession("foo((address,uint256)[])");
     const s2 = addConstraint(s1, 0, {
       scope: "calldata",
-      path: [0, 0],
+      path: [0, Quantifier.ALL, 0],
       rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
-      quantifier: Quantifier.ALL,
+    });
+    expect(s2.hex).not.toBeNull();
+    expect(s2.errors).toEqual([]);
+  });
+
+  it("adds a quantified constraint on an array nested inside a tuple", () => {
+    const s1 = createSession("swap((address,address,uint256,address[]))");
+    const s2 = addConstraint(s1, 0, {
+      scope: "calldata",
+      path: [0, 3, Quantifier.ALL],
+      rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
     });
     expect(s2.hex).not.toBeNull();
     expect(s2.errors).toEqual([]);

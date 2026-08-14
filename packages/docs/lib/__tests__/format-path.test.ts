@@ -34,11 +34,10 @@ const ALL = lookupQuantifier(Quantifier.ALL).label;
 ///////////////////////////////////////////////////////////////////////////
 
 describe("formatPath", () => {
-  it("places a separate quantifier at the array level, ahead of the field steps", () => {
+  it("renders an inline quantifier at the array level, ahead of the field steps", () => {
     const label = formatPath({
       scope: "calldata",
-      path: [0, 1],
-      quantifier: Quantifier.ALL,
+      path: [0, Quantifier.ALL, 1],
       params: structArrayParams(),
     });
     expect(label).toBe(`items[${ALL}].amount`);
@@ -48,14 +47,34 @@ describe("formatPath", () => {
     const params = [
       node({ index: 0, type: "uint256[]", name: "amounts", element: node({ index: 0, type: "uint256" }) }),
     ];
-    expect(formatPath({ scope: "calldata", path: [0], quantifier: Quantifier.ALL, params })).toBe(`amounts[${ALL}]`);
+    expect(formatPath({ scope: "calldata", path: [0, Quantifier.ALL], params })).toBe(`amounts[${ALL}]`);
+  });
+
+  it("quantifies an array nested in a struct at the array's own position", () => {
+    const params = [
+      node({
+        index: 0,
+        type: "tuple",
+        name: "params",
+        children: [
+          node({ index: 0, type: "address", name: "token" }),
+          node({
+            index: 1,
+            type: "address[]",
+            name: "recipients",
+            element: node({ index: 0, type: "address" }),
+          }),
+        ],
+      }),
+    ];
+    expect(formatPath({ scope: "calldata", path: [0, 1, Quantifier.ALL], params })).toBe(`params.recipients[${ALL}]`);
   });
 
   it("falls back to positional notation when no param tree is available", () => {
-    expect(formatPath({ scope: "calldata", path: [0, 1], quantifier: Quantifier.ALL })).toBe(`arg(0)[${ALL}].field(1)`);
+    expect(formatPath({ scope: "calldata", path: [0, Quantifier.ALL, 1] })).toBe(`arg(0)[${ALL}].field(1)`);
   });
 
-  it("treats a step as an array index when no quantifier is set", () => {
+  it("treats a step as an array index when it is not a quantifier", () => {
     expect(formatPath({ scope: "calldata", path: [0, 1, 1], params: structArrayParams() })).toBe("items[1].amount");
   });
 });

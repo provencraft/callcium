@@ -485,9 +485,7 @@ function resolveTargetType(config: ConstraintConfig, params: ParamNode[]): strin
   if (!config.path || config.path.length === 0) return null;
   const root = params[config.path[0]];
   if (!root) return null;
-  // A quantifier consumes the array level, so the remaining steps address the element.
-  const base = config.quantifier === undefined ? root : root.element;
-  return base ? (walkParamPath(base, config.path.slice(1))?.type ?? null) : null;
+  return walkParamPath(root, config.path.slice(1))?.type ?? null;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -508,7 +506,6 @@ function ConstraintRow({
   const label = formatPath({
     scope: config.scope,
     path: config.path,
-    quantifier: config.quantifier,
     contextProperty: config.contextProperty,
     params,
   });
@@ -763,15 +760,19 @@ function AddConstraintForm({
     arrayMode === "quantified" ||
     (validIndex && (staticArrayLength === null || Number(arrayIndex) < staticArrayLength));
 
-  const constraintPath = useMemo(() => {
+  // Steps down to and including the array access. The quantifier or index step sits
+  // immediately after the array node it addresses — where `selectedField` lands.
+  const arrayAccessPath = useMemo(() => {
     if (selectedParam === null) return [];
     const base = [selectedParam, ...selectedField];
-    if (arrayNode && arrayMode === "index" && validIndex) {
-      base.push(Number(arrayIndex));
+    if (arrayNode) {
+      if (arrayMode === "index" && validIndex) base.push(Number(arrayIndex));
+      else if (arrayMode === "quantified" && quantifier !== undefined) base.push(quantifier);
     }
-    base.push(...postArrayField);
     return base;
-  }, [selectedParam, selectedField, arrayNode, arrayMode, validIndex, arrayIndex, postArrayField]);
+  }, [selectedParam, selectedField, arrayNode, arrayMode, validIndex, arrayIndex, quantifier]);
+
+  const constraintPath = useMemo(() => [...arrayAccessPath, ...postArrayField], [arrayAccessPath, postArrayField]);
 
   const previewResult = useMemo<{ errors: string[]; issues: Issue[] } | null>(() => {
     const candidateRules = resolveRules(rules, operator, debouncedValue, targetTypeInfo);
@@ -782,7 +783,6 @@ function AddConstraintForm({
       scope,
       ...(scope === "calldata" ? { path } : contextProperty ? { contextProperty } : {}),
       rules: candidateRules,
-      ...(arrayMode === "quantified" && quantifier !== undefined ? { quantifier } : {}),
     };
 
     const preview = addConstraint(session, groupIndex, config);
@@ -791,19 +791,7 @@ function AddConstraintForm({
       errors: preview.errors,
       issues: preview.issues.filter((i) => i.groupIndex === groupIndex && i.constraintIndex === draftIndex),
     };
-  }, [
-    scope,
-    constraintPath,
-    contextProperty,
-    operator,
-    debouncedValue,
-    quantifier,
-    arrayMode,
-    targetTypeInfo,
-    rules,
-    session,
-    groupIndex,
-  ]);
+  }, [scope, constraintPath, contextProperty, operator, debouncedValue, targetTypeInfo, rules, session, groupIndex]);
 
   const hasValidDraft = operator !== "" && parseConstraintValues(operator, valueInput, targetTypeInfo) !== null;
   const canAdd =
@@ -831,7 +819,6 @@ function AddConstraintForm({
       scope,
       ...(scope === "calldata" ? { path } : contextProperty ? { contextProperty } : {}),
       rules: finalRules,
-      ...(arrayMode === "quantified" && quantifier !== undefined ? { quantifier } : {}),
     };
 
     onAdd(config);
@@ -839,19 +826,7 @@ function AddConstraintForm({
     setOperator("");
     setValueInput("");
     setExpanded(false);
-  }, [
-    scope,
-    constraintPath,
-    contextProperty,
-    operator,
-    valueInput,
-    quantifier,
-    arrayMode,
-    targetTypeInfo,
-    rules,
-    canAdd,
-    onAdd,
-  ]);
+  }, [scope, constraintPath, contextProperty, operator, valueInput, targetTypeInfo, rules, canAdd, onAdd]);
 
   if (!expanded) {
     if (!hasAvailableCalldata && !hasAvailableContext) return null;
@@ -1007,15 +982,7 @@ function AddConstraintForm({
             selectedPath={postArrayField}
             onSelect={setPostArrayField}
             usedPaths={usedCalldataPaths}
-            pathPrefix={
-              selectedParam !== null
-                ? [
-                    selectedParam,
-                    ...selectedField,
-                    ...(arrayMode === "index" && validIndex ? [Number(arrayIndex)] : []),
-                  ]
-                : []
-            }
+            pathPrefix={arrayAccessPath}
           />
         )}
 
