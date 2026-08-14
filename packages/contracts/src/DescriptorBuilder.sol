@@ -16,6 +16,8 @@ struct DescriptorDraft {
 
 using DescriptorBuilder for DescriptorDraft global;
 
+/// @title DescriptorBuilder
+/// @notice Fluent API for drafting parameter descriptors.
 library DescriptorBuilder {
     using DynamicBufferLib for DynamicBufferLib.DynamicBuffer;
 
@@ -132,7 +134,6 @@ library DescriptorBuilder {
                     --i;
                 }
                 if (input[i] == "]") {
-                    // Find matching '['.
                     uint256 bracketStart = i;
                     while (bracketStart > start && input[bracketStart] != "[") {
                         unchecked {
@@ -149,10 +150,8 @@ library DescriptorBuilder {
             }
         }
 
-        // Parse the base type.
         bytes memory baseDesc = _parseBaseType(input, start, baseEnd);
 
-        // Apply array suffixes from left to right.
         uint256 cursor = arrayStart;
         while (cursor < end) {
             require(input[cursor] == "[", MalformedTypeString());
@@ -274,9 +273,8 @@ library DescriptorBuilder {
             unchecked {
                 result = result * 10 + (uint8(char) - 48);
             }
-            // No caller consumes a value wider than the uint16 array-length downcast; rejecting
-            // above it each iteration keeps the unchecked accumulation wrap-free for any input
-            // length. Domain-specific limits stay with the callers, which produce typed errors.
+            // Rejecting above the uint16 bound each iteration keeps the unchecked accumulation
+            // wrap-free for any input length.
             require(result <= type(uint16).max, MalformedTypeString());
         }
     }

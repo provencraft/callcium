@@ -6,8 +6,8 @@ import { Be16 } from "./Be16.sol";
 /// @title Path
 /// @notice Encodes and inspects descriptor paths as big-endian uint16 sequences.
 /// @dev Paths represent navigation through ABI-encoded calldata:
-/// - path[0] is the top-level argument index
-/// - path[1..n] are indices into nested composites (tuples, arrays)
+/// - path[0] is the top-level argument index.
+/// - path[1..n] are indices into nested composites (tuples, arrays).
 library Path {
     /// @dev Universal quantifier for array paths (∀). Rule must pass for ALL elements.
     /// @dev Only valid immediately after an array node. Empty arrays yield true (vacuous truth).

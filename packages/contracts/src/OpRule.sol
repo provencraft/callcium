@@ -18,7 +18,7 @@ library OpRule {
     /// @param opBase The operator code without the NOT flag.
     /// @return size The expected payload size in bytes, or 0 if variable/unknown.
     function expectedPayloadSize(uint8 opBase) internal pure returns (uint16 size) {
-        // Single-operand operators: 32 bytes.
+        // Single-operand operators.
         // forgefmt: disable-next-item
         if (
                opBase == OpCode.EQ
@@ -38,11 +38,10 @@ library OpRule {
             return 32;
         }
 
-        // Range operators: 64 bytes (lower + upper)
+        // Range operators carry a lower and an upper operand.
         if (opBase == OpCode.BETWEEN || opBase == OpCode.LENGTH_BETWEEN) return 64;
 
-        // IN operator: variable length (must be > 0 and multiple of 32)
-        // Return 0 to indicate variable-length.
+        // IN carries a variable-length payload.
         if (opBase == OpCode.IN) return 0;
 
         // Unknown operator.
@@ -59,7 +58,6 @@ library OpRule {
         // Fixed-size operators.
         if (expected != 0) return dataLength == expected;
 
-        // Variable-size operator (IN)
         if (opBase == OpCode.IN) return dataLength > 0 && dataLength % 32 == 0;
 
         // Unknown operator.
@@ -140,22 +138,20 @@ library OpRule {
             if (isDynamic || staticSize != 32) return (false, IssueCode.VALUE_OP_ON_DYNAMIC);
             if (!TypeRule.isElementary(typeCode)) return (false, IssueCode.VALUE_OP_ON_COMPOSITE);
 
-            // Comparison operators need numeric types.
             if (isComparisonOp(opBase) && !isNumericType(typeCode)) {
                 return (false, IssueCode.NUMERIC_OP_ON_NON_NUMERIC);
             }
 
-            // Bitmask operators need compatible types.
             if (isBitmaskOp(opBase) && !isBitmaskCompatible(typeCode)) return (false, IssueCode.BITMASK_ON_INVALID);
 
-            // IN on bool is degenerate: the two-value domain reduces every set to an equality, a tautology, or dead members.
+            // IN on bool is degenerate: the two-value domain reduces every set to an equality,
+            // a tautology, or dead members.
             if (opBase == OpCode.IN && typeCode == TypeCode.BOOL) return (false, IssueCode.IN_ON_BOOL);
 
             return (true, bytes32(0));
         }
 
         if (isLengthOp(opBase)) {
-            // Length operators require types with calldata length.
             if (!isLengthOpCompatible(typeCode)) return (false, IssueCode.LENGTH_ON_STATIC);
 
             return (true, bytes32(0));

@@ -432,7 +432,6 @@ library PolicyEnforcer {
 
         } else if (base == OpCode.GT) {
             bytes32 operandRaw = LibBytes.load(policy, dataOffset);
-            // int256 cast produces slt/sgt; required for correct two's complement ordering of signed integers.
             result = TypeRule.isSigned(typeCode)
                 ? int256(uint256(value)) > int256(uint256(operandRaw))
                 : uint256(value) > uint256(operandRaw);
@@ -559,8 +558,7 @@ library PolicyEnforcer {
                 }
             }
             default {
-                // Binary search using 1-indexed access: adjBase = base - 32,
-                // so that mload(adjBase + 32*i) reads element i-1 (0-based).
+                // Binary search over 1-indexed positions, so the base is biased down one word.
                 let adjBase := sub(base, 32)
                 let l := 1
                 let h := shr(5, dataLength)

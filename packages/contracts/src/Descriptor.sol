@@ -168,7 +168,7 @@ library Descriptor {
     {
         require(offset < self.length, UnexpectedEnd());
 
-        // One word covers the type code and, for composites, the 3-byte meta after it.
+        // One word covers the type code and, for composites, the meta after it.
         uint256 word = uint256(LibBytes.load(self, offset));
         // forge-lint: disable-next-line(unsafe-typecast)
         code = uint8(word >> (256 - 8 * DF.TYPECODE_SIZE));
@@ -183,7 +183,6 @@ library Descriptor {
         // Unknown type codes revert before attempting to read composite meta.
         require(TypeRule.isComposite(code), UnknownTypeCode(code));
 
-        // Composite types: decode the 3-byte meta after the type code.
         require(offset + DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE <= self.length, UnexpectedEnd());
         // forge-lint: disable-next-line(unsafe-typecast)
         uint24 meta = uint24(word >> (256 - 8 * (DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE)));
@@ -231,7 +230,6 @@ library Descriptor {
     /// @param tupleOffset Offset of a tuple node within `self`.
     /// @return The number of fields in the tuple.
     function tupleFieldCount(bytes memory self, uint256 tupleOffset) internal pure returns (uint16) {
-        // Ensure header is present.
         require(tupleOffset + DF.TUPLE_HEADER_SIZE <= self.length, UnexpectedEnd());
         return Be16.readUnchecked(self, tupleOffset + DF.TUPLE_FIELDCOUNT_OFFSET);
     }
@@ -405,14 +403,12 @@ library Descriptor {
                 child = _validateNode(self, child, depth + 1);
             }
         } else if (code == TypeCode.STATIC_ARRAY) {
-            // Validate element type recursively.
             uint256 elemEnd = _validateNode(self, offset + DF.ARRAY_HEADER_SIZE, depth + 1);
             // Read and validate the length suffix after the element descriptor.
             require(elemEnd + DF.ARRAY_LENGTH_SIZE <= self.length, UnexpectedEnd());
             uint16 length = Be16.readUnchecked(self, elemEnd);
             require(length > 0 && length <= DF.MAX_STATIC_ARRAY_LENGTH, InvalidArrayLength(offset, length));
         } else if (code == TypeCode.DYNAMIC_ARRAY) {
-            // Validate element type recursively.
             _validateNode(self, offset + DF.ARRAY_HEADER_SIZE, depth + 1);
         }
     }

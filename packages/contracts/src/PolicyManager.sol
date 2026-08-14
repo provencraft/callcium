@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import { PolicyRegistry } from "./PolicyRegistry.sol";
 
 /// @title PolicyManager
-/// @notice Abstract contract providing EIP-7201 namespaced policy storage.
+/// @notice EIP-7201 namespaced policy storage.
 abstract contract PolicyManager {
     using PolicyRegistry for PolicyRegistry.Store;
 

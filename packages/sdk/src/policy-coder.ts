@@ -309,7 +309,7 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
 
       const dataStart = dataLengthOffset + PF.RULE_DATALENGTH_SIZE;
 
-      // IN operands must be strictly ascending (unsigned): the enforcer's binary search relies on it.
+      // IN operands must be strictly ascending (unsigned); strictness also rejects duplicates.
       if (opBase === Op.IN) {
         const wordCount = dataLengthValue / 32;
         for (let word = 1; word < wordCount; word++) {
@@ -579,35 +579,28 @@ function encode(data: PolicyData): Hex {
   const out = new Uint8Array(totalSize);
   let offset = 0;
 
-  // Header.
+  // Policy header: header(1) | selector(4) | descLength(2) | desc(N) | groupCount(1).
   out[offset++] = headerByte;
 
-  // Selector.
   out.set(selectorBytes, offset);
   offset += PF.SELECTOR_SIZE;
 
-  // Descriptor length (BE16).
   writeBE16(out, offset, descBytes.length);
   offset += PF.DESC_LENGTH_SIZE;
 
-  // Descriptor.
   out.set(descBytes, offset);
   offset += descBytes.length;
 
-  // Group count.
   out[offset++] = encodedGroups.length;
 
-  // Groups.
   for (const g of encodedGroups) {
-    // Rule count (BE16).
+    // Group header: ruleCount(2) | groupSize(4).
     writeBE16(out, offset, g.ruleCount);
     offset += PF.GROUP_RULECOUNT_SIZE;
 
-    // Group size (BE32).
     writeBE32(out, offset, g.wireBytes.length);
     offset += PF.GROUP_SIZE_SIZE;
 
-    // Rule bytes.
     out.set(g.wireBytes, offset);
     offset += g.wireBytes.length;
   }

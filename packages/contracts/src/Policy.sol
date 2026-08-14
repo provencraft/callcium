@@ -219,7 +219,6 @@ library Policy {
         uint16 descLen = descriptorLength(self);
         require(descLen >= 2, MalformedHeader());
 
-        // Check descriptor correctness.
         bytes memory desc = descriptor(self);
         Descriptor.validate(desc);
 

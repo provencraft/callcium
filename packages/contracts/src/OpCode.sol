@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 /// @title OpCode
-/// @notice Byte values for policy operators (the "instruction set").
+/// @notice Byte values for policy operators.
 library OpCode {
     /*/////////////////////////////////////////////////////////////////////////
                              CORE COMPARISON OPERATORS

@@ -255,9 +255,8 @@ type TargetResult =
  * Load the value at a resolved target offset and apply the operator.
  *
  * `value` is normalised at the decision point: length operators yield the byte/element
- * count; scalar operators preserve the full 32-byte ABI word so downstream rendering can
- * decode left-aligned `bytesN` faithfully. Hex formatting happens where a violation is
- * built, so a passing target allocates no string.
+ * count; scalar operators preserve the full 32-byte ABI word, keeping left-aligned `bytesN`
+ * decodable. A passing target allocates no string.
  */
 function evalTarget(
   callData: Uint8Array,

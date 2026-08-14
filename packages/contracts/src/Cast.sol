@@ -3,7 +3,6 @@ pragma solidity ^0.8.28;
 
 /// @title Cast
 /// @notice Helpers for upcasting fixed bytes and smaller numeric types to 32-byte words.
-/// @dev Enables fluent constraint syntax with typed literals.
 library Cast {
     /*/////////////////////////////////////////////////////////////////////////
                                      FUNCTIONS

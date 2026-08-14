@@ -324,7 +324,6 @@ function updateBound(
   constraintIndex: number,
   issues: Issue[],
 ): void {
-  // Negation handling.
   if (isNegated) {
     if (base === Op.EQ) {
       if (domain.hasEq && domain.eq === value) {

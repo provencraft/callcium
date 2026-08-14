@@ -171,7 +171,6 @@ library PolicyCoder {
         // Canonicalization step 1: compile hints, then sort rules within each group.
         _compileAndSortRules(groups, desc);
 
-        // Validate descriptor length fits in 2-byte field.
         uint256 descLength = desc.length;
         require(descLength <= type(uint16).max, DescLengthOverflow(descLength));
 
@@ -421,7 +420,6 @@ library PolicyCoder {
         for (uint256 i; i < ruleCount; ++i) {
             bytes32 key = abi.encodePacked(rules[i].scope, rules[i].path, rules[i].hint).hash();
 
-            // Find existing constraint for this key.
             uint256 matchIndex = type(uint256).max;
             for (uint256 j; j < uniqueCount; ++j) {
                 if (keys[j] == key) {
@@ -445,9 +443,8 @@ library PolicyCoder {
                 keys[uniqueCount] = key;
                 ++uniqueCount;
             } else {
-                // Append operator into the pre-allocated slack. The array was trimmed to its
-                // logical length, so we must bump it via assembly before the Solidity write
-                // to avoid an out-of-bounds revert.
+                // Append into the pre-allocated slack. The array carries its logical length, so
+                // the length word grows before the write.
                 bytes[] memory operators = constraints[matchIndex].operators;
                 uint256 operatorCount = operators.length;
                 assembly ("memory-safe") {
@@ -457,7 +454,6 @@ library PolicyCoder {
             }
         }
 
-        // Trim constraints array and each operators array.
         assembly ("memory-safe") {
             mstore(constraints, uniqueCount)
         }

@@ -82,12 +82,13 @@ library DescriptorFormat {
     uint256 internal constant MAX_TUPLE_FIELDS = MAX_NODE_LENGTH - TUPLE_HEADER_SIZE;
 
     /// @dev Cap for the static array length suffix.
-    /// The suffix is `uint16` but intentionally restricted to 12 bits (4095) for uniformity with other limits and to
-    /// bound arrays of dynamic elements.
+    /// The suffix is `uint16` but restricted to 12 bits for uniformity with `MAX_NODE_LENGTH`
+    /// and to bound arrays of dynamic elements.
     uint256 internal constant MAX_STATIC_ARRAY_LENGTH = 4095;
 
     /// @dev Cap on composite nesting depth.
-    /// Operational bound on recursive validation; the EVM stack exhausts near 150 recursion levels.
+    /// Operational bound on recursive validation, set well below the depth at which the EVM
+    /// stack exhausts.
     uint256 internal constant MAX_NESTING_DEPTH = 64;
 
     /// @dev Upper bound of the `paramCount` header field (1 byte).

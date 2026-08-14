@@ -53,9 +53,7 @@ export type SelectorMismatchViolation = {
 
 /**
  * A context-scoped rule referenced a property not supplied in the execution context.
- *
- * `opCode` and `operandData` may be added in future versions as diagnostic context
- * without breaking the contract; consumers should tolerate their presence.
+
  */
 export type MissingContextViolation = {
   code: "MISSING_CONTEXT";
@@ -117,11 +115,9 @@ type CalldataNavigationVariant<C extends NavigationViolationCode> = {
  * Calldata structure prevented the rule from being evaluated.
  *
  * The operator was never applied; `opCode`, `operandData`, `typeCode`, and `elementIndex`
- * are diagnostic context describing the failing site, not a constraint claim. Renderers
- * must not summarise these as "constraint violated".
+ * are diagnostic context describing the failing site, not a constraint claim.
  *
- * Encoded as a union of per-code variants so consumers can narrow on a single code via
- * `Extract<Violation, { code: "..." }>`.
+ * A union of per-code variants, narrowable with `Extract<Violation, { code: "..." }>`.
  */
 export type CalldataNavigationViolation =
   | CalldataNavigationVariant<"CALLDATA_OUT_OF_BOUNDS">
@@ -170,7 +166,7 @@ export type QuantifierEmptyArrayViolation = {
 /**
  * Structured details of a single rule failure during enforcement.
  *
- * Carries semantic data only — message strings are the consumer's responsibility.
+ * Carries semantic data only; no message strings.
  * Discriminate on `code` to narrow to the matching variant.
  */
 export type Violation =

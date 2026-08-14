@@ -8,7 +8,7 @@ import { Policy } from "./Policy.sol";
 import { PolicyFormat as PF } from "./PolicyFormat.sol";
 
 /// @title PolicyRegistry
-/// @notice Library for policy storage and lookup operations.
+/// @notice Policy storage and lookup.
 library PolicyRegistry {
     using EfficientHashLib for bytes;
 

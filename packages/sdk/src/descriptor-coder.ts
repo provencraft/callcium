@@ -41,7 +41,7 @@ const MAX_TYPE_STRING_NUMBER = 256 ** DF.ARRAY_LENGTH_SIZE - 1;
  * Parse a decimal integer from input[start..end).
  *
  * Rejects an empty span, a non-digit, a leading zero, and a value too wide for the fields a type
- * string feeds. Whether the parsed value is a *valid* width or length is the caller's question.
+ * string feeds. Width and length validity are out of scope here.
  */
 function parseUint(input: string, start: number, end: number): number {
   if (start >= end) {
@@ -74,11 +74,9 @@ function parseUint(input: string, start: number, end: number): number {
  * `start` and the substring to parse ends before `end`.
  */
 function parseTuple(input: string, start: number, end: number): Uint8Array {
-  // Expect opening paren at start.
   if (input[start] !== "(") {
     throw new CallciumError("MALFORMED_TYPE_STRING", `Expected '(' at position ${start}`);
   }
-  // Find matching closing paren.
   let depth = 0;
   let closePos = -1;
   for (let i = start; i < end; i++) {
@@ -160,7 +158,6 @@ function parseType(input: string, start: number, end: number): Uint8Array {
   let baseEnd = end;
 
   while (baseEnd > start && input[baseEnd - 1] === "]") {
-    // Find the matching `[`.
     const closePos = baseEnd - 1;
     let openPos = closePos - 1;
     // Walk back past digits (for static arrays).

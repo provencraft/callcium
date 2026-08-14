@@ -1,6 +1,6 @@
 ---
 title: "PolicyValidator"
-description: "Semantic validation for policies - checks for type mismatches, contradictions, and redundancies."
+description: "Semantic validation for policies: type mismatches, contradictions, and redundancies."
 ---
 
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L22)
@@ -36,7 +36,7 @@ function validate(PolicyData memory data) internal pure returns (Issue[] memory)
 
 ### ValidationError
 
-Thrown when validate finds errors and the caller wants to revert.
+Thrown when policy validation finds errors.
 
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L99)
 
@@ -46,6 +46,6 @@ error ValidationError(Issue[] issues);
 
 **Parameters**
 
-| Name     | Type      | Description                |
-| -------- | --------- | -------------------------- |
-| `issues` | `Issue[]` | The validate issues found. |
+| Name     | Type      | Description       |
+| -------- | --------- | ----------------- |
+| `issues` | `Issue[]` | The issues found. |

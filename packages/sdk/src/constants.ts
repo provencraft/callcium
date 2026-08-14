@@ -310,7 +310,7 @@ export function lookupQuantifier(code: number): QuantifierInfo {
 /** Structural category for a descriptor type code. */
 export type TypeClass = "elementary" | "tuple" | "staticArray" | "dynamicArray";
 
-/** Structural classification without label — used by the decoder hot path. */
+/** Structural classification without label. */
 export type TypeClassInfo = { typeClass: TypeClass; isDynamic: boolean };
 
 /** Display metadata for a descriptor type code. */

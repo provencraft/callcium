@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+/// @title TypeCode
+/// @notice Byte values for ABI types.
 library TypeCode {
     /*/////////////////////////////////////////////////////////////////////////
                                      ERRORS

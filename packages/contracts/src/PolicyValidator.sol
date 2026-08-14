@@ -18,7 +18,7 @@ import { Issue, ValidationIssue } from "./ValidationIssue.sol";
 import { LibBytes } from "solady/utils/LibBytes.sol";
 
 /// @title PolicyValidator
-/// @notice Semantic validation for policies - checks for type mismatches, contradictions, and redundancies.
+/// @notice Semantic validation for policies: type mismatches, contradictions, and redundancies.
 library PolicyValidator {
     using IssueCollector for IssueCollector.Buffer;
 
@@ -94,8 +94,8 @@ library PolicyValidator {
                                         ERRORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Thrown when validate finds errors and the caller wants to revert.
-    /// @param issues The validate issues found.
+    /// @notice Thrown when policy validation finds errors.
+    /// @param issues The issues found.
     error ValidationError(Issue[] issues);
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -153,8 +153,7 @@ library PolicyValidator {
         for (uint32 constraintIndex; constraintIndex < constraintCount; ++constraintIndex) {
             Constraint memory constraint = constraints[constraintIndex];
 
-            // Look up existing context for this (scope, path) pair.
-            // ctxIdx == max signals no match found; a new context will be created.
+            // Look up existing context for this (scope, path) pair; max signals no match.
             uint256 ctxIdx = type(uint256).max;
             for (uint256 i; i < contexts.length; ++i) {
                 if (contexts[i].scope == constraint.scope && LibBytes.eq(contexts[i].path, constraint.path)) {
@@ -288,7 +287,6 @@ library PolicyValidator {
                 issues.push(ValidationIssue.negationUnderAny(groupIndex, constraintIndex, opCode));
             }
 
-            // Type compatibility check (delegates to OpRule).
             // forgefmt: disable-next-item
             (bool compatible, bytes32 code) = OpRule.checkCompatibility(
                 base, ctx.typeInfo.code, ctx.typeInfo.isDynamic, ctx.typeInfo.staticSize
@@ -385,7 +383,6 @@ library PolicyValidator {
             }
         }
 
-        // Duplicate operator detection.
         _checkDuplicates(issues, operators, groupIndex, constraintIndex);
     }
 
@@ -467,7 +464,6 @@ library PolicyValidator {
         private
         pure
     {
-        // Negation handling.
         // Negated comparisons are converted to their positive equivalents: !gt(v) -> lte(v), etc.
         // Negated equality (neq) is handled separately as a hole.
         if (isNegated) {
@@ -475,7 +471,6 @@ library PolicyValidator {
                 if (domain.hasEq && domain.eq == value) {
                     issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value));
                 }
-                // Add to holes if not already present.
                 bool alreadyHole = false;
                 for (uint256 j; j < domain.holeCount; ++j) {
                     if (domain.holes[j] == value) {
@@ -488,7 +483,6 @@ library PolicyValidator {
                     domain.holeCount++;
                 }
             } else {
-                // Convert negated bound to positive equivalent and re-enter.
                 _updateBound(domain, _negateBoundOp(base), false, value, isLength, groupIndex, constraintIndex, issues);
             }
             return;
@@ -739,7 +733,6 @@ library PolicyValidator {
                         }
                     }
                 }
-                // Trim the over-allocated array to its actual length.
                 assembly ("memory-safe") {
                     mstore(intersection, intersectionCount)
                 }

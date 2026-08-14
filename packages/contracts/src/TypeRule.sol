@@ -106,10 +106,9 @@ library TypeRule {
     }
 
     /// @notice Returns the canonicity predicate parameters for a type.
-    /// @dev The (mode, bits) pair fully determines canonicity of any word of the type, so
-    /// callers checking many words of one type resolve the spec once and apply
-    /// `checkCanonical` per word. A shift of 256 yields zero, so width-256 types and
-    /// unrecognized codes resolve to a spec that accepts every word.
+    /// @dev The (mode, bits) pair fully determines canonicity of any word of the type. A shift
+    /// of 256 yields zero, so width-256 types and unrecognized codes resolve to a spec that
+    /// accepts every word.
     /// @param typeCode The type code to resolve.
     /// @return mode The predicate mode (CANON_RIGHT, CANON_LEFT, or CANON_SIGNED).
     /// @return bits The shift width, or the sign byte index for CANON_SIGNED.

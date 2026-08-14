@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import { Issue } from "./ValidationIssue.sol";
 
 /// @title IssueCollector
-/// @notice A growable buffer of validation issues with push and read operations.
+/// @notice A growable buffer of validation issues.
 library IssueCollector {
     /// @notice A growable buffer of validation issues.
     struct Buffer {
@@ -39,7 +39,6 @@ library IssueCollector {
     function toArray(Buffer memory buffer) internal pure returns (Issue[] memory result) {
         result = buffer.items;
         uint256 count = buffer.count;
-        // Trim worst-case array to actual length.
         assembly ("memory-safe") {
             mstore(result, count)
         }

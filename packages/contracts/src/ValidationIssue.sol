@@ -39,7 +39,7 @@ struct Issue {
 }
 
 /// @title ValidationIssue
-/// @notice Factory library for creating validation issues with centralized definitions.
+/// @notice Constructors for validation issues.
 library ValidationIssue {
     /*/////////////////////////////////////////////////////////////////////////
                                      FUNCTIONS

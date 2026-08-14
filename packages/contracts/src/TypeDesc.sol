@@ -7,6 +7,8 @@ import { DescriptorFormat as DF } from "./DescriptorFormat.sol";
 import { TypeCode } from "./TypeCode.sol";
 import { TypeRule } from "./TypeRule.sol";
 
+/// @title TypeDesc
+/// @notice Constructors for type descriptor nodes.
 library TypeDesc {
     /*/////////////////////////////////////////////////////////////////////////
                                      ERRORS
@@ -127,15 +129,13 @@ library TypeDesc {
 
         desc = new bytes(nodeLength);
 
-        // Type code.
         desc[0] = bytes1(TypeCode.DYNAMIC_ARRAY);
 
-        // Meta: staticWords=0 (dynamic), nodeLength <= MAX_NODE_LENGTH (12 bits).
+        // A dynamic array declares no static words, so meta carries nodeLength alone.
         // forge-lint: disable-next-line(unsafe-typecast)
         uint24 meta = uint24(nodeLength);
         Be24.write(desc, DF.TYPECODE_SIZE, meta);
 
-        // Element descriptor.
         uint256 cursor = DF.ARRAY_HEADER_SIZE;
         for (uint256 i; i < elemLength; ++i) {
             unchecked {
@@ -161,10 +161,8 @@ library TypeDesc {
         uint256 nodeLength = DF.ARRAY_HEADER_SIZE + elemLength + DF.ARRAY_LENGTH_SIZE;
         require(nodeLength <= DF.MAX_NODE_LENGTH, NodeLengthTooLarge(nodeLength, DF.MAX_NODE_LENGTH));
 
-        // Extract element's staticWords.
         uint16 elemStaticWords = _extractStaticWords(elemDesc);
 
-        // Compute array's staticWords.
         uint16 staticWords;
         if (elemStaticWords == 0) {
             staticWords = 0;
@@ -177,15 +175,13 @@ library TypeDesc {
 
         desc = new bytes(nodeLength);
 
-        // Type code.
         desc[0] = bytes1(TypeCode.STATIC_ARRAY);
 
-        // Meta: staticWords(12) | nodeLength(12), both <= 4095.
+        // Meta packs staticWords and nodeLength, each bounded by its DescriptorFormat maximum.
         // forge-lint: disable-next-line(unsafe-typecast)
         uint24 meta = (uint24(staticWords) << 12) | uint24(nodeLength);
         Be24.write(desc, DF.TYPECODE_SIZE, meta);
 
-        // Element descriptor.
         uint256 cursor = DF.ARRAY_HEADER_SIZE;
         for (uint256 i; i < elemLength; ++i) {
             unchecked {
@@ -193,7 +189,6 @@ library TypeDesc {
             }
         }
 
-        // Big-endian uint16 length.
         Be16.write(desc, cursor, length);
     }
 
@@ -227,7 +222,6 @@ library TypeDesc {
         uint256 nodeLength = DF.TUPLE_HEADER_SIZE + totalFieldsLength;
         require(nodeLength <= DF.MAX_NODE_LENGTH, NodeLengthTooLarge(nodeLength, DF.MAX_NODE_LENGTH));
 
-        // Compute tuple's staticWords.
         uint16 staticWords;
         if (anyDynamic) {
             staticWords = 0;
@@ -237,13 +231,11 @@ library TypeDesc {
             staticWords = uint16(sumStaticWords);
         }
 
-        // Allocate exact size.
         desc = new bytes(nodeLength);
 
-        // Type code.
         desc[0] = bytes1(TypeCode.TUPLE);
 
-        // Meta: staticWords(12) | nodeLength(12), both <= 4095.
+        // Meta packs staticWords and nodeLength, each bounded by its DescriptorFormat maximum.
         // forge-lint: disable-next-line(unsafe-typecast)
         uint24 meta = (uint24(staticWords) << 12) | uint24(nodeLength);
         Be24.write(desc, DF.TYPECODE_SIZE, meta);
@@ -960,10 +952,8 @@ library TypeDesc {
     function _extractStaticWords(bytes memory typeDesc) private pure returns (uint16) {
         uint8 code = uint8(typeDesc[0]);
 
-        // Elementary types: staticWords = 1 (32 bytes) except for bytes/string which are dynamic.
         if (TypeRule.isElementary(code)) return (code == TypeCode.BYTES || code == TypeCode.STRING) ? 0 : 1;
 
-        // Composite types: meta is 24-bit, shift by 12 yields 12 bits.
         uint24 meta = Be24.readUnchecked(typeDesc, 1);
         // forge-lint: disable-next-line(unsafe-typecast)
         return uint16(meta >> DF.META_STATIC_WORDS_SHIFT);
