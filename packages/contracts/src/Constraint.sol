@@ -147,7 +147,7 @@ library Operator {
     /// @notice Thrown when an empty set is passed to a set membership operator.
     error EmptySet();
 
-    /// @notice Thrown when a set exceeds the maximum element count (2047).
+    /// @notice Thrown when a set exceeds the maximum element count.
     error SetTooLarge();
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -519,7 +519,7 @@ library Operator {
         LibSort.sort(values);
         LibSort.uniquifySorted(values);
         uint256 length = values.length;
-        require(length <= 2047, SetTooLarge());
+        require(length <= PF.MAX_SET_MEMBERS, SetTooLarge());
         out = new bytes(length * 32);
         for (uint256 i; i < length; ++i) {
             bytes32 word = bytes32(values[i]);

@@ -231,4 +231,7 @@ library PolicyFormat {
 
     /// @dev Maximum array length for quantifier iteration (policy spec §8.4, gas DoS protection).
     uint256 internal constant MAX_QUANTIFIED_ARRAY_LENGTH = 256;
+
+    /// @dev Maximum number of members an IN set can hold: the words the `dataLength` field can span.
+    uint256 internal constant MAX_SET_MEMBERS = (256 ** RULE_DATALENGTH_SIZE - 1) / 32;
 }

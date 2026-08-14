@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import { Constraint, Operator, arg } from "src/Constraint.sol";
 import { OpCode } from "src/OpCode.sol";
+import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 
 import { ConstraintTest } from "test/unit/Constraint.t.sol";
 
@@ -234,8 +235,8 @@ contract ConstraintIsInTest is ConstraintTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function test_RevertWhen_SetExceedsMaxCardinality() public {
-        uint256[] memory values = new uint256[](2048);
-        for (uint256 i; i < 2048; ++i) {
+        uint256[] memory values = new uint256[](PF.MAX_SET_MEMBERS + 1);
+        for (uint256 i; i < values.length; ++i) {
             values[i] = i;
         }
 
@@ -244,8 +245,8 @@ contract ConstraintIsInTest is ConstraintTest {
     }
 
     function test_MaxCardinalityAccepted() public pure {
-        uint256[] memory values = new uint256[](2047);
-        for (uint256 i; i < 2047; ++i) {
+        uint256[] memory values = new uint256[](PF.MAX_SET_MEMBERS);
+        for (uint256 i; i < values.length; ++i) {
             values[i] = i;
         }
 
