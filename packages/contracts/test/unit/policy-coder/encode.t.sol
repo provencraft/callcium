@@ -391,15 +391,15 @@ contract EncodeTest is PolicyCoderTest {
         PolicyCoder.encode(groups, SELECTOR, _descriptor());
     }
 
-    function test_RevertWhen_InvalidPathBytesZero() public {
-        vm.expectRevert(abi.encodeWithSelector(PolicyCoder.InvalidPathBytes.selector, 0, 0));
+    function test_RevertWhen_EmptyPath() public {
+        vm.expectRevert(abi.encodeWithSelector(PolicyCoder.EmptyPath.selector, 0, 0));
         PolicyCoder.encode(
             _singleRule(PF.SCOPE_CALLDATA, hex"", _op1(OpCode.EQ, bytes32(uint256(42)))), SELECTOR, _descriptor()
         );
     }
 
-    function test_RevertWhen_InvalidPathBytesOdd() public {
-        vm.expectRevert(abi.encodeWithSelector(PolicyCoder.InvalidPathBytes.selector, 0, 0));
+    function test_RevertWhen_MalformedPath() public {
+        vm.expectRevert(abi.encodeWithSelector(PolicyCoder.MalformedPath.selector, 0, 0));
         PolicyCoder.encode(
             _singleRule(PF.SCOPE_CALLDATA, hex"0001ff", _op1(OpCode.EQ, bytes32(uint256(42)))), SELECTOR, _descriptor()
         );
@@ -430,15 +430,15 @@ contract EncodeTest is PolicyCoderTest {
         PolicyCoder.encode(groups, SELECTOR, _descriptor());
     }
 
-    function test_RevertWhen_PathDepthOverflow() public {
-        uint256 depth = uint256(type(uint8).max) + 1;
+    function test_RevertWhen_PathTooDeep() public {
+        uint256 depth = uint256(PF.MAX_PATH_DEPTH) + 1;
         bytes memory path = new bytes(depth * PF.PATH_STEP_SIZE);
         for (uint256 i; i < depth; ++i) {
             path[i * PF.PATH_STEP_SIZE] = bytes1(uint8(i >> 8));
             path[i * PF.PATH_STEP_SIZE + 1] = bytes1(uint8(i));
         }
 
-        vm.expectRevert(abi.encodeWithSelector(PolicyCoder.PathDepthOverflow.selector, 0, 0, depth));
+        vm.expectRevert(abi.encodeWithSelector(PolicyCoder.PathTooDeep.selector, 0, 0, depth));
         PolicyCoder.encode(
             _singleRule(PF.SCOPE_CALLDATA, path, _op1(OpCode.EQ, bytes32(uint256(42)))), SELECTOR, _descriptor()
         );

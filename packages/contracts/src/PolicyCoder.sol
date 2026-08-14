@@ -64,16 +64,21 @@ library PolicyCoder {
     /// @param size The computed rule size.
     error RuleSizeOverflow(uint256 groupIndex, uint256 ruleIndex, uint256 size);
 
-    /// @notice Thrown when the path is empty or has an odd byte length.
+    /// @notice Thrown when the path has no steps.
     /// @param groupIndex The group index.
     /// @param ruleIndex The rule index within the group.
-    error InvalidPathBytes(uint256 groupIndex, uint256 ruleIndex);
+    error EmptyPath(uint256 groupIndex, uint256 ruleIndex);
 
-    /// @notice Thrown when the path depth exceeds the 1-byte depth field.
+    /// @notice Thrown when the path has an odd byte length.
+    /// @param groupIndex The group index.
+    /// @param ruleIndex The rule index within the group.
+    error MalformedPath(uint256 groupIndex, uint256 ruleIndex);
+
+    /// @notice Thrown when the path depth exceeds the maximum.
     /// @param groupIndex The group index.
     /// @param ruleIndex The rule index within the group.
     /// @param depth The computed depth.
-    error PathDepthOverflow(uint256 groupIndex, uint256 ruleIndex, uint256 depth);
+    error PathTooDeep(uint256 groupIndex, uint256 ruleIndex, uint256 depth);
 
     /// @notice Thrown when an operator payload is missing its op code byte.
     /// @param groupIndex The group index.
@@ -263,8 +268,9 @@ library PolicyCoder {
     function _compileRuleHint(Rule memory rule, bytes memory desc, uint256 groupIndex, uint256 ruleIndex) private pure {
         require(rule.operator.length >= 1, InvalidOperatorBytes(groupIndex, ruleIndex));
         uint256 pathLength = rule.path.length;
-        require(pathLength != 0 && (pathLength & 1) == 0, InvalidPathBytes(groupIndex, ruleIndex));
-        require(pathLength >> 1 <= type(uint8).max, PathDepthOverflow(groupIndex, ruleIndex, pathLength >> 1));
+        require(pathLength != 0, EmptyPath(groupIndex, ruleIndex));
+        require((pathLength & 1) == 0, MalformedPath(groupIndex, ruleIndex));
+        require(pathLength >> 1 <= PF.MAX_PATH_DEPTH, PathTooDeep(groupIndex, ruleIndex, pathLength >> 1));
         rule.hint = rule.scope == PF.SCOPE_CALLDATA ? Policy.compileHint(desc, rule.path) : bytes("");
     }
 
