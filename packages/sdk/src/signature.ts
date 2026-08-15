@@ -1,4 +1,4 @@
-import { keccak_256 } from "@noble/hashes/sha3";
+import { keccak_256 } from "@noble/hashes/sha3.js";
 
 import { bytesToHex } from "./bytes";
 import { CallciumError } from "./errors";
