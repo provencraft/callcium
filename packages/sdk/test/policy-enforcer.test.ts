@@ -105,6 +105,18 @@ function encodeDynamicBytesArray(elements: string[]): Hex {
   return `0x${word(32n)}${word(BigInt(elements.length))}${heads}${tails}`;
 }
 
+/** Encode a selectorless calldata blob containing a static bytes[3] array; elements are hex bodies of at most 32 bytes. */
+function encodeStaticBytesArray3(elements: string[]): Hex {
+  let heads = "";
+  let tails = "";
+  const headSize = elements.length * 32;
+  for (const elem of elements) {
+    heads += word(BigInt(headSize + tails.length / 2));
+    tails += word(BigInt(elem.length / 2)) + elem.padEnd(64, "0");
+  }
+  return `0x${word(32n)}${heads}${tails}`;
+}
+
 /** Encode selectorless calldata for (uint256,address)[] with given tuples. */
 function encodeTupleArray(tuples: Array<{ amount: bigint; addr: bigint }>): Hex {
   let body = word(32n) + word(BigInt(tuples.length));
@@ -739,6 +751,21 @@ describe("enforce - navigation failure", () => {
     const callData: Hex = `0x${word(999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     assertFailed(result);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Static Array Of Dynamic Elements
+///////////////////////////////////////////////////////////////////////////
+
+describe("enforce - static array of dynamic elements", () => {
+  test("indexing into a fixed-count array of dynamic elements resolves the correct element", () => {
+    // bytes[3] is a static-count array, so its hop carries no HINT_META_DYNAMIC_ARRAY flag,
+    // unlike a bytes[] hop. This distinguishes chainResolve's two hop branches.
+    const policy = PolicyBuilder.createRaw("bytes[3]").add(arg(0, 1).lengthEq(2n)).build();
+    const callData = encodeStaticBytesArray3(["aa", "bbbb", "cc"]);
+    const result = PolicyEnforcer.check(policy, callData);
+    assertPassed(result);
   });
 });
 

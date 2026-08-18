@@ -235,6 +235,20 @@ contract NonCanonicalOperandTest is PolicyValidatorTest {
         assertEq(issues.length, 0);
     }
 
+    function test_TrailingBytes4Operand_ReportsOperandAndCanonical() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytesN_(4)).build();
+
+        bytes32 operand = bytes32(bytes4(0x11223344)) | bytes32(uint256(0x55));
+        Constraint memory c = arg(0).eq(operand);
+
+        PolicyData memory data = _createPolicyData("foo(bytes4)", desc, c);
+        Issue[] memory issues = PolicyValidator.validate(data);
+
+        Issue memory issue = _findIssue(issues, IssueCode.NON_CANONICAL_OPERAND);
+        assertEq(issue.value1, operand);
+        assertEq(issue.value2, bytes32(bytes4(0x11223344)));
+    }
+
     function test_RightAlignedInMember_ReturnsError() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytesN_(4)).build();
 

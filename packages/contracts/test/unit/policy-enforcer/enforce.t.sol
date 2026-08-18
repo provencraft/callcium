@@ -620,6 +620,21 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
+    function test_RevertWhen_UnknownLengthOperator() public {
+        bytes memory policy = PolicyBuilder.create("foo(bytes)")
+            .add(arg(0).lengthEq(10))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(bytes)", new bytes(10));
+
+        uint256 ruleOffset = Policy.ruleAt(policy, Policy.groupAt(policy, 0), 0);
+        uint256 opCodeOffset = _opCodeOffset(policy, ruleOffset);
+        uint8 unknownOp = OpCode.LENGTH_BETWEEN + 1;
+        policy[opCodeOffset] = bytes1(unknownOp);
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.UnknownOperator.selector, unknownOp));
+        harness.enforce(policy, callData);
+    }
+
 }
 
 /// @dev Tests for context constraints (msg.sender, msg.value, block.*, etc.)
@@ -847,6 +862,17 @@ contract EnforcePathTest is PolicyEnforcerTest {
         harness.enforce(policy, abi.encodeWithSignature("foo(bytes[])", arr));
     }
 
+    function test_Depth2_StaticArrayOfDynamicElements() public view {
+        // A static-count array whose elements are dynamic is itself head-indirected in ABI
+        // encoding, so indexing into it hops through `_chain` without the dynamic-array flag.
+        bytes[3] memory arr = [bytes("aa"), bytes("bbbb"), bytes("c")];
+        bytes memory policy = PolicyBuilder.create("foo(bytes[3])")
+            .add(arg(0, 1).lengthEq(4))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(bytes[3])", arr);
+        harness.enforce(policy, callData);
+    }
+
     function test_RevertWhen_ElementIndexBeyondArrayLength() public {
         uint256[] memory arr = _uintArray(2);
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
@@ -880,6 +906,24 @@ contract EnforcePathTest is PolicyEnforcerTest {
         bytes memory policy = PolicyBuilder.create("foo(bytes)").add(arg(0).lengthEq(64)).buildUnsafe();
         bytes memory callData =
             abi.encodePacked(bytes4(keccak256("foo(bytes)")), uint256(0x20), uint256(64), uint256(0));
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_ArrayElementOffsetWraps_PastValidData() public {
+        // An offset that wraps (mod 2^256) to land on a small, validly-loadable address must
+        // still revert. The check is on the pre-wrap sum, not on whether the wrapped address
+        // happens to look valid — a downstream read from a coincidentally in-bounds wrapped
+        // address would otherwise silently succeed against unrelated calldata.
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, 0).lengthEq(1))
+            .buildUnsafe();
+        // One element; its offset word is chosen so `elems + offset` wraps to byte 36, the
+        // array's own length word (value 1) — a real 32-byte length that would satisfy
+        // `lengthEq(1)` and pass every downstream check if the wrap were allowed to stand.
+        bytes memory callData =
+            abi.encodePacked(bytes4(keccak256("foo(bytes[])")), uint256(0x20), uint256(1), type(uint256).max - 31);
+
         vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
         harness.enforce(policy, callData);
     }
@@ -1579,6 +1623,25 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
         bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
         vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
         harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_All_LengthEq_OverrunsCalldata() public {
+        // A quantified element's declared byte length must be backed by calldata before the
+        // length operator sees it, same as the unquantified case but through `_evalQuantified`.
+        bytes[] memory arr = new bytes[](1);
+        arr[0] = new bytes(64);
+        bytes memory policy = PolicyBuilder.create("foo(bytes[])")
+            .add(arg(0, Path.ALL).lengthEq(64))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
+
+        bytes memory truncated = new bytes(callData.length - 32);
+        for (uint256 i; i < truncated.length; ++i) {
+            truncated[i] = callData[i];
+        }
+
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
+        harness.enforce(policy, truncated);
     }
 }
 

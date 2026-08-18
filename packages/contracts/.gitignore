@@ -5,6 +5,7 @@ out/
 /snapshots
 /.snapshots_baseline
 .gas-snapshot
+mewt.sqlite
 
 # Broadcast logs
 !/broadcast

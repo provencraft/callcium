@@ -2664,5 +2664,883 @@
       }
     ],
     "builds": false
+  },
+  {
+    "id": "negated-gte-normalizes-to-lt",
+    "description": "not(gte(0)) becomes lt(0), impossible at the domain floor",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x840000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "IMPOSSIBLE_LT",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "negated-lt-normalizes-to-gte",
+    "description": "not(lt(0)) becomes gte(0), vacuous at the domain floor",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x830000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "VACUOUS_GTE",
+        "severity": "info",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "negated-lte-normalizes-to-gt",
+    "description": "not(lte(max)) becomes gt(max), impossible at the domain ceiling",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x85ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "IMPOSSIBLE_GT",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "dominated-lower-bound-under-equality",
+    "description": "eq(10) then gte(5) then weaker gte(3)",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x01000000000000000000000000000000000000000000000000000000000000000a",
+                "0x040000000000000000000000000000000000000000000000000000000000000005",
+                "0x040000000000000000000000000000000000000000000000000000000000000003"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "exclusive-lower-tightens-inclusive",
+    "description": "eq(10) then gte(5) then gt(5) at the same value",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x01000000000000000000000000000000000000000000000000000000000000000a",
+                "0x040000000000000000000000000000000000000000000000000000000000000005",
+                "0x020000000000000000000000000000000000000000000000000000000000000005"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "inclusive-lower-repeats-inclusive",
+    "description": "eq(50) then between(5,100) then gte(5) at the same value",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000000032",
+                "0x0600000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000064",
+                "0x040000000000000000000000000000000000000000000000000000000000000005"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "exclusive-lower-repeats-exclusive",
+    "description": "gt(5) then not(lte(5)) at the same value",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x020000000000000000000000000000000000000000000000000000000000000005",
+                "0x850000000000000000000000000000000000000000000000000000000000000005"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "dominated-upper-bound-under-equality",
+    "description": "eq(50) then lte(100) then weaker lte(200)",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000000032",
+                "0x050000000000000000000000000000000000000000000000000000000000000064",
+                "0x0500000000000000000000000000000000000000000000000000000000000000c8"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "exclusive-upper-tightens-inclusive",
+    "description": "eq(50) then lte(100) then lt(100) at the same value",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000000032",
+                "0x050000000000000000000000000000000000000000000000000000000000000064",
+                "0x030000000000000000000000000000000000000000000000000000000000000064"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "inclusive-upper-repeats-inclusive",
+    "description": "eq(50) then between(5,100) then lte(100) at the same value",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000000032",
+                "0x0600000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000064",
+                "0x050000000000000000000000000000000000000000000000000000000000000064"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "inclusive-upper-after-exclusive",
+    "description": "eq(50) then lt(100) then looser lte(100), silently ignored",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000000032",
+                "0x030000000000000000000000000000000000000000000000000000000000000064",
+                "0x050000000000000000000000000000000000000000000000000000000000000064"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "exclusive-upper-repeats-exclusive",
+    "description": "lt(100) then not(gte(100)) at the same value",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x030000000000000000000000000000000000000000000000000000000000000064",
+                "0x840000000000000000000000000000000000000000000000000000000000000064"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "equality-excluded-by-exclusive-upper",
+    "description": "lt(50) then eq(50), excluded by the open bound",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x030000000000000000000000000000000000000000000000000000000000000032",
+                "0x010000000000000000000000000000000000000000000000000000000000000032"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "BOUNDS_EXCLUDE_EQUALITY",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "impossible-range-then-dominated-lower",
+    "description": "gte(100) and lt(50) then a weaker gte(50)",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x040000000000000000000000000000000000000000000000000000000000000064",
+                "0x030000000000000000000000000000000000000000000000000000000000000032",
+                "0x040000000000000000000000000000000000000000000000000000000000000032"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "IMPOSSIBLE_RANGE",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "DOMINATED_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "equality-zero-after-upper-bound",
+    "description": "lte(100) then eq(0)",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x050000000000000000000000000000000000000000000000000000000000000064",
+                "0x010000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "repeated-equality-under-lower-bound",
+    "description": "gte(5) then eq(50) twice",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x040000000000000000000000000000000000000000000000000000000000000005",
+                "0x010000000000000000000000000000000000000000000000000000000000000032",
+                "0x010000000000000000000000000000000000000000000000000000000000000032"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BOUND",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "DUPLICATE_CONSTRAINT",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "repeated-exclusion-of-set-member",
+    "description": "isIn(1,2,3) then neq(2) twice",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
+                "0x810000000000000000000000000000000000000000000000000000000000000002",
+                "0x810000000000000000000000000000000000000000000000000000000000000002"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "SET_PARTIALLY_EXCLUDED",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "DUPLICATE_CONSTRAINT",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "equality-after-set-exclusion",
+    "description": "isIn(1,2,3) then neq(2) then eq(1), which adds no hole",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
+                "0x810000000000000000000000000000000000000000000000000000000000000002",
+                "0x010000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "SET_PARTIALLY_EXCLUDED",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "set-contains-equality",
+    "description": "eq(2) then isIn(1,2,3), which admits the pinned value",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x010000000000000000000000000000000000000000000000000000000000000002",
+                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
+  },
+  {
+    "id": "identical-sets-intersect-fully",
+    "description": "isIn(1,2) twice, intersecting to the same set",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x0700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+                "0x0700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "DUPLICATE_CONSTRAINT",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "negated-bitmask-is-not-analyzed",
+    "description": "bitmaskAll(1) then not(bitmaskAll(1))",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x100000000000000000000000000000000000000000000000000000000000000001",
+                "0x900000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
+  },
+  {
+    "id": "bitmask-all-contradicts-earlier-none",
+    "description": "bitmaskNone(1) then bitmaskAll(1)",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x120000000000000000000000000000000000000000000000000000000000000001",
+                "0x100000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "BITMASK_CONTRADICTION",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "bitmask-any-redundant-under-all",
+    "description": "bitmaskAll(1) then bitmaskAny(1)",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x100000000000000000000000000000000000000000000000000000000000000001",
+                "0x110000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BITMASK",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "context-path-resembling-quantifier",
+    "description": "context property ID equal to the any() step, with a negated operator",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 0,
+              "path": "0xfffe",
+              "operators": [
+                "0x810000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "UNKNOWN_CONTEXT_PROPERTY",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "malformed-lower-bound-blocks-fusible",
+    "description": "a gte with a two-word payload alongside a lone gte/lte pair",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+                "0x04000000000000000000000000000000000000000000000000000000000000000a",
+                "0x050000000000000000000000000000000000000000000000000000000000000064"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "UNKNOWN_OPERATOR",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      },
+      {
+        "code": "FUSIBLE_RANGE",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
   }
 ]

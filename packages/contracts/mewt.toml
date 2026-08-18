@@ -1,0 +1,98 @@
+## Configuration File
+##
+## Corresponding CLI flags use dotted notation matching this structure:
+##   db → --db
+##   log.level → --log.level
+##   log.color → --log.color
+##   test.cmd → --test.cmd (run, test commands)
+##   test.timeout → --test.timeout (run, test commands)
+##   languages.<family>.dialect → per-project dialect selection for dialect-aware languages
+
+## Database path (relative to this config file or absolute)
+db = "mewt.sqlite"
+
+[log]
+## Logging level: trace, debug, info, warn, error
+level = "info"
+
+## Force color output on/off, or omit for auto-detection based on terminal
+# color = true
+
+## Target discovery configuration (used by run and mutate commands)
+## Note: CLI overrides replace these config values, no merging
+[targets]
+
+## Include patterns: supports globs, files, and directories
+## Examples: ["src/**/*.rs"], ["src", "lib"], ["lib/*.py"]
+include = ["src/**/*.sol"]
+
+## Ignore patterns: substring matching
+## Any path containing these substrings will be excluded
+## Examples: ["node_modules", "vendor", "target", ".cargo"]
+ignore = ["vendor"]
+
+## Run command configuration
+[run]
+
+## Whitelist specific mutation types by slug
+## Run the 'print mutations' subcommand to see all available mutation types
+## If omitted, all mutation types are enabled
+# mutations = ["ER", "CR", "BR", "AOD", "AOR"]
+
+## In comprehensive mode, all mutants are tested (default: false)
+## ie lower severity mutants will not be skipped if higher severity mutants on the same line are uncaught
+# comprehensive = false
+
+[languages.move]
+# Move dialect selection for .move files
+# Values: "sui", "iota", "aptos"
+# If omitted, mewt defaults to "sui"
+# dialect = "sui"
+
+# JavaScript dialect selection is also available if a project uses nonstandard extensions,
+# but most projects should let mewt infer JS/JSX/TS/TSX from file extensions.
+# [languages.javascript]
+# Values: "js", "jsx", "ts", "tsx"
+# dialect = "jsx"
+
+[test]
+# Default test command for all targets
+# This command will be run to verify mutants are caught by your test suite
+cmd = "forge test"
+
+# Default timeout in seconds (optional)
+# If omitted, defaults to 2x the baseline test runtime
+# Manual override: via-ir recompiles the whole 167-file unit on any source change
+# (~400s measured), which dwarfs the ~0.4s baseline test runtime auto-timeout would use.
+timeout = 900
+
+# Per-target rules (optional)
+# Ordered array where the first matching override for a section wins.
+# Use TOML dotted keys for compact one-file-to-one-test mappings.
+# More specific patterns should come BEFORE general patterns.
+# Note: No CLI equivalent - use config file for complex per-target rules.
+
+# Example 1: One file maps to one specific test command
+# [[per_target]]
+# glob = "src/auth/login.rs"
+# test.cmd = "cargo test auth_login"
+# test.timeout = 60
+
+# Example 2: Critical files get extra scrutiny with slower, thorough tests
+# [[per_target]]
+# glob = "src/auth/*.rs"
+# test.cmd = "cargo test --release -- --test-threads=1"
+# test.timeout = 120
+# run.comprehensive = true
+
+# Example 3: Different language/dialect needs different test command
+# [[per_target]]
+# glob = "sources/aptos/**/*.move"
+# test.cmd = "aptos move test"
+# test.timeout = 30
+# languages.move.dialect = "aptos"
+
+# Example 4: Legacy JSX files stored with .js extensions
+# [[per_target]]
+# glob = "legacy-jsx/**/*.js"
+# languages.javascript.dialect = "jsx"
