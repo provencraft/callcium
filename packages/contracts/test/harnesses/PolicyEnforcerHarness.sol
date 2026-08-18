@@ -12,4 +12,9 @@ contract PolicyEnforcerHarness {
     function enforce(bytes memory policy, bytes calldata callData) external view {
         PolicyEnforcer.enforce(policy, callData);
     }
+
+    /// @notice Payable entry point, for exercising policies that read the call value.
+    function checkPayable(bytes memory policy, bytes calldata callData) external payable returns (bool) {
+        return PolicyEnforcer.check(policy, callData);
+    }
 }

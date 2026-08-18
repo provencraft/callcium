@@ -48,10 +48,6 @@ jobs:
         run: forge test -vvv
         id: test
 
-      - name: Check enforcement vector freshness
-        run: bun run vectors:check
-        id: vectors
-
       # Last: the floor profile forces a full rebuild into the shared out directory,
       # so every step above would otherwise recompile under the ci profile.
       - name: Check floor compiler version

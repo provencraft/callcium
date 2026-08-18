@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import { Constraint } from "src/Constraint.sol";
 import { PolicyData } from "src/PolicyCoder.sol";
 import { PolicyValidator } from "src/PolicyValidator.sol";
 import { Issue, IssueSeverity } from "src/ValidationIssue.sol";
 
-import { BaseTest } from "test/unit/BaseTest.sol";
+import { ConformanceTest } from "test/conformance/ConformanceTest.sol";
 
 // forge-lint: disable-next-item(unsafe-cheatcode)
-contract PolicyValidatorConformanceTest is BaseTest {
+contract PolicyValidatorConformanceTest is ConformanceTest {
     struct IssueFixture {
         /// @dev Machine-readable issue code (e.g., "DOMINATED_BOUND").
         string code;
@@ -36,57 +35,10 @@ contract PolicyValidatorConformanceTest is BaseTest {
     /// @dev Loads and parses all fixtures from the validation vector file, also returning the raw JSON for path lookups.
     function _fixtures() private view returns (string memory json, ValidationFixture[] memory fixtures) {
         json = vm.readFile("../../spec/vectors/validation.json");
-        uint256 count;
-        while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
+        uint256 count = _vectorCount(json);
         fixtures = new ValidationFixture[](count);
         for (uint256 i; i < count; ++i) {
             fixtures[i] = abi.decode(vm.parseJson(json, string.concat(".[", vm.toString(i), "]")), (ValidationFixture));
-        }
-    }
-
-    /// @dev Builds a PolicyData from the fixture's policy object at the given index.
-    function _policyData(string memory json, string memory indexString) private view returns (PolicyData memory data) {
-        string memory policyPath = string.concat(".[", indexString, "].policy");
-
-        data.isSelectorless = vm.parseJsonBool(json, string.concat(policyPath, ".isSelectorless"));
-        data.selector = bytes4(vm.parseJsonBytes(json, string.concat(policyPath, ".selector")));
-        data.descriptor = vm.parseJsonBytes(json, string.concat(policyPath, ".descriptor"));
-
-        uint256 groupCount;
-        while (vm.keyExistsJson(json, string.concat(policyPath, ".groups[", vm.toString(groupCount), "]"))) {
-            ++groupCount;
-        }
-
-        data.groups = new Constraint[][](groupCount);
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
-            string memory groupPath = string.concat(policyPath, ".groups[", vm.toString(groupIndex), "].constraints");
-            uint256 constraintCount;
-            while (vm.keyExistsJson(json, string.concat(groupPath, "[", vm.toString(constraintCount), "]"))) {
-                ++constraintCount;
-            }
-            data.groups[groupIndex] = new Constraint[](constraintCount);
-            for (uint256 constraintIndex; constraintIndex < constraintCount; ++constraintIndex) {
-                string memory constraintPath = string.concat(groupPath, "[", vm.toString(constraintIndex), "]");
-                uint256 operatorCount;
-                while (vm.keyExistsJson(
-                        json, string.concat(constraintPath, ".operators[", vm.toString(operatorCount), "]")
-                    )) ++operatorCount;
-                bytes[] memory operators = new bytes[](operatorCount);
-                for (uint256 operatorIndex; operatorIndex < operatorCount; ++operatorIndex) {
-                    operators[operatorIndex] = vm.parseJsonBytes(
-                        json, string.concat(constraintPath, ".operators[", vm.toString(operatorIndex), "]")
-                    );
-                }
-                string memory hintPath = string.concat(constraintPath, ".hint");
-                bytes memory hint;
-                if (vm.keyExistsJson(json, hintPath)) hint = vm.parseJsonBytes(json, hintPath);
-                data.groups[groupIndex][constraintIndex] = Constraint({
-                    scope: uint8(vm.parseJsonUint(json, string.concat(constraintPath, ".scope"))),
-                    path: vm.parseJsonBytes(json, string.concat(constraintPath, ".path")),
-                    operators: operators,
-                    hint: hint
-                });
-            }
         }
     }
 

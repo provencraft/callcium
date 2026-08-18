@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 
 import rawVectors from "../../../spec/vectors/validation.json";
 import { PolicyValidator } from "../src/policy-validator";
-import { hex } from "./helpers";
+import { policyDataFromVector } from "./helpers";
 
-import type { Constraint, PolicyData } from "../src";
+import type { VectorPolicy } from "./helpers";
 
 ///////////////////////////////////////////////////////////////////////////
 // Vector types
@@ -20,12 +20,7 @@ type VectorIssue = {
 type Vector = {
   id: string;
   description: string;
-  policy: {
-    isSelectorless: boolean;
-    selector: string;
-    descriptor: string;
-    groups: { constraints: { scope: number; path: string; operators: string[]; hint?: string }[] }[];
-  };
+  policy: VectorPolicy;
   issues: VectorIssue[];
   builds: boolean;
 };
@@ -35,24 +30,6 @@ const vectors: Vector[] = rawVectors;
 ///////////////////////////////////////////////////////////////////////////
 // Test helpers
 ///////////////////////////////////////////////////////////////////////////
-
-/** Build a PolicyData from a vector's policy spec. */
-function policyDataFromVector(policy: Vector["policy"]): PolicyData {
-  const groups: Constraint[][] = policy.groups.map((g) =>
-    g.constraints.map((c) => ({
-      scope: c.scope,
-      path: hex(c.path),
-      operators: c.operators.map((o) => hex(o)),
-      ...(c.hint !== undefined && { hint: hex(c.hint) }),
-    })),
-  );
-  return {
-    isSelectorless: policy.isSelectorless,
-    selector: hex(policy.selector),
-    descriptor: hex(policy.descriptor),
-    groups,
-  };
-}
 
 /** Sortable identity of an issue for order-insensitive comparison. */
 function issueKey(issue: { code: string; severity: string; groupIndex: number; constraintIndex: number }): string {

@@ -747,6 +747,27 @@
     }
   },
   {
+    "blob": "0x022fbebd3800ff020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: descLength=255 but the blob holds fewer bytes than the header it declares",
+    "error": "MalformedHeader",
+    "errorArgs": [],
+    "id": "desc-length-overflow",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
     "blob": "0x022fbebd38000302012000",
     "description": "MUST reject: groupCount=0 (empty policy)",
     "error": "EmptyPolicy",

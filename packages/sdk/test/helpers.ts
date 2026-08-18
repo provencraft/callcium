@@ -2,7 +2,7 @@ import { expect } from "vitest";
 
 import { CallciumError } from "../src";
 
-import type { EnforceResult, Violation, ViolationCode } from "../src";
+import type { Constraint, EnforceResult, PolicyData, Violation, ViolationCode } from "../src";
 
 /** Assert an enforcement result is a failure and narrow its type. */
 export function assertFailed(result: EnforceResult): asserts result is Extract<EnforceResult, { ok: false }> {
@@ -84,4 +84,34 @@ export function rangeOp(code: number, low: bigint, high: bigint): `0x${string}` 
 export function inOp(code: number, values: bigint[]): `0x${string}` {
   const body = values.map((v) => v.toString(16).padStart(64, "0")).join("");
   return `0x${code.toString(16).padStart(2, "0")}${body}`;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Vector policy specs
+///////////////////////////////////////////////////////////////////////////
+
+/** Structured policy spec as carried by the validation and enforcement vector files. */
+export type VectorPolicy = {
+  isSelectorless: boolean;
+  selector: string;
+  descriptor: string;
+  groups: { constraints: { scope: number; path: string; operators: string[]; hint?: string }[] }[];
+};
+
+/** Build a PolicyData from a vector's policy spec. */
+export function policyDataFromVector(policy: VectorPolicy): PolicyData {
+  const groups: Constraint[][] = policy.groups.map((group) =>
+    group.constraints.map((constraint) => ({
+      scope: constraint.scope,
+      path: hex(constraint.path),
+      operators: constraint.operators.map((operator) => hex(operator)),
+      ...(constraint.hint !== undefined && { hint: hex(constraint.hint) }),
+    })),
+  );
+  return {
+    isSelectorless: policy.isSelectorless,
+    selector: hex(policy.selector),
+    descriptor: hex(policy.descriptor),
+    groups,
+  };
 }

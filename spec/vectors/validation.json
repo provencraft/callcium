@@ -3542,5 +3542,67 @@
       }
     ],
     "builds": false
+  },
+  {
+    "id": "vacuous-negated-length-range",
+    "description": "not(lengthBetween(100, 10)) on bytes: inverted bounds exclude nothing",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020170",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0xa50000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000000a"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "VACUOUS_NEGATED_LENGTH_RANGE",
+        "severity": "info",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "quantifier-on-non-array",
+    "description": "ANY quantifier applied to a uint256: quantifiers follow array nodes only",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000fffe",
+              "operators": [
+                "0x01000000000000000000000000000000000000000000000000000000000000002a"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "UNNAVIGABLE_PATH",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
   }
 ]

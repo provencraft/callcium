@@ -1,10 +1,11 @@
 import { describe, expect, test } from "vitest";
 
-import vectorMap from "../../../spec/vectors/enforcement.json";
-import { PolicyEnforcer, toAddress } from "../src";
-import { hex } from "./helpers";
+import rawVectors from "../../../spec/vectors/enforcement.json";
+import { PolicyCoder, PolicyEnforcer, toAddress } from "../src";
+import { hex, policyDataFromVector } from "./helpers";
 
 import type { Context } from "../src";
+import type { VectorPolicy } from "./helpers";
 
 ///////////////////////////////////////////////////////////////////////////
 // Vector types
@@ -20,12 +21,17 @@ type VectorContext = {
 type Vector = {
   id: string;
   description: string;
-  policy: string;
+  policy: VectorPolicy;
   callData: string;
   context?: VectorContext;
   expected?: boolean;
   /** Violation code for malformed-calldata vectors (the onchain enforcer reverts). */
   expectedError?: string;
+  /**
+   * Expected violation codes, one per failed group. Reporting detail is non-normative (spec 9.3):
+   * only implementations that expose a violation list consume this field.
+   */
+  violations?: string[];
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -54,7 +60,7 @@ function parseContext(ctx: VectorContext): Context {
   return result;
 }
 
-const vectors: Vector[] = Object.values(vectorMap);
+const vectors: Vector[] = rawVectors;
 
 ///////////////////////////////////////////////////////////////////////////
 // Conformance
@@ -63,9 +69,10 @@ const vectors: Vector[] = Object.values(vectorMap);
 describe("PolicyEnforcer conformance vectors", () => {
   for (const vector of vectors) {
     test(`${vector.id}: ${vector.description}`, () => {
+      const policy = PolicyCoder.encode(policyDataFromVector(vector.policy));
       const context = vector.context ? parseContext(vector.context) : undefined;
 
-      const result = PolicyEnforcer.check(hex(vector.policy), hex(vector.callData), context);
+      const result = PolicyEnforcer.check(policy, hex(vector.callData), context);
 
       if (vector.expectedError !== undefined) {
         expect(result.ok, "Expected error but got pass").toBe(false);
@@ -78,6 +85,10 @@ describe("PolicyEnforcer conformance vectors", () => {
         );
       } else {
         expect(result.ok, "Expected fail but got pass").toBe(false);
+      }
+
+      if (vector.violations !== undefined && !result.ok) {
+        expect(result.violations.map((violation) => violation.code).toSorted()).toEqual(vector.violations.toSorted());
       }
     });
   }
