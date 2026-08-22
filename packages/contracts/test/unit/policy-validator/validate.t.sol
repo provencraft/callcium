@@ -244,7 +244,7 @@ contract NonCanonicalOperandTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(bytes4)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.NON_CANONICAL_OPERAND);
+        Issue memory issue = _assertIssue(issues, IssueCode.NON_CANONICAL_OPERAND);
         assertEq(issue.value1, operand);
         assertEq(issue.value2, bytes32(bytes4(0x11223344)));
     }
@@ -340,9 +340,11 @@ contract ImpossibleRangeTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.IMPOSSIBLE_RANGE);
+        Issue memory issue = _assertIssue(issues, IssueCode.IMPOSSIBLE_RANGE);
         assertEq(issue.severity, IssueSeverity.Error);
         assertEq(issue.category, IssueCategory.Contradiction);
+        assertEq(issue.value1, bytes32(uint256(100)));
+        assertEq(issue.value2, bytes32(uint256(50)));
     }
 
     function test_GteThenLte_EqualBoundsExclusive_ReturnsError() public pure {
@@ -616,7 +618,9 @@ contract ConflictingEqualityTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        _assertIssue(issues, IssueCode.CONFLICTING_EQUALITY);
+        Issue memory issue = _assertIssue(issues, IssueCode.CONFLICTING_EQUALITY);
+        assertEq(issue.value1, bytes32(uint256(5)));
+        assertEq(issue.value2, bytes32(uint256(10)));
     }
 
     function test_MultipleEq_SameValue_NoError() public pure {
@@ -666,7 +670,9 @@ contract BoundsExcludeEqualityTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        _assertIssue(issues, IssueCode.BOUNDS_EXCLUDE_EQUALITY);
+        Issue memory issue = _assertIssue(issues, IssueCode.BOUNDS_EXCLUDE_EQUALITY);
+        assertEq(issue.value1, bytes32(uint256(5)));
+        assertEq(issue.value2, bytes32(uint256(10)));
     }
 
     function test_EqAboveUpperBound_ReturnsError() public pure {
@@ -719,7 +725,7 @@ contract DominatedBoundTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.DOMINATED_BOUND);
+        Issue memory issue = _assertIssue(issues, IssueCode.DOMINATED_BOUND);
         assertEq(issue.severity, IssueSeverity.Warning);
         assertEq(issue.category, IssueCategory.Redundancy);
     }
@@ -767,8 +773,10 @@ contract DominatedBoundTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.REDUNDANT_BOUND);
+        Issue memory issue = _assertIssue(issues, IssueCode.REDUNDANT_BOUND);
         assertEq(issue.severity, IssueSeverity.Warning);
+        assertEq(issue.value1, bytes32(uint256(5)));
+        assertEq(issue.value2, bytes32(uint256(10)));
     }
 
     function test_GtGteSameValue_NoWarning() public pure {
@@ -791,7 +799,7 @@ contract DominatedBoundTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.DOMINATED_BOUND);
+        Issue memory issue = _assertIssue(issues, IssueCode.DOMINATED_BOUND);
         assertEq(uint256(issue.value1), 0);
     }
 
@@ -804,7 +812,7 @@ contract DominatedBoundTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.DOMINATED_BOUND);
+        Issue memory issue = _assertIssue(issues, IssueCode.DOMINATED_BOUND);
         assertEq(uint256(issue.value1), 5);
     }
 
@@ -817,7 +825,7 @@ contract DominatedBoundTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.DOMINATED_BOUND);
+        Issue memory issue = _assertIssue(issues, IssueCode.DOMINATED_BOUND);
         assertEq(uint256(issue.value1), 100);
     }
 
@@ -892,7 +900,7 @@ contract DuplicateConstraintTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.DUPLICATE_CONSTRAINT);
+        Issue memory issue = _assertIssue(issues, IssueCode.DUPLICATE_CONSTRAINT);
         assertEq(issue.severity, IssueSeverity.Warning);
     }
 
@@ -945,7 +953,7 @@ contract PhysicalBoundsTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint8)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.OUT_OF_PHYSICAL_BOUNDS);
+        Issue memory issue = _assertIssue(issues, IssueCode.OUT_OF_PHYSICAL_BOUNDS);
         assertEq(issue.severity, IssueSeverity.Error);
     }
 
@@ -984,7 +992,7 @@ contract PhysicalBoundsTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint8)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.OUT_OF_PHYSICAL_BOUNDS);
+        Issue memory issue = _assertIssue(issues, IssueCode.OUT_OF_PHYSICAL_BOUNDS);
         assertEq(issue.severity, IssueSeverity.Error);
     }
 
@@ -1034,7 +1042,7 @@ contract PhysicalBoundsTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint8)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.IMPOSSIBLE_GT);
+        Issue memory issue = _assertIssue(issues, IssueCode.IMPOSSIBLE_GT);
         assertEq(issue.severity, IssueSeverity.Error);
     }
 }
@@ -1047,7 +1055,7 @@ contract VacuousConstraintTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint8)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.VACUOUS_GTE);
+        Issue memory issue = _assertIssue(issues, IssueCode.VACUOUS_GTE);
         assertEq(issue.severity, IssueSeverity.Info);
         assertEq(issue.category, IssueCategory.Vacuity);
     }
@@ -1059,7 +1067,7 @@ contract VacuousConstraintTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint8)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.VACUOUS_LTE);
+        Issue memory issue = _assertIssue(issues, IssueCode.VACUOUS_LTE);
         assertEq(issue.severity, IssueSeverity.Info);
     }
 
@@ -1070,9 +1078,11 @@ contract VacuousConstraintTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.VACUOUS_NEGATED_RANGE);
+        Issue memory issue = _assertIssue(issues, IssueCode.VACUOUS_NEGATED_RANGE);
         assertEq(issue.severity, IssueSeverity.Info);
         assertEq(issue.category, IssueCategory.Vacuity);
+        assertEq(issue.value1, bytes32(uint256(100)));
+        assertEq(issue.value2, bytes32(uint256(10)));
     }
 
     function test_NegatedRangeInvertedSignedBounds_ReturnsInfo() public pure {
@@ -1094,7 +1104,9 @@ contract VacuousConstraintTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(bytes)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        _assertIssue(issues, IssueCode.VACUOUS_NEGATED_LENGTH_RANGE);
+        Issue memory issue = _assertIssue(issues, IssueCode.VACUOUS_NEGATED_LENGTH_RANGE);
+        assertEq(issue.value1, bytes32(uint256(100)));
+        assertEq(issue.value2, bytes32(uint256(10)));
     }
 
     function test_NegatedRangeOrderedBounds_NoIssue() public pure {
@@ -1123,7 +1135,7 @@ contract SetContradictionTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.EMPTY_SET_INTERSECTION);
+        Issue memory issue = _assertIssue(issues, IssueCode.EMPTY_SET_INTERSECTION);
         assertEq(issue.severity, IssueSeverity.Error);
     }
 
@@ -1138,7 +1150,7 @@ contract SetContradictionTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.SET_FULLY_EXCLUDED);
+        Issue memory issue = _assertIssue(issues, IssueCode.SET_FULLY_EXCLUDED);
         assertEq(issue.severity, IssueSeverity.Error);
     }
 
@@ -1226,8 +1238,10 @@ contract BitmaskRedundancyTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.REDUNDANT_BITMASK);
+        Issue memory issue = _assertIssue(issues, IssueCode.REDUNDANT_BITMASK);
         assertEq(issue.severity, IssueSeverity.Warning);
+        assertEq(issue.value1, bytes32(uint256(0x3)));
+        assertEq(issue.value2, bytes32(uint256(0xF)));
     }
 
     function test_NoneNone_Value2Correct() public pure {
@@ -1237,7 +1251,7 @@ contract BitmaskRedundancyTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.REDUNDANT_BITMASK);
+        Issue memory issue = _assertIssue(issues, IssueCode.REDUNDANT_BITMASK);
         assertEq(uint256(issue.value2), 0xF);
     }
 }
@@ -1263,7 +1277,7 @@ contract LengthContradictionTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(string)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.LENGTH_EQ_NEQ_CONTRADICTION);
+        Issue memory issue = _assertIssue(issues, IssueCode.LENGTH_EQ_NEQ_CONTRADICTION);
         assertEq(issue.severity, IssueSeverity.Error);
     }
 
@@ -1274,7 +1288,9 @@ contract LengthContradictionTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(string)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        _assertIssue(issues, IssueCode.REDUNDANT_LENGTH_BOUND);
+        Issue memory issue = _assertIssue(issues, IssueCode.REDUNDANT_LENGTH_BOUND);
+        assertEq(issue.value1, bytes32(uint256(5)));
+        assertEq(issue.value2, bytes32(uint256(10)));
     }
 }
 
@@ -1324,7 +1340,7 @@ contract UnsortedInSetTest is PolicyValidatorTest {
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
 
-        Issue memory issue = _findIssue(issues, IssueCode.UNSORTED_IN_SET);
+        Issue memory issue = _assertIssue(issues, IssueCode.UNSORTED_IN_SET);
         assertEq(issue.severity, IssueSeverity.Error);
         assertEq(issue.category, IssueCategory.Contradiction);
     }
@@ -1509,7 +1525,7 @@ contract QuantifierOverStaticLimitTest is PolicyValidatorTest {
         Issue[] memory issues =
             PolicyValidator.validate(_quantifiedOverStatic(uint16(PF.MAX_QUANTIFIED_ARRAY_LENGTH) + 1));
 
-        Issue memory issue = _findIssue(issues, IssueCode.QUANTIFIER_OVER_STATIC_LIMIT);
+        Issue memory issue = _assertIssue(issues, IssueCode.QUANTIFIER_OVER_STATIC_LIMIT);
         assertEq(issue.severity, IssueSeverity.Error);
         assertEq(issue.category, IssueCategory.Compatibility);
         assertEq(issue.value1, bytes32(PF.MAX_QUANTIFIED_ARRAY_LENGTH + 1));
@@ -1570,7 +1586,7 @@ contract HintMismatchTest is PolicyValidatorTest {
     function test_DivergentTargetDelta_ReturnsError() public pure {
         Issue[] memory issues = PolicyValidator.validate(_withHint(hex"0000000020000020"));
 
-        Issue memory issue = _findIssue(issues, IssueCode.HINT_MISMATCH);
+        Issue memory issue = _assertIssue(issues, IssueCode.HINT_MISMATCH);
         assertEq(issue.severity, IssueSeverity.Error);
         assertEq(issue.category, IssueCategory.TypeMismatch);
         assertEq(issue.groupIndex, 0);
@@ -1600,5 +1616,356 @@ contract HintMismatchTest is PolicyValidatorTest {
 
         Issue[] memory issues = PolicyValidator.validate(_createPolicyData("foo(uint256)", _desc(), c));
         _assertNoIssue(issues, IssueCode.HINT_MISMATCH);
+    }
+}
+
+/*//////////////////////////////////////////////////////////////////////////
+                             ISSUE PROVENANCE
+//////////////////////////////////////////////////////////////////////////*/
+
+contract IssueProvenanceTest is PolicyValidatorTest {
+    /// @dev Two uint256 parameters, so the reported constraint index differs from the group index.
+    function _twoArgs() private pure returns (bytes memory) {
+        return DescriptorBuilder.create().add(TypeDesc.uint256_()).add(TypeDesc.uint256_()).build();
+    }
+
+    /// @dev Places the constraint under test at index 1, behind a constraint that raises nothing.
+    function _atIndexOne(Constraint memory c) private pure returns (Issue[] memory) {
+        Constraint[] memory constraints = new Constraint[](2);
+        constraints[0] = arg(0).eq(uint256(42));
+        constraints[1] = c;
+        return PolicyValidator.validate(_createPolicyDataMulti("foo(uint256,uint256)", _twoArgs(), constraints));
+    }
+
+    function _assertAtIndexOne(Issue[] memory issues, bytes32 code) private pure returns (Issue memory) {
+        Issue memory issue = _assertIssue(issues, code);
+        assertEq(issue.groupIndex, 0);
+        assertEq(issue.constraintIndex, 1);
+        return issue;
+    }
+
+    function test_BitmaskContradictionOnAll() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).bitmaskNone(0xF).bitmaskAll(0x3)), IssueCode.BITMASK_CONTRADICTION);
+        assertEq(issue.value1, bytes32(uint256(0x3)));
+        assertEq(issue.value2, bytes32(uint256(0xF)));
+    }
+
+    function test_BitmaskContradictionOnNone() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).bitmaskAll(0xF).bitmaskNone(0x3)), IssueCode.BITMASK_CONTRADICTION);
+        assertEq(issue.value1, bytes32(uint256(0x3)));
+        assertEq(issue.value2, bytes32(uint256(0xF)));
+    }
+
+    function test_BitmaskAnyImpossible() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).bitmaskNone(0xF).bitmaskAny(0x3)), IssueCode.BITMASK_ANY_IMPOSSIBLE);
+        assertEq(issue.value1, bytes32(uint256(0x3)));
+        assertEq(issue.value2, bytes32(uint256(0xF)));
+    }
+
+    function test_RedundantBitmaskOnNone() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).bitmaskNone(0xF).bitmaskNone(0x3)), IssueCode.REDUNDANT_BITMASK);
+        assertEq(issue.value1, bytes32(uint256(0x3)));
+        assertEq(issue.value2, bytes32(uint256(0xF)));
+    }
+
+    function test_RedundantBitmaskOnAny() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).bitmaskAll(0xF).bitmaskAny(0x3)), IssueCode.REDUNDANT_BITMASK);
+        assertEq(issue.value1, bytes32(uint256(0x3)));
+        assertEq(issue.value2, bytes32(uint256(0xF)));
+    }
+
+    function test_BoundsExcludeEquality() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(5)).gt(uint256(10))), IssueCode.BOUNDS_EXCLUDE_EQUALITY);
+        assertEq(issue.value1, bytes32(uint256(5)));
+        assertEq(issue.value2, bytes32(uint256(10)));
+    }
+
+    function test_RedundantBound() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(10)).gte(uint256(5))), IssueCode.REDUNDANT_BOUND);
+        assertEq(issue.value1, bytes32(uint256(5)));
+        assertEq(issue.value2, bytes32(uint256(10)));
+    }
+
+    function test_DominatedLowerBoundRedundant() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).gte(uint256(5)).gte(uint256(3))), IssueCode.DOMINATED_BOUND);
+        assertEq(issue.value1, bytes32(uint256(3)));
+    }
+
+    function test_DominatedLowerBoundStrictlyBetter() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).gte(uint256(3)).gte(uint256(5))), IssueCode.DOMINATED_BOUND);
+        assertEq(issue.value1, bytes32(uint256(3)));
+    }
+
+    function test_DominatedUpperBoundRedundant() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).lte(uint256(5)).lte(uint256(10))), IssueCode.DOMINATED_BOUND);
+        assertEq(issue.value1, bytes32(uint256(10)));
+    }
+
+    function test_DominatedUpperBoundStrictlyBetter() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).lte(uint256(10)).lte(uint256(5))), IssueCode.DOMINATED_BOUND);
+        assertEq(issue.value1, bytes32(uint256(10)));
+    }
+
+    function _set(uint256 a, uint256 b) private pure returns (uint256[] memory values) {
+        values = new uint256[](2);
+        values[0] = a;
+        values[1] = b;
+    }
+
+    function test_EqNeqContradiction() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(42)).neq(uint256(42))), IssueCode.EQ_NEQ_CONTRADICTION);
+    }
+
+    function test_DuplicateConstraint() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(42)).eq(uint256(42))), IssueCode.DUPLICATE_CONSTRAINT);
+    }
+
+    function test_SetExcludesEquality() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(1)).notIn(_set(1, 2))), IssueCode.SET_EXCLUDES_EQUALITY);
+    }
+
+    function test_EmptySetIntersection() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).isIn(_set(1, 2)).isIn(_set(3, 4))), IssueCode.EMPTY_SET_INTERSECTION);
+    }
+
+    function test_SetFullyExcluded() public pure {
+        _assertAtIndexOne(
+            _atIndexOne(arg(1).isIn(_set(1, 2)).neq(uint256(1)).neq(uint256(2))), IssueCode.SET_FULLY_EXCLUDED
+        );
+    }
+
+    function test_SetPartiallyExcluded() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).isIn(_set(1, 2)).neq(uint256(1))), IssueCode.SET_PARTIALLY_EXCLUDED);
+    }
+
+    function test_SetRedundancy() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).isIn(_set(1, 2)).isIn(_set(2, 3))), IssueCode.SET_REDUNDANCY);
+    }
+
+    function test_SetReduction() public pure {
+        Issue[] memory issues = _atIndexOne(arg(1).isIn(_set(1, 2)).notIn(_set(1, 3)));
+        _assertAtIndexOne(issues, IssueCode.SET_REDUCTION);
+        _assertAtIndexOne(issues, IssueCode.SET_PARTIALLY_EXCLUDED);
+    }
+
+    /// @dev Two uint8 parameters, so a set member above the type domain is out of physical bounds.
+    function _atIndexOneNarrow(Constraint memory c) private pure returns (Issue[] memory) {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uintN_(8)).add(TypeDesc.uintN_(8)).build();
+        Constraint[] memory constraints = new Constraint[](2);
+        constraints[0] = arg(0).eq(uint256(1));
+        constraints[1] = c;
+        return PolicyValidator.validate(_createPolicyDataMulti("foo(uint8,uint8)", desc, constraints));
+    }
+
+    function test_BoundsExcludeEqualityAboveUpper() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(15)).lt(uint256(10))), IssueCode.BOUNDS_EXCLUDE_EQUALITY);
+        assertEq(issue.value1, bytes32(uint256(15)));
+        assertEq(issue.value2, bytes32(uint256(10)));
+    }
+
+    function test_RedundantUpperBound() public pure {
+        Issue memory issue =
+            _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(10)).lte(uint256(20))), IssueCode.REDUNDANT_BOUND);
+        assertEq(issue.value1, bytes32(uint256(20)));
+        assertEq(issue.value2, bytes32(uint256(10)));
+    }
+
+    function test_EqNeqContradictionEqAfterNeq() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).neq(uint256(42)).eq(uint256(42))), IssueCode.EQ_NEQ_CONTRADICTION);
+    }
+
+    function test_SetPartiallyExcludedAfterNotIn() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).neq(uint256(1)).isIn(_set(1, 2))), IssueCode.SET_PARTIALLY_EXCLUDED);
+    }
+
+    function test_OutOfPhysicalBoundsInSet() public pure {
+        _assertAtIndexOne(_atIndexOneNarrow(arg(1).isIn(_set(1, 256))), IssueCode.OUT_OF_PHYSICAL_BOUNDS);
+    }
+
+    /// @dev Two int256 parameters, so bound comparisons take the signed branch.
+    function _atIndexOneSigned(Constraint memory c) private pure returns (Issue[] memory) {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.int256_()).add(TypeDesc.int256_()).build();
+        Constraint[] memory constraints = new Constraint[](2);
+        constraints[0] = arg(0).eq(int256(1));
+        constraints[1] = c;
+        return PolicyValidator.validate(_createPolicyDataMulti("foo(int256,int256)", desc, constraints));
+    }
+
+    // An equality sitting exactly on an exclusive bound is excluded; on an inclusive bound it is
+    // merely redundant. The pair pins the boundary direction of the signed-aware comparisons.
+
+    function test_EqOnExclusiveUpperIsExcluded() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(10)).lt(uint256(10))), IssueCode.BOUNDS_EXCLUDE_EQUALITY);
+    }
+
+    function test_EqOnInclusiveUpperIsRedundant() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(10)).lte(uint256(10))), IssueCode.REDUNDANT_BOUND);
+    }
+
+    function test_EqOnExclusiveLowerIsExcluded() public pure {
+        _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(10)).gt(uint256(10))), IssueCode.BOUNDS_EXCLUDE_EQUALITY);
+    }
+
+    function test_SignedEqOnExclusiveUpperIsExcluded() public pure {
+        _assertAtIndexOne(_atIndexOneSigned(arg(1).eq(int256(-10)).lt(int256(-10))), IssueCode.BOUNDS_EXCLUDE_EQUALITY);
+    }
+
+    function test_SignedEqOnInclusiveUpperIsRedundant() public pure {
+        _assertAtIndexOne(_atIndexOneSigned(arg(1).eq(int256(-10)).lte(int256(-10))), IssueCode.REDUNDANT_BOUND);
+    }
+
+    function test_SignedEqOnExclusiveLowerIsExcluded() public pure {
+        _assertAtIndexOne(_atIndexOneSigned(arg(1).eq(int256(-10)).gt(int256(-10))), IssueCode.BOUNDS_EXCLUDE_EQUALITY);
+    }
+
+    function test_SignedEqAboveExclusiveUpperIsExcluded() public pure {
+        _assertAtIndexOne(_atIndexOneSigned(arg(1).eq(int256(-5)).lt(int256(-10))), IssueCode.BOUNDS_EXCLUDE_EQUALITY);
+    }
+}
+
+/*//////////////////////////////////////////////////////////////////////////
+                            DOMAIN UPDATE EDGES
+//////////////////////////////////////////////////////////////////////////*/
+
+contract DomainUpdateEdgeTest is PolicyValidatorTest {
+    function _uint256Arg(Constraint memory c) private pure returns (Issue[] memory) {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        return PolicyValidator.validate(_createPolicyData("foo(uint256)", desc, c));
+    }
+
+    function _uint8Arg(Constraint memory c) private pure returns (Issue[] memory) {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uintN_(8)).build();
+        return PolicyValidator.validate(_createPolicyData("foo(uint8)", desc, c));
+    }
+
+    function _int8Arg(Constraint memory c) private pure returns (Issue[] memory) {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.intN_(8)).build();
+        return PolicyValidator.validate(_createPolicyData("foo(int8)", desc, c));
+    }
+
+    function _set(uint256 a, uint256 b) private pure returns (uint256[] memory values) {
+        values = new uint256[](2);
+        values[0] = a;
+        values[1] = b;
+    }
+
+    // A neq only contradicts an equality that is actually recorded and actually equal.
+
+    function test_NeqWithoutEqualityIsNotContradiction() public pure {
+        _assertNoIssue(_uint256Arg(arg(0).neq(uint256(0))), IssueCode.EQ_NEQ_CONTRADICTION);
+    }
+
+    function test_NeqAboveEqualityIsNotContradiction() public pure {
+        _assertNoIssue(_uint256Arg(arg(0).eq(uint256(5)).neq(uint256(10))), IssueCode.EQ_NEQ_CONTRADICTION);
+    }
+
+    function test_NeqBelowEqualityIsNotContradiction() public pure {
+        _assertNoIssue(_uint256Arg(arg(0).eq(uint256(10)).neq(uint256(5))), IssueCode.EQ_NEQ_CONTRADICTION);
+    }
+
+    function test_DistinctNeqValuesAreTrackedSeparately() public pure {
+        // The second hole must be recorded on its own; a later eq on it is a contradiction.
+        _assertIssue(
+            _uint256Arg(arg(0).neq(uint256(10)).neq(uint256(5)).eq(uint256(5))), IssueCode.EQ_NEQ_CONTRADICTION
+        );
+    }
+
+    // Vacuity is reported only for the bound that actually sits on the type's limit.
+
+    function test_LteAtDomainMinIsNotVacuousGte() public pure {
+        _assertNoIssue(_uint256Arg(arg(0).lte(uint256(0))), IssueCode.VACUOUS_GTE);
+    }
+
+    function test_GteBelowDomainMinIsNotVacuousGte() public pure {
+        _assertNoIssue(_int8Arg(arg(0).gte(int256(-200))), IssueCode.VACUOUS_GTE);
+    }
+
+    function test_LteAboveDomainMaxIsNotVacuousLte() public pure {
+        _assertNoIssue(_uint8Arg(arg(0).lte(uint256(256))), IssueCode.VACUOUS_LTE);
+    }
+
+    // A repeated equality is a conflict regardless of which value came first.
+
+    function test_DescendingConflictingEquality() public pure {
+        _assertIssue(_uint256Arg(arg(0).eq(uint256(10)).eq(uint256(5))), IssueCode.CONFLICTING_EQUALITY);
+    }
+
+    function test_LaterEqualityRecheckedAgainstUpperBound() public pure {
+        _assertIssue(_uint256Arg(arg(0).lt(uint256(7)).eq(uint256(10)).eq(uint256(5))), IssueCode.REDUNDANT_BOUND);
+    }
+
+    function test_AscendingLaterEqualityRecheckedAgainstUpperBound() public pure {
+        _assertIssue(
+            _uint256Arg(arg(0).lt(uint256(7)).eq(uint256(5)).eq(uint256(10))), IssueCode.BOUNDS_EXCLUDE_EQUALITY
+        );
+    }
+
+    // Bitmask accumulation must union, so a later contradicting mask still sees earlier bits.
+
+    function test_RepeatedAllMaskStaysAccumulated() public pure {
+        _assertIssue(
+            _uint256Arg(arg(0).bitmaskAll(0x3).bitmaskAll(0x3).bitmaskNone(0x3)), IssueCode.BITMASK_CONTRADICTION
+        );
+    }
+
+    function test_RepeatedNoneMaskStaysAccumulated() public pure {
+        _assertIssue(
+            _uint256Arg(arg(0).bitmaskNone(0x3).bitmaskNone(0x3).bitmaskAll(0x3)), IssueCode.BITMASK_CONTRADICTION
+        );
+    }
+
+    function test_EmptyAnyMaskIsNotImpossible() public pure {
+        _assertNoIssue(_uint256Arg(arg(0).bitmaskAny(0)), IssueCode.BITMASK_ANY_IMPOSSIBLE);
+    }
+
+    // A hole only forbids the set member it actually equals.
+
+    function test_UnrelatedHoleDoesNotExcludeSet() public pure {
+        Issue[] memory issues = _uint256Arg(arg(0).isIn(_set(1, 2)).neq(uint256(3)));
+        _assertNoIssue(issues, IssueCode.SET_FULLY_EXCLUDED);
+        _assertNoIssue(issues, IssueCode.SET_PARTIALLY_EXCLUDED);
+    }
+
+    function _set3(uint256 a, uint256 b, uint256 c) private pure returns (uint256[] memory values) {
+        values = new uint256[](3);
+        values[0] = a;
+        values[1] = b;
+        values[2] = c;
+    }
+
+    // An equality survives a set only if a member actually equals it.
+
+    function test_SetAboveEqualityStillExcludesIt() public pure {
+        _assertIssue(_uint256Arg(arg(0).eq(uint256(1)).isIn(_set(2, 3))), IssueCode.SET_EXCLUDES_EQUALITY);
+    }
+
+    function test_DisjointSetsIntersectToNothing() public pure {
+        _assertIssue(_uint256Arg(arg(0).isIn(_set(5, 6)).isIn(_set(1, 2))), IssueCode.EMPTY_SET_INTERSECTION);
+    }
+
+    // Narrowing on either side is redundancy, so each side is reported on its own.
+
+    function test_IntersectionNarrowerThanIncomingSet() public pure {
+        _assertIssue(_uint256Arg(arg(0).isIn(_set(1, 2)).isIn(_set3(1, 2, 3))), IssueCode.SET_REDUNDANCY);
+    }
+
+    function test_IntersectionNarrowerThanExistingSet() public pure {
+        _assertIssue(_uint256Arg(arg(0).isIn(_set3(1, 2, 3)).isIn(_set(1, 2))), IssueCode.SET_REDUNDANCY);
+    }
+
+    function test_RepeatedIncomingMemberCountedOnce() public pure {
+        _assertIssue(_uint256Arg(arg(0).isIn(_set(1, 2)).isIn(_set(1, 1))), IssueCode.SET_REDUNDANCY);
     }
 }

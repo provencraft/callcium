@@ -19,17 +19,12 @@ abstract contract PolicyValidatorTest is BaseTest {
         assertEq(uint8(a), uint8(b));
     }
 
-    /// @dev Finds and returns the first issue matching the given code. Fails if not found.
-    function _findIssue(Issue[] memory issues, bytes32 code) internal pure returns (Issue memory) {
+    /// @dev Asserts an issue with the given code exists and returns the first match.
+    function _assertIssue(Issue[] memory issues, bytes32 code) internal pure returns (Issue memory) {
         for (uint256 i; i < issues.length; ++i) {
             if (issues[i].code == code) return issues[i];
         }
         revert("Issue not found");
-    }
-
-    /// @dev Asserts that at least one issue with the given code exists.
-    function _assertIssue(Issue[] memory issues, bytes32 code) internal pure {
-        _findIssue(issues, code);
     }
 
     /// @dev Asserts no issue with the given code exists.
