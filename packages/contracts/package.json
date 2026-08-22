@@ -30,6 +30,7 @@
     "docs": "forge doc",
     "bench:baseline": "forge test --match-path 'test/benchmark/**' -vv && bun tools/bench-baseline.ts",
     "bench:diff": "forge test --match-path 'test/benchmark/**' && bun tools/bench-compare.ts",
-    "bench:compare": "bun tools/bench-compare.ts"
+    "bench:compare": "bun tools/bench-compare.ts",
+    "mutate": "bun tools/mutate.ts"
   }
 }
