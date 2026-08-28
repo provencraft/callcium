@@ -95,8 +95,14 @@ export function formatViolation(v: Violation, params?: ParamNode[]): string {
       return "calldata too short to contain a selector";
     case "SELECTOR_MISMATCH":
       return `selector mismatch: expected ${v.expectedValue}, got ${v.resolvedValue}`;
-    case "MISSING_CONTEXT":
-      return `${formatPath(v.path, v.scope, params)} not provided`;
+    case "MISSING_CONTEXT": {
+      const path = formatPath(v.path, v.scope, params);
+      // With operand data the missing property is the rule's operand; the path names the target.
+      if (v.operandData !== undefined) {
+        return `${decodeOperandsFromData(v.operandData, v.typeCode, Op.EQ_CTX)[0]} not provided (referenced by ${path})`;
+      }
+      return `${path} not provided`;
+    }
     case "VALUE_MISMATCH":
       return renderValueMismatch(v, params);
     case "QUANTIFIER_LIMIT_EXCEEDED":

@@ -1,6 +1,6 @@
 "use client";
 
-import { PolicyCoder, TypeCode, hexToBytes, lookupQuantifier, Quantifier } from "@callcium/sdk";
+import { PolicyCoder, TypeCode, hexToBytes, lookupContextProperty, lookupQuantifier, Quantifier } from "@callcium/sdk";
 import { ChevronDown, Copy, Check, Plus, Trash2, ArrowRight, AlertTriangle, Info as InfoIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -522,7 +522,7 @@ function ConstraintRow({
             <>
               <span className="text-fd-muted-foreground">{getOperatorLabel(config.rules[0].operator)}</span>
               <span className="text-fd-foreground break-all">
-                {config.rules[0].values.map((v) => String(v)).join(", ")}
+                {formatRuleValues(config.rules[0].operator, config.rules[0].values)}
               </span>
               {targetType && <span className="text-fd-muted-foreground">: {targetType}</span>}
             </>
@@ -546,7 +546,7 @@ function ConstraintRow({
             className="ml-4 flex items-baseline gap-1.5 font-mono text-sm"
           >
             <span className="min-w-[2ch] text-fd-muted-foreground">{getOperatorLabel(rule.operator)}</span>
-            <span className="text-fd-foreground break-all">{rule.values.map((v) => String(v)).join(", ")}</span>
+            <span className="text-fd-foreground break-all">{formatRuleValues(rule.operator, rule.values)}</span>
           </div>
         ))}
       {issues.map((issue, i) => (
@@ -576,8 +576,24 @@ function parseStaticArrayLength(type: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+/** True for the operators whose operand names a context property instead of a value. */
+function isCtxOp(operator: string): boolean {
+  return operator === "eqCtx" || operator === "neqCtx";
+}
+
+/** Render a rule's operand list for display. */
+function formatRuleValues(operator: string, values: ScalarValue[]): string {
+  if (isCtxOp(operator)) return values.map((v) => lookupContextProperty(Number(v)).label).join(", ");
+  return values.map((v) => String(v)).join(", ");
+}
+
 function parseConstraintValues(operator: string, valueInput: string, typeInfo: TypeInfo | null): ScalarValue[] | null {
   try {
+    // A context property ID, not a value of the target's type, so this precedes the type branches.
+    if (isCtxOp(operator)) {
+      const trimmed = valueInput.trim();
+      return trimmed ? [Number(trimmed)] : null;
+    }
     if (operator === "isIn" || operator === "notIn") {
       const parts = valueInput
         .split(",")
@@ -991,7 +1007,15 @@ function AddConstraintForm({
           <>
             <div className="flex flex-col items-start gap-1">
               {rules.length === 0 && <span className="text-xs text-fd-muted-foreground">operator</span>}
-              <Select value={operator} onValueChange={setOperator}>
+              <Select
+                value={operator}
+                onValueChange={(op) => {
+                  // A property ID and a literal value are both plain numbers, so a carried-over
+                  // input would parse as the wrong operand.
+                  if (isCtxOp(op) !== isCtxOp(operator)) setValueInput("");
+                  setOperator(op);
+                }}
+              >
                 <SelectTrigger className="w-40 shrink-0">
                   <SelectValue />
                 </SelectTrigger>
@@ -1010,13 +1034,30 @@ function AddConstraintForm({
                   value
                 </label>
               )}
-              <MonoInput
-                id="constraint-value"
-                placeholder={valuePlaceholder(operator, targetTypeInfo)}
-                value={valueInput}
-                onChange={(e) => setValueInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && canAdd && handleSubmit()}
-              />
+              {isCtxOp(operator) ? (
+                <Select value={valueInput} onValueChange={setValueInput}>
+                  <SelectTrigger id="constraint-value" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONTEXT_PROPERTIES.filter(
+                      (prop) => (targetTypeInfo.typeCode === TypeCode.ADDRESS) === (prop.typeCode === TypeCode.ADDRESS),
+                    ).map((prop) => (
+                      <SelectItem key={prop.code} value={String(prop.code)}>
+                        {prop.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <MonoInput
+                  id="constraint-value"
+                  placeholder={valuePlaceholder(operator, targetTypeInfo)}
+                  value={valueInput}
+                  onChange={(e) => setValueInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && canAdd && handleSubmit()}
+                />
+              )}
             </div>
             <button
               type="button"
@@ -1071,7 +1112,7 @@ function AddConstraintForm({
               className="flex items-center gap-1.5 text-sm font-mono"
             >
               <span className="min-w-[2ch] text-fd-muted-foreground">{getOperatorLabel(rule.operator)}</span>
-              <span className="text-fd-foreground">{rule.values.map((v) => String(v)).join(", ")}</span>
+              <span className="text-fd-foreground">{formatRuleValues(rule.operator, rule.values)}</span>
               <button
                 type="button"
                 className="text-fd-muted-foreground hover:text-red-500 transition-colors"

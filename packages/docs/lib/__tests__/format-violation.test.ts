@@ -150,4 +150,44 @@ describe("formatViolation", () => {
     };
     expect(formatViolation(v)).toBe("arg(0): length == 5 violated by 7");
   });
+
+  it("names the subject property for a MISSING_CONTEXT on a context-scoped rule", () => {
+    const v: Violation = {
+      group: 0,
+      rule: 0,
+      code: "MISSING_CONTEXT",
+      scope: Scope.CONTEXT,
+      path: CONTEXT_MSG_SENDER_PATH,
+      typeCode: TypeCode.ADDRESS,
+    };
+    expect(formatViolation(v)).toBe("msg.sender not provided");
+  });
+
+  it("names the operand property for a MISSING_CONTEXT on a calldata EQ_CTX rule", () => {
+    const v: Violation = {
+      group: 0,
+      rule: 0,
+      code: "MISSING_CONTEXT",
+      scope: Scope.CALLDATA,
+      path: ARG0_PATH,
+      opCode: Op.EQ_CTX,
+      operandData: word(BigInt(ContextProperty.MSG_SENDER)),
+      typeCode: TypeCode.ADDRESS,
+    };
+    expect(formatViolation(v)).toBe("msg.sender not provided (referenced by arg(0))");
+  });
+
+  it("names the operand property for a MISSING_CONTEXT on a context-scoped EQ_CTX rule", () => {
+    const v: Violation = {
+      group: 0,
+      rule: 0,
+      code: "MISSING_CONTEXT",
+      scope: Scope.CONTEXT,
+      path: CONTEXT_MSG_SENDER_PATH,
+      opCode: Op.EQ_CTX,
+      operandData: word(BigInt(ContextProperty.TX_ORIGIN)),
+      typeCode: TypeCode.ADDRESS,
+    };
+    expect(formatViolation(v)).toBe("tx.origin not provided (referenced by msg.sender)");
+  });
 });

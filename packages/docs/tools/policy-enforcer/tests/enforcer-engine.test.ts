@@ -1,7 +1,8 @@
-import { PolicyBuilder, arg, msgSender } from "@callcium/sdk";
+import { ContextProperty, PolicyBuilder, arg, msgSender } from "@callcium/sdk";
 import { encodeFunctionData, parseAbi } from "viem";
 import { describe, expect, it } from "vitest";
 import type { Hex } from "@callcium/sdk";
+import { formatViolation } from "../../../lib/format-violation";
 import { checkPolicy } from "../enforcer-engine";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -60,6 +61,15 @@ describe("checkPolicy", () => {
       msgSender: sender as `0x${string}`,
     });
     expect(result.status).toBe("pass");
+  });
+
+  it("names the operand property when an eqCtx rule's context is missing", () => {
+    const eqCtxPolicy = PolicyBuilder.create("approve(address,uint256)")
+      .add(arg(0).eqCtx(ContextProperty.MSG_SENDER))
+      .build();
+    const result = checkPolicy(eqCtxPolicy, encodeApprove(spender, 1000n));
+    expect(result.status).toBe("inconclusive");
+    expect(formatViolation(result.skipped[0], result.params)).toBe("msg.sender not provided (referenced by arg(0))");
   });
 
   it("returns error for invalid policy hex", () => {

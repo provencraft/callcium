@@ -1,8 +1,9 @@
-import { Quantifier } from "@callcium/sdk";
+import { ContextProperty, Quantifier } from "@callcium/sdk";
 import { describe, expect, it } from "vitest";
 import {
   createSession,
   addConstraint,
+  getOperatorOptions,
   removeConstraint,
   addGroup,
   removeGroup,
@@ -87,6 +88,43 @@ describe("addConstraint", () => {
     const s2 = addConstraint(s1, 0, constraint);
     expect(s2.groups[0].constraints).toHaveLength(1);
     expect(s2.hex).not.toBeNull();
+  });
+
+  it("adds an eqCtx constraint pairing an address arg with msg.sender", () => {
+    const s1 = createSession("transfer(address,uint256)");
+    const constraint: ConstraintInput = {
+      scope: "calldata",
+      path: [0],
+      rules: [{ operator: "eqCtx", values: [ContextProperty.MSG_SENDER] }],
+    };
+    const s2 = addConstraint(s1, 0, constraint);
+    expect(s2.hex).not.toBeNull();
+    expect(s2.issues).toEqual([]);
+    expect(s2.errors).toEqual([]);
+  });
+
+  it("adds a neqCtx constraint pairing an address arg with tx.origin", () => {
+    const s1 = createSession("transfer(address,uint256)");
+    const constraint: ConstraintInput = {
+      scope: "calldata",
+      path: [0],
+      rules: [{ operator: "neqCtx", values: [ContextProperty.TX_ORIGIN] }],
+    };
+    const s2 = addConstraint(s1, 0, constraint);
+    expect(s2.hex).not.toBeNull();
+    expect(s2.issues).toEqual([]);
+    expect(s2.errors).toEqual([]);
+  });
+
+  it("reports a context type mismatch for a uint target paired with an address property", () => {
+    const s1 = createSession("transfer(address,uint256)");
+    const constraint: ConstraintInput = {
+      scope: "calldata",
+      path: [1],
+      rules: [{ operator: "eqCtx", values: [ContextProperty.MSG_SENDER] }],
+    };
+    const s2 = addConstraint(s1, 0, constraint);
+    expect(s2.issues.map((issue) => issue.code)).toContain("CONTEXT_TYPE_MISMATCH");
   });
 
   it("reports duplicate-path as structural error for same arg in same group", () => {
@@ -243,6 +281,21 @@ describe("removeConstraint", () => {
     const s3 = removeConstraint(s2, 0, 0);
     expect(s3.groups[0].constraints).toHaveLength(0);
     expect(s3.hex).toBeNull();
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Operator options
+///////////////////////////////////////////////////////////////////////////
+
+describe("getOperatorOptions", () => {
+  it("offers the context reference operators only on address and unsigned targets", () => {
+    const session = createSession("f(address,uint256,bool,bytes32,bytes)");
+    const offersCtx = session.params.map((param) => {
+      const methods = getOperatorOptions(param.typeInfo).map((op) => op.value);
+      return methods.includes("eqCtx") && methods.includes("neqCtx");
+    });
+    expect(offersCtx).toEqual([true, true, false, false, false]);
   });
 });
 

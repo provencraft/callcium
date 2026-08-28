@@ -1,3 +1,4 @@
+import { ContextProperty } from "@callcium/sdk";
 import type { ConstraintInput } from "@/tools/policy-builder";
 
 export type BuilderExample = {
@@ -62,6 +63,20 @@ export const EXAMPLES: BuilderExample[] = [
           scope: "calldata",
           path: [1],
           rules: [{ operator: "lte", values: [5000000000000000000n] }],
+        },
+      },
+    ],
+  },
+  {
+    name: "Recipient is sender",
+    signature: "transfer(address,uint256)",
+    constraints: [
+      {
+        groupIndex: 0,
+        config: {
+          scope: "calldata",
+          path: [0],
+          rules: [{ operator: "eqCtx", values: [ContextProperty.MSG_SENDER] }],
         },
       },
     ],

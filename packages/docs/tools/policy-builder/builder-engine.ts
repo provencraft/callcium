@@ -85,6 +85,8 @@ export type OpOption = { value: string; label: string };
 const OP_METHODS: { method: string; opCode: number; negated?: boolean }[] = [
   { method: "eq", opCode: Op.EQ },
   { method: "neq", opCode: Op.EQ, negated: true },
+  { method: "eqCtx", opCode: Op.EQ_CTX },
+  { method: "neqCtx", opCode: Op.EQ_CTX, negated: true },
   { method: "gt", opCode: Op.GT },
   { method: "lt", opCode: Op.LT },
   { method: "gte", opCode: Op.GTE },
@@ -258,6 +260,12 @@ function dispatchOperator(builder: SDKConstraintBuilder, operator: string, value
       break;
     case "neq":
       builder.neq(values[0]);
+      break;
+    case "eqCtx":
+      builder.eqCtx(Number(values[0]));
+      break;
+    case "neqCtx":
+      builder.neqCtx(Number(values[0]));
       break;
     case "gt":
       builder.gt(values[0] as bigint | number);
