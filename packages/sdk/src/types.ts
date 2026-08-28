@@ -52,8 +52,8 @@ export type SelectorMismatchViolation = {
 };
 
 /**
- * A context-scoped rule referenced a property not supplied in the execution context.
-
+ * A rule referenced a context property not supplied in the execution context — a context-scoped
+ * subject, or an `EQ_CTX` operand on either scope.
  */
 export type MissingContextViolation = {
   code: "MISSING_CONTEXT";
@@ -63,7 +63,9 @@ export type MissingContextViolation = {
   path: Hex;
   /** Declared type of the missing context property. */
   typeCode: number;
+  /** Operator code with the `Op.NOT` bit intact; absent for a context-scoped subject. */
   opCode?: number;
+  /** Operator payload; absent for a context-scoped subject. */
   operandData?: Hex;
 };
 

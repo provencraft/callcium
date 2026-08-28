@@ -16,6 +16,7 @@ type VectorContext = {
   msgValue: string;
   baseFee: string;
   gasPrice: string;
+  txOrigin?: string;
 };
 
 type Vector = {
@@ -51,6 +52,10 @@ function parseContext(ctx: VectorContext): Context {
 
   if (ctx.msgSender && ctx.msgSender !== "0x0000000000000000000000000000000000000000") {
     result.msgSender = toAddress(ctx.msgSender);
+  }
+
+  if (ctx.txOrigin) {
+    result.txOrigin = toAddress(ctx.txOrigin);
   }
 
   result.msgValue = parseUint(ctx.msgValue);

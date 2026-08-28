@@ -20,7 +20,7 @@ import {
   bytesToHex,
 } from "../src";
 import { bigintToHex } from "../src/bytes";
-import { PolicyFormat } from "../src/constants";
+import { ContextProperty, PolicyFormat } from "../src/constants";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { applyOperator } from "../src/operators";
 import { assertFailed, assertPassed, assertViolationCode, firstViolation, op } from "./helpers";
@@ -1094,5 +1094,91 @@ describe("enforce - hint dispatch", () => {
 
     const callData: Hex = `0x${word(32n)}${word(2n)}${word(9n)}${word(1n)}${word(9n)}${word(1n)}`;
     assertPassed(PolicyEnforcer.check(tampered, callData));
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Context reference operator (EQ_CTX)
+///////////////////////////////////////////////////////////////////////////
+
+describe("enforce - EQ_CTX operator", () => {
+  const ADDR_1: Context["msgSender"] = "0x0000000000000000000000000000000000000001";
+  const ADDR_2: Context["msgSender"] = "0x0000000000000000000000000000000000000002";
+  const ADDRESS_SELECTOR = "0xfdf80bda";
+
+  const POLICY_EQ_CTX_SENDER = PolicyBuilder.create("foo(address)")
+    .add(arg(0).eqCtx(ContextProperty.MSG_SENDER))
+    .build();
+  const POLICY_NEQ_CTX_SENDER = PolicyBuilder.create("foo(address)")
+    .add(arg(0).neqCtx(ContextProperty.MSG_SENDER))
+    .build();
+  const POLICY_SENDER_IS_ORIGIN = PolicyBuilder.create("foo(uint256)")
+    .add(msgSender().eqCtx(ContextProperty.TX_ORIGIN))
+    .build();
+  const POLICY_ALL_EQ_CTX = PolicyBuilder.create("foo(address[])")
+    .add(arg(0, Quantifier.ALL).eqCtx(ContextProperty.MSG_SENDER))
+    .build();
+
+  function encodeAddressArg(address: string): Hex {
+    return `${ADDRESS_SELECTOR}${"00".repeat(12)}${address.slice(2)}`;
+  }
+
+  test("passes when the argument equals msg.sender", () => {
+    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDR_1), { msgSender: ADDR_1 });
+    assertPassed(result);
+  });
+
+  test("fails with VALUE_MISMATCH when the argument differs from msg.sender", () => {
+    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDR_1), { msgSender: ADDR_2 });
+    const violation = firstViolation(result, "VALUE_MISMATCH");
+    expect(violation.opCode).toBe(Op.EQ_CTX);
+  });
+
+  test("negated form passes when the argument differs from msg.sender", () => {
+    const result = PolicyEnforcer.check(POLICY_NEQ_CTX_SENDER, encodeAddressArg(ADDR_1), { msgSender: ADDR_2 });
+    assertPassed(result);
+  });
+
+  test("fails with MISSING_CONTEXT when the referenced property is absent", () => {
+    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDR_1), {});
+    const violation = firstViolation(result, "MISSING_CONTEXT");
+    expect(violation.typeCode).toBe(TypeCode.ADDRESS);
+    expect(violation.scope).toBe(Scope.CALLDATA);
+  });
+
+  test("context subject: passes when msg.sender equals tx.origin", () => {
+    const callData = encodeUint256(SELECTOR, 42n);
+    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, { msgSender: ADDR_1, txOrigin: ADDR_1 });
+    assertPassed(result);
+  });
+
+  test("context subject: fails when tx.origin differs", () => {
+    const callData = encodeUint256(SELECTOR, 42n);
+    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, { msgSender: ADDR_1, txOrigin: ADDR_2 });
+    firstViolation(result, "VALUE_MISMATCH");
+  });
+
+  test("context subject: missing operand property reports MISSING_CONTEXT", () => {
+    const callData = encodeUint256(SELECTOR, 42n);
+    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, { msgSender: ADDR_1 });
+    const violation = firstViolation(result, "MISSING_CONTEXT");
+    expect(violation.typeCode).toBe(TypeCode.ADDRESS);
+  });
+
+  test("quantified: missing context reports MISSING_CONTEXT without an element index", () => {
+    const callData: Hex = `0x13cb49d4${bigintToHex(32n).slice(2)}${bigintToHex(1n).slice(2)}${"00".repeat(
+      12,
+    )}${ADDR_1.slice(2)}`;
+    const result = PolicyEnforcer.check(POLICY_ALL_EQ_CTX, callData);
+    const violation = firstViolation(result, "MISSING_CONTEXT");
+    expect("elementIndex" in violation).toBe(false);
+  });
+
+  test("rejects a tampered operand above the property range at decode", () => {
+    const tampered: Hex = `0x${POLICY_EQ_CTX_SENDER.slice(2, -4)}ffff`;
+    expectRejects(
+      () => PolicyEnforcer.check(tampered, encodeAddressArg(ADDR_1), { msgSender: ADDR_1 }),
+      "UNKNOWN_CONTEXT_PROPERTY",
+    );
   });
 });

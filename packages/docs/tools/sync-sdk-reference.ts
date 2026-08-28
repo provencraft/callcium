@@ -98,6 +98,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
         "Quantifier",
         "Scope",
         "ContextProperty",
+        "MAX_CONTEXT_PROPERTY_ID",
         "Limits",
         "Operands",
         "OpInfo",

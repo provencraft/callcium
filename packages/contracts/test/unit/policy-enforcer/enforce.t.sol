@@ -778,6 +778,129 @@ contract EnforceContextTest is PolicyEnforcerTest {
         vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.UnknownContextProperty.selector, 0xFFFF));
         harness.enforce(policy, callData);
     }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                          CONTEXT REFERENCE OPERANDS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_EqCtx_MsgSender() public view {
+        bytes memory policy = PolicyBuilder.create("foo(address)")
+            .add(arg(0).eqCtx(PF.CTX_MSG_SENDER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(address)", address(this));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_EqCtx_MsgSender_Different() public {
+        bytes memory policy = PolicyBuilder.create("foo(address)")
+            .add(arg(0).eqCtx(PF.CTX_MSG_SENDER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(address)", address(1));
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_NeqCtx_MsgSender() public view {
+        bytes memory policy = PolicyBuilder.create("foo(address)")
+            .add(arg(0).neqCtx(PF.CTX_MSG_SENDER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(address)", address(1));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_NeqCtx_MsgSender_Equal() public {
+        bytes memory policy = PolicyBuilder.create("foo(address)")
+            .add(arg(0).neqCtx(PF.CTX_MSG_SENDER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(address)", address(this));
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_EqCtx_BlockTimestamp() public {
+        vm.warp(1000);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).eqCtx(PF.CTX_BLOCK_TIMESTAMP))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(1000));
+        harness.enforce(policy, callData);
+    }
+
+    function test_EqCtx_AllElements() public view {
+        address[] memory arr = new address[](2);
+        arr[0] = address(this);
+        arr[1] = address(this);
+        bytes memory policy = PolicyBuilder.create("foo(address[])")
+            .add(arg(0, Path.ALL).eqCtx(PF.CTX_MSG_SENDER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(address[])", arr);
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_EqCtx_AllElements_OneDiffers() public {
+        address[] memory arr = new address[](2);
+        arr[0] = address(this);
+        arr[1] = address(1);
+        bytes memory policy = PolicyBuilder.create("foo(address[])")
+            .add(arg(0, Path.ALL).eqCtx(PF.CTX_MSG_SENDER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(address[])", arr);
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_EqCtx_ContextSubject() public {
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(msgSender().eqCtx(PF.CTX_TX_ORIGIN))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
+
+        vm.prank(address(7), address(7));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_EqCtx_ContextSubject_Different() public {
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(msgSender().eqCtx(PF.CTX_TX_ORIGIN))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
+
+        vm.prank(address(7), address(8));
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_EqCtx_UnknownContextProperty() public {
+        bytes memory policy = PolicyBuilder.create("foo(address)")
+            .add(arg(0).eqCtx(PF.CTX_MSG_SENDER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(address)", address(this));
+
+        uint256 ruleOffset = _firstRuleOffset(policy);
+        uint256 operandOffset = _opCodeOffset(policy, ruleOffset) + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
+        Be16.write(policy, operandOffset + 30, 0xFFFF);
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.UnknownContextProperty.selector, 0xFFFF));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_EqCtx_OperandHighBytesSet() public {
+        // High-byte garbage must not alias to a defined ID through the truncating cast.
+        bytes memory policy = PolicyBuilder.create("foo(address)")
+            .add(arg(0).eqCtx(PF.CTX_MSG_SENDER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(address)", address(this));
+
+        uint256 ruleOffset = _firstRuleOffset(policy);
+        uint256 operandOffset = _opCodeOffset(policy, ruleOffset) + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
+        policy[operandOffset] = 0x01;
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.UnknownContextProperty.selector, 0));
+        harness.enforce(policy, callData);
+    }
 }
 
 /// @dev Tests for path navigation (depth, structs, arrays)

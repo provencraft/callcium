@@ -20,6 +20,8 @@ library IssueCode {
     bytes32 internal constant IN_ON_BOOL = "IN_ON_BOOL";
     /// Length operator used on a non-dynamic type.
     bytes32 internal constant LENGTH_ON_STATIC = "LENGTH_ON_STATIC";
+    /// Context reference operand paired with a target type its property cannot match.
+    bytes32 internal constant CONTEXT_TYPE_MISMATCH = "CONTEXT_TYPE_MISMATCH";
     /// Unrecognised operator code.
     bytes32 internal constant UNKNOWN_OPERATOR = "UNKNOWN_OPERATOR";
     /// Operand word is not the canonical encoding for the declared type.

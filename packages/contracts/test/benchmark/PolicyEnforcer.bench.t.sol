@@ -5,6 +5,7 @@ import { arg, blockNumber, blockTimestamp, chainId, msgSender, msgValue } from "
 import { Path } from "src/Path.sol";
 import { Policy } from "src/Policy.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
+import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 
 import { LibBytes } from "solady/utils/LibBytes.sol";
 
@@ -96,6 +97,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     Fixture internal opBitmaskNone;
     Fixture internal opNotEq;
     Fixture internal opNotIn4;
+    Fixture internal opEqCtx;
 
     /*/////////////////////////////////////////////////////////////////////////
                               SCOPE FIXTURES
@@ -474,6 +476,13 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).notIn(notSet)),
             abi.encodeWithSignature("foo(uint256)", uint256(100))
+        );
+
+        // forgefmt: disable-next-item
+        opEqCtx = _buildFixture(
+            PolicyBuilder.create("foo(uint256)")
+                .add(arg(0).eqCtx(PF.CTX_CHAIN_ID)),
+            abi.encodeWithSignature("foo(uint256)", block.chainid)
         );
     }
 

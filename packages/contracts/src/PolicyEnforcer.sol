@@ -197,7 +197,7 @@ library PolicyEnforcer {
         uint256 hopCount
     )
         private
-        pure
+        view
         returns (bool)
     {
         unchecked {
@@ -243,7 +243,7 @@ library PolicyEnforcer {
         uint8 kind
     )
         private
-        pure
+        view
         returns (bool)
     {
         unchecked {
@@ -420,7 +420,7 @@ library PolicyEnforcer {
         uint16 dataLength
     )
         private
-        pure
+        view
         returns (bool)
     {
         uint8 base = opCode & ~OpCode.NOT;
@@ -519,6 +519,15 @@ library PolicyEnforcer {
                 upper := mload(add(ptr, 32))
             }
             result = valueLength >= lower && valueLength <= upper;
+
+        // Last in the chain so the branch costs nothing on the other operators.
+        } else if (base == OpCode.EQ_CTX) {
+            uint256 operand = uint256(LibBytes.load(policy, dataOffset));
+            // The whole word is checked so a truncating cast cannot alias garbage to a defined ID.
+            // forge-lint: disable-next-line(unsafe-typecast) the revert argument is diagnostic only.
+            require(operand <= PF.CTX_MAX, UnknownContextProperty(uint16(operand)));
+            // forge-lint: disable-next-line(unsafe-typecast) bounded by the check above.
+            result = value == _readContext(uint16(operand));
 
         } else {
             revert UnknownOperator(base);

@@ -268,8 +268,8 @@ contract UnknownOperatorTest is PolicyValidatorTest {
     function test_UnassignedOpcode_ReturnsError() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
 
-        // First opcode in the unassigned gap between the set-membership and bitmask ranges.
-        Constraint memory c = arg(0).addOp(OpCode.IN + 1, new bytes(32));
+        // First opcode in the unassigned gap before the bitmask range.
+        Constraint memory c = arg(0).addOp(0x09, new bytes(32));
 
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);
@@ -1967,5 +1967,107 @@ contract DomainUpdateEdgeTest is PolicyValidatorTest {
 
     function test_RepeatedIncomingMemberCountedOnce() public pure {
         _assertIssue(_uint256Arg(arg(0).isIn(_set(1, 2)).isIn(_set(1, 1))), IssueCode.SET_REDUNDANCY);
+    }
+}
+
+contract EqCtxTest is PolicyValidatorTest {
+    /// @dev Validates a single EQ_CTX constraint against a one-parameter descriptor.
+    function _validateEqCtx(
+        bytes memory desc,
+        string memory sig,
+        Constraint memory c
+    )
+        private
+        pure
+        returns (Issue[] memory)
+    {
+        return PolicyValidator.validate(_createPolicyData(sig, desc, c));
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                             COMPATIBLE PAIRINGS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_AddressTargetAddressProperty_NoIssues() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.address_()).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(address)", arg(0).eqCtx(PF.CTX_MSG_SENDER));
+        assertEq(issues.length, 0);
+    }
+
+    function test_UintTargetUintProperty_NoIssues() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(uint256)", arg(0).eqCtx(PF.CTX_BLOCK_TIMESTAMP));
+        assertEq(issues.length, 0);
+    }
+
+    function test_NarrowUintTargetUintProperty_NoIssues() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uintN_(128)).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(uint128)", arg(0).eqCtx(PF.CTX_MSG_VALUE));
+        assertEq(issues.length, 0);
+    }
+
+    function test_NegatedEqCtx_NoIssues() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.address_()).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(address)", arg(0).neqCtx(PF.CTX_MSG_SENDER));
+        assertEq(issues.length, 0);
+    }
+
+    function test_ContextSubjectContextOperand_NoIssues() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(uint256)", msgSender().eqCtx(PF.CTX_TX_ORIGIN));
+        assertEq(issues.length, 0);
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                             INCOMPATIBLE PAIRINGS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_UintTargetAddressProperty_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(uint256)", arg(0).eqCtx(PF.CTX_MSG_SENDER));
+
+        Issue memory issue = _assertIssue(issues, IssueCode.CONTEXT_TYPE_MISMATCH);
+        assertEq(issue.severity, IssueSeverity.Error);
+        assertEq(issue.category, IssueCategory.TypeMismatch);
+    }
+
+    function test_AddressTargetUintProperty_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.address_()).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(address)", arg(0).eqCtx(PF.CTX_MSG_VALUE));
+        _assertIssue(issues, IssueCode.CONTEXT_TYPE_MISMATCH);
+    }
+
+    function test_SignedTarget_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.int256_()).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(int256)", arg(0).eqCtx(PF.CTX_MSG_VALUE));
+        _assertIssue(issues, IssueCode.CONTEXT_TYPE_MISMATCH);
+    }
+
+    function test_Bytes32Target_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytes32_()).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(bytes32)", arg(0).eqCtx(PF.CTX_MSG_SENDER));
+        _assertIssue(issues, IssueCode.CONTEXT_TYPE_MISMATCH);
+    }
+
+    function test_DynamicTarget_ReturnsError() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.bytes_()).build();
+        Issue[] memory issues = _validateEqCtx(desc, "foo(bytes)", arg(0).eqCtx(PF.CTX_MSG_SENDER));
+        _assertIssue(issues, IssueCode.VALUE_OP_ON_DYNAMIC);
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                              OPERAND VALIDITY
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_UnknownProperty_ReturnsWarning() public pure {
+        bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
+        // The fluent method rejects the ID eagerly, so the raw escape hatch injects it.
+        Constraint memory c = arg(0).addOp(OpCode.EQ_CTX, abi.encode(uint256(PF.CTX_MAX) + 1));
+        Issue[] memory issues = _validateEqCtx(desc, "foo(uint256)", c);
+
+        Issue memory issue = _assertIssue(issues, IssueCode.UNKNOWN_CONTEXT_PROPERTY);
+        assertEq(issue.severity, IssueSeverity.Warning);
+        // An unknown property has no declared type, so no pairing verdict exists.
+        _assertNoIssue(issues, IssueCode.CONTEXT_TYPE_MISMATCH);
     }
 }

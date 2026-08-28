@@ -38,6 +38,7 @@ export function formatOpLabel(opCode: number, negated: boolean): string {
   const base = lookupOp(opCode).label;
   if (!negated) return base;
   if (base === "==") return "!=";
+  if (base === "== ctx") return "!= ctx";
   return `not ${base}`;
 }
 

@@ -2432,7 +2432,7 @@
               "scope": 1,
               "path": "0x0000",
               "operators": [
-                "0x080000000000000000000000000000000000000000000000000000000000000000"
+                "0x090000000000000000000000000000000000000000000000000000000000000000"
               ]
             }
           ]
@@ -4147,6 +4147,92 @@
         "severity": "info",
         "groupIndex": 0,
         "constraintIndex": 39
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "eq-ctx-valid",
+    "description": "EQ_CTX pairing an address target with the msg.sender property builds",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020141",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x080000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
+  },
+  {
+    "id": "eq-ctx-type-mismatch",
+    "description": "EQ_CTX pairing a uint256 target with the msg.sender address property is rejected",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x080000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "CONTEXT_TYPE_MISMATCH",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "eq-ctx-unknown-property",
+    "description": "EQ_CTX operand referencing an undefined context property is flagged",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020141",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x080000000000000000000000000000000000000000000000000000000000000008"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "UNKNOWN_CONTEXT_PROPERTY",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
       }
     ],
     "builds": false

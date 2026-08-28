@@ -105,6 +105,19 @@ describe("operator types", () => {
     expect(rule.operator).toBe("length ==");
     expect(rule.operands).toEqual(["5"]);
   });
+
+  it("decodes EQ_CTX with a context property operand", () => {
+    const rule = _firstRule(B.EQ_CTX_ADDRESS);
+    expect(rule.operator).toBe("== ctx");
+    expect(rule.operands).toEqual(["msg.sender"]);
+  });
+
+  it("decodes negated EQ_CTX", () => {
+    const rule = _firstRule(B.NEQ_CTX_ADDRESS);
+    expect(rule.operator).toBe("!= ctx");
+    expect(rule.negated).toBe(true);
+    expect(rule.operands).toEqual(["msg.sender"]);
+  });
 });
 
 ///////////////////////////////////////////////////////////////////////////

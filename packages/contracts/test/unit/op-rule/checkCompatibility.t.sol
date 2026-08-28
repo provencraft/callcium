@@ -72,6 +72,46 @@ contract CheckCompatibilityTest is OpRuleTest {
         assertEq(code, "LENGTH_ON_STATIC");
     }
 
+    function test_EqCtxOnAddress_Compatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.EQ_CTX, TypeCode.ADDRESS, false, 32);
+        assertTrue(ok);
+        assertEq(code, bytes32(0));
+    }
+
+    function test_EqCtxOnUnsigned_Compatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.EQ_CTX, TypeCode.UINT256, false, 32);
+        assertTrue(ok);
+        assertEq(code, bytes32(0));
+
+        (ok, code) = OpRule.checkCompatibility(OpCode.EQ_CTX, TypeCode.UINT8, false, 32);
+        assertTrue(ok);
+        assertEq(code, bytes32(0));
+    }
+
+    function test_EqCtxOnSigned_NotCompatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.EQ_CTX, TypeCode.INT256, false, 32);
+        assertFalse(ok);
+        assertEq(code, "CONTEXT_TYPE_MISMATCH");
+    }
+
+    function test_EqCtxOnBytes32_NotCompatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.EQ_CTX, TypeCode.BYTES32, false, 32);
+        assertFalse(ok);
+        assertEq(code, "CONTEXT_TYPE_MISMATCH");
+    }
+
+    function test_EqCtxOnBool_NotCompatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.EQ_CTX, TypeCode.BOOL, false, 32);
+        assertFalse(ok);
+        assertEq(code, "CONTEXT_TYPE_MISMATCH");
+    }
+
+    function test_EqCtxOnDynamic_NotCompatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.EQ_CTX, TypeCode.BYTES, true, 0);
+        assertFalse(ok);
+        assertEq(code, "VALUE_OP_ON_DYNAMIC");
+    }
+
     function test_UnknownOperator_NotCompatible() public pure {
         (bool ok, bytes32 code) = OpRule.checkCompatibility(0xFF, TypeCode.UINT256, false, 32);
         assertFalse(ok);

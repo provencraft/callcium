@@ -15,7 +15,7 @@ import {
 import { Descriptor } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError } from "./errors";
-import { isLengthOp, isLengthValidType } from "./operators";
+import { isLengthOp, isLengthValidType, toBigInt } from "./operators";
 
 import type {
   Constraint,
@@ -318,6 +318,17 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
           if (compareBytes(prev, cur) >= 0) {
             throw new CallciumError("UNSORTED_IN_SET", "IN operands must be strictly ascending", ruleOffset);
           }
+        }
+      }
+
+      // An EQ_CTX operand word must be a defined context property ID.
+      if (opBase === Op.EQ_CTX) {
+        if (toBigInt(data, dataStart) > BigInt(MAX_CONTEXT_PROPERTY_ID)) {
+          throw new CallciumError(
+            "UNKNOWN_CONTEXT_PROPERTY",
+            "EQ_CTX operand references an undefined context property",
+            ruleOffset,
+          );
         }
       }
 

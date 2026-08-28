@@ -191,6 +191,23 @@ bytes memory policy = PolicyBuilder
     .build();
 ```
 
+### Context references
+
+`eqCtx` and `neqCtx` compare a value against a context property instead of a literal. The operand names the property by ID; the property's value resolves at enforcement time.
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { PolicyFormat } from "callcium/PolicyFormat.sol";
+
+// transfer(address recipient, uint256 amount)
+bytes memory policy = PolicyBuilder
+    .create("transfer(address,uint256)")
+    .add(arg(0).eqCtx(PolicyFormat.CTX_MSG_SENDER)) // recipient == caller
+    .build();
+```
+
+Address properties (`CTX_MSG_SENDER`, `CTX_TX_ORIGIN`) pair with `address` arguments; uint256 properties pair with unsigned integer arguments. Context targets accept the operator too: `msgSender().eqCtx(PolicyFormat.CTX_TX_ORIGIN)` constrains two properties against each other.
+
 ## Array quantifiers
 
 `Path.ALL` and `Path.ANY` apply a constraint across all elements of an array parameter:
@@ -268,6 +285,7 @@ bytes memory policy = PolicyBuilder
 | Operator family | Operators                                                                     | Valid argument types                                                     |
 | --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Equality        | `eq`, `neq`                                                                   | All 32-byte static types (`address`, `uint*`, `int*`, `bytes32`, `bool`) |
+| Context reference | `eqCtx`, `neqCtx`                                                           | `address` for address properties; `uint*` for uint256 properties         |
 | Comparison      | `gt`, `lt`, `gte`, `lte`, `between`                                           | `uint*`, `int*`                                                          |
 | Set membership  | `isIn`, `notIn`                                                               | `address`, `uint*`, `int*`, `bytes32` (use `Cast` for narrower types)    |
 | Bitmask         | `bitmaskAll`, `bitmaskAny`, `bitmaskNone`                                     | `uint*`, `bytes32`                                                       |

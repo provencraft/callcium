@@ -1,4 +1,4 @@
-import { type Hex, lookupOp, TypeCode } from "@callcium/sdk";
+import { type Hex, lookupOp, lookupContextProperty, MAX_CONTEXT_PROPERTY_ID, Op, TypeCode } from "@callcium/sdk";
 import { getAddress } from "viem";
 
 const TWO_POW_256 = 2n ** 256n;
@@ -80,6 +80,13 @@ export function operandChunks(dataHex: Hex, opBase: number): string[] {
  * chunk is decoded against the supplied type code.
  */
 export function decodeOperandsFromData(dataHex: Hex, typeCode: number, opBase: number): string[] {
+  // An EQ_CTX operand names a context property, not a value of the target's type.
+  if (opBase === Op.EQ_CTX) {
+    return operandChunks(dataHex, opBase).map((chunk) => {
+      const id = Number.parseInt(chunk.slice(-4), 16);
+      return id <= MAX_CONTEXT_PROPERTY_ID ? lookupContextProperty(id).label : `0x${chunk}`;
+    });
+  }
   return operandChunks(dataHex, opBase).map((chunk) => decodeOperand(chunk, typeCode));
 }
 

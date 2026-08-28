@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { Scope, ContextProperty, Op } from "../src/constants";
+import { Scope, ContextProperty, MAX_CONTEXT_PROPERTY_ID, Op } from "../src/constants";
 import {
   arg,
   msgSender,
@@ -88,6 +88,22 @@ describe(".eq() / .neq()", () => {
   test(".neq(42n) — opCode=0x81", () => {
     const op = arg(0).neq(42n).operators[0];
     expect(op.slice(2, 4)).toBe((Op.EQ | Op.NOT).toString(16).padStart(2, "0"));
+  });
+
+  test(".eqCtx(TX_ORIGIN) — opCode=0x08, property ID in the low bytes", () => {
+    const op = arg(0).eqCtx(ContextProperty.TX_ORIGIN).operators[0];
+    expect(op).toHaveLength(2 + 2 + 64);
+    expect(op.slice(2, 4)).toBe(Op.EQ_CTX.toString(16).padStart(2, "0"));
+    expect(op.slice(-4)).toBe(ContextProperty.TX_ORIGIN.toString(16).padStart(4, "0"));
+  });
+
+  test(".neqCtx(MSG_SENDER) — opCode=0x88", () => {
+    const op = arg(0).neqCtx(ContextProperty.MSG_SENDER).operators[0];
+    expect(op.slice(2, 4)).toBe((Op.EQ_CTX | Op.NOT).toString(16).padStart(2, "0"));
+  });
+
+  test(".eqCtx rejects an unknown property ID", () => {
+    expectErrorCode(() => arg(0).eqCtx(MAX_CONTEXT_PROPERTY_ID + 1), "UNKNOWN_CONTEXT_PROPERTY");
   });
 
   test(".gt() — opCode=0x02", () => {

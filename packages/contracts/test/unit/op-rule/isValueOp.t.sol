@@ -16,6 +16,10 @@ contract IsValueOpTest is OpRuleTest {
         assertTrue(OpRule.isValueOp(OpCode.IN));
     }
 
+    function test_EqCtx_IsValueOp() public pure {
+        assertTrue(OpRule.isValueOp(OpCode.EQ_CTX));
+    }
+
     function test_BitmaskOps_AreValueOps() public pure {
         assertTrue(OpRule.isValueOp(OpCode.BITMASK_ALL));
         assertTrue(OpRule.isValueOp(OpCode.BITMASK_ANY));

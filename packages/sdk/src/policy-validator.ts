@@ -139,7 +139,7 @@ function getDomainLimits(typeCode: number): { min: bigint; max: bigint } {
 // Operator classification
 ///////////////////////////////////////////////////////////////////////////
 
-/** True for EQ, GT, LT, GTE, LTE, BETWEEN, IN, BITMASK_*. */
+/** True for EQ, GT, LT, GTE, LTE, BETWEEN, IN, EQ_CTX, BITMASK_*. */
 function isValueOp(opBase: number): boolean {
   return opBase <= Op.BITMASK_NONE;
 }
@@ -177,6 +177,14 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: string; messag
     // IN on bool is degenerate: the two-value domain reduces every set to an equality, a tautology, or dead members.
     if (opBase === Op.IN && typeCode === TypeCode.BOOL) {
       return { code: "IN_ON_BOOL", message: "IN operator used on boolean type" };
+    }
+    // Context properties are addresses or uint256, so only those target classes can match.
+    if (
+      opBase === Op.EQ_CTX &&
+      typeCode !== TypeCode.ADDRESS &&
+      !(typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX)
+    ) {
+      return { code: "CONTEXT_TYPE_MISMATCH", message: "Context reference operator used on incompatible type" };
     }
     return null;
   }
@@ -890,7 +898,35 @@ function validateConstraint(
       continue;
     }
 
-    if (isValueOp(base)) {
+    if (base === Op.EQ_CTX) {
+      // The operand names a context property, not a value: nothing to fold into a domain.
+      const ctxOperand = readValue(opHex);
+      if (ctxOperand > BigInt(MAX_CONTEXT_PROPERTY_ID)) {
+        issues.push(
+          ValidationIssue.unknownContextProperty(
+            groupIndex,
+            constraintIndex,
+            bigintToHex(ctxOperand),
+            bigintToHex(BigInt(MAX_CONTEXT_PROPERTY_ID)),
+          ),
+        );
+      } else {
+        // Compatibility has already narrowed the target to an address or unsigned type,
+        // so the pairing reduces to whether both sides are addresses.
+        const propertyIsAddress = lookupContextProperty(Number(ctxOperand)).typeCode === TypeCode.ADDRESS;
+        const targetIsAddress = ctx.typeInfo.typeCode === TypeCode.ADDRESS;
+        if (propertyIsAddress !== targetIsAddress) {
+          issues.push(
+            ValidationIssue.contextTypeMismatch(
+              groupIndex,
+              constraintIndex,
+              bigintToHex(ctxOperand),
+              bigintToHex(BigInt(ctx.typeInfo.typeCode)),
+            ),
+          );
+        }
+      }
+    } else if (isValueOp(base)) {
       // A non-canonical operand can never equal a canonicalized runtime value (PC-1, spec
       // section 4.5), so the rule is unsatisfiable or vacuous; skip analyzing the garbage
       // word. Scoped to the left-aligned types: numeric, address, and bool operands are

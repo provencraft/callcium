@@ -200,13 +200,8 @@ library PolicyValidator {
                             ValidationIssue.unknownContextProperty(groupIndex, constraintIndex, ctxId, PF.CTX_MAX)
                         );
                     }
-                    typeInfo = Descriptor.TypeInfo({
-                        code: (ctxId == PF.CTX_MSG_SENDER || ctxId == PF.CTX_TX_ORIGIN)
-                            ? TypeCode.ADDRESS
-                            : TypeCode.UINT256,
-                        isDynamic: false,
-                        staticSize: 32
-                    });
+                    typeInfo =
+                        Descriptor.TypeInfo({ code: _contextPropertyType(ctxId), isDynamic: false, staticSize: 32 });
                 }
                 ctx = _initContext(constraint.scope, constraint.path, typeInfo);
                 ctxIdx = contexts.length;
@@ -302,7 +297,28 @@ library PolicyValidator {
             }
 
             // Domain updates (contradiction, redundancy, and vacuity detection).
-            if (OpRule.isValueOp(base)) {
+            if (base == OpCode.EQ_CTX) {
+                // The operand names a context property, not a value: nothing to fold into a domain.
+                uint256 ctxOperand = _readValue(op);
+                if (ctxOperand > PF.CTX_MAX) {
+                    issues.push(
+                        ValidationIssue.unknownContextProperty(groupIndex, constraintIndex, ctxOperand, PF.CTX_MAX)
+                    );
+                } else {
+                    // Compatibility has already narrowed the target to an address or unsigned type,
+                    // so the pairing reduces to whether both sides are addresses.
+                    // forge-lint: disable-next-line(unsafe-typecast) bounded by the check above.
+                    bool propertyIsAddress = _contextPropertyType(uint16(ctxOperand)) == TypeCode.ADDRESS;
+                    bool targetIsAddress = ctx.typeInfo.code == TypeCode.ADDRESS;
+                    if (propertyIsAddress != targetIsAddress) {
+                        issues.push(
+                            ValidationIssue.contextTypeMismatch(
+                                groupIndex, constraintIndex, ctxOperand, ctx.typeInfo.code
+                            )
+                        );
+                    }
+                }
+            } else if (OpRule.isValueOp(base)) {
                 // A non-canonical operand can never equal a canonicalized runtime value (PC-1, spec section 4.5),
                 // so the rule is unsatisfiable or vacuous; skip analyzing the garbage word.
                 // Scoped to the left-aligned types: numeric, address, and bool operands
@@ -918,6 +934,11 @@ library PolicyValidator {
         for (uint256 i; i < depth; ++i) {
             if (Path.atUnchecked(path, i) >= Path.ANY) ++count;
         }
+    }
+
+    /// @dev Returns the declared type code of the context property `ctxId`.
+    function _contextPropertyType(uint16 ctxId) private pure returns (uint8) {
+        return (ctxId == PF.CTX_MSG_SENDER || ctxId == PF.CTX_TX_ORIGIN) ? TypeCode.ADDRESS : TypeCode.UINT256;
     }
 
     /// @dev Initializes a constraint context with domain limits for the given type.

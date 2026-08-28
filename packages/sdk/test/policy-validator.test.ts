@@ -1,7 +1,19 @@
 import { describe, expect, test } from "vitest";
 
-import { CallciumError, PolicyBuilder, Quantifier, arg, msgSender, msgValue, Op, Scope, TypeCode } from "../src";
+import {
+  CallciumError,
+  ContextProperty,
+  PolicyBuilder,
+  Quantifier,
+  arg,
+  msgSender,
+  msgValue,
+  Op,
+  Scope,
+  TypeCode,
+} from "../src";
 import { bytesToHex } from "../src/bytes";
+import { MAX_CONTEXT_PROPERTY_ID } from "../src/constants";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { PolicyValidator } from "../src/policy-validator";
 import { op, rangeOp, inOp } from "./helpers";
@@ -621,8 +633,8 @@ describe("PolicyValidator - unknown operator", () => {
   });
 
   test("reports UNKNOWN_OPERATOR for unassigned gap opcode", () => {
-    // First opcode in the unassigned gap between the set-membership and bitmask ranges.
-    const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(Op.IN + 1, 0n)]));
+    // First opcode in the unassigned gap before the bitmask range.
+    const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(0x09, 0n)]));
     expect(findIssue(issues, "UNKNOWN_OPERATOR")).toBeDefined();
   });
 
@@ -1098,5 +1110,63 @@ describe("hint mismatch", () => {
     const data = withHint();
     data.groups[0][0] = { scope: Scope.CONTEXT, path: "0x0000", operators: [op(Op.EQ, 1n)], hint: "0x0000000020" };
     expect(issueCodes(PolicyValidator.validate(data))).not.toContain("HINT_MISMATCH");
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Context reference operator (EQ_CTX)
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyValidator - EQ_CTX", () => {
+  test("address target with an address property has no issues", () => {
+    const issues = PolicyValidator.validate(
+      rawPolicy("address", Scope.CALLDATA, "0x0000", [op(Op.EQ_CTX, BigInt(ContextProperty.MSG_SENDER))]),
+    );
+    expect(issues).toHaveLength(0);
+  });
+
+  test("uint target with a uint256 property has no issues", () => {
+    const issues = PolicyValidator.validate(
+      rawPolicy("uint128", Scope.CALLDATA, "0x0000", [op(Op.EQ_CTX, BigInt(ContextProperty.BLOCK_TIMESTAMP))]),
+    );
+    expect(issues).toHaveLength(0);
+  });
+
+  test("context subject with a context operand has no issues", () => {
+    const issues = PolicyValidator.validate(
+      rawPolicy("uint256", Scope.CONTEXT, "0x0000", [op(Op.EQ_CTX, BigInt(ContextProperty.TX_ORIGIN))]),
+    );
+    expect(issues).toHaveLength(0);
+  });
+
+  test("uint target with an address property reports CONTEXT_TYPE_MISMATCH", () => {
+    const issues = PolicyValidator.validate(
+      rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(Op.EQ_CTX, BigInt(ContextProperty.MSG_SENDER))]),
+    );
+    expect(findIssue(issues, "CONTEXT_TYPE_MISMATCH")).toBeDefined();
+  });
+
+  test("address target with a uint256 property reports CONTEXT_TYPE_MISMATCH", () => {
+    const issues = PolicyValidator.validate(
+      rawPolicy("address", Scope.CALLDATA, "0x0000", [op(Op.EQ_CTX, BigInt(ContextProperty.MSG_VALUE))]),
+    );
+    expect(findIssue(issues, "CONTEXT_TYPE_MISMATCH")).toBeDefined();
+  });
+
+  test("signed target reports CONTEXT_TYPE_MISMATCH", () => {
+    const issues = PolicyValidator.validate(
+      rawPolicy("int256", Scope.CALLDATA, "0x0000", [op(Op.EQ_CTX, BigInt(ContextProperty.MSG_VALUE))]),
+    );
+    expect(findIssue(issues, "CONTEXT_TYPE_MISMATCH")).toBeDefined();
+  });
+
+  test("unknown property operand reports UNKNOWN_CONTEXT_PROPERTY without a pairing verdict", () => {
+    const issues = PolicyValidator.validate(
+      rawPolicy("address", Scope.CALLDATA, "0x0000", [op(Op.EQ_CTX, BigInt(MAX_CONTEXT_PROPERTY_ID + 1))]),
+    );
+    const issue = findIssue(issues, "UNKNOWN_CONTEXT_PROPERTY");
+    expect(issue).toBeDefined();
+    expect(issue?.severity).toBe("warning");
+    expect(findIssue(issues, "CONTEXT_TYPE_MISMATCH")).toBeUndefined();
   });
 });

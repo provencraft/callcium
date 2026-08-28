@@ -780,6 +780,30 @@ library ValidationIssue {
         });
     }
 
+    /// @notice Creates an issue for a context reference whose property cannot match the target type.
+    /// @return The constructed validation issue.
+    function contextTypeMismatch(
+        uint32 groupIndex,
+        uint32 constraintIndex,
+        uint256 contextId,
+        uint8 typeCode
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return Issue({
+            severity: IssueSeverity.Error,
+            category: IssueCategory.TypeMismatch,
+            groupIndex: groupIndex,
+            constraintIndex: constraintIndex,
+            code: IssueCode.CONTEXT_TYPE_MISMATCH,
+            value1: bytes32(contextId),
+            value2: bytes32(uint256(typeCode)),
+            message: "Context property type does not match the target type"
+        });
+    }
+
     /// @notice Creates a warning for a negated operator under an existential quantifier.
     /// @return The constructed validation issue.
     function negationUnderAny(

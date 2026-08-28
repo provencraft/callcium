@@ -72,6 +72,20 @@ export function hintMismatch(groupIndex: number, constraintIndex: number): Issue
   };
 }
 
+/** Issue for a context reference whose property cannot match the target type. */
+export function contextTypeMismatch(groupIndex: number, constraintIndex: number, contextId: Hex, typeCode: Hex): Issue {
+  return {
+    severity: "error",
+    category: "typeMismatch",
+    groupIndex,
+    constraintIndex,
+    code: "CONTEXT_TYPE_MISMATCH",
+    value1: contextId,
+    value2: typeCode,
+    message: "Context property type does not match the target type",
+  };
+}
+
 /** Issue for an operand that is not canonically encoded for the declared type. */
 export function nonCanonicalOperand(groupIndex: number, constraintIndex: number, operand: Hex, canonical: Hex): Issue {
   return {

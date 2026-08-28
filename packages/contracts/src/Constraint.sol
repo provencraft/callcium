@@ -150,6 +150,9 @@ library Operator {
     /// @notice Thrown when a set exceeds the maximum element count.
     error SetTooLarge();
 
+    /// @notice Thrown when an unknown context property ID is referenced.
+    error UnknownContextProperty(uint16 contextPropertyId);
+
     /*/////////////////////////////////////////////////////////////////////////
                                      FUNCTIONS
     /////////////////////////////////////////////////////////////////////////*/
@@ -454,6 +457,24 @@ library Operator {
     /// @return The updated constraint.
     function bitmaskNone(Constraint memory c, uint256 mask) internal pure returns (Constraint memory) {
         return _pushOp(c, OpCode.BITMASK_NONE, _u256(mask));
+    }
+
+    /// @notice Requires the value to equal the context property `contextPropertyId`.
+    /// @param c The constraint to extend.
+    /// @param contextPropertyId The context property ID.
+    /// @return The updated constraint.
+    function eqCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory) {
+        require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(contextPropertyId));
+        return _pushOp(c, OpCode.EQ_CTX, _u256(contextPropertyId));
+    }
+
+    /// @notice Requires the value to not equal the context property `contextPropertyId`.
+    /// @param c The constraint to extend.
+    /// @param contextPropertyId The context property ID.
+    /// @return The updated constraint.
+    function neqCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory) {
+        require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(contextPropertyId));
+        return _pushOp(c, OpCode.EQ_CTX | OpCode.NOT, _u256(contextPropertyId));
     }
 
     /// @notice Appends a raw operator with its data payload.

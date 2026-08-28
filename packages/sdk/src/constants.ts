@@ -226,6 +226,7 @@ const OP_TABLE = [
   { key: "LTE", code: 0x05, label: "<=", operands: "single" },
   { key: "BETWEEN", code: 0x06, label: "between", operands: "range" },
   { key: "IN", code: 0x07, label: "in", operands: "variadic" },
+  { key: "EQ_CTX", code: 0x08, label: "== ctx", operands: "single" },
   { key: "BITMASK_ALL", code: 0x10, label: "bitmask all", operands: "single" },
   { key: "BITMASK_ANY", code: 0x11, label: "bitmask any", operands: "single" },
   { key: "BITMASK_NONE", code: 0x12, label: "bitmask none", operands: "single" },

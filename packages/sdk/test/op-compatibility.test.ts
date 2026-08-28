@@ -21,6 +21,29 @@ const dynamicArray: TypeInfo = { typeCode: TypeCode.DYNAMIC_ARRAY, isDynamic: tr
 const tuple: TypeInfo = { typeCode: TypeCode.TUPLE, isDynamic: false, staticSize: 64 };
 
 ///////////////////////////////////////////////////////////////////////////
+// Context reference operator (EQ_CTX)
+///////////////////////////////////////////////////////////////////////////
+
+describe("isOpAllowed - EQ_CTX", () => {
+  test("allowed on address and unsigned targets", () => {
+    expect(isOpAllowed(Op.EQ_CTX, address)).toBe(true);
+    expect(isOpAllowed(Op.EQ_CTX, uint256)).toBe(true);
+    expect(isOpAllowed(Op.EQ_CTX, uint8)).toBe(true);
+  });
+
+  test("forbidden on signed, bytes32, and bool targets", () => {
+    expect(isOpAllowed(Op.EQ_CTX, int256)).toBe(false);
+    expect(isOpAllowed(Op.EQ_CTX, bytes32)).toBe(false);
+    expect(isOpAllowed(Op.EQ_CTX, bool)).toBe(false);
+  });
+
+  test("forbidden on dynamic targets", () => {
+    expect(isOpAllowed(Op.EQ_CTX, dynamicBytes)).toBe(false);
+    expect(isOpAllowed(Op.EQ_CTX, dynamicArray)).toBe(false);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
 // Value operators (EQ, GT, LT, GTE, LTE, BETWEEN, IN)
 ///////////////////////////////////////////////////////////////////////////
 

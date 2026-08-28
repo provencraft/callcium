@@ -151,6 +151,10 @@ contract CheckBench is PolicyEnforcerBench {
         _benchCheckPasses(opBetween, "op_between");
     }
 
+    function test_OpEqCtx() public {
+        _benchCheckPasses(opEqCtx, "op_eq_ctx");
+    }
+
     function test_OpIn2Members() public {
         _benchCheckPasses(opIn2, "op_in_2");
     }

@@ -5,6 +5,7 @@ import {
   Scope,
   MAX_CONTEXT_PROPERTY_ID,
   Limits,
+  Op,
   TypeCode,
   classifyTypeCode,
   lookupContextProperty,
@@ -172,7 +173,19 @@ function evaluateRule(
     groupIndex,
     ruleIndex,
     rule.path.value,
+    context,
   );
+}
+
+/**
+ * Resolve an EQ_CTX operand word to the referenced context property's value as a raw word.
+ * Returns the missing property's type code when the context does not supply it.
+ */
+function resolveContextOperand(operandData: Uint8Array, context?: Context): bigint | { ctxTypeCode: number } {
+  const propInfo = lookupContextProperty(Number(toBigInt(operandData, 0)));
+  const value = context?.[propInfo.contextKey];
+  if (value === undefined) return { ctxTypeCode: propInfo.typeCode };
+  return typeof value === "string" ? addressToBigInt(value) : value;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -249,7 +262,8 @@ function chainResolve(
 type TargetResult =
   | { passed: boolean; value: bigint }
   | { error: NavigationViolationCode }
-  | { error: "NON_CANONICAL_VALUE"; value: bigint };
+  | { error: "NON_CANONICAL_VALUE"; value: bigint }
+  | { error: "MISSING_CONTEXT"; ctxTypeCode: number };
 
 /**
  * Load the value at a resolved target offset and apply the operator.
@@ -264,6 +278,7 @@ function evalTarget(
   block: TargetBlock,
   opCode: number,
   operandData: Uint8Array,
+  context?: Context,
 ): TargetResult {
   const typeCode = block.typeCode;
 
@@ -293,6 +308,13 @@ function evalTarget(
   const value = toBigInt(word, 0);
   if (canonicalize(value, typeCode) !== value) {
     return { error: "NON_CANONICAL_VALUE", value };
+  }
+
+  if ((opCode & ~Op.NOT) === Op.EQ_CTX) {
+    const operand = resolveContextOperand(operandData, context);
+    if (typeof operand !== "bigint") return { error: "MISSING_CONTEXT", ctxTypeCode: operand.ctxTypeCode };
+    const passed = (value === operand) !== ((opCode & Op.NOT) !== 0);
+    return { passed, value };
   }
 
   const passed = applyOperator(opCode, value, 32, operandData, typeCode);
@@ -331,6 +353,18 @@ function navigationViolation(frame: RuleFrame, code: NavigationViolationCode, el
 /** Convert a failed or erroring target result into its violation. Passing results map to null. */
 function targetViolation(frame: RuleFrame, result: TargetResult, elementIndex?: number): Violation | null {
   if ("error" in result) {
+    if (result.error === "MISSING_CONTEXT") {
+      return {
+        group: frame.group,
+        rule: frame.rule,
+        code: result.error,
+        scope: Scope.CALLDATA,
+        path: frame.path,
+        opCode: frame.opCode,
+        operandData: bytesToHex(frame.operandData),
+        typeCode: result.ctxTypeCode,
+      };
+    }
     if (result.error === "NON_CANONICAL_VALUE") {
       return {
         group: frame.group,
@@ -373,6 +407,7 @@ function evaluateCalldataRule(
   groupIndex: number,
   ruleIndex: number,
   pathHex: Hex,
+  context?: Context,
 ): Violation | null {
   const header = hint[0]!;
   const hopCount = header & PF.HINT_HOP_COUNT_MASK;
@@ -392,6 +427,7 @@ function evaluateCalldataRule(
       groupIndex,
       ruleIndex,
       pathHex,
+      context,
     );
   }
 
@@ -408,7 +444,10 @@ function evaluateCalldataRule(
   const base = chainResolve(hint, callDataBytes, baseOffset, hopsOffset, hopCount);
   if (typeof base !== "number") return navigationViolation(frame, base.code);
 
-  return targetViolation(frame, evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData));
+  return targetViolation(
+    frame,
+    evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData, context),
+  );
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -428,6 +467,7 @@ function evaluateQuantified(
   groupIndex: number,
   ruleIndex: number,
   pathHex: Hex,
+  context?: Context,
 ): Violation | null {
   const frameOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
   const suffixHeaderOffset = frameOffset + PF.HINT_FRAME_PREFIX_SIZE;
@@ -504,10 +544,11 @@ function evaluateQuantified(
       base = chainedElem;
     }
 
-    const applied = evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData);
+    const applied = evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData, context);
     if ("error" in applied) {
-      // An abort-effect violation ends evaluation whatever the quantifier; a later element cannot
-      // rescue calldata the enforcer cannot read (spec §9.3).
+      // Error results end the rule whatever the quantifier: a later element cannot rescue
+      // calldata the enforcer cannot read (abort effects, spec §9.3), and a missing context
+      // property is missing for every element alike (group-local).
       return targetViolation(frame, applied, elemIndex);
     }
 
@@ -577,7 +618,25 @@ function evaluateContextRule(
     value = contextValue;
   }
 
-  const result = applyOperator(opCode, value, 32, operandData, propInfo.typeCode);
+  let result: boolean;
+  if ((opCode & ~Op.NOT) === Op.EQ_CTX) {
+    const operand = resolveContextOperand(operandData, context);
+    if (typeof operand !== "bigint") {
+      return {
+        group: groupIndex,
+        rule: ruleIndex,
+        code: "MISSING_CONTEXT",
+        scope: Scope.CONTEXT,
+        path: pathHex,
+        opCode,
+        operandData: bytesToHex(operandData),
+        typeCode: operand.ctxTypeCode,
+      };
+    }
+    result = (value === operand) !== ((opCode & Op.NOT) !== 0);
+  } else {
+    result = applyOperator(opCode, value, 32, operandData, propInfo.typeCode);
+  }
 
   if (!result) {
     return {

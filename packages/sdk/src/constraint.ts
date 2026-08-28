@@ -1,5 +1,5 @@
 import { bytesToHex, toAddress, writeBE16 } from "./bytes";
-import { Op, Scope, ContextProperty, Limits } from "./constants";
+import { Op, Scope, ContextProperty, Limits, MAX_CONTEXT_PROPERTY_ID } from "./constants";
 import { CallciumError } from "./errors";
 
 import type { Hex, Constraint } from "./types";
@@ -61,6 +61,14 @@ function rangeOp(opCode: number, min: bigint, max: bigint): Hex {
   buffer.set(encodeWord(min), 1);
   buffer.set(encodeWord(max), 33);
   return bytesToHex(buffer);
+}
+
+/** Require a defined context property ID and return it. */
+function checkContextPropertyId(contextPropertyId: number): number {
+  if (!Number.isInteger(contextPropertyId) || contextPropertyId < 0 || contextPropertyId > MAX_CONTEXT_PROPERTY_ID) {
+    throw new CallciumError("UNKNOWN_CONTEXT_PROPERTY", `Unknown context property ID ${contextPropertyId}`);
+  }
+  return contextPropertyId;
 }
 
 /** Largest member count whose 32-byte words still fit a rule's data length field. */
@@ -151,6 +159,16 @@ export class ConstraintBuilder implements Constraint {
   /** Assert the value does not equal `value`. */
   neq(value: ScalarValue): this {
     return this.push(singleOp(Op.EQ | Op.NOT, value));
+  }
+
+  /** Assert the value equals the context property `contextPropertyId`. */
+  eqCtx(contextPropertyId: number): this {
+    return this.push(singleOp(Op.EQ_CTX, checkContextPropertyId(contextPropertyId)));
+  }
+
+  /** Assert the value does not equal the context property `contextPropertyId`. */
+  neqCtx(contextPropertyId: number): this {
+    return this.push(singleOp(Op.EQ_CTX | Op.NOT, checkContextPropertyId(contextPropertyId)));
   }
 
   /** Assert the value is greater than `bound`. */

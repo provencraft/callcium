@@ -1702,5 +1702,94 @@
         "selector": "0x00000000"
       }
     }
+  },
+  {
+    "blob": "0x02fdf80bda00030201410100010000003100310101000000000000000000410800200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "single EQ_CTX rule on address arg(0) referencing msg.sender, calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-eq-ctx-address",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x020141",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x080000000000000000000000000000000000000000000000000000000000000000"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0xfdf80bda"
+      },
+      "encodingInput": {
+        "descriptor": "0x020141",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x080000000000000000000000000000000000000000000000000000000000000000",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0xfdf80bda"
+      }
+    }
+  },
+  {
+    "blob": "0x02fdf80bda00030201410100010000003100310101000000000000000000410800200000000000000000000000000000000000000000000000000000000000000008",
+    "description": "MUST reject: EQ_CTX operand references undefined context property 0x0008",
+    "error": "UnknownContextProperty",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "eq-ctx-unknown-context-property",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x02fdf80bda000302014101000100000051005101010000000000000000004108004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "description": "MUST reject: EQ_CTX with a 64-byte payload",
+    "error": "UnknownOperator",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "eq-ctx-payload-size",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
   }
 ]

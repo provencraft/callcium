@@ -60,11 +60,21 @@ contract PolicyEnforcerConformanceTest is ConformanceTest {
         // the isolate profile it lands in a fresh block whose fee fields are recomputed, so the two
         // context kinds cannot be pinned in the same vector.
         if (value == 0) {
-            vm.prank(sender);
+            // The txOrigin field appears only on vectors that pin it; the default origin is a
+            // nonzero sentinel, so those vectors always set it explicitly.
+            string memory originPath = string.concat(ctxPath, ".txOrigin");
+            if (vm.keyExistsJson(json, originPath)) {
+                vm.prank(sender, vm.parseAddress(vm.parseJsonString(json, originPath)));
+            } else {
+                vm.prank(sender);
+            }
             return harness.check(policy, callData);
         }
 
         require(baseFee == 0 && gasPrice == 0, "Vector pins both a call value and a fee field");
+        require(
+            !vm.keyExistsJson(json, string.concat(ctxPath, ".txOrigin")), "Vector pins both a call value and txOrigin"
+        );
         vm.deal(sender, value);
         vm.prank(sender);
         return harness.checkPayable{ value: value }(policy, callData);

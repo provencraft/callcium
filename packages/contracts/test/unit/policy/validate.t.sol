@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import { PolicyTest } from "../Policy.t.sol";
 
 import { Be16 } from "src/Be16.sol";
-import { arg } from "src/Constraint.sol";
+import { arg, msgSender } from "src/Constraint.sol";
 import { OpCode } from "src/OpCode.sol";
 import { Path } from "src/Path.sol";
 import { Policy } from "src/Policy.sol";
@@ -47,6 +47,19 @@ contract ValidateTest is PolicyTest {
             new bytes(32)
         );
         return bytes.concat(hex"022fbebd38000302012001", bytes2(uint16(1)), bytes4(uint32(rule.length)), rule);
+    }
+
+    /// @dev Builds a single-rule EQ_CTX blob whose operand word holds `ctxId`.
+    function _eqCtxBlob(uint16 ctxId) private pure returns (bytes memory) {
+        bytes memory blob = _calldataRuleBlob(hex"0000", STATIC_HINT, OpCode.EQ_CTX);
+        Be16.write(blob, _eqCtxOperandOffset(blob) + 30, ctxId);
+        return blob;
+    }
+
+    /// @dev Returns the offset of the first rule's operand word.
+    function _eqCtxOperandOffset(bytes memory blob) private pure returns (uint256) {
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        return _opCodeOffset(blob, ruleOffset) + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
     }
 
     /// @dev Asserts that a single-rule blob pairing `hint` with `opCode` reports a mismatched pair.
@@ -357,6 +370,39 @@ contract ValidateTest is PolicyTest {
 
     function test_RevertWhen_UnknownContextProperty() public {
         bytes memory blob = _contextBlob(PF.CTX_MAX + 1);
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        vm.expectRevert(abi.encodeWithSelector(Policy.UnknownContextProperty.selector, ruleOffset));
+        harness.validate(blob);
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                          CONTEXT REFERENCE OPERANDS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_EqCtxOperandAtMax() public view {
+        harness.validate(_eqCtxBlob(PF.CTX_MAX));
+    }
+
+    function test_NegatedEqCtx() public view {
+        harness.validate(_calldataRuleBlob(hex"0000", STATIC_HINT, OpCode.EQ_CTX | OpCode.NOT));
+    }
+
+    function test_ValidContextEqCtxPolicy() public view {
+        bytes memory blob = PolicyBuilder.create("foo(uint256)").add(msgSender().eqCtx(PF.CTX_TX_ORIGIN)).buildUnsafe();
+        harness.validate(blob);
+    }
+
+    function test_RevertWhen_EqCtxOperandAboveMax() public {
+        bytes memory blob = _eqCtxBlob(PF.CTX_MAX + 1);
+        uint256 ruleOffset = _firstRuleOffset(blob);
+        vm.expectRevert(abi.encodeWithSelector(Policy.UnknownContextProperty.selector, ruleOffset));
+        harness.validate(blob);
+    }
+
+    function test_RevertWhen_EqCtxOperandHighBytesSet() public {
+        // A defined ID in the low bytes does not excuse garbage above them.
+        bytes memory blob = _eqCtxBlob(PF.CTX_MSG_SENDER);
+        blob[_eqCtxOperandOffset(blob)] = 0x01;
         uint256 ruleOffset = _firstRuleOffset(blob);
         vm.expectRevert(abi.encodeWithSelector(Policy.UnknownContextProperty.selector, ruleOffset));
         harness.validate(blob);

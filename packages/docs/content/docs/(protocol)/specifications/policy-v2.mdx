@@ -4,7 +4,7 @@ description: Binary encoding format for onchain calldata policies.
 ---
 ## 1. Document Control
 
-- Version: 2.0
+- Version: 2.1
 - Status: Normative
 
 ***
@@ -198,24 +198,25 @@ All multi-byte integers are big-endian. All values in the data section are encod
 
 **Operator Data Formats:**
 
-| Operator        | dataLength | Format              | Description                                           |
-| --------------- | ---------- | ------------------- | ----------------------------------------------------- |
-| EQ              | 32         | `[value:32]`        | Single comparison value                               |
-| GT              | 32         | `[bound:32]`        | Lower bound (exclusive)                               |
-| LT              | 32         | `[bound:32]`        | Upper bound (exclusive)                               |
-| GTE             | 32         | `[bound:32]`        | Lower bound (inclusive)                               |
-| LTE             | 32         | `[bound:32]`        | Upper bound (inclusive)                               |
-| BETWEEN         | 64         | `[min:32][max:32]`  | Range bounds (inclusive)                              |
-| IN              | `32*n`     | `[v1:32][v2:32]...` | Set members (`n = dataLength/32`), sorted and deduped |
-| BITMASK\_ALL    | 32         | `[mask:32]`         | Required bits (all must be set)                       |
-| BITMASK\_ANY    | 32         | `[mask:32]`         | Any-of bits (at least one set)                        |
-| BITMASK\_NONE   | 32         | `[mask:32]`         | Forbidden bits (none may be set)                      |
-| LENGTH\_EQ      | 32         | `[length:32]`       | Exact length                                          |
-| LENGTH\_GT      | 32         | `[bound:32]`        | Minimum length (exclusive)                            |
-| LENGTH\_LT      | 32         | `[bound:32]`        | Maximum length (exclusive)                            |
-| LENGTH\_GTE     | 32         | `[bound:32]`        | Minimum length (inclusive)                            |
-| LENGTH\_LTE     | 32         | `[bound:32]`        | Maximum length (inclusive)                            |
-| LENGTH\_BETWEEN | 64         | `[min:32][max:32]`  | Length range (inclusive)                              |
+| Operator        | dataLength | Format                   | Description                                                          |
+| --------------- | ---------- | ------------------------ | -------------------------------------------------------------------- |
+| EQ              | 32         | `[value:32]`             | Single comparison value                                              |
+| GT              | 32         | `[bound:32]`             | Lower bound (exclusive)                                              |
+| LT              | 32         | `[bound:32]`             | Upper bound (exclusive)                                              |
+| GTE             | 32         | `[bound:32]`             | Lower bound (inclusive)                                              |
+| LTE             | 32         | `[bound:32]`             | Upper bound (inclusive)                                              |
+| BETWEEN         | 64         | `[min:32][max:32]`       | Range bounds (inclusive)                                             |
+| IN              | `32*n`     | `[v1:32][v2:32]...`      | Set members (`n = dataLength/32`), sorted and deduped                |
+| EQ\_CTX         | 32         | `[contextPropertyId:32]` | Context property whose value is the comparison operand (Section 5.4) |
+| BITMASK\_ALL    | 32         | `[mask:32]`              | Required bits (all must be set)                                      |
+| BITMASK\_ANY    | 32         | `[mask:32]`              | Any-of bits (at least one set)                                       |
+| BITMASK\_NONE   | 32         | `[mask:32]`              | Forbidden bits (none may be set)                                     |
+| LENGTH\_EQ      | 32         | `[length:32]`            | Exact length                                                         |
+| LENGTH\_GT      | 32         | `[bound:32]`             | Minimum length (exclusive)                                           |
+| LENGTH\_LT      | 32         | `[bound:32]`             | Maximum length (exclusive)                                           |
+| LENGTH\_GTE     | 32         | `[bound:32]`             | Minimum length (inclusive)                                           |
+| LENGTH\_LTE     | 32         | `[bound:32]`             | Maximum length (inclusive)                                           |
+| LENGTH\_BETWEEN | 64         | `[min:32][max:32]`       | Length range (inclusive)                                             |
 
 Length operators apply to dynamic arrays (element count) and `bytes`/`string` (byte length). Static arrays are forbidden.
 
@@ -346,6 +347,7 @@ OP_GTE      = 0x04        // value >= operand
 OP_LTE      = 0x05        // value <= operand
 OP_BETWEEN  = 0x06        // min <= value <= max (inclusive)
 OP_IN       = 0x07        // value in {v1, v2, ...}
+OP_EQ_CTX   = 0x08        // value == context property named by operand
 OP_BITMASK_ALL  = 0x10    // (value & mask) == mask
 OP_BITMASK_ANY  = 0x11    // (value & mask) != 0
 OP_BITMASK_NONE = 0x12    // (value & mask) == 0
@@ -367,15 +369,16 @@ Negated forms follow the same type restrictions as their base operators.
 
 ### 5.7 Operator-Type Compatibility Matrix
 
-| Operator                            | Valid Types                                                       |
-| ----------------------------------- | ----------------------------------------------------------------- |
-| `EQ`                                | All 32-byte static elementary types.                              |
-| `GT`, `LT`, `GTE`, `LTE`, `BETWEEN` | Numeric types (`UINT*`, `INT*`) only.                             |
-| `IN`                                | All 32-byte static elementary types except `BOOL`.                |
-| `BITMASK_*`                         | Unsigned integer types (`UINT*`) and `BYTES32` only.              |
-| `LENGTH_*`                          | `BYTES`, `STRING`, `DYNAMIC_ARRAY` only. Static arrays forbidden. |
+| Operator                            | Valid Types                                                                                                                       |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `EQ`                                | All 32-byte static elementary types.                                                                                              |
+| `GT`, `LT`, `GTE`, `LTE`, `BETWEEN` | Numeric types (`UINT*`, `INT*`) only.                                                                                             |
+| `IN`                                | All 32-byte static elementary types except `BOOL`.                                                                                |
+| `EQ_CTX`                            | `ADDRESS` when the referenced context property is `address`; unsigned integer types (`UINT*`) when it is `uint256` (Section 5.4). |
+| `BITMASK_*`                         | Unsigned integer types (`UINT*`) and `BYTES32` only.                                                                              |
+| `LENGTH_*`                          | `BYTES`, `STRING`, `DYNAMIC_ARRAY` only. Static arrays forbidden.                                                                 |
 
-Value operators (`EQ`, `GT`, `LT`, `GTE`, `LTE`, `BETWEEN`, `IN`, `BITMASK_*`) require 32-byte static elementary types; dynamic and composite types are incompatible.
+Value operators (`EQ`, `GT`, `LT`, `GTE`, `LTE`, `BETWEEN`, `IN`, `EQ_CTX`, `BITMASK_*`) require 32-byte static elementary types; dynamic and composite types are incompatible.
 
 ### 5.8 Compiled Hint Constants
 
@@ -511,6 +514,7 @@ chain(base, hops):
 - Unquantified rule: `target = chain(baseOffset, hops) + targetDelta`. For a static target the word at `target` is the value. For a dynamic target the chain ends at the target's payload, so the word at `target` is the declared length (`LENGTH_*` rules only, Section 5.7).
 - Quantified rule: element addressing per Section 7.3.
 - A static target's resolved value is checked against the canonical encoding of its declared type per §7.4, then the value and type code are checked against the operator and data.
+- For `EQ_CTX`, the comparison operand is the value of the context property named by the operator data, resolved from the execution environment as a raw 32-byte word (Section 5.4). A recognized property not provided at runtime is a `MISSING_CONTEXT` violation.
 - For `LENGTH_*` operators, the resolved value is the declared length read at the target's payload base: the element count for dynamic arrays, the byte length for `bytes` and `string`. Enforcers MUST verify that the declared data extent — `length * stride` bytes starting at `target + 32`, where the stride is 1 for `bytes`/`string` and `targetMeta.strideWords * 32` for dynamic arrays — lies within calldata bounds before applying the operator; an overrun is a `CALLDATA_OUT_OF_BOUNDS` violation. Length values are compared as raw unsigned words; the canonical-encoding check of §7.4 does not apply to them.
 
 ### 7.3 Quantifier Handling
@@ -580,6 +584,7 @@ A policy is well-formed if it satisfies all of the following invariants. Validat
 - **PWF-22**: No calldata rule's hint block carries a reserved or unused state: the header `kind` is not 3, reserved bits of the suffixHeader and of every meta word are zero, no hop `index` is 0xFFFE, a plain hop's `meta` and an element hop's `delta` are zero, and `targetMeta` is zero unless `typeCode` is the dynamic array code.
 - **PWF-23**: Every calldata rule's hint `typeCode` is an elementary type code or the dynamic array code (Callcium Descriptor Spec, Section 5).
 - **PWF-24**: Every calldata rule's `opCode` (masked with `0x7F`) is a `LENGTH_*` operator when its hint `typeCode` is `bytes`, `string`, or the dynamic array code, and a value operator otherwise (Sections 5.6–5.7).
+- **PWF-25**: Every `EQ_CTX` rule's operand is a defined context property ID (Section 5.4).
 
 ### 8.2 Validity
 
@@ -688,3 +693,4 @@ Enforcers MUST produce the same accept/reject verdict for identical policy, call
 ## Appendix A. Changelog
 
 - v2.0 (2026-08-05): Initial specification.
+- v2.1 (2026-08-28): Add the `EQ_CTX` operator.

@@ -26,6 +26,7 @@ library OpRule {
             || opBase == OpCode.LT
             || opBase == OpCode.GTE
             || opBase == OpCode.LTE
+            || opBase == OpCode.EQ_CTX
             || opBase == OpCode.BITMASK_ALL
             || opBase == OpCode.BITMASK_ANY
             || opBase == OpCode.BITMASK_NONE
@@ -148,6 +149,14 @@ library OpRule {
             // a tautology, or dead members.
             if (opBase == OpCode.IN && typeCode == TypeCode.BOOL) return (false, IssueCode.IN_ON_BOOL);
 
+            // Context properties are addresses or uint256, so only those target classes can match.
+            // forgefmt: disable-next-item
+            if (
+                opBase == OpCode.EQ_CTX
+                && typeCode != TypeCode.ADDRESS
+                && !(typeCode >= TypeCode.UINT8 && typeCode <= TypeCode.UINT256)
+            ) return (false, IssueCode.CONTEXT_TYPE_MISMATCH);
+
             return (true, bytes32(0));
         }
 
@@ -170,6 +179,7 @@ library OpRule {
         if (code == IssueCode.NUMERIC_OP_ON_NON_NUMERIC) return "Comparison operator used on non-numeric type";
         if (code == IssueCode.BITMASK_ON_INVALID) return "Bitmask operator used on incompatible type";
         if (code == IssueCode.IN_ON_BOOL) return "IN operator used on boolean type";
+        if (code == IssueCode.CONTEXT_TYPE_MISMATCH) return "Context reference operator used on incompatible type";
         if (code == IssueCode.LENGTH_ON_STATIC) return "Length operator used on non-dynamic type";
         return "Unknown operator code";
     }
