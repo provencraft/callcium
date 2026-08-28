@@ -53,6 +53,22 @@ describe("formatViolation", () => {
     );
   });
 
+  it("appends the resolved operand value to an EQ_CTX VALUE_MISMATCH", () => {
+    const v: Violation = {
+      group: 0,
+      rule: 0,
+      code: "VALUE_MISMATCH",
+      scope: Scope.CALLDATA,
+      path: ARG0_PATH,
+      opCode: Op.EQ_CTX,
+      operandData: word(BigInt(ContextProperty.MSG_VALUE)),
+      typeCode: TypeCode.UINT_MAX,
+      resolvedValue: word(7n),
+      resolvedOperand: word(9n),
+    };
+    expect(formatViolation(v)).toBe("arg(0): == ctx msg.value (9) violated by 7");
+  });
+
   it("collapses NOT-eq into != and renders bool literals", () => {
     const v: Violation = {
       group: 0,

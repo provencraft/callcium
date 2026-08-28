@@ -94,6 +94,11 @@ export type ValueMismatchViolation = {
   /** Type code of the failing value's leaf. */
   typeCode: number;
   resolvedValue?: Hex;
+  /**
+   * Resolved runtime value of a reference operand as a 32-byte word; present when the
+   * operator's operand names a reference resolved at enforcement, not a literal.
+   */
+  resolvedOperand?: Hex;
   elementIndex?: number;
 };
 

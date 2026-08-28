@@ -203,7 +203,8 @@ describe("enforce", () => {
     test("fails when callData does not match", () => {
       const callData = encodeUint256(SELECTOR, 99n);
       const result = PolicyEnforcer.check(POLICY_EQ_UINT256, callData);
-      firstViolation(result, "VALUE_MISMATCH");
+      const violation = firstViolation(result, "VALUE_MISMATCH");
+      expect("resolvedOperand" in violation).toBe(false);
     });
 
     test("fails on selector mismatch", () => {
@@ -1118,6 +1119,13 @@ describe("enforce - EQ_CTX operator", () => {
   const POLICY_ALL_EQ_CTX = PolicyBuilder.create("foo(address[])")
     .add(arg(0, Quantifier.ALL).eqCtx(ContextProperty.MSG_SENDER))
     .build();
+  const POLICY_ANY_EQ_CTX = PolicyBuilder.create("foo(address[])")
+    .add(arg(0, Quantifier.ANY).eqCtx(ContextProperty.MSG_SENDER))
+    .build();
+
+  function encodeSingleElementArrayArg(address: string): Hex {
+    return `0x13cb49d4${word(32n)}${word(1n)}${"00".repeat(12)}${address.slice(2)}`;
+  }
 
   function encodeAddressArg(address: string): Hex {
     return `${ADDRESS_SELECTOR}${"00".repeat(12)}${address.slice(2)}`;
@@ -1132,6 +1140,8 @@ describe("enforce - EQ_CTX operator", () => {
     const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDR_1), { msgSender: ADDR_2 });
     const violation = firstViolation(result, "VALUE_MISMATCH");
     expect(violation.opCode).toBe(Op.EQ_CTX);
+    expect(violation.resolvedValue).toBe(bigintToHex(1n));
+    expect(violation.resolvedOperand).toBe(bigintToHex(2n));
   });
 
   test("negated form passes when the argument differs from msg.sender", () => {
@@ -1155,7 +1165,9 @@ describe("enforce - EQ_CTX operator", () => {
   test("context subject: fails when tx.origin differs", () => {
     const callData = encodeUint256(SELECTOR, 42n);
     const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, { msgSender: ADDR_1, txOrigin: ADDR_2 });
-    firstViolation(result, "VALUE_MISMATCH");
+    const violation = firstViolation(result, "VALUE_MISMATCH");
+    expect(violation.resolvedValue).toBe(bigintToHex(1n));
+    expect(violation.resolvedOperand).toBe(bigintToHex(2n));
   });
 
   test("context subject: missing operand property reports MISSING_CONTEXT", () => {
@@ -1166,12 +1178,18 @@ describe("enforce - EQ_CTX operator", () => {
   });
 
   test("quantified: missing context reports MISSING_CONTEXT without an element index", () => {
-    const callData: Hex = `0x13cb49d4${bigintToHex(32n).slice(2)}${bigintToHex(1n).slice(2)}${"00".repeat(
-      12,
-    )}${ADDR_1.slice(2)}`;
-    const result = PolicyEnforcer.check(POLICY_ALL_EQ_CTX, callData);
+    const result = PolicyEnforcer.check(POLICY_ALL_EQ_CTX, encodeSingleElementArrayArg(ADDR_1));
     const violation = firstViolation(result, "MISSING_CONTEXT");
     expect("elementIndex" in violation).toBe(false);
+  });
+
+  test("quantified ANY: aggregate failure carries the resolved operand without a resolved value", () => {
+    const result = PolicyEnforcer.check(POLICY_ANY_EQ_CTX, encodeSingleElementArrayArg(ADDR_1), {
+      msgSender: ADDR_2,
+    });
+    const violation = firstViolation(result, "VALUE_MISMATCH");
+    expect("resolvedValue" in violation).toBe(false);
+    expect(violation.resolvedOperand).toBe(bigintToHex(2n));
   });
 
   test("rejects a tampered operand above the property range at decode", () => {

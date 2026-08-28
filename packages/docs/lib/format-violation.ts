@@ -66,7 +66,8 @@ function formatLeafActual(resolvedValue: Hex, opCode: number, typeCode: number):
 
 function renderValueMismatch(v: ValueMismatchViolation, params?: ParamNode[]): string {
   const path = formatPath(v.path, v.scope, params);
-  const constraint = formatConstraint(v.opCode, v.operandData, v.typeCode);
+  const operandNote = v.resolvedOperand === undefined ? "" : ` (${decodeValue(v.resolvedOperand, v.typeCode)})`;
+  const constraint = formatConstraint(v.opCode, v.operandData, v.typeCode) + operandNote;
   const actual = v.resolvedValue !== undefined ? formatLeafActual(v.resolvedValue, v.opCode, v.typeCode) : undefined;
 
   if (v.elementIndex !== undefined) {

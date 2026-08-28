@@ -260,7 +260,7 @@ function chainResolve(
 ///////////////////////////////////////////////////////////////////////////
 
 type TargetResult =
-  | { passed: boolean; value: bigint }
+  | { passed: boolean; value: bigint; ctxOperand?: bigint }
   | { error: NavigationViolationCode }
   | { error: "NON_CANONICAL_VALUE"; value: bigint }
   | { error: "MISSING_CONTEXT"; ctxTypeCode: number };
@@ -314,7 +314,7 @@ function evalTarget(
     const operand = resolveContextOperand(operandData, context);
     if (typeof operand !== "bigint") return { error: "MISSING_CONTEXT", ctxTypeCode: operand.ctxTypeCode };
     const passed = (value === operand) !== ((opCode & Op.NOT) !== 0);
-    return { passed, value };
+    return { passed, value, ctxOperand: operand };
   }
 
   const passed = applyOperator(opCode, value, 32, operandData, typeCode);
@@ -393,6 +393,7 @@ function targetViolation(frame: RuleFrame, result: TargetResult, elementIndex?: 
     operandData: bytesToHex(frame.operandData),
     typeCode: frame.typeCode,
     resolvedValue: bigintToHex(result.value),
+    ...(result.ctxOperand !== undefined && { resolvedOperand: bigintToHex(result.ctxOperand) }),
     ...(elementIndex !== undefined && { elementIndex }),
   };
 }
@@ -526,6 +527,8 @@ function evaluateQuantified(
   const elemStride = (meta & PF.HINT_META_STRIDE_MASK) * 32;
   const elemIsDynamic = (meta & PF.HINT_META_ELEM_DYNAMIC) !== 0;
 
+  // A reference operand resolves identically for every element; any element's result carries it.
+  let ctxOperand: bigint | undefined;
   for (let elemIndex = 0; elemIndex < count; elemIndex++) {
     const slot = elems + elemIndex * elemStride;
     let elem: number = slot;
@@ -558,6 +561,7 @@ function evaluateQuantified(
     } else if (isUniversal) {
       return targetViolation(frame, applied, elemIndex);
     }
+    ctxOperand = applied.ctxOperand;
   }
 
   if (isUniversal) return null;
@@ -571,6 +575,7 @@ function evaluateQuantified(
     opCode,
     operandData: bytesToHex(operandData),
     typeCode: block.typeCode,
+    ...(ctxOperand !== undefined && { resolvedOperand: bigintToHex(ctxOperand) }),
   };
 }
 
@@ -619,6 +624,7 @@ function evaluateContextRule(
   }
 
   let result: boolean;
+  let ctxOperand: bigint | undefined;
   if ((opCode & ~Op.NOT) === Op.EQ_CTX) {
     const operand = resolveContextOperand(operandData, context);
     if (typeof operand !== "bigint") {
@@ -634,6 +640,7 @@ function evaluateContextRule(
       };
     }
     result = (value === operand) !== ((opCode & Op.NOT) !== 0);
+    ctxOperand = operand;
   } else {
     result = applyOperator(opCode, value, 32, operandData, propInfo.typeCode);
   }
@@ -649,6 +656,7 @@ function evaluateContextRule(
       operandData: bytesToHex(operandData),
       typeCode: propInfo.typeCode,
       resolvedValue: bigintToHex(value),
+      ...(ctxOperand !== undefined && { resolvedOperand: bigintToHex(ctxOperand) }),
     };
   }
 
