@@ -417,7 +417,7 @@ library Policy {
         (uint8 targetCode, bool targetIsDynamic,,) = Descriptor.inspect(desc, descOffset);
         _enter(walk, targetIsDynamic && !walk.entered);
 
-        uint16 targetMeta;
+        uint16 targetMeta = 0;
         if (targetCode == TypeCode.DYNAMIC_ARRAY) (targetMeta,) = _arrayMeta(desc, descOffset, targetCode);
 
         // Packed as the target block it becomes on the wire: targetDelta(32) | targetMeta(16) | typeCode(8).

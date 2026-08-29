@@ -84,7 +84,7 @@ library PolicyEnforcer {
             uint8 policyHeader = _byteAt(policy, PF.POLICY_HEADER_OFFSET);
 
             // Determine base offset and validate selector if present.
-            uint256 baseOffset;
+            uint256 baseOffset = 0;
             if (policyHeader & PF.FLAG_NO_SELECTOR == 0) {
                 bytes4 expectedSelector = bytes4(LibBytes.load(policy, PF.POLICY_SELECTOR_OFFSET));
                 require(callData.length >= PF.POLICY_SELECTOR_SIZE, MissingSelector());
@@ -283,9 +283,9 @@ library PolicyEnforcer {
             );
 
             bool hasLength = TypeRule.hasCalldataLength(typeCode);
-            uint256 payloadStride;
-            uint8 canonMode;
-            uint256 canonBits;
+            uint256 payloadStride = 0;
+            uint8 canonMode = 0;
+            uint256 canonBits = 0;
             if (hasLength) {
                 payloadStride = _payloadStride(typeCode, targetBlock);
             } else {

@@ -205,9 +205,9 @@ library TypeDesc {
         );
 
         // Calculate total size and staticWords.
-        uint256 totalFieldsLength;
-        uint256 sumStaticWords;
-        bool anyDynamic;
+        uint256 totalFieldsLength = 0;
+        uint256 sumStaticWords = 0;
+        bool anyDynamic = false;
         for (uint256 i = 0; i < fieldCount; ++i) {
             bytes memory f = fields[i];
             uint256 fieldLength = f.length;

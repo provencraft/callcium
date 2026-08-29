@@ -110,7 +110,7 @@ library Descriptor {
         require(formatVersion == DF.VERSION, UnsupportedVersion(formatVersion));
 
         uint256 cursor = DF.HEADER_SIZE;
-        uint256 parsedCount;
+        uint256 parsedCount = 0;
         uint256 descLength = self.length;
         while (cursor < descLength) {
             cursor = _validateNode(self, cursor, 1);

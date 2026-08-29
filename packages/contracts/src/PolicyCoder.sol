@@ -410,7 +410,7 @@ library PolicyCoder {
         // Single pass: allocate worst-case (every rule could have a unique path), fill, then trim.
         Constraint[] memory constraints = new Constraint[](ruleCount);
         bytes32[] memory keys = new bytes32[](ruleCount);
-        uint256 uniqueCount;
+        uint256 uniqueCount = 0;
 
         for (uint256 i = 0; i < ruleCount; ++i) {
             bytes32 key = abi.encode(rules[i].scope, rules[i].path, rules[i].hint).hash();
@@ -464,13 +464,13 @@ library PolicyCoder {
             Constraint[] memory constraints = constraintGroups[groupIndex];
             uint256 constraintCount = constraints.length;
 
-            uint256 ruleCount;
+            uint256 ruleCount = 0;
             for (uint256 constraintIndex = 0; constraintIndex < constraintCount; ++constraintIndex) {
                 ruleCount += constraints[constraintIndex].operators.length;
             }
 
             Rule[] memory rules = new Rule[](ruleCount);
-            uint256 ruleIndex;
+            uint256 ruleIndex = 0;
 
             for (uint256 constraintIndex = 0; constraintIndex < constraintCount; ++constraintIndex) {
                 Constraint memory constraint = constraints[constraintIndex];

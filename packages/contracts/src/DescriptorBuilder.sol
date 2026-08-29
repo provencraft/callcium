@@ -237,9 +237,9 @@ library DescriptorBuilder {
 
         // Allocate worst-case (each field is at least 1 char + 1 comma), fill in single pass, then trim.
         bytes[] memory fields = new bytes[]((end - start + 1) / 2 + 1);
-        uint256 fieldCount;
+        uint256 fieldCount = 0;
         uint256 fieldStart = start;
-        uint256 depth;
+        uint256 depth = 0;
 
         for (uint256 i = start; i <= end; i++) {
             bool isEnd = (i == end);

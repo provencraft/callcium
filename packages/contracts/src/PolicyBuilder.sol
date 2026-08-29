@@ -225,7 +225,7 @@ library PolicyBuilder {
         uint256 offset = Descriptor.atUnchecked(desc, argIndex);
         (uint8 code,,,) = Descriptor.inspect(desc, offset);
 
-        bool hasQuantifier;
+        bool hasQuantifier = false;
         for (uint256 i = 1; i < depth; ++i) {
             (code, offset, hasQuantifier) = _descendPath(desc, offset, code, path, i, hasQuantifier);
         }

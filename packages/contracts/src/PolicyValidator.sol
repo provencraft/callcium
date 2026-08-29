@@ -442,8 +442,8 @@ library PolicyValidator {
         pure
         returns (bool hasPair, uint256 low, uint256 high)
     {
-        uint256 lowerCount;
-        uint256 upperCount;
+        uint256 lowerCount = 0;
+        uint256 upperCount = 0;
 
         for (uint256 i = 0; i < operators.length; ++i) {
             bytes memory op = operators[i];
@@ -519,9 +519,9 @@ library PolicyValidator {
             issues.push(ValidationIssue.impossibleLt(isLength, groupIndex, constraintIndex, value));
         }
 
-        bool changedEq;
-        bool changedLower;
-        bool changedUpper;
+        bool changedEq = false;
+        bool changedLower = false;
+        bool changedUpper = false;
 
         // Equality handling.
         if (base == OpCode.EQ) {
@@ -739,7 +739,7 @@ library PolicyValidator {
                 // Multiple isIn() on the same path narrow the allowed set to their intersection.
                 // Allocate worst-case, fill matching elements, then trim via assembly.
                 uint256[] memory intersection = new uint256[](ctx.set.inValues.length);
-                uint256 intersectionCount;
+                uint256 intersectionCount = 0;
                 for (uint256 j = 0; j < ctx.set.inValues.length; ++j) {
                     for (uint256 i = 0; i < values.length; ++i) {
                         if (ctx.set.inValues[j] == values[i]) {
