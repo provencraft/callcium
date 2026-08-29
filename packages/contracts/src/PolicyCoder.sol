@@ -413,7 +413,7 @@ library PolicyCoder {
         uint256 uniqueCount;
 
         for (uint256 i; i < ruleCount; ++i) {
-            bytes32 key = abi.encodePacked(rules[i].scope, rules[i].path, rules[i].hint).hash();
+            bytes32 key = abi.encode(rules[i].scope, rules[i].path, rules[i].hint).hash();
 
             uint256 matchIndex = type(uint256).max;
             for (uint256 j; j < uniqueCount; ++j) {

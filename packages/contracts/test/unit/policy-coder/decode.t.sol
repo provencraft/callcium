@@ -22,6 +22,20 @@ contract DecodeTest is PolicyCoderTest {
         groups[0][0] = Constraint({ scope: PF.SCOPE_CALLDATA, path: hex"0000", operators: operators, hint: "" });
     }
 
+    function _calldataRule(bytes memory path, bytes memory hint) internal pure returns (bytes memory) {
+        uint16 dataLength = uint16(bytes32(0).length);
+        return abi.encodePacked(
+            uint16(PF.RULE_FIXED_OVERHEAD + path.length + hint.length + dataLength),
+            PF.SCOPE_CALLDATA,
+            uint8(path.length / PF.PATH_STEP_SIZE),
+            path,
+            hint,
+            OpCode.EQ,
+            dataLength,
+            bytes32(0)
+        );
+    }
+
     function test_DecodesSelector() public pure {
         bytes memory policy = PolicyBuilder.create("foo(uint256)")
             .add(arg(0).eq(uint256(42)))
@@ -176,5 +190,34 @@ contract DecodeTest is PolicyCoderTest {
         PolicyData memory data = PolicyCoder.decode(policy);
 
         assertEq(data.groups[0].length, 2, "divergent hints stay separate");
+    }
+
+    function test_EqualPathHintConcatenationsStaySeparate() public pure {
+        bytes memory pathA = hex"0000";
+        bytes memory hintA = hex"01_0000000000000000_00000000000020";
+        bytes memory pathB = hex"00000100000000000000";
+        bytes memory hintB = hex"0000000000000020";
+        assertEq(bytes.concat(pathA, hintA), bytes.concat(pathB, hintB), "concatenations collide");
+
+        bytes memory ruleA = _calldataRule(pathA, hintA);
+        bytes memory ruleB = _calldataRule(pathB, hintB);
+        bytes memory desc = PolicyBuilder.create("foo(uint256)").data.descriptor;
+        bytes memory policy = abi.encodePacked(
+            PF.POLICY_VERSION,
+            bytes4(keccak256("foo(uint256)")),
+            uint16(desc.length),
+            desc,
+            uint8(1),
+            uint16(2),
+            uint32(ruleA.length + ruleB.length),
+            ruleA,
+            ruleB
+        );
+
+        PolicyData memory data = PolicyCoder.decode(policy);
+
+        assertEq(data.groups[0].length, 2, "constraint count");
+        assertEq(data.groups[0][0].path, pathA, "first path");
+        assertEq(data.groups[0][1].path, pathB, "second path");
     }
 }
