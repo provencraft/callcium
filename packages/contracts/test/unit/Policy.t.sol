@@ -28,7 +28,10 @@ abstract contract PolicyTest is BaseTest {
     /// @dev Builds a valid two-group policy for OR-group tests.
     function _twoGroupBlob() internal pure returns (bytes memory) {
         return
-            PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(1))).or().add(arg(0).eq(uint256(2)))
+            PolicyBuilder.create("foo(uint256)")
+                .add(arg(0).eq(uint256(1)))
+                .or()
+                .add(arg(0).eq(uint256(2)))
                 .buildUnsafe();
     }
 

@@ -177,7 +177,8 @@ contract FromTypesTest is DescriptorBuilderTest {
     function test_TupleWithArray() public pure {
         bytes memory desc = DescriptorBuilder.fromTypes("(address,uint256[])");
         bytes memory expected = DescriptorBuilder.create()
-            .add(TypeDesc.tuple_(TypeDesc.address_(), TypeDesc.array_(TypeDesc.uint256_()))).build();
+            .add(TypeDesc.tuple_(TypeDesc.address_(), TypeDesc.array_(TypeDesc.uint256_())))
+            .build();
         assertEq(desc, expected);
     }
 
@@ -293,8 +294,12 @@ contract FromTypesTest is DescriptorBuilderTest {
     function test_CanonicalWidthsParse() public pure {
         // Control: the canonical spellings of the zero-padded rejections above.
         bytes memory desc = DescriptorBuilder.fromTypes("uint8,int8,bytes1,uint256[3]");
-        bytes memory expected = DescriptorBuilder.create().add(TypeDesc.uintN_(8)).add(TypeDesc.intN_(8))
-            .add(TypeDesc.bytesN_(1)).add(TypeDesc.array_(TypeDesc.uint256_(), 3)).build();
+        bytes memory expected = DescriptorBuilder.create()
+            .add(TypeDesc.uintN_(8))
+            .add(TypeDesc.intN_(8))
+            .add(TypeDesc.bytesN_(1))
+            .add(TypeDesc.array_(TypeDesc.uint256_(), 3))
+            .build();
         assertEq(desc, expected);
     }
 
