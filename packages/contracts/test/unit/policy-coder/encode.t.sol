@@ -419,7 +419,7 @@ contract EncodeTest is PolicyCoderTest {
 
     function test_RevertWhen_GroupCountOverflow() public {
         PolicyCoder.Group[] memory groups = new PolicyCoder.Group[](256);
-        for (uint256 i; i < 256; ++i) {
+        for (uint256 i = 0; i < 256; ++i) {
             groups[i].rules = new PolicyCoder.Rule[](1);
             groups[i].rules[0] = PolicyCoder.Rule(
                 PF.SCOPE_CALLDATA, abi.encodePacked(uint16(i)), _op1(OpCode.EQ, bytes32(uint256(42))), ""
@@ -433,7 +433,7 @@ contract EncodeTest is PolicyCoderTest {
     function test_RevertWhen_PathTooDeep() public {
         uint256 depth = uint256(PF.MAX_PATH_DEPTH) + 1;
         bytes memory path = new bytes(depth * PF.PATH_STEP_SIZE);
-        for (uint256 i; i < depth; ++i) {
+        for (uint256 i = 0; i < depth; ++i) {
             path[i * PF.PATH_STEP_SIZE] = bytes1(uint8(i >> 8));
             path[i * PF.PATH_STEP_SIZE + 1] = bytes1(uint8(i));
         }

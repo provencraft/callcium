@@ -9,7 +9,7 @@ import { TypeDesc } from "src/TypeDesc.sol";
 contract AddTest is DescriptorBuilderTest {
     function test_RevertWhen_TooManyParams() public {
         DescriptorDraft memory draft = DescriptorBuilder.create();
-        for (uint256 i; i < 255; ++i) {
+        for (uint256 i = 0; i < 255; ++i) {
             draft = draft.add(TypeDesc.address_());
         }
 

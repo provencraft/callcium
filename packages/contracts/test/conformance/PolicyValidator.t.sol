@@ -37,7 +37,7 @@ contract PolicyValidatorConformanceTest is ConformanceTest {
         json = vm.readFile("../../spec/vectors/validation.json");
         uint256 count = _vectorCount(json);
         fixtures = new ValidationFixture[](count);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             fixtures[i] = abi.decode(vm.parseJson(json, string.concat(".[", vm.toString(i), "]")), (ValidationFixture));
         }
     }
@@ -47,12 +47,12 @@ contract PolicyValidatorConformanceTest is ConformanceTest {
         assertEq(actual.length, expected.length, string.concat(id, ": issue count"));
 
         bool[] memory used = new bool[](actual.length);
-        for (uint256 i; i < expected.length; ++i) {
+        for (uint256 i = 0; i < expected.length; ++i) {
             bytes32 code = bytes32(bytes(expected[i].code));
             IssueSeverity severity = _severity(expected[i].severity);
 
             bool matched;
-            for (uint256 j; j < actual.length; ++j) {
+            for (uint256 j = 0; j < actual.length; ++j) {
                 if (used[j]) continue;
                 if (
                     actual[j].code == code && actual[j].severity == severity
@@ -82,7 +82,7 @@ contract PolicyValidatorConformanceTest is ConformanceTest {
 
     function test_ValidatesConformWithSpecification() public view {
         (string memory json, ValidationFixture[] memory fixtures) = _fixtures();
-        for (uint256 i; i < fixtures.length; ++i) {
+        for (uint256 i = 0; i < fixtures.length; ++i) {
             ValidationFixture memory f = fixtures[i];
 
             PolicyData memory data = _policyData(json, vm.toString(i));

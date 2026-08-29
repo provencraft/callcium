@@ -226,7 +226,7 @@ library Policy {
         require(totalGroups > 0, EmptyPolicy());
         uint256 offset = PF.POLICY_HEADER_PREFIX + desc.length + PF.POLICY_GROUP_COUNT_SIZE;
 
-        for (uint256 groupIndex; groupIndex < totalGroups; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < totalGroups; ++groupIndex) {
             require(offset + PF.GROUP_HEADER_SIZE <= self.length, UnexpectedEnd());
 
             uint32 rulesRegionSize = groupSize(self, offset);
@@ -238,7 +238,7 @@ library Policy {
             require(rulesRegionSize >= uint32(totalRules) * PF.RULE_MIN_SIZE, GroupTooSmall(offset));
             uint256 ruleOffset = offset + PF.GROUP_HEADER_SIZE;
 
-            for (uint256 ruleIndex; ruleIndex < totalRules; ++ruleIndex) {
+            for (uint256 ruleIndex = 0; ruleIndex < totalRules; ++ruleIndex) {
                 ruleOffset = _validateRule(self, ruleOffset, groupEnd);
             }
 
@@ -259,7 +259,7 @@ library Policy {
         require(index < count, GroupIndexOutOfBounds(index, count));
         uint16 descLength = descriptorLength(self);
         groupOffset = PF.POLICY_HEADER_PREFIX + descLength + PF.POLICY_GROUP_COUNT_SIZE;
-        for (uint256 i; i < index; ++i) {
+        for (uint256 i = 0; i < index; ++i) {
             uint32 size = groupSize(self, groupOffset);
             groupOffset += PF.GROUP_HEADER_SIZE + size;
             require(groupOffset <= self.length, GroupOverflow(groupOffset - PF.GROUP_HEADER_SIZE - size));
@@ -304,7 +304,7 @@ library Policy {
 
         ruleOffset = start;
         uint256 end = start + rulesRegionSize;
-        for (uint256 i; i < index; ++i) {
+        for (uint256 i = 0; i < index; ++i) {
             uint16 ruleTotalSize = ruleSize(self, ruleOffset);
             ruleOffset += ruleTotalSize;
             require(ruleOffset <= end, RuleOverflow(ruleOffset - ruleTotalSize));
@@ -529,7 +529,7 @@ library Policy {
         returns (uint256 span, uint256 nodeOffset)
     {
         nodeOffset = offset;
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             (, bool isDynamic, uint32 staticSize, uint256 next) = Descriptor.inspect(desc, nodeOffset);
             // An indirected node occupies a single offset word.
             span += isDynamic ? 32 : staticSize;

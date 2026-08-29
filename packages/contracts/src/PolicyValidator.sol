@@ -114,7 +114,7 @@ library PolicyValidator {
         IssueCollector.Buffer memory issues;
 
         uint256 groupCount = data.groups.length;
-        for (uint32 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint32 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             if (data.groups[groupIndex].length == 0) {
                 issues.push(ValidationIssue.emptyGroup(groupIndex));
                 continue;
@@ -150,12 +150,12 @@ library PolicyValidator {
             mstore(contexts, 0)
         }
 
-        for (uint32 constraintIndex; constraintIndex < constraintCount; ++constraintIndex) {
+        for (uint32 constraintIndex = 0; constraintIndex < constraintCount; ++constraintIndex) {
             Constraint memory constraint = constraints[constraintIndex];
 
             // Look up existing context for this (scope, path) pair; max signals no match.
             uint256 ctxIdx = type(uint256).max;
-            for (uint256 i; i < contexts.length; ++i) {
+            for (uint256 i = 0; i < contexts.length; ++i) {
                 if (contexts[i].scope == constraint.scope && LibBytes.eq(contexts[i].path, constraint.path)) {
                     ctxIdx = i;
                     break;
@@ -254,7 +254,7 @@ library PolicyValidator {
         uint256 operatorCount = operators.length;
         bool underAny = _hasAnyQuantifier(constraint);
 
-        for (uint256 i; i < operatorCount; ++i) {
+        for (uint256 i = 0; i < operatorCount; ++i) {
             bytes memory op = operators[i];
             uint8 opCode = uint8(op[0]);
             uint8 base = opCode & ~OpCode.NOT;
@@ -445,7 +445,7 @@ library PolicyValidator {
         uint256 lowerCount;
         uint256 upperCount;
 
-        for (uint256 i; i < operators.length; ++i) {
+        for (uint256 i = 0; i < operators.length; ++i) {
             bytes memory op = operators[i];
             uint8 opCode = uint8(op[0]);
             if (
@@ -487,7 +487,7 @@ library PolicyValidator {
                     issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value));
                 }
                 bool alreadyHole = false;
-                for (uint256 j; j < domain.holeCount; ++j) {
+                for (uint256 j = 0; j < domain.holeCount; ++j) {
                     if (domain.holes[j] == value) {
                         alreadyHole = true;
                         break;
@@ -533,7 +533,7 @@ library PolicyValidator {
                     );
                 }
             }
-            for (uint256 j; j < domain.holeCount; ++j) {
+            for (uint256 j = 0; j < domain.holeCount; ++j) {
                 if (domain.holes[j] == value) {
                     issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value));
                 }
@@ -692,7 +692,7 @@ library PolicyValidator {
         pure
     {
         if (isNegated) {
-            for (uint256 i; i < values.length; ++i) {
+            for (uint256 i = 0; i < values.length; ++i) {
                 uint256 value = values[i];
                 if (ctx.numeric.hasEq && ctx.numeric.eq == value) {
                     issues.push(ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, value));
@@ -700,7 +700,7 @@ library PolicyValidator {
 
                 if (ctx.set.hasIn) {
                     bool inSet = false;
-                    for (uint256 j; j < ctx.set.inValues.length; ++j) {
+                    for (uint256 j = 0; j < ctx.set.inValues.length; ++j) {
                         if (ctx.set.inValues[j] == value) {
                             inSet = true;
                             break;
@@ -715,7 +715,7 @@ library PolicyValidator {
             _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
         } else {
             // Physical bounds: a member outside the type's domain can never be matched.
-            for (uint256 i; i < values.length; ++i) {
+            for (uint256 i = 0; i < values.length; ++i) {
                 if (
                     _isLt(values[i], ctx.numeric.min, ctx.numeric.isSigned)
                         || _isGt(values[i], ctx.numeric.max, ctx.numeric.isSigned)
@@ -724,7 +724,7 @@ library PolicyValidator {
 
             if (ctx.numeric.hasEq) {
                 bool found = false;
-                for (uint256 i; i < values.length; ++i) {
+                for (uint256 i = 0; i < values.length; ++i) {
                     if (values[i] == ctx.numeric.eq) {
                         found = true;
                         break;
@@ -740,8 +740,8 @@ library PolicyValidator {
                 // Allocate worst-case, fill matching elements, then trim via assembly.
                 uint256[] memory intersection = new uint256[](ctx.set.inValues.length);
                 uint256 intersectionCount;
-                for (uint256 j; j < ctx.set.inValues.length; ++j) {
-                    for (uint256 i; i < values.length; ++i) {
+                for (uint256 j = 0; j < ctx.set.inValues.length; ++j) {
+                    for (uint256 i = 0; i < values.length; ++i) {
                         if (ctx.set.inValues[j] == values[i]) {
                             intersection[intersectionCount++] = ctx.set.inValues[j];
                             break;
@@ -783,17 +783,17 @@ library PolicyValidator {
         // Both sources exclude independently, so holes are checked first as a fast path.
         uint256 possibleCount = 0;
         uint256 inCount = ctx.set.inValues.length;
-        for (uint256 i; i < inCount; ++i) {
+        for (uint256 i = 0; i < inCount; ++i) {
             uint256 value = ctx.set.inValues[i];
             bool forbidden = false;
-            for (uint256 k; k < ctx.numeric.holeCount; ++k) {
+            for (uint256 k = 0; k < ctx.numeric.holeCount; ++k) {
                 if (ctx.numeric.holes[k] == value) {
                     forbidden = true;
                     break;
                 }
             }
             if (!forbidden) {
-                for (uint256 k; k < ctx.set.notInCount; ++k) {
+                for (uint256 k = 0; k < ctx.set.notInCount; ++k) {
                     if (ctx.set.notInValues[k] == value) {
                         forbidden = true;
                         break;
@@ -819,7 +819,7 @@ library PolicyValidator {
     {
         if (count == buf.length) {
             uint256[] memory grown = new uint256[](count == 0 ? 4 : count * 2);
-            for (uint256 i; i < count; ++i) {
+            for (uint256 i = 0; i < count; ++i) {
                 grown[i] = buf[i];
             }
             buf = grown;
@@ -833,7 +833,7 @@ library PolicyValidator {
         uint256 dataLength = op.length - 1;
         uint256 count = dataLength / 32;
         values = new uint256[](count);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             uint256 value;
             assembly ("memory-safe") {
                 value := mload(add(add(op, 33), mul(i, 32)))
@@ -908,7 +908,7 @@ library PolicyValidator {
         pure
     {
         uint256 operatorCount = operators.length;
-        for (uint256 i; i < operatorCount; ++i) {
+        for (uint256 i = 0; i < operatorCount; ++i) {
             for (uint256 j = i + 1; j < operatorCount; ++j) {
                 if (LibBytes.eq(operators[i], operators[j])) {
                     issues.push(ValidationIssue.duplicateConstraint(groupIndex, constraintIndex));
@@ -922,7 +922,7 @@ library PolicyValidator {
     function _hasAnyQuantifier(Constraint memory constraint) private pure returns (bool) {
         if (constraint.scope != PF.SCOPE_CALLDATA) return false;
         uint256 depth = constraint.path.length / 2;
-        for (uint256 i; i < depth; ++i) {
+        for (uint256 i = 0; i < depth; ++i) {
             if (Path.atUnchecked(constraint.path, i) == Path.ANY) return true;
         }
         return false;
@@ -931,7 +931,7 @@ library PolicyValidator {
     /// @dev Counts the quantifier steps in a path.
     function _quantifierCount(bytes memory path) private pure returns (uint256 count) {
         uint256 depth = path.length / 2;
-        for (uint256 i; i < depth; ++i) {
+        for (uint256 i = 0; i < depth; ++i) {
             if (Path.atUnchecked(path, i) >= Path.ANY) ++count;
         }
     }

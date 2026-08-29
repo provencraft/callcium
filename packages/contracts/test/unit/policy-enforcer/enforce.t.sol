@@ -162,7 +162,7 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
 
     function test_In_With8Elements() public view {
         uint256[] memory set = new uint256[](8);
-        for (uint256 i; i < 8; ++i) {
+        for (uint256 i = 0; i < 8; ++i) {
             set[i] = (i + 1) * 10;
         }
 
@@ -180,7 +180,7 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
         // The 8 largest possible values, so the small header word is trivially below the set.
         uint256 setMin = type(uint256).max - 7;
         uint256[] memory set = new uint256[](8);
-        for (uint256 i; i < 8; ++i) {
+        for (uint256 i = 0; i < 8; ++i) {
             set[i] = setMin + i;
         }
 
@@ -1759,7 +1759,7 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
         bytes memory callData = abi.encodeWithSignature("foo(bytes[])", arr);
 
         bytes memory truncated = new bytes(callData.length - 32);
-        for (uint256 i; i < truncated.length; ++i) {
+        for (uint256 i = 0; i < truncated.length; ++i) {
             truncated[i] = callData[i];
         }
 

@@ -88,7 +88,7 @@ contract PolicyEnforcerConformanceTest is ConformanceTest {
         string memory json = vm.readFile("../../spec/vectors/enforcement.json");
         uint256 count = _vectorCount(json);
 
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             string memory indexString = vm.toString(i);
 
             bytes memory policy = PolicyCoder.encode(_policyData(json, indexString));

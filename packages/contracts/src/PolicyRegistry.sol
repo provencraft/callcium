@@ -131,7 +131,7 @@ library PolicyRegistry {
 
         uint256 targetCount = targets.length;
         previousHashes = new bytes32[](targetCount);
-        for (uint256 i; i < targetCount; ++i) {
+        for (uint256 i = 0; i < targetCount; ++i) {
             previousHashes[i] = self.policyFor[targets[i]][selector];
             self.policyFor[targets[i]][selector] = policyHash;
         }

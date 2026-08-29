@@ -75,7 +75,7 @@ library SignatureParser {
         require(signatureLength > 2, MalformedSignature());
 
         bool found;
-        for (uint256 i; i < signatureLength; ++i) {
+        for (uint256 i = 0; i < signatureLength; ++i) {
             bytes1 char = signatureBytes[i];
             require(
                 !(char == bytes1(0x20) || char == bytes1(0x09) || char == bytes1(0x0A) || char == bytes1(0x0D)),

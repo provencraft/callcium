@@ -337,7 +337,7 @@ contract TypeAtTest is DescriptorTest {
         uint8[4] memory typeCodes = [TypeCode.ADDRESS, TypeCode.UINT256, TypeCode.BOOL, TypeCode.BYTES32];
 
         DescriptorDraft memory draft = DescriptorBuilder.create();
-        for (uint256 i; i < paramCount; ++i) {
+        for (uint256 i = 0; i < paramCount; ++i) {
             draft = draft.add(typeDescs[i % 4]);
         }
         bytes memory desc = draft.build();
@@ -350,7 +350,7 @@ contract TypeAtTest is DescriptorTest {
         index = bound(index, argCount, type(uint16).max);
 
         DescriptorDraft memory draft = DescriptorBuilder.create();
-        for (uint8 i; i < argCount; ++i) {
+        for (uint8 i = 0; i < argCount; ++i) {
             draft = draft.add(TypeDesc.address_());
         }
         bytes memory desc = draft.build();

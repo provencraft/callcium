@@ -109,7 +109,7 @@ library PolicyBuilder {
         uint256 groupIndex = draft.data.groups.length - 1;
         Constraint[] memory group = draft.data.groups[groupIndex];
         uint256 count = group.length;
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             // forgefmt: disable-next-item
             require(
                 group[i].scope != constraint.scope || !LibBytes.eq(group[i].path, constraint.path),
@@ -123,7 +123,7 @@ library PolicyBuilder {
         // constant.
         if (count == 0 || (count & (count - 1)) == 0) {
             Constraint[] memory grownGroup = new Constraint[](count == 0 ? 1 : count * 2);
-            for (uint256 i; i < count; ++i) {
+            for (uint256 i = 0; i < count; ++i) {
                 grownGroup[i] = group[i];
             }
             group = grownGroup;
@@ -147,7 +147,7 @@ library PolicyBuilder {
         uint256 newGroupIndex = draft.data.groups.length;
 
         Constraint[][] memory nextGroups = new Constraint[][](newGroupIndex + 1);
-        for (uint256 i; i < newGroupIndex; ++i) {
+        for (uint256 i = 0; i < newGroupIndex; ++i) {
             nextGroups[i] = draft.data.groups[i];
         }
         nextGroups[newGroupIndex] = new Constraint[](0);
@@ -199,7 +199,7 @@ library PolicyBuilder {
     function _requireNonEmpty(PolicyDraft memory draft) private pure {
         uint256 groupCount = draft.data.groups.length;
         require(groupCount != 0, EmptyGroup(0));
-        for (uint256 i; i < groupCount; ++i) {
+        for (uint256 i = 0; i < groupCount; ++i) {
             require(draft.data.groups[i].length != 0, EmptyGroup(i));
         }
     }

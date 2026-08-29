@@ -105,7 +105,7 @@ contract AtTest is PathTest {
         index = bound(index, 0, length - 1);
 
         uint16[] memory path = new uint16[](length);
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             path[i] = uint16(i * 7);
         }
 
@@ -120,7 +120,7 @@ contract AtTest is PathTest {
         index = bound(index, length, type(uint256).max);
 
         uint16[] memory path = new uint16[](length);
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             path[i] = uint16(i);
         }
 
@@ -157,7 +157,7 @@ contract AtTest is PathTest {
         index = bound(index, 0, length - 1);
 
         uint16[] memory steps = new uint16[](length);
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             steps[i] = uint16(i * 7);
         }
 

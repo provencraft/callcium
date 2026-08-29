@@ -87,7 +87,7 @@ library Path {
         uint256 pathLength = path.length;
         require(pathLength != 0, EmptyPath());
         out = new bytes(pathLength * 2);
-        for (uint256 i; i < pathLength; ++i) {
+        for (uint256 i = 0; i < pathLength; ++i) {
             Be16.write(out, i * 2, path[i]);
         }
     }
@@ -99,7 +99,7 @@ library Path {
         uint256 pathDepth = self.length / 2;
         require(pathDepth != 0, EmptyPath());
         out = new uint16[](pathDepth);
-        for (uint256 i; i < pathDepth; ++i) {
+        for (uint256 i = 0; i < pathDepth; ++i) {
             out[i] = Be16.readUnchecked(self, i * 2);
         }
     }

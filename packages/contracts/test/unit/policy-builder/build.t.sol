@@ -84,7 +84,7 @@ contract PolicyBuilderBuildTest is PolicyBuilderTest {
             assertGt(issues.length, 1);
 
             bool foundTypeMismatch;
-            for (uint256 i; i < issues.length; ++i) {
+            for (uint256 i = 0; i < issues.length; ++i) {
                 if (issues[i].code == IssueCode.VALUE_OP_ON_DYNAMIC) foundTypeMismatch = true;
             }
             assertTrue(foundTypeMismatch);

@@ -64,7 +64,7 @@ contract QuantifierBench is PolicyEnforcerBench {
     /// @dev ALL over a dynamic array whose elements each carry their own declared length.
     function _dynTargetCallData(uint256 count) private pure returns (bytes memory) {
         bytes[] memory elems = new bytes[](count);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             elems[i] = hex"0102";
         }
         return abi.encodeWithSignature("foo(bytes[])", elems);
@@ -73,7 +73,7 @@ contract QuantifierBench is PolicyEnforcerBench {
     /// @dev ALL over a dynamic array whose elements are themselves dynamic.
     function _dynElemCallData(uint256 count) private pure returns (bytes memory) {
         UintWithBytes[] memory elems = new UintWithBytes[](count);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             elems[i] = UintWithBytes({ value: 1, payload: hex"0102" });
         }
         return abi.encodeWithSignature("foo((uint256,bytes)[])", elems);
@@ -82,7 +82,7 @@ contract QuantifierBench is PolicyEnforcerBench {
     /// @dev ALL over every element with a tuple-field suffix: worst case, no short-circuit.
     function _quantifiedCallData(uint256 count) private pure returns (bytes memory) {
         bytes memory elems;
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             elems = abi.encodePacked(elems, uint256(i), uint256(uint160(address(1))));
         }
         return abi.encodePacked(bytes4(keccak256("foo((uint256,address)[])")), uint256(0x20), count, elems);

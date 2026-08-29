@@ -31,7 +31,7 @@ contract TypeAtBench is BaseTest {
     /// @dev Builds `count` tuple fields alternating between address and uint256.
     function _alternatingFields(uint256 count) private pure returns (bytes[] memory fields) {
         fields = new bytes[](count);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             fields[i] = (i % 2 == 0) ? TypeDesc.address_() : TypeDesc.uint256_();
         }
     }

@@ -47,7 +47,7 @@ contract ConstraintIsInTest is ConstraintTest {
     function testFuzz_Uint256_PermutationInvariant(uint256[] memory values, uint256 seed) public pure {
         _boundLength(values, 2, 16);
         uint256[] memory shuffled = new uint256[](values.length);
-        for (uint256 i; i < values.length; ++i) {
+        for (uint256 i = 0; i < values.length; ++i) {
             shuffled[i] = values[i];
         }
         _shuffle(shuffled, seed);
@@ -62,7 +62,7 @@ contract ConstraintIsInTest is ConstraintTest {
     function testFuzz_Int256_PermutationInvariant(int256[] memory values, uint256 seed) public pure {
         _boundLength(values, 2, 16);
         int256[] memory shuffled = new int256[](values.length);
-        for (uint256 i; i < values.length; ++i) {
+        for (uint256 i = 0; i < values.length; ++i) {
             shuffled[i] = values[i];
         }
         _shuffle(shuffled, seed);
@@ -77,7 +77,7 @@ contract ConstraintIsInTest is ConstraintTest {
     function testFuzz_Address_PermutationInvariant(address[] memory values, uint256 seed) public pure {
         _boundLength(values, 2, 16);
         address[] memory shuffled = new address[](values.length);
-        for (uint256 i; i < values.length; ++i) {
+        for (uint256 i = 0; i < values.length; ++i) {
             shuffled[i] = values[i];
         }
         _shuffle(shuffled, seed);
@@ -92,7 +92,7 @@ contract ConstraintIsInTest is ConstraintTest {
     function testFuzz_Bytes32_PermutationInvariant(bytes32[] memory values, uint256 seed) public pure {
         _boundLength(values, 2, 16);
         bytes32[] memory shuffled = new bytes32[](values.length);
-        for (uint256 i; i < values.length; ++i) {
+        for (uint256 i = 0; i < values.length; ++i) {
             shuffled[i] = values[i];
         }
         _shuffle(shuffled, seed);
@@ -236,7 +236,7 @@ contract ConstraintIsInTest is ConstraintTest {
 
     function test_RevertWhen_SetExceedsMaxCardinality() public {
         uint256[] memory values = new uint256[](PF.MAX_SET_MEMBERS + 1);
-        for (uint256 i; i < values.length; ++i) {
+        for (uint256 i = 0; i < values.length; ++i) {
             values[i] = i;
         }
 
@@ -246,7 +246,7 @@ contract ConstraintIsInTest is ConstraintTest {
 
     function test_MaxCardinalityAccepted() public pure {
         uint256[] memory values = new uint256[](PF.MAX_SET_MEMBERS);
-        for (uint256 i; i < values.length; ++i) {
+        for (uint256 i = 0; i < values.length; ++i) {
             values[i] = i;
         }
 

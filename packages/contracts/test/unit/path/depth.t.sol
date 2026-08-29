@@ -79,7 +79,7 @@ contract DepthTest is PathTest {
         stepCount = bound(stepCount, 1, 50);
 
         uint16[] memory path = new uint16[](stepCount);
-        for (uint256 i; i < stepCount; ++i) {
+        for (uint256 i = 0; i < stepCount; ++i) {
             path[i] = uint16(i);
         }
 

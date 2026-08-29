@@ -21,7 +21,7 @@ abstract contract PolicyValidatorTest is BaseTest {
 
     /// @dev Asserts an issue with the given code exists and returns the first match.
     function _assertIssue(Issue[] memory issues, bytes32 code) internal pure returns (Issue memory) {
-        for (uint256 i; i < issues.length; ++i) {
+        for (uint256 i = 0; i < issues.length; ++i) {
             if (issues[i].code == code) return issues[i];
         }
         revert("Issue not found");
@@ -29,7 +29,7 @@ abstract contract PolicyValidatorTest is BaseTest {
 
     /// @dev Asserts no issue with the given code exists.
     function _assertNoIssue(Issue[] memory issues, bytes32 code) internal pure {
-        for (uint256 i; i < issues.length; ++i) {
+        for (uint256 i = 0; i < issues.length; ++i) {
             assertTrue(issues[i].code != code);
         }
     }
@@ -72,7 +72,7 @@ abstract contract PolicyValidatorTest is BaseTest {
     /// @dev Appends an encoded operator to an existing operator array.
     function _appendOp(bytes[] memory ops, uint8 opCode, bytes memory data) internal pure returns (bytes[] memory) {
         bytes[] memory next = new bytes[](ops.length + 1);
-        for (uint256 i; i < ops.length; ++i) {
+        for (uint256 i = 0; i < ops.length; ++i) {
             next[i] = ops[i];
         }
         next[ops.length] = abi.encodePacked(opCode, data);

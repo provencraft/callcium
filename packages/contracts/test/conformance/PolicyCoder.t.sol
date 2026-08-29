@@ -31,7 +31,7 @@ contract PolicyCoderConformanceTest is BaseTest {
         uint256 count;
         while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
         fixtures = new PolicyFixture[](count);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             fixtures[i] = abi.decode(vm.parseJson(json, string.concat(".[", vm.toString(i), "]")), (PolicyFixture));
         }
     }
@@ -86,14 +86,14 @@ contract PolicyCoderConformanceTest is BaseTest {
         }
 
         PolicyCoder.Group[] memory groups = new PolicyCoder.Group[](groupCount);
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             string memory groupPath = string.concat(encodingInputPath, ".groups[", vm.toString(groupIndex), "]");
             uint256 ruleCount;
             while (vm.keyExistsJson(json, string.concat(groupPath, ".rules[", vm.toString(ruleCount), "]"))) {
                 ++ruleCount;
             }
             groups[groupIndex].rules = new PolicyCoder.Rule[](ruleCount);
-            for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+            for (uint256 ruleIndex = 0; ruleIndex < ruleCount; ++ruleIndex) {
                 string memory rulePath = string.concat(groupPath, ".rules[", vm.toString(ruleIndex), "]");
                 groups[groupIndex].rules[ruleIndex].scope =
                     uint8(vm.parseJsonUint(json, string.concat(rulePath, ".scope")));
@@ -110,9 +110,9 @@ contract PolicyCoderConformanceTest is BaseTest {
             // Convert the flat Rule[] into Constraint[][] (each rule becomes one Constraint
             // since selectorless fixtures never share (scope, path) across rules).
             Constraint[][] memory constraints = new Constraint[][](groupCount);
-            for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+            for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
                 constraints[groupIndex] = new Constraint[](groups[groupIndex].rules.length);
-                for (uint256 ruleIndex; ruleIndex < groups[groupIndex].rules.length; ++ruleIndex) {
+                for (uint256 ruleIndex = 0; ruleIndex < groups[groupIndex].rules.length; ++ruleIndex) {
                     bytes[] memory operators = new bytes[](1);
                     operators[0] = groups[groupIndex].rules[ruleIndex].operator;
                     // forgefmt: disable-next-item
@@ -153,7 +153,7 @@ contract PolicyCoderConformanceTest is BaseTest {
             ++groupCount;
         }
         assertEq(data.groups.length, groupCount, id);
-        for (uint256 groupIndex; groupIndex < data.groups.length; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < data.groups.length; ++groupIndex) {
             _assertGroup(
                 data.groups[groupIndex], json, decodedPath, groupIndex, string.concat(id, ":g", vm.toString(groupIndex))
             );
@@ -177,7 +177,7 @@ contract PolicyCoderConformanceTest is BaseTest {
             ++constraintCount;
         }
         assertEq(group.length, constraintCount, string.concat(groupLabel, ".constraints.length"));
-        for (uint256 constraintIndex; constraintIndex < group.length; ++constraintIndex) {
+        for (uint256 constraintIndex = 0; constraintIndex < group.length; ++constraintIndex) {
             string memory constraintPath = string.concat(groupPath, ".constraints[", vm.toString(constraintIndex), "]");
             string memory constraintLabel = string.concat(groupLabel, "c", vm.toString(constraintIndex));
             assertEq(
@@ -197,7 +197,7 @@ contract PolicyCoderConformanceTest is BaseTest {
             assertEq(
                 group[constraintIndex].operators.length, opCount, string.concat(constraintLabel, ".operators.length")
             );
-            for (uint256 operatorIndex; operatorIndex < group[constraintIndex].operators.length; ++operatorIndex) {
+            for (uint256 operatorIndex = 0; operatorIndex < group[constraintIndex].operators.length; ++operatorIndex) {
                 bytes memory op = vm.parseJsonBytes(
                     json, string.concat(constraintPath, ".operators[", vm.toString(operatorIndex), "]")
                 );
@@ -216,12 +216,12 @@ contract PolicyCoderConformanceTest is BaseTest {
 
     function test_DecodesConformWithSpecification() public {
         (string memory json, PolicyFixture[] memory fixtures) = _fixtures();
-        for (uint256 i; i < fixtures.length; ++i) {
+        for (uint256 i = 0; i < fixtures.length; ++i) {
             PolicyFixture memory f = fixtures[i];
             if (bytes(f.error).length > 0) {
                 bytes4 sel = _errorSelector(f.error);
                 bytes memory revertData = abi.encodePacked(sel);
-                for (uint256 j; j < f.errorArgs.length; ++j) {
+                for (uint256 j = 0; j < f.errorArgs.length; ++j) {
                     revertData = bytes.concat(revertData, f.errorArgs[j]);
                 }
                 vm.expectRevert(revertData);
@@ -235,7 +235,7 @@ contract PolicyCoderConformanceTest is BaseTest {
 
     function test_EncodesConformWithSpecification() public view {
         (string memory json, PolicyFixture[] memory fixtures) = _fixtures();
-        for (uint256 i; i < fixtures.length; ++i) {
+        for (uint256 i = 0; i < fixtures.length; ++i) {
             PolicyFixture memory f = fixtures[i];
             if (bytes(f.error).length > 0) continue;
             assertEq(keccak256(_encode(json, vm.toString(i))), keccak256(f.blob), f.id);

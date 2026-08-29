@@ -101,7 +101,7 @@ library PolicyEnforcer {
 
             // Evaluate groups with OR semantics: first passing group succeeds.
             uint256 groupOffset = groupCountOffset + PF.POLICY_GROUP_COUNT_SIZE;
-            for (uint32 groupIndex; groupIndex < groups; ++groupIndex) {
+            for (uint32 groupIndex = 0; groupIndex < groups; ++groupIndex) {
                 // forgefmt: disable-next-item
                 (bool groupOk, uint32 failingRuleIndex, uint256 groupEnd) = _evalGroup(
                     policy, baseOffset, callData, groupOffset
@@ -135,7 +135,7 @@ library PolicyEnforcer {
             groupEnd = groupOffset + PF.GROUP_HEADER_SIZE + groupSize;
 
             uint256 ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
-            for (uint32 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+            for (uint32 ruleIndex = 0; ruleIndex < ruleCount; ++ruleIndex) {
                 uint16 ruleSize = Be16.readUnchecked(policy, ruleOffset);
                 if (!_evalRule(policy, baseOffset, callData, ruleOffset)) return (false, ruleIndex, groupEnd);
 
@@ -296,7 +296,7 @@ library PolicyEnforcer {
             uint256 elemStride = (frame & PF.HINT_META_STRIDE_MASK) * 32;
             bool elemIsDynamic = frame & PF.HINT_META_ELEM_DYNAMIC != 0;
 
-            for (uint256 index; index < count; ++index) {
+            for (uint256 index = 0; index < count; ++index) {
                 uint256 slot = elems + index * elemStride;
                 uint256 elem = elemIsDynamic ? _follow(callData, elems, slot) : slot;
                 uint256 base = suffixHopCount == 0 ? elem : _chain(policy, callData, elem, suffixHops, suffixHopCount);
@@ -337,7 +337,7 @@ library PolicyEnforcer {
         returns (uint256)
     {
         unchecked {
-            for (uint256 i; i < hopCount; ++i) {
+            for (uint256 i = 0; i < hopCount; ++i) {
                 // A hop right-aligns to delta(32) | index(16) | meta(16), so the meta masks apply directly.
                 uint256 hop =
                     uint256(LibBytes.load(policy, hopsOffset + i * PF.HINT_HOP_SIZE)) >> (256 - 8 * PF.HINT_HOP_SIZE);

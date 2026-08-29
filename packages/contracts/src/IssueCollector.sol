@@ -21,7 +21,7 @@ library IssueCollector {
         uint256 count = buffer.count;
         if (count == buffer.items.length) {
             Issue[] memory grown = new Issue[](count == 0 ? 1 : count * 2);
-            for (uint256 i; i < count; ++i) {
+            for (uint256 i = 0; i < count; ++i) {
                 grown[i] = buffer.items[i];
             }
             buffer.items = grown;

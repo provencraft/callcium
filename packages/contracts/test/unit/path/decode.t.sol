@@ -129,7 +129,7 @@ contract DecodeTest is PathTest {
         length = bound(length, 1, 20);
 
         uint16[] memory original = new uint16[](length);
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             original[i] = uint16(i * 100);
         }
 
@@ -137,7 +137,7 @@ contract DecodeTest is PathTest {
         uint16[] memory decoded = Path.decode(encoded);
 
         assertEq(decoded.length, original.length);
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             assertEq(decoded[i], original[i]);
         }
     }

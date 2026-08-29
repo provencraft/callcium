@@ -143,7 +143,7 @@ library PolicyCoder {
         data.groups = new Constraint[][](groupCount);
 
         uint256 groupOffset = Policy.groupAt(policy, 0);
-        for (uint32 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint32 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             data.groups[groupIndex] = _decodeGroup(policy, groupOffset);
             groupOffset += PF.GROUP_HEADER_SIZE + Policy.groupSize(policy, groupOffset);
         }
@@ -192,7 +192,7 @@ library PolicyCoder {
         // Several groups are ordered by ascending hash over their rule bytes, so each is serialized
         // first and its bytes copied out in that order.
         bytes[] memory groupRules = new bytes[](groupCount);
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             Rule[] memory rules = groups[groupIndex].rules;
             _measureGroup(rules, groupIndex);
             DynamicBufferLib.DynamicBuffer memory groupBuffer;
@@ -200,7 +200,7 @@ library PolicyCoder {
         }
 
         uint256[] memory order = _groupOrder(groupRules);
-        for (uint256 position; position < groupCount; ++position) {
+        for (uint256 position = 0; position < groupCount; ++position) {
             uint256 groupIndex = order[position];
             bytes memory rules = groupRules[groupIndex];
             buffer = buffer.pUint16(uint16(groups[groupIndex].rules.length)).pUint32(uint32(rules.length)).p(rules);
@@ -216,7 +216,7 @@ library PolicyCoder {
         require(ruleCount != 0, EmptyGroup(groupIndex));
         require(ruleCount <= type(uint16).max, RuleCountOverflow(groupIndex, ruleCount));
 
-        for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+        for (uint256 ruleIndex = 0; ruleIndex < ruleCount; ++ruleIndex) {
             Rule memory rule = rules[ruleIndex];
 
             if (rule.scope == PF.SCOPE_CONTEXT) {
@@ -240,7 +240,7 @@ library PolicyCoder {
         returns (DynamicBufferLib.DynamicBuffer memory)
     {
         uint256 ruleCount = rules.length;
-        for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+        for (uint256 ruleIndex = 0; ruleIndex < ruleCount; ++ruleIndex) {
             buffer = _emitRule(buffer, rules[ruleIndex]);
         }
         return buffer;
@@ -251,10 +251,10 @@ library PolicyCoder {
     /// identically. Hints compile first because they are part of the rule bytes the group hash covers.
     function _compileAndSortRules(Group[] memory groups, bytes memory desc) private pure {
         uint256 groupCount = groups.length;
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             Rule[] memory rulesToSort = groups[groupIndex].rules;
             uint256 ruleCount = rulesToSort.length;
-            for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+            for (uint256 ruleIndex = 0; ruleIndex < ruleCount; ++ruleIndex) {
                 _compileRuleHint(rulesToSort[ruleIndex], desc, groupIndex, ruleIndex);
             }
             _sort(rulesToSort);
@@ -309,7 +309,7 @@ library PolicyCoder {
 
         bytes32[] memory hashes = EfficientHashLib.malloc(groupCount);
         order = new uint256[](groupCount);
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             hashes[groupIndex] = groupRules[groupIndex].hash();
             order[groupIndex] = groupIndex;
         }
@@ -373,7 +373,7 @@ library PolicyCoder {
         Rule[] memory rules = new Rule[](ruleCount);
         uint256 ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
 
-        for (uint256 ruleIndex; ruleIndex < ruleCount; ++ruleIndex) {
+        for (uint256 ruleIndex = 0; ruleIndex < ruleCount; ++ruleIndex) {
             rules[ruleIndex] = _readRule(policy, ruleOffset);
             ruleOffset += Policy.ruleSize(policy, ruleOffset);
         }
@@ -412,11 +412,11 @@ library PolicyCoder {
         bytes32[] memory keys = new bytes32[](ruleCount);
         uint256 uniqueCount;
 
-        for (uint256 i; i < ruleCount; ++i) {
+        for (uint256 i = 0; i < ruleCount; ++i) {
             bytes32 key = abi.encode(rules[i].scope, rules[i].path, rules[i].hint).hash();
 
             uint256 matchIndex = type(uint256).max;
-            for (uint256 j; j < uniqueCount; ++j) {
+            for (uint256 j = 0; j < uniqueCount; ++j) {
                 if (keys[j] == key) {
                     matchIndex = j;
                     break;
@@ -460,24 +460,24 @@ library PolicyCoder {
         uint256 groupCount = constraintGroups.length;
         flatGroups = new Group[](groupCount);
 
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             Constraint[] memory constraints = constraintGroups[groupIndex];
             uint256 constraintCount = constraints.length;
 
             uint256 ruleCount;
-            for (uint256 constraintIndex; constraintIndex < constraintCount; ++constraintIndex) {
+            for (uint256 constraintIndex = 0; constraintIndex < constraintCount; ++constraintIndex) {
                 ruleCount += constraints[constraintIndex].operators.length;
             }
 
             Rule[] memory rules = new Rule[](ruleCount);
             uint256 ruleIndex;
 
-            for (uint256 constraintIndex; constraintIndex < constraintCount; ++constraintIndex) {
+            for (uint256 constraintIndex = 0; constraintIndex < constraintCount; ++constraintIndex) {
                 Constraint memory constraint = constraints[constraintIndex];
                 bytes[] memory operators = constraint.operators;
                 uint256 operatorCount = operators.length;
 
-                for (uint256 operatorIndex; operatorIndex < operatorCount; ++operatorIndex) {
+                for (uint256 operatorIndex = 0; operatorIndex < operatorCount; ++operatorIndex) {
                     // forgefmt: disable-next-item
                     rules[ruleIndex++] = Rule({
                         scope: constraint.scope, path: constraint.path, operator: operators[operatorIndex], hint: ""

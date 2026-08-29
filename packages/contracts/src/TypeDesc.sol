@@ -137,7 +137,7 @@ library TypeDesc {
         Be24.write(desc, DF.TYPECODE_SIZE, meta);
 
         uint256 cursor = DF.ARRAY_HEADER_SIZE;
-        for (uint256 i; i < elemLength; ++i) {
+        for (uint256 i = 0; i < elemLength; ++i) {
             unchecked {
                 desc[cursor++] = elemDesc[i];
             }
@@ -183,7 +183,7 @@ library TypeDesc {
         Be24.write(desc, DF.TYPECODE_SIZE, meta);
 
         uint256 cursor = DF.ARRAY_HEADER_SIZE;
-        for (uint256 i; i < elemLength; ++i) {
+        for (uint256 i = 0; i < elemLength; ++i) {
             unchecked {
                 desc[cursor++] = elemDesc[i];
             }
@@ -208,7 +208,7 @@ library TypeDesc {
         uint256 totalFieldsLength;
         uint256 sumStaticWords;
         bool anyDynamic;
-        for (uint256 i; i < fieldCount; ++i) {
+        for (uint256 i = 0; i < fieldCount; ++i) {
             bytes memory f = fields[i];
             uint256 fieldLength = f.length;
             require(fieldLength != 0, EmptyType());
@@ -245,10 +245,10 @@ library TypeDesc {
 
         // Copy field descriptors.
         uint256 cursor = DF.TUPLE_HEADER_SIZE;
-        for (uint256 i; i < fieldCount; ++i) {
+        for (uint256 i = 0; i < fieldCount; ++i) {
             bytes memory f = fields[i];
             uint256 fieldLength = f.length;
-            for (uint256 j; j < fieldLength; ++j) {
+            for (uint256 j = 0; j < fieldLength; ++j) {
                 unchecked {
                     desc[cursor++] = f[j];
                 }

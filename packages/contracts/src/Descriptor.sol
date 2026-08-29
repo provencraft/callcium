@@ -209,7 +209,7 @@ library Descriptor {
         uint256 count = paramCount(self);
         require(index < count, ParamIndexOutOfBounds(index, count));
         startOffset = DF.HEADER_SIZE;
-        for (uint256 i; i < index; ++i) {
+        for (uint256 i = 0; i < index; ++i) {
             (,,, startOffset) = inspect(self, startOffset);
         }
     }
@@ -220,7 +220,7 @@ library Descriptor {
     /// @return startOffset Byte offset of the parameter's type descriptor.
     function atUnchecked(bytes memory self, uint256 index) internal pure returns (uint256 startOffset) {
         startOffset = DF.HEADER_SIZE;
-        for (uint256 i; i < index; ++i) {
+        for (uint256 i = 0; i < index; ++i) {
             (,,, startOffset) = inspect(self, startOffset);
         }
     }
@@ -250,7 +250,7 @@ library Descriptor {
         returns (uint256 fieldDescOffset)
     {
         fieldDescOffset = tupleOffset + DF.TUPLE_HEADER_SIZE;
-        for (uint256 j; j < fieldIndex; ++j) {
+        for (uint256 j = 0; j < fieldIndex; ++j) {
             uint256 next;
             (,,, next) = inspect(self, fieldDescOffset);
             unchecked {
@@ -399,7 +399,7 @@ library Descriptor {
             uint16 fields = tupleFieldCount(self, offset);
             require(fields > 0 && fields <= DF.MAX_TUPLE_FIELDS, InvalidTupleFieldCount(offset, fields));
             uint256 child = offset + DF.TUPLE_HEADER_SIZE;
-            for (uint256 i; i < fields; ++i) {
+            for (uint256 i = 0; i < fields; ++i) {
                 child = _validateNode(self, child, depth + 1);
             }
         } else if (code == TypeCode.STATIC_ARRAY) {

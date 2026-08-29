@@ -504,7 +504,7 @@ library Operator {
     function _append(Constraint memory c, bytes memory opWithData) private pure returns (Constraint memory) {
         uint256 length = c.operators.length;
         bytes[] memory next = new bytes[](length + 1);
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             next[i] = c.operators[i];
         }
         next[length] = opWithData;
@@ -542,7 +542,7 @@ library Operator {
         uint256 length = values.length;
         require(length <= PF.MAX_SET_MEMBERS, SetTooLarge());
         out = new bytes(length * 32);
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             bytes32 word = bytes32(values[i]);
             assembly ("memory-safe") {
                 mstore(add(add(out, 32), mul(i, 32)), word)

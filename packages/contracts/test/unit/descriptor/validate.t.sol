@@ -9,7 +9,7 @@ contract ValidateTest is DescriptorTest {
     /// @dev Builds a descriptor with `levels` nested single-field tuples around a uint256 leaf.
     function _nestedTuples(uint256 levels) private pure returns (bytes memory) {
         bytes memory node = hex"20";
-        for (uint256 i; i < levels; ++i) {
+        for (uint256 i = 0; i < levels; ++i) {
             // staticWords = 1 | nodeLength = header(6) + inner node; fits 24 bits for any test depth.
             uint24 meta = uint24((1 << 12) | (node.length + 6));
             node = bytes.concat(hex"90", bytes3(meta), hex"0001", node);

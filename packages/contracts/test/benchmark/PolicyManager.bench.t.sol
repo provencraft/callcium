@@ -64,7 +64,7 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
         targets1[0] = address(1);
 
         targets10 = new address[](10);
-        for (uint256 i; i < 10; ++i) {
+        for (uint256 i = 0; i < 10; ++i) {
             // forge-lint: disable-next-line(unsafe-typecast) loop bound is 10
             targets10[i] = address(uint160(i + 1));
         }
@@ -96,7 +96,7 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
 
     function _buildLargeSetFixtures() internal {
         uint256[] memory largeSet = new uint256[](256);
-        for (uint256 i; i < 256; ++i) {
+        for (uint256 i = 0; i < 256; ++i) {
             largeSet[i] = i + 1;
         }
 

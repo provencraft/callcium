@@ -47,7 +47,7 @@ abstract contract PolicyEnforcerTest is BaseTest {
     /// @dev Creates an array of uint256 values [1, 2, ..., length].
     function _uintArray(uint256 length) internal pure returns (uint256[] memory arr) {
         arr = new uint256[](length);
-        for (uint256 i; i < length; ++i) {
+        for (uint256 i = 0; i < length; ++i) {
             arr[i] = i + 1;
         }
     }

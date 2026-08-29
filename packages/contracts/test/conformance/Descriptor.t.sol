@@ -47,7 +47,7 @@ contract DescriptorConformanceTest is BaseTest {
         uint256 count;
         while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
         fixtures = new DescriptorFixture[](count);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             fixtures[i] = abi.decode(vm.parseJson(json, string.concat(".[", vm.toString(i), "]")), (DescriptorFixture));
         }
     }
@@ -80,12 +80,12 @@ contract DescriptorConformanceTest is BaseTest {
 
     function test_ValidatesConformWithSpecification() public {
         DescriptorFixture[] memory fixtures = _fixtures();
-        for (uint256 i; i < fixtures.length; ++i) {
+        for (uint256 i = 0; i < fixtures.length; ++i) {
             DescriptorFixture memory f = fixtures[i];
             if (bytes(f.error).length > 0) {
                 bytes4 sel = _errorSelector(f.error);
                 bytes memory revertData = abi.encodePacked(sel);
-                for (uint256 j; j < f.errorArgs.length; ++j) {
+                for (uint256 j = 0; j < f.errorArgs.length; ++j) {
                     revertData = bytes.concat(revertData, f.errorArgs[j]);
                 }
                 vm.expectRevert(revertData);
@@ -98,7 +98,7 @@ contract DescriptorConformanceTest is BaseTest {
 
     function test_ParamCountConformsWithSpecification() public view {
         DescriptorFixture[] memory fixtures = _fixtures();
-        for (uint256 i; i < fixtures.length; ++i) {
+        for (uint256 i = 0; i < fixtures.length; ++i) {
             DescriptorFixture memory f = fixtures[i];
             if (bytes(f.error).length > 0) continue;
             assertEq(Descriptor.paramCount(f.blob), f.params.length, f.id);
@@ -107,11 +107,11 @@ contract DescriptorConformanceTest is BaseTest {
 
     function test_TypeAtConformsWithSpecification() public view {
         DescriptorFixture[] memory fixtures = _fixtures();
-        for (uint256 i; i < fixtures.length; ++i) {
+        for (uint256 i = 0; i < fixtures.length; ++i) {
             DescriptorFixture memory f = fixtures[i];
             if (bytes(f.error).length > 0) continue;
             if (f.params.length == 0) continue;
-            for (uint256 j; j < f.params.length; ++j) {
+            for (uint256 j = 0; j < f.params.length; ++j) {
                 DescriptorParam memory param = f.params[j];
                 // forge-lint: disable-next-line(unsafe-typecast)
                 Descriptor.TypeInfo memory t = f.blob.typeAt(_path(uint16(j)));

@@ -194,7 +194,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     /// built policy rather than assumed.
     function _buildGroupsN(uint256 count, bool passFirst) internal pure returns (Fixture memory) {
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)");
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             if (i > 0) draft = draft.or();
             draft = draft.add(arg(0).eq(42 + i * 100));
         }
@@ -228,7 +228,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     function _buildRulesN(uint256 count) internal pure returns (Fixture memory) {
         string memory sig = _tupleSignature(count);
         PolicyDraft memory draft = PolicyBuilder.create(sig);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
             draft = draft.add(arg(0, uint16(i)).eq(i + 1));
         }
@@ -238,12 +238,12 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     function _buildRulesNWithCalldata(uint256 count, uint256[] memory values) internal pure returns (Fixture memory) {
         string memory sig = _tupleSignature(count);
         PolicyDraft memory draft = PolicyBuilder.create(sig);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
             draft = draft.add(arg(0, uint16(i)).eq(i + 1));
         }
         bytes memory callData = abi.encodeWithSignature(sig);
-        for (uint256 i; i < values.length; ++i) {
+        for (uint256 i = 0; i < values.length; ++i) {
             callData = abi.encodePacked(callData, bytes32(values[i]));
         }
         return _fixture(draft.buildUnsafe(), callData);
@@ -251,7 +251,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
     function _tupleSignature(uint256 count) internal pure returns (string memory) {
         bytes memory fields;
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             if (i > 0) fields = abi.encodePacked(fields, ",");
             fields = abi.encodePacked(fields, "uint256");
         }
@@ -260,7 +260,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
     function _encodeTupleCalldata(string memory sig, uint256 count) internal pure returns (bytes memory) {
         bytes memory data = abi.encodeWithSignature(sig);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             data = abi.encodePacked(data, bytes32(i + 1));
         }
         return data;
@@ -340,7 +340,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
         // Every level holds its successor one head behind it, and the innermost bytes is empty.
         bytes memory callData = abi.encodePacked(abi.encodeWithSignature(sig), uint256(0x20));
-        for (uint256 i; i < hopCount; ++i) {
+        for (uint256 i = 0; i < hopCount; ++i) {
             callData = abi.encodePacked(callData, uint256(0x40), i + 1 == hopCount ? uint256(42) : i);
         }
 
@@ -356,7 +356,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
         PolicyDraft memory draft = PolicyBuilder.create(sig);
         uint16[] memory pathSteps = new uint16[](depth);
-        for (uint256 i; i < depth - 1; ++i) {
+        for (uint256 i = 0; i < depth - 1; ++i) {
             pathSteps[i] = 0;
         }
         pathSteps[depth - 1] = 1;
@@ -381,7 +381,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         bytes memory callData = abi.encodeWithSignature("foo((uint256,address)[])");
         callData = abi.encodePacked(callData, bytes32(uint256(32)));
         callData = abi.encodePacked(callData, bytes32(uint256(5)));
-        for (uint256 i; i < 5; ++i) {
+        for (uint256 i = 0; i < 5; ++i) {
             uint256 val = (i == 2) ? 42 : i * 10;
             // forge-lint: disable-next-line(unsafe-typecast) loop bound is 5
             callData = abi.encodePacked(callData, bytes32(val), bytes32(uint256(uint160(address(uint160(i))))));
@@ -640,7 +640,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
     function _buildLengthOpFixtures() internal {
         uint256[] memory arr10 = new uint256[](10);
-        for (uint256 i; i < 10; ++i) {
+        for (uint256 i = 0; i < 10; ++i) {
             arr10[i] = i;
         }
         // forgefmt: disable-next-item
@@ -651,7 +651,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         );
 
         uint256[] memory arr100 = new uint256[](100);
-        for (uint256 i; i < 100; ++i) {
+        for (uint256 i = 0; i < 100; ++i) {
             arr100[i] = i;
         }
         // forgefmt: disable-next-item
@@ -662,7 +662,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         );
 
         bytes memory bytesData = new bytes(256);
-        for (uint256 i; i < 256; ++i) {
+        for (uint256 i = 0; i < 256; ++i) {
             // forge-lint: disable-next-line(unsafe-typecast) loop bound is 256
             bytesData[i] = bytes1(uint8(i));
         }

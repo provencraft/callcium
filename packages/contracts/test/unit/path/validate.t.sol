@@ -27,7 +27,7 @@ contract PathValidateTest is PathTest {
     function testFuzz_Validate_AcceptsEvenNonEmpty(uint256 depthSeed) public pure {
         uint256 depth = bound(depthSeed, 1, 128);
         uint16[] memory steps = new uint16[](depth);
-        for (uint256 i; i < depth; ++i) {
+        for (uint256 i = 0; i < depth; ++i) {
             steps[i] = uint16(i);
         }
         bytes memory p = Path.encode(steps);

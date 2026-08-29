@@ -194,9 +194,9 @@ abstract contract PolicyCoderBench is Test {
         returns (PolicyCoder.Group[] memory groups)
     {
         groups = new PolicyCoder.Group[](groupCount);
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](rulesPerGroup);
-            for (uint256 ruleIndex; ruleIndex < rulesPerGroup; ++ruleIndex) {
+            for (uint256 ruleIndex = 0; ruleIndex < rulesPerGroup; ++ruleIndex) {
                 rules[ruleIndex] = PolicyCoder.Rule({
                     scope: PF.SCOPE_CALLDATA,
                     // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
@@ -234,7 +234,7 @@ abstract contract PolicyCoderBench is Test {
     /// @dev Creates an OP_IN operator with the specified number of 32-byte set members.
     function _makeInOp(uint256 memberCount) internal pure returns (bytes memory) {
         bytes memory data = abi.encodePacked(OpCode.IN);
-        for (uint256 i; i < memberCount; ++i) {
+        for (uint256 i = 0; i < memberCount; ++i) {
             data = abi.encodePacked(data, bytes32(i + 1));
         }
         return data;
@@ -255,7 +255,7 @@ abstract contract PolicyCoderBench is Test {
     function _makeReverseSortedGroup(uint256 ruleCount) internal pure returns (PolicyCoder.Group[] memory groups) {
         groups = new PolicyCoder.Group[](1);
         PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](ruleCount);
-        for (uint256 i; i < ruleCount; ++i) {
+        for (uint256 i = 0; i < ruleCount; ++i) {
             // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
             uint16 pathIndex = uint16(ruleCount - 1 - i);
             rules[i] = PolicyCoder.Rule({
@@ -272,7 +272,7 @@ abstract contract PolicyCoderBench is Test {
     function _makeEqualKeyGroup(uint256 ruleCount) internal pure returns (PolicyCoder.Group[] memory groups) {
         groups = new PolicyCoder.Group[](1);
         PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](ruleCount);
-        for (uint256 i; i < ruleCount; ++i) {
+        for (uint256 i = 0; i < ruleCount; ++i) {
             rules[i] = PolicyCoder.Rule({
                 scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: _makeEqOp(uint256(i + 1)), hint: ""
             });
@@ -283,7 +283,7 @@ abstract contract PolicyCoderBench is Test {
     /// @dev Creates multiple groups with identical rules (same hash).
     function _makeIdenticalGroups(uint256 groupCount) internal pure returns (PolicyCoder.Group[] memory groups) {
         groups = new PolicyCoder.Group[](groupCount);
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](1);
             rules[0] = PolicyCoder.Rule({
                 scope: PF.SCOPE_CALLDATA, path: Path.encode(1), operator: _makeEqOp(uint256(42)), hint: ""
@@ -398,9 +398,9 @@ abstract contract PolicyCoderBench is Test {
         PolicyCoder.Rule[] memory rules = new PolicyCoder.Rule[](4);
         bytes memory basePath = _makeDescentPath(NESTING_DEPTH);
         uint256 prefixBytes = basePath.length;
-        for (uint256 i; i < 4; ++i) {
+        for (uint256 i = 0; i < 4; ++i) {
             bytes memory fullPath = new bytes(prefixBytes + PF.PATH_STEP_SIZE);
-            for (uint256 j; j < prefixBytes; ++j) {
+            for (uint256 j = 0; j < prefixBytes; ++j) {
                 fullPath[j] = basePath[j];
             }
             // forge-lint: disable-next-line(unsafe-typecast) loop bound is 4

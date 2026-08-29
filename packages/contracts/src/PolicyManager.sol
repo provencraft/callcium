@@ -102,7 +102,7 @@ abstract contract PolicyManager {
         emit PolicyStored(storedHash, pointer);
 
         uint256 targetCount = targets.length;
-        for (uint256 i; i < targetCount; ++i) {
+        for (uint256 i = 0; i < targetCount; ++i) {
             emit PolicyBindingChanged(targets[i], selector, previousHashes[i], storedHash);
         }
 

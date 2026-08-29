@@ -18,7 +18,7 @@ abstract contract ConstraintTest is BaseTest {
 
         uint256 setLength = dataLength / 32;
         bytes32[] memory elements = new bytes32[](setLength);
-        for (uint256 i; i < setLength; ++i) {
+        for (uint256 i = 0; i < setLength; ++i) {
             elements[i] = LibBytes.load(operator, 1 + (i * 32));
         }
         return elements;
@@ -57,7 +57,7 @@ abstract contract ConstraintTest is BaseTest {
     /// @dev Asserts two arrays are element-wise equal.
     function assertArrayEq(bytes32[] memory expected, bytes32[] memory actual) internal pure {
         assertEq(expected.length, actual.length, "array length mismatch");
-        for (uint256 i; i < expected.length; ++i) {
+        for (uint256 i = 0; i < expected.length; ++i) {
             assertEq(expected[i], actual[i]);
         }
     }
@@ -80,7 +80,7 @@ abstract contract ConstraintTest is BaseTest {
 
     function _toBytes32Array(address[] memory arr) internal pure returns (bytes32[] memory out) {
         out = new bytes32[](arr.length);
-        for (uint256 i; i < arr.length; ++i) {
+        for (uint256 i = 0; i < arr.length; ++i) {
             out[i] = bytes32(uint256(uint160(arr[i])));
         }
     }

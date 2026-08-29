@@ -29,15 +29,15 @@ abstract contract ConformanceTest is Test {
         uint256 groupCount = _count(json, string.concat(policyPath, ".groups["));
 
         data.groups = new Constraint[][](groupCount);
-        for (uint256 groupIndex; groupIndex < groupCount; ++groupIndex) {
+        for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             string memory groupPath = string.concat(policyPath, ".groups[", vm.toString(groupIndex), "].constraints");
             uint256 constraintCount = _count(json, string.concat(groupPath, "["));
             data.groups[groupIndex] = new Constraint[](constraintCount);
-            for (uint256 constraintIndex; constraintIndex < constraintCount; ++constraintIndex) {
+            for (uint256 constraintIndex = 0; constraintIndex < constraintCount; ++constraintIndex) {
                 string memory constraintPath = string.concat(groupPath, "[", vm.toString(constraintIndex), "]");
                 uint256 operatorCount = _count(json, string.concat(constraintPath, ".operators["));
                 bytes[] memory operators = new bytes[](operatorCount);
-                for (uint256 operatorIndex; operatorIndex < operatorCount; ++operatorIndex) {
+                for (uint256 operatorIndex = 0; operatorIndex < operatorCount; ++operatorIndex) {
                     operators[operatorIndex] = vm.parseJsonBytes(
                         json, string.concat(constraintPath, ".operators[", vm.toString(operatorIndex), "]")
                     );

@@ -1157,12 +1157,12 @@ contract SetContradictionTest is PolicyValidatorTest {
     function test_FullyExcludedByManyNeqHoles_ReturnsError() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
         uint256[] memory set = new uint256[](10);
-        for (uint256 i; i < 10; ++i) {
+        for (uint256 i = 0; i < 10; ++i) {
             set[i] = i + 1;
         }
 
         Constraint memory c = arg(0).isIn(set);
-        for (uint256 i; i < 10; ++i) {
+        for (uint256 i = 0; i < 10; ++i) {
             c = c.neq(i + 1);
         }
 
@@ -1175,7 +1175,7 @@ contract SetContradictionTest is PolicyValidatorTest {
     function test_FullyExcludedByLargeNotInSet_ReturnsError() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
         uint256[] memory set = new uint256[](10);
-        for (uint256 i; i < 10; ++i) {
+        for (uint256 i = 0; i < 10; ++i) {
             set[i] = i + 1;
         }
 
@@ -1213,7 +1213,7 @@ contract SetContradictionTest is PolicyValidatorTest {
         // per-operator capacity estimate, so the issue buffer must grow rather than overflow.
         uint256 count = 64;
         uint256[] memory set = new uint256[](count);
-        for (uint256 i; i < count; ++i) {
+        for (uint256 i = 0; i < count; ++i) {
             set[i] = i + 1;
         }
         Constraint memory c = arg(0).isIn(set).notIn(set);
@@ -1223,7 +1223,7 @@ contract SetContradictionTest is PolicyValidatorTest {
         Issue[] memory issues = PolicyValidator.validate(data);
 
         uint256 reductions;
-        for (uint256 i; i < issues.length; ++i) {
+        for (uint256 i = 0; i < issues.length; ++i) {
             if (issues[i].code == IssueCode.SET_REDUCTION) ++reductions;
         }
         assertEq(reductions, count);

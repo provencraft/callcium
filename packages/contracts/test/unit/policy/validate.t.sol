@@ -149,7 +149,7 @@ contract ValidateTest is PolicyTest {
     function test_RevertWhen_TrailingBytesAfterAllGroups() public {
         bytes memory blob = _validBlob();
         bytes memory extended = new bytes(blob.length + 1);
-        for (uint256 i; i < blob.length; ++i) {
+        for (uint256 i = 0; i < blob.length; ++i) {
             extended[i] = blob[i];
         }
         vm.expectRevert(Policy.TrailingBytes.selector);
@@ -166,7 +166,7 @@ contract ValidateTest is PolicyTest {
         uint256 payloadStart = _opCodeOffset(blob, ruleOffset) + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
 
         // Swap the two sorted operand words so the set is descending.
-        for (uint256 i; i < 32; ++i) {
+        for (uint256 i = 0; i < 32; ++i) {
             bytes1 tmp = blob[payloadStart + i];
             blob[payloadStart + i] = blob[payloadStart + 32 + i];
             blob[payloadStart + 32 + i] = tmp;

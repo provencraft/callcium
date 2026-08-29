@@ -10,8 +10,8 @@ contract PolicyValidatorHarness {
         // allocate worst-case, fill matches preserving set1 order, then trim.
         uint256[] memory intersection = new uint256[](set1.length);
         uint256 intersectionCount;
-        for (uint256 i; i < set1.length; ++i) {
-            for (uint256 j; j < set2.length; ++j) {
+        for (uint256 i = 0; i < set1.length; ++i) {
+            for (uint256 j = 0; j < set2.length; ++j) {
                 if (set1[i] == set2[j]) {
                     intersection[intersectionCount++] = set1[i];
                     break;

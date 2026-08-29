@@ -67,7 +67,7 @@ contract AtTest is DescriptorTest {
         index = bound(index, paramCount, type(uint16).max);
 
         bytes memory body;
-        for (uint256 i; i < paramCount; ++i) {
+        for (uint256 i = 0; i < paramCount; ++i) {
             body = bytes.concat(body, bytes1(TypeCode.ADDRESS));
         }
         bytes memory desc = bytes.concat(hex"02", bytes1(paramCount), body);
@@ -103,7 +103,7 @@ contract AtTest is DescriptorTest {
         index = bound(index, 0, paramCount - 1);
 
         bytes memory body;
-        for (uint256 i; i < paramCount; ++i) {
+        for (uint256 i = 0; i < paramCount; ++i) {
             body = bytes.concat(body, bytes1(TypeCode.ADDRESS));
         }
         bytes memory desc = bytes.concat(hex"02", bytes1(uint8(paramCount)), body);
