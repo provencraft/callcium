@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(uninitialized-local)
+
 /// @dev Standalone harness that replicates the set-intersection algorithm
 /// used by PolicyValidator._updateSet so we can unit-test ordering semantics
 /// without exposing private library functions.

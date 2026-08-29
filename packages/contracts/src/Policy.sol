@@ -170,6 +170,7 @@ library Policy {
     /// @return The 4-byte function selector.
     function selector(bytes memory self) internal pure returns (bytes4) {
         require(!isSelectorless(self), OmittedSelector());
+        // forge-lint: disable-next-line(unsafe-typecast) high-order wire-field slice, not a narrowing cast.
         return bytes4(LibBytes.load(self, PF.POLICY_SELECTOR_OFFSET));
     }
 
@@ -212,6 +213,7 @@ library Policy {
 
         // Selectorless policies must have a zeroed selector slot.
         if ((header & PF.FLAG_NO_SELECTOR) != 0) {
+            // forge-lint: disable-next-line(unsafe-typecast) high-order wire-field slice, not a narrowing cast.
             require(bytes4(LibBytes.load(self, PF.POLICY_SELECTOR_OFFSET)) == bytes4(0), MalformedHeader());
         }
 
@@ -596,6 +598,7 @@ library Policy {
     /// @dev Appends the hop entering an indirected node's payload and rebases the offset accumulator.
     function _enter(HintWalk memory walk, bool needed) private pure {
         if (!needed) return;
+        // forge-lint: disable-next-line(unsafe-typecast) the hop offset is packed to its wire width.
         walk.chain = abi.encodePacked(walk.chain, uint32(walk.delta), PF.HINT_NO_INDEX, uint16(0));
         walk.delta = 0;
     }
@@ -616,7 +619,7 @@ library Policy {
         bytes memory out = abi.encodePacked((walk.kind << PF.HINT_KIND_SHIFT) | uint8(mainHopCount), walk.mainHops);
 
         if (walk.kind != PF.HINT_KIND_NONE) {
-            // forge-lint: disable-next-line(unsafe-typecast) the frame is packed to its wire width.
+            // forge-lint: disable-next-line(unsafe-typecast, encode-packed-collision) wire widths, not a hash key.
             out = abi.encodePacked(out, uint64(walk.frame), uint8(suffixHopCount), suffixHops);
         }
 
@@ -714,6 +717,7 @@ library Policy {
             if (index == PF.HINT_NO_INDEX) {
                 require(meta == 0, MalformedHint(ruleOffset));
             } else {
+                // forge-lint: disable-next-line(unsafe-typecast) high-order wire-field slice, not a narrowing cast.
                 require(uint32(bytes4(LibBytes.load(self, offset))) == 0, MalformedHint(ruleOffset));
                 require(meta & PF.HINT_META_RESERVED_MASK == 0, MalformedHint(ruleOffset));
             }

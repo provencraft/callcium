@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(unused-return)
+
 import { arg, blockNumber, blockTimestamp, chainId, msgSender, msgValue } from "src/Constraint.sol";
 import { Path } from "src/Path.sol";
 import { Policy } from "src/Policy.sol";

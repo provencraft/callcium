@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(reentrancy-events, unused-return)
+
 import { arg } from "src/Constraint.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 import { PolicyManager } from "src/PolicyManager.sol";

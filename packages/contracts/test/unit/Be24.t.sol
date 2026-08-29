@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(unsafe-typecast)
+
 import { Test } from "forge-std/Test.sol";
 import { Be24 } from "src/Be24.sol";
 

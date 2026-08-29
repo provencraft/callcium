@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(unsafe-typecast)
+
 import { DescriptorTest } from "../Descriptor.t.sol";
 
 import { DescriptorFormat as DF } from "src/DescriptorFormat.sol";

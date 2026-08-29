@@ -126,6 +126,7 @@ library PolicyValidator {
     }
 
     /// @dev Validates all constraints in a single group for cross-constraint analysis.
+    // forge-lint: disable-next-item(cyclomatic-complexity) branch count matches the spec table this dispatches on.
     function _validateGroup(
         PolicyData memory data,
         IssueCollector.Buffer memory issues,
@@ -240,6 +241,7 @@ library PolicyValidator {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @dev Validates a single constraint's operators and updates the path's context.
+    // forge-lint: disable-next-item(cyclomatic-complexity) branch count matches the spec table this dispatches on.
     function _validateConstraint(
         ConstraintContext memory ctx,
         Constraint memory constraint,
@@ -448,6 +450,7 @@ library PolicyValidator {
         for (uint256 i = 0; i < operators.length; ++i) {
             bytes memory op = operators[i];
             uint8 opCode = uint8(op[0]);
+            // forge-lint: disable-next-item(unsafe-typecast) bounded by the uint16 range check in the same condition.
             if (
                 op.length - 1 > type(uint16).max
                     || !OpRule.isValidPayloadSize(opCode & ~OpCode.NOT, uint16(op.length - 1))
@@ -466,6 +469,7 @@ library PolicyValidator {
 
     /// @dev Updates a bound domain with a new operator and detects contradictions/redundancies.
     /// Handles both numeric and length domains via the `isLength` flag for issue dispatch.
+    // forge-lint: disable-next-item(cyclomatic-complexity) branch count matches the spec table this dispatches on.
     function _updateBound(
         BoundDomain memory domain,
         uint8 base,
@@ -680,6 +684,7 @@ library PolicyValidator {
     }
 
     /// @dev Updates the set membership domain with new values and detects contradictions/redundancies.
+    // forge-lint: disable-next-item(cyclomatic-complexity) branch count matches the spec table this dispatches on.
     function _updateSet(
         ConstraintContext memory ctx,
         bool isNegated,

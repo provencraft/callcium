@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(unused-return)
+
 import { Test } from "forge-std/Test.sol";
 
 import { Policy } from "src/Policy.sol";

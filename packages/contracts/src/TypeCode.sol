@@ -165,6 +165,7 @@ library TypeCode {
     function intN(uint16 bits) internal pure returns (uint8) {
         require(bits % 8 == 0 && bits >= 8 && bits <= 256, InvalidIntBits(bits));
         unchecked {
+            // forge-lint: disable-next-line(unsafe-typecast) the bounded bit width keeps the code within uint8.
             return uint8(0x20 + (bits / 8));
         }
     }

@@ -43,6 +43,7 @@ library SignatureParser {
 
         name = string(LibBytes.slice(signatureBytes, 0, openParenIndex));
         typesCsv = string(LibBytes.slice(signatureBytes, openParenIndex + 1, signatureBytes.length - 1));
+        // forge-lint: disable-next-line(unsafe-typecast) selector derivation truncates by definition.
         selector = bytes4(keccak256(signatureBytes));
     }
 
@@ -60,6 +61,7 @@ library SignatureParser {
         uint256 openParenIndex = _scanAndValidate(signatureBytes);
 
         typesCsv = string(LibBytes.slice(signatureBytes, openParenIndex + 1, signatureBytes.length - 1));
+        // forge-lint: disable-next-line(unsafe-typecast) selector derivation truncates by definition.
         selector = bytes4(keccak256(signatureBytes));
     }
 

@@ -86,8 +86,10 @@ library PolicyEnforcer {
             // Determine base offset and validate selector if present.
             uint256 baseOffset = 0;
             if (policyHeader & PF.FLAG_NO_SELECTOR == 0) {
+                // forge-lint: disable-next-line(unsafe-typecast) high-order wire-field slice, not a narrowing cast.
                 bytes4 expectedSelector = bytes4(LibBytes.load(policy, PF.POLICY_SELECTOR_OFFSET));
                 require(callData.length >= PF.POLICY_SELECTOR_SIZE, MissingSelector());
+                // forge-lint: disable-next-line(unsafe-typecast) high-order wire-field slice, not a narrowing cast.
                 bytes4 actualSelector = bytes4(LibBytes.loadCalldata(callData, 0));
                 require(expectedSelector == actualSelector, SelectorMismatch(expectedSelector, actualSelector));
                 baseOffset = PF.POLICY_SELECTOR_SIZE;
@@ -131,6 +133,7 @@ library PolicyEnforcer {
     {
         unchecked {
             uint16 ruleCount = Be16.readUnchecked(policy, groupOffset + PF.GROUP_RULECOUNT_OFFSET);
+            // forge-lint: disable-next-line(unsafe-typecast) high-order wire-field slice, not a narrowing cast.
             uint32 groupSize = uint32(bytes4(LibBytes.load(policy, groupOffset + PF.GROUP_SIZE_OFFSET)));
             groupEnd = groupOffset + PF.GROUP_HEADER_SIZE + groupSize;
 
@@ -405,11 +408,13 @@ library PolicyEnforcer {
 
     /// @dev Reads the byte at `offset`. The caller frames `offset` within the buffer.
     function _byteAt(bytes memory data, uint256 offset) private pure returns (uint8) {
+        // forge-lint: disable-next-line(unsafe-typecast) high-order wire-field slice, not a narrowing cast.
         return uint8(bytes1(LibBytes.load(data, offset)));
     }
 
     /// @dev Applies operator to `value` using operator payload in `policy[dataOffset : dataOffset+dataLength)`.
     /// @dev Assumes dataLength matches the operator's expected payload size.
+    // forge-lint: disable-next-item(cyclomatic-complexity) branch count matches the spec table this dispatches on.
     function _applyOperator(
         uint8 opCode,
         bytes32 value,
@@ -610,6 +615,7 @@ library PolicyEnforcer {
             case 0x0007 { v := gasprice() }
             default {
                 // Revert with UnknownContextProperty(contextPropertyId).
+                // forge-lint: disable-next-line(too-many-digits) left-padded error selector, not a number.
                 mstore(0, 0x33abc51300000000000000000000000000000000000000000000000000000000)
                 mstore(4, contextPropertyId)
                 revert(0, 36)

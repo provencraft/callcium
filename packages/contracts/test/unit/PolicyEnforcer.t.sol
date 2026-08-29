@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(encode-packed-collision)
+
 import { Policy } from "src/Policy.sol";
 
 import { PolicyEnforcerHarness } from "test/harnesses/PolicyEnforcerHarness.sol";

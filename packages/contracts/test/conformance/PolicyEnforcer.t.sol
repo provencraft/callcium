@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(arbitrary-send-eth)
+
 import { CalldataReader } from "src/CalldataReader.sol";
 import { PolicyCoder } from "src/PolicyCoder.sol";
 import { PolicyEnforcer } from "src/PolicyEnforcer.sol";

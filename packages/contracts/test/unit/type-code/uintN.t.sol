@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(unsafe-typecast)
+
 import { TypeCodeTest } from "../TypeCode.t.sol";
 import { TypeCode } from "src/TypeCode.sol";
 

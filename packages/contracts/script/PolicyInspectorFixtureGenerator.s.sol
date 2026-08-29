@@ -75,6 +75,7 @@ contract PolicyInspectorFixtureGenerator is Script {
                 .or()
                 // Group 3: 2 constraints (set membership + timestamp).
                 .add(arg(0).isIn(allowed))
+                // forge-lint: disable-next-line(too-many-digits) fixture Unix timestamp.
                 .add(blockTimestamp().gte(uint256(1700000000)))
                 .build()
             );
@@ -91,6 +92,7 @@ contract PolicyInspectorFixtureGenerator is Script {
     }
 
     function _add(string memory key, bytes memory blob) private {
+        // forge-lint: disable-next-line(unused-return) the JSON accumulates under OBJ; only the last key returns it.
         vm.serializeBytes(OBJ, key, blob);
     }
 

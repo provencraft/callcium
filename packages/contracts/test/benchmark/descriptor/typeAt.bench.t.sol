@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(unused-return)
+
 import { Descriptor } from "src/Descriptor.sol";
 import { DescriptorBuilder } from "src/DescriptorBuilder.sol";
 import { TypeCode } from "src/TypeCode.sol";

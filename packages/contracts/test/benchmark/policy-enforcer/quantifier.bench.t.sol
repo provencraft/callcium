@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(unsafe-typecast)
+
 import { arg } from "src/Constraint.sol";
 import { Path } from "src/Path.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";

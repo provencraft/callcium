@@ -180,6 +180,7 @@ library DescriptorBuilder {
     }
 
     /// @dev Parses a base type (non-array) from `input[start:end]`.
+    // forge-lint: disable-next-item(cyclomatic-complexity) branch count matches the spec table this dispatches on.
     function _parseBaseType(bytes memory input, uint256 start, uint256 end) private pure returns (bytes memory) {
         require(end > start, MalformedTypeString());
         uint256 length = end - start;
@@ -306,6 +307,7 @@ library DescriptorBuilder {
 
                     if lt(remaining, 32) {
                         let shift := shl(3, sub(32, remaining))
+                        // forge-lint: disable-next-line(incorrect-shift) the mask clears the low shift bits.
                         let mask := not(sub(shl(shift, 1), 1))
                         w1 := and(w1, mask)
                         w2 := and(w2, mask)

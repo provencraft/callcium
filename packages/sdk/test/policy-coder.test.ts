@@ -4,6 +4,7 @@ import { bytesToHex } from "../src/bytes";
 import { MAX_CONTEXT_PROPERTY_ID, Op, PolicyFormat, Scope } from "../src/constants";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { PolicyCoder, parsePathSteps } from "../src/policy-coder";
+import { SignatureParser } from "../src/signature";
 import { expectErrorCode } from "./helpers";
 
 import type { Constraint, Hex, PolicyData } from "../src/types";
@@ -102,7 +103,7 @@ describe("PolicyCoder.decode EQ_CTX operand", () => {
 // Constraint grouping key
 ///////////////////////////////////////////////////////////////////////////
 
-const FOO_UINT256_SELECTOR = "2fbebd38";
+const FOO_UINT256_SELECTOR = SignatureParser.parse("foo(uint256)").selector.slice(2);
 const OPERAND_SIZE = 32;
 
 /** Encode `value` as a big-endian hex field `byteLength` bytes wide. */

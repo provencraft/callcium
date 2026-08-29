@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(uninitialized-local)
+
 import { LibBytes } from "solady/utils/LibBytes.sol";
 
 import { BaseTest } from "test/unit/BaseTest.sol";

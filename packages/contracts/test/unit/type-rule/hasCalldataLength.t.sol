@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(uninitialized-local)
+
 import { TypeRuleTest } from "../TypeRule.t.sol";
 import { TypeCode } from "src/TypeCode.sol";
 import { TypeRule } from "src/TypeRule.sol";

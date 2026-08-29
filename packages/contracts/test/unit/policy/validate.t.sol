@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(unsafe-typecast, unused-return)
+
 import { PolicyTest } from "../Policy.t.sol";
 
 import { Be16 } from "src/Be16.sol";

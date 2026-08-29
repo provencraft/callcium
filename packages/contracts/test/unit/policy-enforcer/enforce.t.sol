@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(multi-contract-file, unsafe-typecast, unused-return)
+
 import { Be16 } from "src/Be16.sol";
 import { CalldataReader } from "src/CalldataReader.sol";
 import {

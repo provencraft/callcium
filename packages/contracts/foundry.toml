@@ -45,6 +45,16 @@ forge-std = "1.16.2"
 
 [lint]
 ignore = ["src/vendor/**/*.sol"]
+# Rules that fire on idioms this codebase is built from; no site annotation retires them.
+# Every other rule stays armed, silenced per item in src and per file in test.
+exclude_lints = [
+    "boolean-cst", # every predicate returning a boolean constant.
+    "calls-loop", # every `new T[](n)` allocation.
+    "inline-assembly", # every block, memory-safe or not.
+    "internal-function-used-once", # every library export.
+    "literal-instead-of-constant", # every EVM word constant.
+    "require-revert-in-loop", # every validator guard.
+]
 
 [doc]
 out = ".forge-doc"

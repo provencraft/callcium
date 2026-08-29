@@ -180,12 +180,14 @@ library TypeRule {
         } else if (typeCode >= TypeCode.INT8 && typeCode <= TypeCode.INT256) {
             uint256 bits = (uint256(typeCode - TypeCode.INT8) + 1) * 8;
             if (bits == 256) {
+                // forge-lint: disable-next-line(unsafe-typecast) same-width two's-complement reinterpret.
                 min = uint256(type(int256).min);
+                // forge-lint: disable-next-line(unsafe-typecast) same-width two's-complement reinterpret.
                 max = uint256(type(int256).max);
             } else {
                 // forge-lint: disable-next-line(incorrect-shift) 2^(bits-1) bitmask
                 max = (1 << (bits - 1)) - 1;
-                // forge-lint: disable-next-line(incorrect-shift) 2^(bits-1) bitmask
+                // forge-lint: disable-next-line(incorrect-shift, unsafe-typecast) 2^(bits-1) bitmask, same width.
                 min = uint256(-int256(1 << (bits - 1)));
             }
         } else if (typeCode == TypeCode.BOOL) {

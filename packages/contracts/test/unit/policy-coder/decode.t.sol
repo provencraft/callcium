@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(encode-packed-collision, unsafe-typecast)
+
 import { PolicyCoderTest } from "../PolicyCoder.t.sol";
 
 import { Constraint, arg, msgSender } from "src/Constraint.sol";
@@ -13,6 +15,9 @@ import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 
 // forgefmt: disable-next-item
 contract DecodeTest is PolicyCoderTest {
+    /// @dev Byte width of a single operator operand.
+    uint16 private constant OPERAND_SIZE = 32;
+
     /// @dev Creates a single-constraint group for selectorless policy tests.
     function _makeSelectorlessGroup() internal pure returns (Constraint[][] memory groups) {
         groups = new Constraint[][](1);
@@ -22,8 +27,9 @@ contract DecodeTest is PolicyCoderTest {
         groups[0][0] = Constraint({ scope: PF.SCOPE_CALLDATA, path: hex"0000", operators: operators, hint: "" });
     }
 
+    /// @dev Encodes one calldata rule carrying an EQ operator over a zero word.
     function _calldataRule(bytes memory path, bytes memory hint) internal pure returns (bytes memory) {
-        uint16 dataLength = uint16(bytes32(0).length);
+        uint16 dataLength = OPERAND_SIZE;
         return abi.encodePacked(
             uint16(PF.RULE_FIXED_OVERHEAD + path.length + hint.length + dataLength),
             PF.SCOPE_CALLDATA,

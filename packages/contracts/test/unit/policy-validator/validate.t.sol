@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// forge-lint: disable-start(multi-contract-file, uninitialized-local, unsafe-typecast)
+
 import { PolicyValidatorHarness } from "../../harnesses/PolicyValidatorHarness.sol";
 import { PolicyValidatorTest } from "../PolicyValidator.t.sol";
 import { Constraint, arg, msgSender } from "src/Constraint.sol";
