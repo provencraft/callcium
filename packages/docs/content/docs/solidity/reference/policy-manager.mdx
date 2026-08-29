@@ -3,7 +3,7 @@ title: "PolicyManager"
 description: "EIP-7201 namespaced policy storage."
 ---
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L8)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L9)
 
 ## Functions
 
@@ -11,7 +11,7 @@ description: "EIP-7201 namespaced policy storage."
 
 Returns the namespaced policy store.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L45)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L46)
 
 ```solidity
 function _policyStore() private view returns (PolicyRegistry.Store storage);
@@ -24,7 +24,7 @@ Stores a policy blob via SSTORE2.
 Stored policies are trusted at enforcement time without semantic validation.
 Access to this function is the primary security boundary for enforcement integrity.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L64)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L65)
 
 ```solidity
 function _storePolicy(bytes memory policy) internal returns (bytes32 policyHash, address pointer);
@@ -71,7 +71,7 @@ Unbinds a policy from a (target, selector) pair.
 Unbinding deactivates enforcement for the pair, reopening the guarded selector.
 Reverts when the pair has no binding. Restrict access as tightly as policy storage itself.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L87)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L86)
 
 ```solidity
 function _unbindPolicy(address target, bytes4 selector) internal;
@@ -91,7 +91,7 @@ Stores a policy and binds it to targets in one call.
 Stored policies are trusted at enforcement time without semantic validation,
 and binding activates them immediately. Access to this function is the primary security boundary.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L99)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L97)
 
 ```solidity
 function _storeAndBindPolicy(address[] calldata targets, bytes memory policy)
@@ -119,7 +119,7 @@ Stores a policy and binds it to a single target.
 Stored policies are trusted at enforcement time without semantic validation,
 and binding activates them immediately. Access to this function is the primary security boundary.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L123)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L119)
 
 ```solidity
 function _storeAndBindPolicy(address target, bytes memory policy) internal returns (bytes32 policyHash);
@@ -142,7 +142,7 @@ function _storeAndBindPolicy(address target, bytes memory policy) internal retur
 
 Resolves and loads the policy for a (target, selector) pair.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L138)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L132)
 
 ```solidity
 function _resolvePolicy(address target, bytes4 selector) internal view returns (bytes memory);
@@ -165,7 +165,7 @@ function _resolvePolicy(address target, bytes4 selector) internal view returns (
 
 Returns the policy hash for a (target, selector) pair.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L146)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L140)
 
 ```solidity
 function _policyHashFor(address target, bytes4 selector) internal view returns (bytes32);
@@ -188,7 +188,7 @@ function _policyHashFor(address target, bytes4 selector) internal view returns (
 
 Loads a policy blob by its hash.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L153)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L147)
 
 ```solidity
 function _loadPolicy(bytes32 policyHash) internal view returns (bytes memory);
@@ -210,7 +210,7 @@ function _loadPolicy(bytes32 policyHash) internal view returns (bytes memory);
 
 Checks if a policy exists in storage.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L160)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L154)
 
 ```solidity
 function _policyExists(bytes32 policyHash) internal view returns (bool);
@@ -232,7 +232,7 @@ function _policyExists(bytes32 policyHash) internal view returns (bool);
 
 Returns the SSTORE2 pointer for a policy hash.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L167)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L161)
 
 ```solidity
 function _policyPointerOf(bytes32 policyHash) internal view returns (address);
@@ -258,7 +258,7 @@ Emitted when a policy blob is stored.
 
 Emitted on every store call, including deduplicated stores of an existing blob.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L19)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L20)
 
 ```solidity
 event PolicyStored(bytes32 indexed policyHash, address pointer);
@@ -275,7 +275,7 @@ event PolicyStored(bytes32 indexed policyHash, address pointer);
 
 Emitted when the policy binding for a (target, selector) pair changes.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L26)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyManager.sol#L27)
 
 ```solidity
 event PolicyBindingChanged(

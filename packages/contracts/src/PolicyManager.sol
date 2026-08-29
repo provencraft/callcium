@@ -5,6 +5,7 @@ import { PolicyRegistry } from "./PolicyRegistry.sol";
 
 /// @title PolicyManager
 /// @notice EIP-7201 namespaced policy storage.
+// forge-lint: disable-next-item(reentrancy-events) no external call runs between a storage write and its emit.
 abstract contract PolicyManager {
     using PolicyRegistry for PolicyRegistry.Store;
 
@@ -63,7 +64,6 @@ abstract contract PolicyManager {
     /// @return pointer The SSTORE2 pointer address.
     function _storePolicy(bytes memory policy) internal returns (bytes32 policyHash, address pointer) {
         (policyHash, pointer) = _policyStore().store(policy);
-        // forge-lint: disable-next-line(reentrancy-events) storage is committed before this emit.
         emit PolicyStored(policyHash, pointer);
     }
 
@@ -75,7 +75,6 @@ abstract contract PolicyManager {
     /// @param policyHash The policy hash (must already be stored).
     function _bindPolicy(address target, bytes32 policyHash) internal {
         (bytes4 selector, bytes32 previousHash) = _policyStore().bind(target, policyHash);
-        // forge-lint: disable-next-line(reentrancy-events) storage is committed before this emit.
         emit PolicyBindingChanged(target, selector, previousHash, policyHash);
     }
 
@@ -86,7 +85,6 @@ abstract contract PolicyManager {
     /// @param selector The function selector.
     function _unbindPolicy(address target, bytes4 selector) internal {
         bytes32 previousHash = _policyStore().unbind(target, selector);
-        // forge-lint: disable-next-line(reentrancy-events) storage is committed before this emit.
         emit PolicyBindingChanged(target, selector, previousHash, bytes32(0));
     }
 
@@ -102,12 +100,10 @@ abstract contract PolicyManager {
     {
         (bytes32 storedHash, address pointer, bytes4 selector, bytes32[] memory previousHashes) =
             _policyStore().storeAndBind(targets, policy);
-        // forge-lint: disable-next-line(reentrancy-events) storage is committed before this emit.
         emit PolicyStored(storedHash, pointer);
 
         uint256 targetCount = targets.length;
         for (uint256 i = 0; i < targetCount; ++i) {
-            // forge-lint: disable-next-line(reentrancy-events) storage is committed before this emit.
             emit PolicyBindingChanged(targets[i], selector, previousHashes[i], storedHash);
         }
 
@@ -123,9 +119,7 @@ abstract contract PolicyManager {
     function _storeAndBindPolicy(address target, bytes memory policy) internal returns (bytes32 policyHash) {
         (bytes32 storedHash, address pointer, bytes4 selector, bytes32 previousHash) =
             _policyStore().storeAndBind(target, policy);
-        // forge-lint: disable-next-line(reentrancy-events) storage is committed before this emit.
         emit PolicyStored(storedHash, pointer);
-        // forge-lint: disable-next-line(reentrancy-events) storage is committed before this emit.
         emit PolicyBindingChanged(target, selector, previousHash, storedHash);
 
         return storedHash;
