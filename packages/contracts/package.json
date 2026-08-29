@@ -1,6 +1,6 @@
 {
   "name": "@callcium/contracts",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Solidity implementation of the Callcium policy engine",
   "keywords": [
     "abi",
