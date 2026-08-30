@@ -25,7 +25,7 @@ const INCLUDED_CONTRACTS = [
   "PolicyManager.sol",
   "PolicyValidator.sol",
   "Path.sol",
-];
+] as const;
 
 /** Structs that are internal implementation details — skip from output. */
 const INTERNAL_STRUCTS: Record<string, string[]> = {
@@ -305,12 +305,12 @@ function removeInternalStructs(tree: Root, internalNames: string[]): void {
 // Source-link injection
 ///////////////////////////////////////////////////////////////////////////
 
-type SymbolBucket = "fn" | "struct" | "err" | "event" | "modifier" | "constant";
+type SymbolBucket = "function_" | "struct" | "error" | "event" | "modifier" | "constant";
 
 const SECTION_TO_BUCKET: Record<string, SymbolBucket> = {
-  Functions: "fn",
+  Functions: "function_",
   Structs: "struct",
-  Errors: "err",
+  Errors: "error",
   Events: "event",
   Modifiers: "modifier",
   "State Variables": "constant",
@@ -336,7 +336,7 @@ function gitSourceParagraph(contractDir: string, line: number): Paragraph {
  */
 function injectSourceLinks(filename: string, tree: Root, contractDir: string, symbolMap: SymbolMap): void {
   const auxMatch = filename.match(/^(function|struct)\.(.+)\.md$/);
-  const fallbackBucket: SymbolBucket | null = auxMatch ? (auxMatch[1] === "function" ? "fn" : "struct") : null;
+  const fallbackBucket: SymbolBucket | null = auxMatch ? (auxMatch[1] === "function" ? "function_" : "struct") : null;
   let currentBucket: SymbolBucket | null = fallbackBucket;
 
   const result: RootContent[] = [];
@@ -721,7 +721,7 @@ async function main() {
   console.log(`Generated ${totalPages} reference pages.`);
 }
 
-main().catch((err) => {
-  console.error(err);
+main().catch((error) => {
+  console.error(error);
   process.exit(1);
 });

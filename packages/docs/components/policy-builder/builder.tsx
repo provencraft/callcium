@@ -53,7 +53,7 @@ const QUANTIFIER_OPTIONS = [
     label: lookupQuantifier(Quantifier.ANY).label,
     desc: "at least one must pass\nempty array → fail",
   },
-];
+] as const;
 
 ///////////////////////////////////////////////////////////////////////////
 // Main component
@@ -70,7 +70,7 @@ export function Builder() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [inputMode, setInputMode] = useState<"signature" | "abi">("signature");
   const [abiInput, setAbiInput] = useState("");
-  const [selectedFnSig, setSelectedFnSig] = useState("");
+  const [selectedFunctionSignature, setSelectedFunctionSignature] = useState("");
 
   const abiFunctions = useMemo<AbiFunction[] | Error>(() => {
     if (!abiInput.trim()) return [];
@@ -82,9 +82,9 @@ export function Builder() {
   const debouncedSignature = useDebounce(signatureInput, 300);
 
   useEffect(() => {
-    const sig = debouncedSignature.trim();
-    if (!sig || activeExample) return;
-    const s = createSession(sig, { selectorless: isSelectorless });
+    const signature = debouncedSignature.trim();
+    if (!signature || activeExample) return;
+    const s = createSession(signature, { selectorless: isSelectorless });
     setSession(s);
   }, [debouncedSignature, isSelectorless, activeExample]);
 
@@ -102,14 +102,14 @@ export function Builder() {
         setSession(createSession(types, { selectorless: true }));
       } else {
         // Use types immediately, then look up the function name async.
-        const fallbackSig = `unknown(${types})`;
-        setSignatureInput(fallbackSig);
-        setSession(createSession(fallbackSig));
+        const fallbackSignature = `unknown(${types})`;
+        setSignatureInput(fallbackSignature);
+        setSession(createSession(fallbackSignature));
         void lookup4byte(decoded.selector).then((name) => {
           if (name) {
-            const sig = `${name}(${types})`;
-            setSignatureInput(sig);
-            setSession(createSession(sig));
+            const signature = `${name}(${types})`;
+            setSignatureInput(signature);
+            setSession(createSession(signature));
           }
         });
       }
@@ -282,23 +282,23 @@ export function Builder() {
 
             {Array.isArray(abiFunctions) && abiFunctions.length > 0 && (
               <Select
-                value={selectedFnSig}
-                onValueChange={(sig) => {
-                  setSelectedFnSig(sig);
+                value={selectedFunctionSignature}
+                onValueChange={(signature) => {
+                  setSelectedFunctionSignature(signature);
                   setActiveExample(null);
                   setIsSelectorless(false);
-                  setSignatureInput(sig);
+                  setSignatureInput(signature);
                 }}
               >
                 <SelectTrigger className="w-full font-mono">
                   <SelectValue placeholder="Select function" />
                 </SelectTrigger>
                 <SelectContent>
-                  {abiFunctions.map((fn) => {
-                    const sig = formatAbiItem(fn, { includeName: true });
+                  {abiFunctions.map((abiFunction) => {
+                    const signature = formatAbiItem(abiFunction, { includeName: true });
                     return (
-                      <SelectItem key={sig} value={sig} className="font-mono">
-                        {sig}
+                      <SelectItem key={signature} value={signature} className="font-mono">
+                        {signature}
                       </SelectItem>
                     );
                   })}
@@ -671,7 +671,7 @@ function AddConstraintForm({
 
   const group = session.groups[groupIndex];
 
-  const usedContextProps = useMemo(() => {
+  const usedContextProperties = useMemo(() => {
     const used = new Set<string>();
     for (const c of group.constraints) {
       if (c.scope === "context" && c.contextProperty) used.add(c.contextProperty);
@@ -687,7 +687,7 @@ function AddConstraintForm({
     return used;
   }, [group]);
 
-  const hasAvailableContext = usedContextProps.size < CONTEXT_PROPERTY_COUNT;
+  const hasAvailableContext = usedContextProperties.size < CONTEXT_PROPERTY_COUNT;
   const hasAvailableCalldata = useMemo(() => {
     function hasUnusedLeaf(nodes: ParamNode[], prefix: number[], used: Set<string>): boolean {
       for (const node of nodes) {
@@ -721,8 +721,8 @@ function AddConstraintForm({
   const targetTypeInfo = useMemo<TypeInfo | null>(() => {
     if (scope === "context") {
       if (!contextProperty) return null;
-      const prop = CONTEXT_PROPERTIES.find((p) => p.contextKey === contextProperty);
-      return prop?.typeCode === TypeCode.ADDRESS ? CTX_ADDRESS : CTX_UINT256;
+      const property = CONTEXT_PROPERTIES.find((p) => p.contextKey === contextProperty);
+      return property?.typeCode === TypeCode.ADDRESS ? CTX_ADDRESS : CTX_UINT256;
     }
     if (selectedParam === null || !session.params[selectedParam]) return null;
     const node = walkParamPath(session.params[selectedParam], selectedField);
@@ -919,10 +919,10 @@ function AddConstraintForm({
               </SelectTrigger>
               <SelectContent>
                 {CONTEXT_PROPERTIES.map(
-                  (prop) =>
-                    !usedContextProps.has(prop.contextKey) && (
-                      <SelectItem key={prop.contextKey} value={prop.contextKey}>
-                        {prop.label}
+                  (property) =>
+                    !usedContextProperties.has(property.contextKey) && (
+                      <SelectItem key={property.contextKey} value={property.contextKey}>
+                        {property.label}
                       </SelectItem>
                     ),
                 )}
@@ -1041,10 +1041,11 @@ function AddConstraintForm({
                   </SelectTrigger>
                   <SelectContent>
                     {CONTEXT_PROPERTIES.filter(
-                      (prop) => (targetTypeInfo.typeCode === TypeCode.ADDRESS) === (prop.typeCode === TypeCode.ADDRESS),
-                    ).map((prop) => (
-                      <SelectItem key={prop.code} value={String(prop.code)}>
-                        {prop.label}
+                      (property) =>
+                        (targetTypeInfo.typeCode === TypeCode.ADDRESS) === (property.typeCode === TypeCode.ADDRESS),
+                    ).map((property) => (
+                      <SelectItem key={property.code} value={String(property.code)}>
+                        {property.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

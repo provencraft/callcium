@@ -65,7 +65,16 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
   "policy-coder": {
     title: "PolicyCoder",
     description: "Encode and decode binary policies.",
-    sections: { primary: ["PolicyCoder"], helpers: ["parsePathSteps"], types: [] },
+    sections: { primary: ["PolicyCoder"], helpers: [], types: [] },
+  },
+  path: {
+    title: "Path",
+    description: "Path step encoding and quantifier steps.",
+    sections: {
+      primary: [],
+      helpers: ["parsePathSteps", "isQuantifier", "lookupQuantifier"],
+      types: ["Quantifier", "QuantifierInfo"],
+    },
   },
   descriptor: {
     title: "Descriptor",
@@ -82,29 +91,18 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
     description: "Protocol constants, enums, and lookup helpers.",
     sections: {
       primary: [],
-      helpers: [
-        "lookupOp",
-        "lookupScope",
-        "lookupContextProperty",
-        "lookupQuantifier",
-        "lookupTypeCode",
-        "isQuantifier",
-        "isLengthOp",
-      ],
+      helpers: ["lookupOp", "lookupScope", "lookupContextProperty", "lookupTypeCode", "isLengthOp"],
       types: [
         "Op",
         "TypeCode",
         "PolicyFormat",
-        "Quantifier",
         "Scope",
         "ContextProperty",
         "MAX_CONTEXT_PROPERTY_ID",
-        "Limits",
         "Operands",
         "OpInfo",
         "ScopeInfo",
         "ContextPropertyInfo",
-        "QuantifierInfo",
         "TypeCodeInfo",
         "TypeClassInfo",
         "TypeClass",
@@ -129,6 +127,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
         "DecodedRule",
         "DecodedParam",
         "Issue",
+        "IssueCode",
         "IssueSeverity",
         "IssueCategory",
         "Context",
@@ -282,11 +281,11 @@ interface TypeDocRoot {
 }
 
 export function buildIndex(root: TypeDocRoot): Map<string, TypeDocReflection> {
-  const idx = new Map<string, TypeDocReflection>();
+  const index = new Map<string, TypeDocReflection>();
   for (const child of root.children ?? []) {
-    idx.set(child.name, child);
+    index.set(child.name, child);
   }
-  return idx;
+  return index;
 }
 
 function summaryText(comment: TypeDocComment | undefined): string {
@@ -335,15 +334,15 @@ function renderType(t: TypeDocType | undefined): string {
   }
 }
 
-export function renderFunctionSignature(sig: TypeDocSignature): string {
-  const params = (sig.parameters ?? [])
+export function renderFunctionSignature(signature: TypeDocSignature): string {
+  const params = (signature.parameters ?? [])
     .map((p) => {
       const optional = p.flags?.isOptional ? "?" : "";
       const rest = p.flags?.isRest ? "..." : "";
       return `${rest}${p.name}${optional}: ${renderType(p.type)}`;
     })
     .join(", ");
-  return `function ${sig.name}(${params}): ${renderType(sig.type)};`;
+  return `function ${signature.name}(${params}): ${renderType(signature.type)};`;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -371,23 +370,23 @@ function renderParamTable(params: TypeDocParam[]): string {
   return lines.join("\n");
 }
 
-function renderReturns(sig: TypeDocSignature): string {
-  const desc = sig.comment?.blockTags?.find((tag) => tag.tag === "@returns");
+function renderReturns(signature: TypeDocSignature): string {
+  const desc = signature.comment?.blockTags?.find((tag) => tag.tag === "@returns");
   const descText = desc ? escapeForMdx(desc.content.map((c) => c.text).join("")) : "";
-  return ["**Returns**", "", `\`${renderType(sig.type)}\`${descText ? ` — ${descText}` : ""}`, ""].join("\n");
+  return ["**Returns**", "", `\`${renderType(signature.type)}\`${descText ? ` — ${descText}` : ""}`, ""].join("\n");
 }
 
 function renderFunction(ref: TypeDocReflection): string {
   const parts: string[] = [];
   parts.push(`### ${ref.name}`);
   parts.push("");
-  const sig = ref.signatures?.[0];
-  if (!sig) {
+  const signature = ref.signatures?.[0];
+  if (!signature) {
     parts.push(escapeForMdx(summaryText(ref.comment)));
     parts.push("");
     return parts.join("\n");
   }
-  parts.push(escapeForMdx(summaryText(sig.comment) || summaryText(ref.comment)));
+  parts.push(escapeForMdx(summaryText(signature.comment) || summaryText(ref.comment)));
   parts.push("");
   const src = sourceLink(ref);
   if (src) {
@@ -395,14 +394,14 @@ function renderFunction(ref: TypeDocReflection): string {
     parts.push("");
   }
   parts.push("```ts");
-  parts.push(renderFunctionSignature(sig));
+  parts.push(renderFunctionSignature(signature));
   parts.push("```");
   parts.push("");
-  if (sig.parameters && sig.parameters.length > 0) {
-    parts.push(renderParamTable(sig.parameters));
+  if (signature.parameters && signature.parameters.length > 0) {
+    parts.push(renderParamTable(signature.parameters));
   }
-  if (sig.type) {
-    parts.push(renderReturns(sig));
+  if (signature.type) {
+    parts.push(renderReturns(signature));
   }
   return parts.join("\n");
 }
@@ -469,16 +468,16 @@ function renderNamespaceVariable(ref: TypeDocReflection): string {
 
   parts.push("### Methods");
   parts.push("");
-  for (const prop of methods) {
-    const sigs = prop.type!.declaration!.signatures!;
+  for (const property of methods) {
+    const sigs = property.type!.declaration!.signatures!;
     // Rename anonymous signatures (e.g. "__type") to the owning property name
     // so both the heading and the `function X(...)` line agree.
-    const namedSigs = sigs.map((sig) => ({ ...sig, name: prop.name }));
+    const namedSigs = sigs.map((signature) => ({ ...signature, name: property.name }));
     const pseudoFunc: TypeDocReflection = {
-      id: prop.id,
-      name: prop.name,
+      id: property.id,
+      name: property.name,
       kind: KIND.Function,
-      comment: prop.comment ?? sigs[0]?.comment,
+      comment: property.comment ?? sigs[0]?.comment,
       signatures: namedSigs,
     };
     parts.push(renderFunction(pseudoFunc));

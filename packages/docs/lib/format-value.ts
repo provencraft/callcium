@@ -30,11 +30,11 @@ export function decodeOperand(hex32: string, typeCode: number): string {
   const raw = BigInt(`0x${hex32}`);
 
   if (typeCode === TypeCode.ADDRESS) {
-    const addr = `0x${hex32.slice(24)}`;
+    const address = `0x${hex32.slice(24)}`;
     try {
-      return getAddress(addr);
+      return getAddress(address);
     } catch {
-      return addr;
+      return address;
     }
   }
 

@@ -25,17 +25,20 @@ export function parseAbiJson(input: string): Abi | Error {
 /** Look up a function name by its 4-byte selector via the Sourcify API. */
 export async function lookup4byte(selector: string, signal?: AbortSignal): Promise<string | null> {
   try {
-    const res = await fetch(`https://api.4byte.sourcify.dev/signature-database/v1/lookup?function=${selector}`, {
+    const response = await fetch(`https://api.4byte.sourcify.dev/signature-database/v1/lookup?function=${selector}`, {
       signal,
     });
-    if (!res.ok) return null;
-    const data = await res.json();
+    if (!response.ok) return null;
+
+    const data = await response.json();
     const results = data?.result?.function?.[selector];
     if (!Array.isArray(results) || results.length === 0) return null;
-    const sig = results[0].name;
-    if (typeof sig !== "string") return null;
-    const parenIndex = sig.indexOf("(");
-    return parenIndex > 0 ? sig.slice(0, parenIndex) : sig;
+
+    const signature = results[0].name;
+    if (typeof signature !== "string") return null;
+
+    const parenIndex = signature.indexOf("(");
+    return parenIndex > 0 ? signature.slice(0, parenIndex) : signature;
   } catch {
     return null;
   }

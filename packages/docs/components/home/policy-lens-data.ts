@@ -21,11 +21,11 @@ export type LensData = {
 };
 
 // Neutral placeholder spenders (no meme hex). Both implementations build identical bytes.
-const SPENDERS = ["0x1111111111111111111111111111111111111111", "0x2222222222222222222222222222222222222222"];
+const SPENDERS = ["0x1111111111111111111111111111111111111111", "0x2222222222222222222222222222222222222222"] as const;
 const MAX_AMOUNT = 1_000_000_000_000n; // 1,000,000 at 6 decimals.
 
 // ERC-20 approve, supplying parameter names so the lens resolves `spender`/`value` instead of `arg(0)`/`arg(1)`.
-const APPROVE_ABI: Abi = [
+const APPROVE_ABI = [
   {
     type: "function",
     name: "approve",
@@ -36,7 +36,7 @@ const APPROVE_ABI: Abi = [
     ],
     outputs: [{ type: "bool", name: "" }],
   },
-];
+] as const satisfies Abi;
 
 /**
  * Build the canonical APPROVE policy and decode it into the hero lens model: the

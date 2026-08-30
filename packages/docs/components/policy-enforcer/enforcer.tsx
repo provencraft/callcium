@@ -59,14 +59,14 @@ export function Enforcer() {
 
   const context = useMemo((): Context | undefined => {
     const ctx: Record<string, Hex | bigint> = {};
-    for (const prop of CONTEXT_PROPERTIES) {
-      const raw = ctxValues[prop.contextKey]?.trim();
+    for (const property of CONTEXT_PROPERTIES) {
+      const raw = ctxValues[property.contextKey]?.trim();
       if (!raw) continue;
-      if (prop.typeCode === TypeCode.ADDRESS) {
-        ctx[prop.contextKey] = raw as Hex;
+      if (property.typeCode === TypeCode.ADDRESS) {
+        ctx[property.contextKey] = raw as Hex;
       } else {
         const parsed = tryParseBigInt(raw);
-        if (parsed !== undefined) ctx[prop.contextKey] = parsed;
+        if (parsed !== undefined) ctx[property.contextKey] = parsed;
       }
     }
     return Object.keys(ctx).length > 0 ? (ctx as Context) : undefined;
@@ -127,15 +127,15 @@ export function Enforcer() {
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            {CONTEXT_PROPERTIES.map((prop) => (
+            {CONTEXT_PROPERTIES.map((property) => (
               <ContextField
-                key={prop.contextKey}
-                label={prop.label}
-                placeholder={CONTEXT_PLACEHOLDERS[prop.contextKey]}
-                value={ctxValues[prop.contextKey] ?? ""}
-                onChange={(v) => setCtxValues((prev) => ({ ...prev, [prop.contextKey]: v }))}
+                key={property.contextKey}
+                label={property.label}
+                placeholder={CONTEXT_PLACEHOLDERS[property.contextKey]}
+                value={ctxValues[property.contextKey] ?? ""}
+                onChange={(v) => setCtxValues((prev) => ({ ...prev, [property.contextKey]: v }))}
                 action={
-                  prop.contextKey === "blockTimestamp"
+                  property.contextKey === "blockTimestamp"
                     ? {
                         label: "Now",
                         onClick: () =>

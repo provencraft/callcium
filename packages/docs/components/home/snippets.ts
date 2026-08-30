@@ -37,7 +37,7 @@ export type Feature = { id: string; label: string; blurb: string } & CodePair;
 
 // Each entry demonstrates one capability of the engine with neutral names.
 // The reader maps it to their own problem space, not use-case framing.
-export const FEATURES: Feature[] = [
+export const FEATURES = [
   {
     id: "arguments",
     label: "Arguments",
@@ -152,4 +152,4 @@ const policy = PolicyBuilder
     .add(arg(1).lte(1_000n * 10n ** 18n)) // amount
     .build();`,
   },
-];
+] as const satisfies readonly Feature[];

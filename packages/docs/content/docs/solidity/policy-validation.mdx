@@ -163,11 +163,11 @@ Constraints that are always true. All are **Info** severity.
 
 ### Compatibility
 
-Constructs that exceed the reference Solidity enforcer's operational limits or that behave differently than most authors intend. All are **Warning** severity. A policy targeting an enforcer with different limits bypasses them deliberately with `buildUnsafe()`.
+Constructs that cross a normative limit or that behave differently than most authors intend. `QUANTIFIER_OVER_STATIC_LIMIT` is **Error** severity; the rest are **Warning**. Normative limits are fixed for this format version and every conformant enforcer applies the same values, so `buildUnsafe()` is the only way to emit a policy that crosses one.
 
 | Code                           | Description                                                                     |
 | ------------------------------ | ------------------------------------------------------------------------------- |
-| `PATH_DEPTH_EXCEEDED`          | Path deeper than 32 steps; the reference enforcer rejects it at every call.      |
-| `QUANTIFIER_OVER_STATIC_LIMIT` | Quantifier over a static array longer than 256; exceeds the iteration cap.       |
-| `UNKNOWN_CONTEXT_PROPERTY`     | Context property ID outside the assigned set; the reference enforcer reverts.    |
-| `NEGATION_UNDER_ANY`           | Negated operator under `any()`; a single decoy element satisfies the rule.       |
+| `PATH_DEPTH_EXCEEDED`          | Path deeper than `MAX_PATH_DEPTH`; a policy declaring it is not well-formed (PWF-17).  |
+| `QUANTIFIER_OVER_STATIC_LIMIT` | Quantifier over a static array longer than `MAX_QUANTIFIED_ARRAY_LENGTH` (PV-7).       |
+| `UNKNOWN_CONTEXT_PROPERTY`     | Context property ID outside the assigned set (PWF-25).                                 |
+| `NEGATION_UNDER_ANY`           | Negated operator under `any()`; a single decoy element satisfies the rule.             |

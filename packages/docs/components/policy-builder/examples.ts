@@ -8,7 +8,7 @@ export type BuilderExample = {
   constraints: { groupIndex: number; config: ConstraintInput }[];
 };
 
-export const EXAMPLES: BuilderExample[] = [
+export const EXAMPLES = [
   {
     name: "Restrict spender",
     signature: "approve(address,uint256)",
@@ -144,4 +144,4 @@ export const EXAMPLES: BuilderExample[] = [
       },
     ],
   },
-];
+] as const satisfies readonly BuilderExample[];

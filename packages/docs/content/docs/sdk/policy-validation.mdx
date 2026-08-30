@@ -34,7 +34,7 @@ for (const issue of issues) {
 
 `validate()` returns an `Issue[]` covering errors, warnings, and info-level suggestions in a single call. The builder can be inspected multiple times before committing to `build()`.
 
-To encode a policy despite reported issues, use `buildUnsafe()`. It skips validation entirely — the deliberate escape hatch for policies that target an enforcer with different operational limits than the reference Solidity enforcer:
+To encode a policy despite reported issues, use `buildUnsafe()`. It skips validation entirely — the deliberate escape hatch for a policy whose reported issues you have reviewed and accepted, such as a deliberately redundant test fixture:
 
 ```ts
 const policy = builder.buildUnsafe();
@@ -77,7 +77,7 @@ The strict gate is identical across implementations: the Solidity `PolicyBuilder
 | `contradiction` | Two constraints in the same group cannot both hold (e.g. `eq(x)` and `neq(x)`).          |
 | `redundancy`    | A constraint is implied by another in the same group and adds no additional check.       |
 | `vacuity`       | A constraint is satisfied by every value (e.g. `between(0, 2**256 - 1)` on a `uint256`). |
-| `compatibility` | A construct exceeds the reference enforcer's operational limits, or is a known semantic footgun (e.g. `neq` under `any()`). |
+| `compatibility` | A construct crosses a normative limit, or is a known semantic footgun (e.g. `neq` under `any()`).       |
 
 ## Skipping validation
 

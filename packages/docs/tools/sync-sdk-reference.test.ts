@@ -81,16 +81,16 @@ describe("buildIndex", () => {
         { id: 2, name: "arg", kind: 64 },
       ],
     };
-    const idx = buildIndex(api);
-    expect(idx.get("PolicyBuilder")?.kind).toBe(128);
-    expect(idx.get("arg")?.kind).toBe(64);
-    expect(idx.size).toBe(2);
+    const index = buildIndex(api);
+    expect(index.get("PolicyBuilder")?.kind).toBe(128);
+    expect(index.get("arg")?.kind).toBe(64);
+    expect(index.size).toBe(2);
   });
 });
 
 describe("renderFunctionSignature", () => {
   it("produces a TypeScript signature line from a reflection signature", () => {
-    const sig = {
+    const signature = {
       name: "arg",
       parameters: [
         { name: "index", type: { type: "intrinsic", name: "number" } },
@@ -98,7 +98,7 @@ describe("renderFunctionSignature", () => {
       ],
       type: { type: "reference", name: "ConstraintBuilder" },
     };
-    expect(renderFunctionSignature(sig)).toBe("function arg(index: number, field?: number): ConstraintBuilder;");
+    expect(renderFunctionSignature(signature)).toBe("function arg(index: number, field?: number): ConstraintBuilder;");
   });
 });
 

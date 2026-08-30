@@ -82,7 +82,7 @@ export type ConstraintGroup = {
 export type OpOption = { value: string; label: string };
 
 // Method dispatch table — maps ConstraintBuilder method names to op codes.
-const OP_METHODS: { method: string; opCode: number; negated?: boolean }[] = [
+const OP_METHODS: readonly { method: string; opCode: number; negated?: boolean }[] = [
   { method: "eq", opCode: Op.EQ },
   { method: "neq", opCode: Op.EQ, negated: true },
   { method: "eqCtx", opCode: Op.EQ_CTX },
@@ -212,10 +212,10 @@ function walkDescNode(desc: Uint8Array, offset: number, index: number, nameTree:
   }
 
   if (typeCode === TypeCode.DYNAMIC_ARRAY) {
-    const dynElementNameTree: NameTree | null = nameTree?.components
+    const dynamicElementNameTree: NameTree | null = nameTree?.components
       ? { name: null, components: nameTree.components }
       : null;
-    const element = walkDescNode(desc, Descriptor.arrayElementOffset(offset), 0, dynElementNameTree);
+    const element = walkDescNode(desc, Descriptor.arrayElementOffset(offset), 0, dynamicElementNameTree);
     return {
       index,
       type: `${element.type}[]`,
@@ -447,9 +447,9 @@ export function toNameTree(param: {
 
 function parseRawSignature(raw: string, selectorless: boolean): { cleanSignature: string; nameTrees: NameTree[] } {
   const wrapped = selectorless ? `function __sl__(${raw})` : `function ${raw}`;
-  const fn = parseAbiItem(wrapped) as AbiFunction;
-  const nameTrees = fn.inputs.map(toNameTree);
-  const canonical = toFunctionSignature(fn);
+  const abiFunction = parseAbiItem(wrapped) as AbiFunction;
+  const nameTrees = abiFunction.inputs.map(toNameTree);
+  const canonical = toFunctionSignature(abiFunction);
   if (selectorless) {
     const open = canonical.indexOf("(");
     const close = canonical.lastIndexOf(")");

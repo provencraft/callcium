@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  *
  * Bytes belonging to the active span glow; bytes mapped to any span read at full
  * contrast; unmapped framing bytes recede. Hover resolves the owning span via an
- * event-delegated `data-idx`; an optional `onSelect` pins a span on click (tap).
+ * event-delegated `data-index`; an optional `onSelect` pins a span on click (tap).
  */
 export function HexDump({
   hex,
@@ -25,8 +25,8 @@ export function HexDump({
   const totalBytes = cleanHex.length / 2;
 
   const spanAt = (target: EventTarget): Span | null => {
-    const idx = Number((target as HTMLElement).dataset.idx);
-    return Number.isNaN(idx) ? null : (byteToSpan[idx] ?? null);
+    const index = Number((target as HTMLElement).dataset.index);
+    return Number.isNaN(index) ? null : (byteToSpan[index] ?? null);
   };
 
   return (
@@ -48,7 +48,7 @@ export function HexDump({
         return (
           <span
             key={byteIndex}
-            data-idx={byteIndex}
+            data-index={byteIndex}
             className={cn(
               "rounded-sm px-0.5 cursor-default",
               isHighlighted

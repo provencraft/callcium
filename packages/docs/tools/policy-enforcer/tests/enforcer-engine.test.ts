@@ -12,12 +12,12 @@ import { checkPolicy } from "../enforcer-engine";
 const abi = parseAbi(["function approve(address spender, uint256 amount) returns (bool)"]);
 const spender = "0x1111111254eeb25477b68fb85ed929f73a960582";
 
-function buildApprovePolicy(addr: string): Hex {
-  return PolicyBuilder.create("approve(address,uint256)").add(arg(0).eq(addr)).build();
+function buildApprovePolicy(address: string): Hex {
+  return PolicyBuilder.create("approve(address,uint256)").add(arg(0).eq(address)).build();
 }
 
-function encodeApprove(addr: string, amount: bigint): Hex {
-  return encodeFunctionData({ abi, functionName: "approve", args: [addr as `0x${string}`, amount] });
+function encodeApprove(address: string, amount: bigint): Hex {
+  return encodeFunctionData({ abi, functionName: "approve", args: [address as `0x${string}`, amount] });
 }
 
 ///////////////////////////////////////////////////////////////////////////

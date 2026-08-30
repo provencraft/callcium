@@ -12,9 +12,9 @@ import { join } from "node:path";
  */
 export interface SymbolMap {
   contract?: number;
-  fn: Record<string, number[]>;
+  function_: Record<string, number[]>;
   struct: Record<string, number[]>;
-  err: Record<string, number[]>;
+  error: Record<string, number[]>;
   event: Record<string, number[]>;
   modifier: Record<string, number[]>;
   constant: Record<string, number[]>;
@@ -32,7 +32,7 @@ interface AstNode {
 }
 
 function emptyMap(): SymbolMap {
-  return { fn: {}, struct: {}, err: {}, event: {}, modifier: {}, constant: {} };
+  return { function_: {}, struct: {}, error: {}, event: {}, modifier: {}, constant: {} };
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -133,14 +133,14 @@ function classify(
       const name = node.kind === "constructor" ? "constructor" : node.name;
       // Mirror removePrivateFunctions: skip `_`-prefixed names for non-abstract sources.
       if (!name || (!isAbstractSource && name.startsWith("_"))) return;
-      (map.fn[name] ??= []).push(line);
+      (map.function_[name] ??= []).push(line);
       return;
     }
     case "StructDefinition":
       if (node.name) (map.struct[node.name] ??= []).push(line);
       return;
     case "ErrorDefinition":
-      if (node.name) (map.err[node.name] ??= []).push(line);
+      if (node.name) (map.error[node.name] ??= []).push(line);
       return;
     case "EventDefinition":
       if (node.name) (map.event[node.name] ??= []).push(line);
@@ -177,12 +177,12 @@ function nodeLine(node: AstNode, lineStarts: number[], primaryFileIndex: number)
   // Skip nodes sourced from imports or other compilation units.
   if (!Number.isFinite(offset) || fileIndex !== primaryFileIndex) return null;
 
-  let lo = 0;
-  let hi = lineStarts.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >>> 1;
-    if (lineStarts[mid] <= offset) lo = mid;
-    else hi = mid - 1;
+  let low = 0;
+  let high = lineStarts.length - 1;
+  while (low < high) {
+    const mid = (low + high + 1) >>> 1;
+    if (lineStarts[mid] <= offset) low = mid;
+    else high = mid - 1;
   }
-  return lo + 1;
+  return low + 1;
 }

@@ -44,7 +44,7 @@ describe("operand decoding", () => {
   const cases: [string, string, string][] = [
     ["uint256", B.EQ_UINT256, "42"],
     ["uint8", B.EQ_UINT8, "255"],
-    ["positive int256", B.EQ_INT256_POS, "100"],
+    ["positive int256", B.EQ_INT256_POSITIVE, "100"],
     ["negative int256", B.EQ_INT256_NEG, "-1"],
     ["int256 boundary -128", B.EQ_INT256_BOUNDARY, "-128"],
     ["int8", B.EQ_INT8, "-1"],
@@ -249,33 +249,33 @@ describe("spans", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("ABI enrichment", () => {
-  const opts = { abi: approveAbi };
+  const options = { abi: approveAbi };
 
   it("resolves function name from ABI", () => {
-    const explained = explainPolicy(PolicyCoder.inspect(B.APPROVE_ARG0 as Hex), opts);
+    const explained = explainPolicy(PolicyCoder.inspect(B.APPROVE_ARG0 as Hex), options);
     expect(explained.functionName).toBe("approve");
   });
 
   it("resolves param names from ABI", () => {
-    const { params } = explainPolicy(PolicyCoder.inspect(B.APPROVE_ARG0 as Hex), opts);
+    const { params } = explainPolicy(PolicyCoder.inspect(B.APPROVE_ARG0 as Hex), options);
     expect(params[0].name).toBe("spender");
     expect(params[1].name).toBe("amount");
   });
 
   it("uses ABI param names in path labels", () => {
-    const explained = explainPolicy(PolicyCoder.inspect(B.APPROVE_ARG1 as Hex), opts);
+    const explained = explainPolicy(PolicyCoder.inspect(B.APPROVE_ARG1 as Hex), options);
     expect(explained.groups[0].constraints[0].pathLabel).toBe("amount");
   });
 
   it("falls back to positional labels when ABI does not match", () => {
-    const explained = explainPolicy(PolicyCoder.inspect(B.EQ_UINT256 as Hex), opts);
+    const explained = explainPolicy(PolicyCoder.inspect(B.EQ_UINT256 as Hex), options);
     expect(explained.functionName).toBeNull();
     expect(explained.params[0].name).toBeNull();
     expect(explained.groups[0].constraints[0].pathLabel).toBe("arg(0)");
   });
 
   it("ignores ABI for selectorless policies", () => {
-    const explained = explainPolicy(PolicyCoder.inspect(B.SELECTORLESS as Hex), opts);
+    const explained = explainPolicy(PolicyCoder.inspect(B.SELECTORLESS as Hex), options);
     expect(explained.functionName).toBeNull();
     expect(explained.params[0].name).toBeNull();
   });

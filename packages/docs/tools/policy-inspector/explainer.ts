@@ -90,16 +90,16 @@ function resolveContextPath(steps: number[]): {
   targetType: string;
   leafTypeCode: number;
 } {
-  const propCode = steps[0];
+  const propertyCode = steps[0];
   try {
-    const prop = lookupContextProperty(propCode);
+    const property = lookupContextProperty(propertyCode);
     return {
-      pathLabel: prop.label,
-      targetType: lookupTypeCode(prop.typeCode).label,
-      leafTypeCode: prop.typeCode,
+      pathLabel: property.label,
+      targetType: lookupTypeCode(property.typeCode).label,
+      leafTypeCode: property.typeCode,
     };
   } catch {
-    return { pathLabel: `context(${propCode})`, targetType: "uint256", leafTypeCode: TypeCode.UINT_MAX };
+    return { pathLabel: `context(${propertyCode})`, targetType: "uint256", leafTypeCode: TypeCode.UINT_MAX };
   }
 }
 
@@ -120,14 +120,14 @@ function findAbiFunction(abi: Abi, selector: Hex): AbiFunction | null {
 // Explainer
 ///////////////////////////////////////////////////////////////////////////
 
-export function explainPolicy(policy: DecodedPolicy, opts?: ExplainOptions): ExplainedPolicy {
+export function explainPolicy(policy: DecodedPolicy, options?: ExplainOptions): ExplainedPolicy {
   const descBytes = hexToBytes(policy.descriptor.raw);
 
   let functionName: string | null = null;
   let abiInputs: readonly AbiParameter[] | undefined;
 
-  if (opts?.abi && !policy.isSelectorless) {
-    const matched = findAbiFunction(opts.abi, policy.selector.value);
+  if (options?.abi && !policy.isSelectorless) {
+    const matched = findAbiFunction(options.abi, policy.selector.value);
     if (matched) {
       functionName = matched.name;
       abiInputs = matched.inputs;
