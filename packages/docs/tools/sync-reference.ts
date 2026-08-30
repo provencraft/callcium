@@ -1,10 +1,11 @@
+import { toString } from "mdast-util-to-string";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
-import type { Heading, Paragraph, PhrasingContent, Root, RootContent } from "mdast";
+import type { Paragraph, PhrasingContent, Root, RootContent } from "mdast";
 import { buildSymbolMap, type SymbolMap } from "./sol-symbol-map";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -62,12 +63,20 @@ const processor = unified().use(remarkParse).use(remarkGfm).use(remarkStringify,
 // AST helpers
 ///////////////////////////////////////////////////////////////////////////
 
-/** Extract plain text from a heading node's children. */
-function headingText(heading: Heading): string {
-  return heading.children
+/**
+ * Serialize a paragraph's inline content. Hand-rolled rather than `toString` (which drops
+ * the markers) or `processor.stringify` (which backslash-escapes `_` and `<`, and this text
+ * lands in frontmatter, where nothing unescapes it).
+ */
+function paragraphText(paragraph: Paragraph): string {
+  return paragraph.children
     .map((c: PhrasingContent) => {
       if (c.type === "text") return c.value;
-      if (c.type === "inlineCode") return c.value;
+      if (c.type === "inlineCode") return `\`${c.value}\``;
+      if (c.type === "strong") {
+        const text = c.children.map((sc: PhrasingContent) => (sc.type === "text" ? sc.value : "")).join("");
+        return `**${text}**`;
+      }
       return "";
     })
     .join("");
@@ -91,26 +100,11 @@ function isTitleBlock(node: RootContent): boolean {
   return first.children.length === 1 && first.children[0].type === "text" && first.children[0].value === "Title:";
 }
 
-/** Serialize a paragraph's inline content, keeping inline-code and strong markers. */
-function paragraphText(paragraph: Paragraph): string {
-  return paragraph.children
-    .map((c: PhrasingContent) => {
-      if (c.type === "text") return c.value;
-      if (c.type === "inlineCode") return `\`${c.value}\``;
-      if (c.type === "strong") {
-        const text = c.children.map((sc: PhrasingContent) => (sc.type === "text" ? sc.value : "")).join("");
-        return `**${text}**`;
-      }
-      return "";
-    })
-    .join("");
-}
-
 /** Extract the title from the # heading. */
 function extractTitle(tree: Root): string {
   for (const node of tree.children) {
     if (node.type === "heading" && node.depth === 1) {
-      const raw = headingText(node);
+      const raw = toString(node);
       // "function arg" → "arg"
       if (raw.startsWith("function ")) return raw.slice("function ".length);
       return raw;
@@ -167,7 +161,7 @@ function removeSections(tree: Root, matches: (heading: string, body: RootContent
         if (next.type === "heading" && next.depth <= 3) break;
         end++;
       }
-      if (matches(headingText(node), children.slice(i + 1, end))) {
+      if (matches(toString(node), children.slice(i + 1, end))) {
         children.splice(i, end - i);
         continue;
       }
@@ -182,7 +176,7 @@ function removeEmptySections(tree: Root, titles: string[]): void {
   let i = 0;
   while (i < children.length) {
     const node = children[i];
-    if (node.type === "heading" && node.depth === 2 && titles.includes(headingText(node))) {
+    if (node.type === "heading" && node.depth === 2 && titles.includes(toString(node))) {
       const next = children[i + 1];
       if (!next || (next.type === "heading" && next.depth <= 2)) {
         children.splice(i, 1);
@@ -245,11 +239,11 @@ function injectSourceLinks(filename: string, tree: Root, contractDir: string, sy
 
     if (node.type === "heading") {
       if (node.depth === 2) {
-        currentBucket = SECTION_TO_BUCKET[headingText(node)] ?? null;
+        currentBucket = SECTION_TO_BUCKET[toString(node)] ?? null;
       } else if (node.depth === 3) {
         const bucket = currentBucket ?? fallbackBucket;
         if (bucket) {
-          const name = headingText(node)
+          const name = toString(node)
             .replace(/\(.*\)$/, "")
             .trim();
           const line = (symbolMap[bucket][name] ?? []).shift();
