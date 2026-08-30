@@ -1,9 +1,10 @@
 import { describe, expect, test } from "vitest";
 
 import { bytesToHex } from "../src/bytes";
-import { Quantifier, TypeCode } from "../src/constants";
+import { TypeCode } from "../src/constants";
 import { Descriptor } from "../src/descriptor";
 import { DescriptorCoder } from "../src/descriptor-coder";
+import { Quantifier } from "../src/path";
 import { expectErrorCode } from "./helpers";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -77,8 +78,8 @@ describe("Descriptor.paramOffset", () => {
     // (address,uint256) is a composite node; uint256 starts after it.
     const desc = DescriptorCoder.fromTypes("(address,uint256),bool");
     const tupleOffset = 2;
-    const tupleLen = Descriptor.inspect(desc, tupleOffset); // inspect to confirm it's a tuple
-    expect(tupleLen.typeCode).toBe(TypeCode.TUPLE);
+    const tupleInfo = Descriptor.inspect(desc, tupleOffset); // inspect to confirm it's a tuple
+    expect(tupleInfo.typeCode).toBe(TypeCode.TUPLE);
     // second param starts at offset 2 + nodeLength of the tuple node.
     const secondOffset = Descriptor.paramOffset(desc, 1);
     expect(secondOffset).toBeGreaterThan(3); // must be past the single-byte offset.

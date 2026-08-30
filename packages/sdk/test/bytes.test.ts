@@ -36,8 +36,8 @@ describe("bytesToHex", () => {
 
 describe("toAddress", () => {
   test("accepts valid 40-char hex with prefix", () => {
-    const addr = toAddress("0x" + "ab".repeat(20));
-    expect(addr).toBe("0x" + "ab".repeat(20));
+    const address = toAddress("0x" + "ab".repeat(20));
+    expect(address).toBe("0x" + "ab".repeat(20));
   });
 
   test("throws on too-short address (39 hex chars)", () => {

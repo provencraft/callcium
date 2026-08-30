@@ -6,6 +6,7 @@
     "policy-validator",
     "policy-enforcer",
     "policy-coder",
+    "path",
     "descriptor",
     "bytes",
     "constants",

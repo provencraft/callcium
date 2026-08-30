@@ -1,6 +1,7 @@
-import { bytesToHex, toAddress, writeBE16 } from "./bytes";
-import { Op, Scope, ContextProperty, Limits, MAX_CONTEXT_PROPERTY_ID } from "./constants";
+import { bytesToHex, hexToBytes, toAddress } from "./bytes";
+import { PolicyFormat, Op, Scope, ContextProperty, MAX_CONTEXT_PROPERTY_ID } from "./constants";
 import { CallciumError } from "./errors";
+import { encodePath } from "./path";
 
 import type { Hex, Constraint } from "./types";
 
@@ -27,10 +28,7 @@ function encodeWord(value: ScalarValue): Uint8Array {
 
   if (typeof value === "string") {
     // Address encoding: validate 20-byte hex and right-align into 32 bytes.
-    const body = addressBody(value);
-    for (let i = 0; i < 20; i++) {
-      word[12 + i] = parseInt(body.substring(i * 2, i * 2 + 2), 16);
-    }
+    word.set(hexToBytes(addressBody(value)), 12);
     return word;
   }
 
@@ -71,9 +69,6 @@ function checkContextPropertyId(contextPropertyId: number): number {
   return contextPropertyId;
 }
 
-/** Largest member count whose 32-byte words still fit a rule's data length field. */
-export const MAX_SET_MEMBERS = Limits.MAX_SET_MEMBERS;
-
 /** Convert values to bigint, sort ascending (unsigned), deduplicate, and pack as set payload. */
 function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   const bigs = values.map((v) => {
@@ -84,39 +79,19 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
     return BigInt("0x" + addressBody(v));
   });
 
-  bigs.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-
-  const deduped: bigint[] = [];
-  for (const value of bigs) {
-    if (deduped.length === 0 || deduped[deduped.length - 1] !== value) {
-      deduped.push(value);
-    }
-  }
+  const deduped = [...new Set(bigs)].toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   if (deduped.length === 0) {
     throw new CallciumError("EMPTY_SET", "Set must contain at least one value");
   }
-  if (deduped.length > MAX_SET_MEMBERS) {
-    throw new CallciumError("SET_TOO_LARGE", `Set must contain at most ${MAX_SET_MEMBERS} values`);
+  if (deduped.length > PolicyFormat.MAX_SET_MEMBERS) {
+    throw new CallciumError("SET_TOO_LARGE", `Set must contain at most ${PolicyFormat.MAX_SET_MEMBERS} values`);
   }
 
   const buffer = new Uint8Array(1 + deduped.length * 32);
   buffer[0] = opCode;
   for (let i = 0; i < deduped.length; i++) {
     buffer.set(encodeWord(deduped[i]!), 1 + i * 32);
-  }
-  return bytesToHex(buffer);
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Path encoding
-///////////////////////////////////////////////////////////////////////////
-
-/** Encode a sequence of uint16 path steps as a big-endian hex string. */
-function encodePath(steps: readonly number[]): Hex {
-  const buffer = new Uint8Array(steps.length * 2);
-  for (let i = 0; i < steps.length; i++) {
-    writeBE16(buffer, i * 2, steps[i]!);
   }
   return bytesToHex(buffer);
 }

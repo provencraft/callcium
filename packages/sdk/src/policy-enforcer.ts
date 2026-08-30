@@ -1,17 +1,8 @@
-import { hexToBytes, bytesToHex, readU16, readU32, bigintToHex } from "./bytes";
+import { hexToBytes, bytesToHex, readU16, readU32, bigintToHex, toAddress } from "./bytes";
 import { loadWord, readPointer } from "./calldata-reader";
-import {
-  PolicyFormat as PF,
-  Scope,
-  MAX_CONTEXT_PROPERTY_ID,
-  Limits,
-  Op,
-  TypeCode,
-  classifyTypeCode,
-  lookupContextProperty,
-} from "./constants";
+import { PolicyFormat as PF, Scope, MAX_CONTEXT_PROPERTY_ID, Op, TypeCode, lookupContextProperty } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
-import { applyOperator, toBigInt, isLengthOp, isLengthValidType, canonicalize } from "./operators";
+import { applyOperator, toBigInt, isLengthOp, isLengthValidType, canonicalize, classifyTypeCode } from "./operators";
 import { decodePolicy } from "./policy-coder";
 
 import type { ReadResult } from "./calldata-reader";
@@ -30,20 +21,17 @@ import type {
 // Helpers
 ///////////////////////////////////////////////////////////////////////////
 
-/** Violations that abort evaluation instead of failing only their group (spec §9.3). */
-const ABORT_VIOLATION_CODES: ReadonlySet<ViolationCode> = new Set<ViolationCode>([
+/** Violations that abort evaluation instead of failing only their group. */
+const abortViolationCodes: ReadonlySet<ViolationCode> = new Set<ViolationCode>([
   "CALLDATA_OUT_OF_BOUNDS",
   "ARRAY_INDEX_OUT_OF_BOUNDS",
   "NON_CANONICAL_VALUE",
   "QUANTIFIER_LIMIT_EXCEEDED",
 ]);
 
-/** Convert a hex address to a 256-bit bigint (zero-padded to 32 bytes). */
+/** Validate a hex address and read it as a 256-bit bigint. */
 function addressToBigInt(hex: string): bigint {
-  const bytes = hexToBytes(hex);
-  const padded = new Uint8Array(32);
-  padded.set(bytes, 32 - bytes.length);
-  return toBigInt(padded, 0);
+  return BigInt(toAddress(hex));
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -100,8 +88,8 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
       const violation = evaluateRule(rule, policyBytes, callDataBytes, baseOffset, groupIndex, ruleIndex, context);
       if (violation !== null) {
         allViolations.push(violation);
-        if (ABORT_VIOLATION_CODES.has(violation.code)) {
-          // Abort violations reject the policy outright; later groups are not consulted (spec §9.3).
+        if (abortViolationCodes.has(violation.code)) {
+          // Abort violations reject the policy outright; later groups are not consulted.
           return { ok: false, violations: allViolations };
         }
         groupFailed = true;
@@ -182,9 +170,9 @@ function evaluateRule(
  * Returns the missing property's type code when the context does not supply it.
  */
 function resolveContextOperand(operandData: Uint8Array, context?: Context): bigint | { ctxTypeCode: number } {
-  const propInfo = lookupContextProperty(Number(toBigInt(operandData, 0)));
-  const value = context?.[propInfo.contextKey];
-  if (value === undefined) return { ctxTypeCode: propInfo.typeCode };
+  const propertyInfo = lookupContextProperty(Number(toBigInt(operandData, 0)));
+  const value = context?.[propertyInfo.contextKey];
+  if (value === undefined) return { ctxTypeCode: propertyInfo.typeCode };
   return typeof value === "string" ? addressToBigInt(value) : value;
 }
 
@@ -285,7 +273,7 @@ function evalTarget(
   // A dynamic target's chain ends at its payload, so the word there is the declared length.
   if (isLengthValidType(typeCode)) {
     if (!isLengthOp(opCode)) {
-      throw new CallciumError("OPERATOR_TARGET_MISMATCH", "Value operator on a target without a scalar word.");
+      throw new CallciumError("OPERATOR_TARGET_MISMATCH", "Value operator on a target without a scalar word");
     }
     const length = readPointer(callData, target);
     if (typeof length !== "number") return { error: length.code };
@@ -300,7 +288,7 @@ function evalTarget(
   }
 
   if (classifyTypeCode(typeCode).typeClass !== "elementary") {
-    throw new CallciumError("OPERATOR_TARGET_MISMATCH", "Operator target does not carry a scalar word.");
+    throw new CallciumError("OPERATOR_TARGET_MISMATCH", "Operator target does not carry a scalar word");
   }
   const word = loadWord(callData, target);
   if (!(word instanceof Uint8Array)) return { error: word.code };
@@ -500,7 +488,7 @@ function evaluateQuantified(
     elems += 32;
   }
 
-  if (count > Limits.MAX_QUANTIFIED_ARRAY_LENGTH) {
+  if (count > PF.MAX_QUANTIFIED_ARRAY_LENGTH) {
     return {
       group: groupIndex,
       rule: ruleIndex,
@@ -535,7 +523,7 @@ function evaluateQuantified(
     if (elemIsDynamic) {
       const followed = follow(callDataBytes, elems, slot);
       // Navigation failures abort under every quantifier: calldata the enforcer cannot read is
-      // not an element that merely fails the operator (spec §9.3).
+      // not an element that merely fails the operator.
       if (typeof followed !== "number") return navigationViolation(frame, followed.code, elemIndex);
       elem = followed;
     }
@@ -550,7 +538,7 @@ function evaluateQuantified(
     const applied = evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData, context);
     if ("error" in applied) {
       // Error results end the rule whatever the quantifier: a later element cannot rescue
-      // calldata the enforcer cannot read (abort effects, spec §9.3), and a missing context
+      // calldata the enforcer cannot read (an abort effect), and a missing context
       // property is missing for every element alike (group-local).
       return targetViolation(frame, applied, elemIndex);
     }
@@ -602,8 +590,8 @@ function evaluateContextRule(
     );
   }
 
-  const propInfo = lookupContextProperty(propertyId);
-  const contextValue = context?.[propInfo.contextKey];
+  const propertyInfo = lookupContextProperty(propertyId);
+  const contextValue = context?.[propertyInfo.contextKey];
 
   if (contextValue === undefined) {
     return {
@@ -612,7 +600,7 @@ function evaluateContextRule(
       code: "MISSING_CONTEXT",
       scope: Scope.CONTEXT,
       path: pathHex,
-      typeCode: propInfo.typeCode,
+      typeCode: propertyInfo.typeCode,
     };
   }
 
@@ -642,7 +630,7 @@ function evaluateContextRule(
     result = (value === operand) !== ((opCode & Op.NOT) !== 0);
     ctxOperand = operand;
   } else {
-    result = applyOperator(opCode, value, 32, operandData, propInfo.typeCode);
+    result = applyOperator(opCode, value, 32, operandData, propertyInfo.typeCode);
   }
 
   if (!result) {
@@ -654,7 +642,7 @@ function evaluateContextRule(
       path: pathHex,
       opCode,
       operandData: bytesToHex(operandData),
-      typeCode: propInfo.typeCode,
+      typeCode: propertyInfo.typeCode,
       resolvedValue: bigintToHex(value),
       ...(ctxOperand !== undefined && { resolvedOperand: bigintToHex(ctxOperand) }),
     };

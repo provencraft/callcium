@@ -1,21 +1,12 @@
 import { keccak_256 } from "@noble/hashes/sha3.js";
 
 import { bytesToHex, hexToBytes, toHex, readU16, readU32, writeBE16, writeBE32 } from "./bytes";
-import {
-  DescriptorFormat as DF,
-  PolicyFormat as PF,
-  Scope,
-  Limits,
-  Op,
-  TypeCode,
-  isValidOperatorData,
-  isAddressableTarget,
-  MAX_CONTEXT_PROPERTY_ID,
-} from "./constants";
+import { DescriptorFormat as DF, PolicyFormat as PF, Scope, Op, TypeCode, MAX_CONTEXT_PROPERTY_ID } from "./constants";
 import { Descriptor } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError } from "./errors";
-import { isLengthOp, isLengthValidType, toBigInt } from "./operators";
+import { isLengthOp, isLengthValidType, toBigInt, isAddressableTarget, isValidOperatorData } from "./operators";
+import { parsePathSteps } from "./path";
 
 import type {
   Constraint,
@@ -27,27 +18,6 @@ import type {
   DecodedRule,
   PolicyData,
 } from "./types";
-
-///////////////////////////////////////////////////////////////////////////
-// Path helper
-///////////////////////////////////////////////////////////////////////////
-
-/**
- * Parse a BE16-encoded hex path into an array of step values.
- * @param path - 0x-prefixed hex string containing BE16-encoded path steps.
- * @returns Array of numeric step values.
- */
-export function parsePathSteps(path: Hex): number[] {
-  const bytes = hexToBytes(path);
-  if (bytes.length % PF.PATH_STEP_SIZE !== 0) {
-    throw new CallciumError("MALFORMED_PATH", `Path byte length ${bytes.length} is not a whole number of steps`);
-  }
-  const steps: number[] = [];
-  for (let offset = 0; offset < bytes.length; offset += PF.PATH_STEP_SIZE) {
-    steps.push(readU16(bytes, offset));
-  }
-  return steps;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 // Policy field helper
@@ -336,10 +306,10 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       if (depthValue === 0) {
         throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step", ruleOffset);
       }
-      if (depthValue > Limits.MAX_PATH_DEPTH) {
+      if (depthValue > PF.MAX_PATH_DEPTH) {
         throw new CallciumError(
           "PATH_TOO_DEEP",
-          `Path depth ${depthValue} exceeds maximum ${Limits.MAX_PATH_DEPTH}`,
+          `Path depth ${depthValue} exceeds maximum ${PF.MAX_PATH_DEPTH}`,
           ruleOffset,
         );
       }
@@ -430,7 +400,7 @@ function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
   const operators = constraint.operators.map(hexToBytes);
   for (const operator of operators) {
     if (operator.length < 1) {
-      throw new CallciumError("INVALID_OPERATOR_BYTES", "Operator must have at least one byte (opcode).");
+      throw new CallciumError("INVALID_OPERATOR_BYTES", "Operator must have at least one byte (opcode)");
     }
   }
 
@@ -438,14 +408,14 @@ function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
 
   // Path shape checks precede compilation: the compiler assumes a framed, depth-bounded path.
   if (path.length === 0) {
-    throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step.");
+    throw new CallciumError("EMPTY_PATH", "Rule path must have at least one step");
   }
   if ((path.length & 1) !== 0) {
-    throw new CallciumError("MALFORMED_PATH", "Path byte length must be even.");
+    throw new CallciumError("MALFORMED_PATH", "Path byte length must be even");
   }
   const depth = path.length / 2;
-  if (depth > Limits.MAX_PATH_DEPTH) {
-    throw new CallciumError("PATH_TOO_DEEP", `Path depth ${depth} exceeds maximum ${Limits.MAX_PATH_DEPTH}.`);
+  if (depth > PF.MAX_PATH_DEPTH) {
+    throw new CallciumError("PATH_TOO_DEEP", `Path depth ${depth} exceeds maximum ${PF.MAX_PATH_DEPTH}`);
   }
 
   const hint =
@@ -484,7 +454,7 @@ function sortRules(rules: Rule[]): void {
 function encodeRule(rule: Rule): Uint8Array {
   const depth = rule.path.length / 2;
   if (rule.scope === Scope.CONTEXT && depth !== 1) {
-    throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope rules must have exactly one path step.");
+    throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope rules must have exactly one path step");
   }
   const data = rule.operator.subarray(1);
   const ruleSize = PF.RULE_FIXED_OVERHEAD + rule.path.length + rule.hint.length + data.length;

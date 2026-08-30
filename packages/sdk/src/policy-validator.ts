@@ -1,31 +1,28 @@
 import { bigintToHex, bytesToHex, hexToBytes } from "./bytes";
-import {
-  classifyTypeCode,
-  isQuantifier,
-  isValidOperatorData,
-  Limits,
-  lookupContextProperty,
-  MAX_CONTEXT_PROPERTY_ID,
-  Op,
-  Quantifier,
-  Scope,
-  TypeCode,
-} from "./constants";
+import { PolicyFormat, lookupContextProperty, MAX_CONTEXT_PROPERTY_ID, Op, Scope, TypeCode } from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError, type CallciumErrorCode } from "./errors";
-import { canonicalize, isLeftAligned, isSigned, isLengthOp, isLengthValidType } from "./operators";
-import { parsePathSteps } from "./policy-coder";
+import {
+  canonicalize,
+  isLeftAligned,
+  isSigned,
+  isLengthOp,
+  isLengthValidType,
+  classifyTypeCode,
+  isValidOperatorData,
+} from "./operators";
+import { Quantifier, isQuantifier, parsePathSteps } from "./path";
 import * as ValidationIssue from "./validation-issue";
 
-import type { Constraint, Hex, Issue, PolicyData } from "./types";
+import type { Constraint, Hex, Issue, IssueCode, PolicyData } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Internal types
 ///////////////////////////////////////////////////////////////////////////
 
 /** Codes a path walk raises when the path does not navigate the descriptor (PV-1). */
-const NAVIGABILITY_CODES: ReadonlySet<CallciumErrorCode> = new Set<CallciumErrorCode>([
+const navigabilityCodes: ReadonlySet<CallciumErrorCode> = new Set<CallciumErrorCode>([
   "EMPTY_PATH",
   "PARAM_INDEX_OUT_OF_BOUNDS",
   "TUPLE_FIELD_OUT_OF_BOUNDS",
@@ -159,7 +156,7 @@ function isBitmaskOp(opBase: number): boolean {
 ///////////////////////////////////////////////////////////////////////////
 
 /** Return the incompatibility reason, or null if the operator is allowed. */
-function getIncompat(opBase: number, typeInfo: TypeInfo): { code: string; message: string } | null {
+function getIncompat(opBase: number, typeInfo: TypeInfo): { code: IssueCode; message: string } | null {
   const { typeCode, isDynamic, staticSize } = typeInfo;
   if (isValueOp(opBase)) {
     if (isDynamic || staticSize !== 32) {
@@ -1036,13 +1033,13 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
       let typeInfo: TypeInfo;
       if (constraint.scope === Scope.CALLDATA) {
         // Compatibility warnings against the limits the spec fixes (PWF-17, PV-7).
-        if (steps.length > Limits.MAX_PATH_DEPTH) {
+        if (steps.length > PolicyFormat.MAX_PATH_DEPTH) {
           issues.push(
             ValidationIssue.pathDepthExceeded(
               groupIndex,
               constraintIndex,
               bigintToHex(BigInt(steps.length)),
-              bigintToHex(BigInt(Limits.MAX_PATH_DEPTH)),
+              bigintToHex(BigInt(PolicyFormat.MAX_PATH_DEPTH)),
             ),
           );
         }
@@ -1051,7 +1048,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
           walk = Descriptor.walkPath(descBytes, steps);
         } catch (error) {
           // Navigability faults become issues; anything else propagates.
-          if (error instanceof CallciumError && NAVIGABILITY_CODES.has(error.code)) {
+          if (error instanceof CallciumError && navigabilityCodes.has(error.code)) {
             issues.push(ValidationIssue.unnavigablePath(groupIndex, constraintIndex));
             continue;
           }
@@ -1062,13 +1059,13 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
           issues.push(ValidationIssue.nestedQuantifier(groupIndex, constraintIndex));
           continue;
         }
-        if (walk.quantifiedStaticLength > Limits.MAX_QUANTIFIED_ARRAY_LENGTH) {
+        if (walk.quantifiedStaticLength > PolicyFormat.MAX_QUANTIFIED_ARRAY_LENGTH) {
           issues.push(
             ValidationIssue.quantifierOverStaticLimit(
               groupIndex,
               constraintIndex,
               bigintToHex(BigInt(walk.quantifiedStaticLength)),
-              bigintToHex(BigInt(Limits.MAX_QUANTIFIED_ARRAY_LENGTH)),
+              bigintToHex(BigInt(PolicyFormat.MAX_QUANTIFIED_ARRAY_LENGTH)),
             ),
           );
         }
@@ -1103,7 +1100,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
     if (
       constraint.scope === Scope.CALLDATA &&
       constraint.hint !== undefined &&
-      ctx.steps.length <= Limits.MAX_PATH_DEPTH
+      ctx.steps.length <= PolicyFormat.MAX_PATH_DEPTH
     ) {
       const compiled = bytesToHex(Descriptor.compileHint(descBytes, ctx.steps));
       if (compiled !== constraint.hint.toLowerCase()) {

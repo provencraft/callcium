@@ -1,6 +1,7 @@
 import { readU16, readU24, writeBE16, writeBE32 } from "./bytes";
-import { DescriptorFormat as DF, PolicyFormat as PF, Quantifier, TypeCode, isQuantifier } from "./constants";
+import { DescriptorFormat as DF, PolicyFormat as PF, TypeCode } from "./constants";
 import { CallciumError } from "./errors";
+import { Quantifier, isQuantifier } from "./path";
 
 ///////////////////////////////////////////////////////////////////////////
 // Public types
@@ -76,7 +77,7 @@ function paramCount(desc: Uint8Array): number {
 function paramOffset(desc: Uint8Array, index: number): number {
   const count = desc[1]!;
   if (index >= count) {
-    throw new CallciumError("PARAM_INDEX_OUT_OF_BOUNDS", `Param index ${index} out of range (paramCount=${count}).`);
+    throw new CallciumError("PARAM_INDEX_OUT_OF_BOUNDS", `Param index ${index} out of range (paramCount=${count})`);
   }
   let cursor = DF.HEADER_SIZE;
   for (let i = 0; i < index; i++) {
@@ -130,7 +131,7 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
  */
 function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quantifiedStaticLength: number } {
   if (steps.length === 0) {
-    throw new CallciumError("EMPTY_PATH", "Path must have at least one step.");
+    throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
   }
 
   const paramIndex = steps[0]!;
@@ -138,7 +139,7 @@ function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quan
   if (paramIndex >= count) {
     throw new CallciumError(
       "PARAM_INDEX_OUT_OF_BOUNDS",
-      `Param index ${paramIndex} out of range (paramCount=${count}).`,
+      `Param index ${paramIndex} out of range (paramCount=${count})`,
     );
   }
 
@@ -154,7 +155,7 @@ function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quan
       if (step >= fields) {
         throw new CallciumError(
           "TUPLE_FIELD_OUT_OF_BOUNDS",
-          `Tuple field index ${step} out of range (tuple has ${fields} fields).`,
+          `Tuple field index ${step} out of range (tuple has ${fields} fields)`,
         );
       }
       cursor = tupleFieldOffset(desc, cursor, step);
@@ -169,14 +170,14 @@ function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quan
           if (step >= length) {
             throw new CallciumError(
               "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS",
-              `Array index ${step} out of range (length=${length}).`,
+              `Array index ${step} out of range (length=${length})`,
             );
           }
         }
       }
       cursor = arrayElementOffset(cursor);
     } else {
-      throw new CallciumError("NOT_COMPOSITE", `Cannot descend into elementary type at offset ${cursor}.`);
+      throw new CallciumError("NOT_COMPOSITE", `Cannot descend into elementary type at offset ${cursor}`);
     }
   }
 
@@ -199,8 +200,8 @@ function tupleFieldCount(desc: Uint8Array, offset: number): number {
  */
 function staticArrayLength(desc: Uint8Array, offset: number): number {
   const elemOffset = arrayElementOffset(offset);
-  const elemLen = nodeLength(desc, elemOffset);
-  const lengthOffset = elemOffset + elemLen;
+  const elemNodeLength = nodeLength(desc, elemOffset);
+  const lengthOffset = elemOffset + elemNodeLength;
   return readU16(desc, lengthOffset);
 }
 
@@ -214,7 +215,7 @@ function arrayElementOffset(offset: number): number {
 
 /** Build the error for a path step that does not resolve to a hop-chain target. */
 function uncompilablePath(stepIndex: number): CallciumError {
-  return new CallciumError("UNCOMPILABLE_PATH", `Path step ${stepIndex} does not resolve to a hop-chain target.`);
+  return new CallciumError("UNCOMPILABLE_PATH", `Path step ${stepIndex} does not resolve to a hop-chain target`);
 }
 
 /** Return the combined head slot span of the `count` nodes at `offset`, and the offset of the node past them. */
@@ -353,7 +354,7 @@ function encodeHint(walk: HintWalk, targetMeta: number, typeCode: number, depth:
  */
 function compileHint(desc: Uint8Array, steps: number[]): Uint8Array {
   if (steps.length === 0) {
-    throw new CallciumError("EMPTY_PATH", "Path must have at least one step.");
+    throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
   }
 
   const argIndex = steps[0]!;

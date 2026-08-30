@@ -1,7 +1,15 @@
 import { describe, expect, test } from "vitest";
 
 import { Op, TypeCode } from "../src/constants";
-import { applyOperator, canonicalize, isSigned, toBigInt } from "../src/operators";
+import {
+  applyOperator,
+  canonicalize,
+  classifyTypeCode,
+  isSigned,
+  isValidOperatorData,
+  lookupTypeCode,
+  toBigInt,
+} from "../src/operators";
 
 /** Packs a bigint into a 32-byte big-endian Uint8Array (two's complement for values that fit in 256 bits). */
 function word(value: bigint): Uint8Array {
@@ -501,10 +509,10 @@ describe("canonicalize", () => {
   });
 
   test("address masks the high bits", () => {
-    const addr = 0x00112233445566778899aabbccddeeff01234567n;
-    const dirty = (0x89abn << 160n) | addr;
+    const addressValue = 0x00112233445566778899aabbccddeeff01234567n;
+    const dirty = (0x89abn << 160n) | addressValue;
     const got = canonicalize(dirty, TypeCode.ADDRESS);
-    expect(got).toBe(addr);
+    expect(got).toBe(addressValue);
     expect(got >> 160n).toBe(0n);
   });
 
@@ -523,5 +531,83 @@ describe("canonicalize", () => {
     const got = canonicalize(dirty, TypeCode.FUNCTION);
     expect(got).toBe(value);
     expect(got & ((1n << 64n) - 1n)).toBe(0n);
+  });
+});
+
+describe("classifyTypeCode", () => {
+  test("throws for reserved zero type code", () => {
+    expect(() => classifyTypeCode(0x00)).toThrow();
+  });
+
+  test("throws for reserved range 0x82-0x8f", () => {
+    expect(() => classifyTypeCode(0x83)).toThrow();
+  });
+
+  test("returns tuple for TypeCode.TUPLE", () => {
+    expect(classifyTypeCode(TypeCode.TUPLE).typeClass).toBe("tuple");
+  });
+
+  test("throws for unrecognized code beyond all ranges", () => {
+    expect(() => classifyTypeCode(0xff)).toThrow();
+  });
+});
+
+describe("isValidOperatorData", () => {
+  test("returns false for unknown opcode", () => {
+    expect(isValidOperatorData(0xff, 32)).toBe(false);
+  });
+});
+
+describe("lookupTypeCode", () => {
+  test("returns label and class for uint256", () => {
+    const info = lookupTypeCode(TypeCode.UINT_MAX);
+    expect(info.label).toBe("uint256");
+    expect(info.typeClass).toBe("elementary");
+  });
+
+  test("returns label and class for int8", () => {
+    const info = lookupTypeCode(TypeCode.INT_MIN);
+    expect(info.label).toBe("int8");
+    expect(info.typeClass).toBe("elementary");
+  });
+
+  test("returns label for address", () => {
+    expect(lookupTypeCode(TypeCode.ADDRESS).label).toBe("address");
+  });
+
+  test("returns label for bool", () => {
+    expect(lookupTypeCode(TypeCode.BOOL).label).toBe("bool");
+  });
+
+  test("returns label for bytes32", () => {
+    expect(lookupTypeCode(TypeCode.FIXED_BYTES_MIN + 31).label).toBe("bytes32");
+  });
+
+  test("returns label for bytes (dynamic)", () => {
+    expect(lookupTypeCode(TypeCode.BYTES).label).toBe("bytes");
+  });
+
+  test("returns label for string (dynamic)", () => {
+    expect(lookupTypeCode(TypeCode.STRING).label).toBe("string");
+  });
+
+  test("returns label for tuple", () => {
+    expect(lookupTypeCode(TypeCode.TUPLE).label).toBe("tuple");
+  });
+
+  test("returns label for static array", () => {
+    expect(lookupTypeCode(TypeCode.STATIC_ARRAY).label).toBe("T[k]");
+  });
+
+  test("returns label for dynamic array", () => {
+    expect(lookupTypeCode(TypeCode.DYNAMIC_ARRAY).label).toBe("T[]");
+  });
+
+  test("returns label for function", () => {
+    expect(lookupTypeCode(TypeCode.FUNCTION).label).toBe("function");
+  });
+
+  test("throws for unknown type code", () => {
+    expect(() => lookupTypeCode(0xff)).toThrow();
   });
 });

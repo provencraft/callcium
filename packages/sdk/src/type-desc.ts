@@ -48,7 +48,7 @@ export function function_(): Uint8Array {
  */
 export function uintN(bits: number): Uint8Array {
   if (bits < 8 || bits > 256 || bits % 8 !== 0) {
-    throw new CallciumError("UNKNOWN_TYPE", `Invalid uintN bits: ${bits}. Must be 8–256 in steps of 8.`);
+    throw new CallciumError("UNKNOWN_TYPE", `Invalid uintN bits: ${bits}. Must be 8–256 in steps of 8`);
   }
   return new Uint8Array([TypeCode.UINT_MIN + (bits / 8 - 1)]);
 }
@@ -60,7 +60,7 @@ export function uintN(bits: number): Uint8Array {
  */
 export function intN(bits: number): Uint8Array {
   if (bits < 8 || bits > 256 || bits % 8 !== 0) {
-    throw new CallciumError("UNKNOWN_TYPE", `Invalid intN bits: ${bits}. Must be 8–256 in steps of 8.`);
+    throw new CallciumError("UNKNOWN_TYPE", `Invalid intN bits: ${bits}. Must be 8–256 in steps of 8`);
   }
   return new Uint8Array([TypeCode.INT_MIN + (bits / 8 - 1)]);
 }
@@ -82,7 +82,7 @@ export function string_(): Uint8Array {
  */
 export function bytesN(n: number): Uint8Array {
   if (n < 1 || n > 32) {
-    throw new CallciumError("UNKNOWN_TYPE", `Invalid bytesN size: ${n}. Must be 1–32.`);
+    throw new CallciumError("UNKNOWN_TYPE", `Invalid bytesN size: ${n}. Must be 1–32`);
   }
   return new Uint8Array([TypeCode.FIXED_BYTES_MIN + (n - 1)]);
 }
@@ -108,7 +108,7 @@ export function array(elemDesc: Uint8Array, length?: number): Uint8Array {
     if (nodeLength > DF.MAX_NODE_LENGTH) {
       throw new CallciumError(
         "NODE_LENGTH_TOO_LARGE",
-        `Dynamic array node length ${nodeLength} exceeds maximum ${DF.MAX_NODE_LENGTH}.`,
+        `Dynamic array node length ${nodeLength} exceeds maximum ${DF.MAX_NODE_LENGTH}`,
       );
     }
     const meta24 = (0 << DF.META_STATIC_WORDS_SHIFT) | nodeLength;
@@ -123,14 +123,14 @@ export function array(elemDesc: Uint8Array, length?: number): Uint8Array {
   if (length <= 0 || length > DF.MAX_STATIC_ARRAY_LENGTH) {
     throw new CallciumError(
       "INVALID_ARRAY_LENGTH",
-      `Static array length ${length} out of range. Must be 1–${DF.MAX_STATIC_ARRAY_LENGTH}.`,
+      `Static array length ${length} out of range. Must be 1–${DF.MAX_STATIC_ARRAY_LENGTH}`,
     );
   }
   const nodeLength = DF.ARRAY_HEADER_SIZE + elemDesc.length + DF.ARRAY_LENGTH_SIZE;
   if (nodeLength > DF.MAX_NODE_LENGTH) {
     throw new CallciumError(
       "NODE_LENGTH_TOO_LARGE",
-      `Static array node length ${nodeLength} exceeds maximum ${DF.MAX_NODE_LENGTH}.`,
+      `Static array node length ${nodeLength} exceeds maximum ${DF.MAX_NODE_LENGTH}`,
     );
   }
   const elemStaticWords = extractStaticWords(elemDesc);
@@ -138,7 +138,7 @@ export function array(elemDesc: Uint8Array, length?: number): Uint8Array {
   if (staticWords > DF.MAX_STATIC_WORDS) {
     throw new CallciumError(
       "STATIC_WORDS_TOO_LARGE",
-      `Static array static words ${staticWords} exceeds maximum ${DF.MAX_STATIC_WORDS}.`,
+      `Static array static words ${staticWords} exceeds maximum ${DF.MAX_STATIC_WORDS}`,
     );
   }
   const meta24 = (staticWords << DF.META_STATIC_WORDS_SHIFT) | nodeLength;
@@ -162,7 +162,7 @@ export function tuple(fieldDescs: Uint8Array[]): Uint8Array {
   if (fieldDescs.length === 0 || fieldDescs.length > DF.MAX_TUPLE_FIELDS) {
     throw new CallciumError(
       "INVALID_TUPLE_FIELD_COUNT",
-      `Tuple field count ${fieldDescs.length} out of range. Must be 1–${DF.MAX_TUPLE_FIELDS}.`,
+      `Tuple field count ${fieldDescs.length} out of range. Must be 1–${DF.MAX_TUPLE_FIELDS}`,
     );
   }
   const totalFieldBytes = fieldDescs.reduce((sum, f) => sum + f.length, 0);
@@ -170,7 +170,7 @@ export function tuple(fieldDescs: Uint8Array[]): Uint8Array {
   if (nodeLength > DF.MAX_NODE_LENGTH) {
     throw new CallciumError(
       "NODE_LENGTH_TOO_LARGE",
-      `Tuple node length ${nodeLength} exceeds maximum ${DF.MAX_NODE_LENGTH}.`,
+      `Tuple node length ${nodeLength} exceeds maximum ${DF.MAX_NODE_LENGTH}`,
     );
   }
 
@@ -187,7 +187,7 @@ export function tuple(fieldDescs: Uint8Array[]): Uint8Array {
   if (staticWords > DF.MAX_STATIC_WORDS) {
     throw new CallciumError(
       "STATIC_WORDS_TOO_LARGE",
-      `Tuple static words ${staticWords} exceeds maximum ${DF.MAX_STATIC_WORDS}.`,
+      `Tuple static words ${staticWords} exceeds maximum ${DF.MAX_STATIC_WORDS}`,
     );
   }
   const meta24 = (staticWords << DF.META_STATIC_WORDS_SHIFT) | nodeLength;

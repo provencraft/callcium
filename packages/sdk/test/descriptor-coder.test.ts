@@ -119,9 +119,9 @@ describe("DescriptorCoder.fromTypes", () => {
     expect(bytes[1]).toBe(1);
     expect(bytes[2]).toBe(TypeCode.STATIC_ARRAY);
     // length suffix is at the end: 2-byte BE16 value 5
-    const lengthHi = bytes[bytes.length - 2];
-    const lengthLo = bytes[bytes.length - 1];
-    expect((lengthHi << 8) | lengthLo).toBe(5);
+    const lengthHighByte = bytes[bytes.length - 2];
+    const lengthLowByte = bytes[bytes.length - 1];
+    expect((lengthHighByte << 8) | lengthLowByte).toBe(5);
     expect(decodeParamCount(bytes)).toBe(1);
   });
 

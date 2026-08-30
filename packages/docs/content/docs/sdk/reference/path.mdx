@@ -1,0 +1,80 @@
+---
+title: "Path"
+description: "Path step encoding and quantifier steps."
+---
+
+## Functions
+
+### parsePathSteps
+
+Parse a BE16-encoded hex path into an array of step values.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/path.ts#L61)
+
+```ts
+function parsePathSteps(path: templateLiteral): number[];
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `path` | `templateLiteral` | 0x-prefixed hex string containing BE16-encoded path steps. |
+
+**Returns**
+
+`number[]` — Array of numeric step values.
+
+### isQuantifier
+
+Check whether a path step is a quantifier (ALL or ANY).
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/path.ts#L27)
+
+```ts
+function isQuantifier(step: number): boolean;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `step` | `number` | - |
+
+**Returns**
+
+`boolean`
+
+### lookupQuantifier
+
+Map a quantifier path step to its display label.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/path.ts#L37)
+
+```ts
+function lookupQuantifier(code: number): QuantifierInfo;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `code` | `number` | Quantifier step value. |
+
+**Returns**
+
+`QuantifierInfo` — Display metadata for the quantifier.
+
+## Types
+
+### Quantifier
+
+Reserved path step values that trigger quantified evaluation over array elements.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/path.ts#L17)
+
+### QuantifierInfo
+
+Display metadata for a quantifier step.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/path.ts#L20)

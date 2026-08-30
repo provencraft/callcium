@@ -3,14 +3,14 @@ import { CallciumError } from "./errors";
 import type { Address, Hex } from "./types";
 
 /** Regex that matches a valid hex body (even number of hex chars). */
-const HEX_BODY_RE = /^[0-9a-fA-F]*$/;
+const hexBodyPattern = /^[0-9a-fA-F]*$/;
 
 // Nibble value per ASCII code, -1 for every character that is not a hex digit.
 const HEX_DIGITS = "0123456789abcdef";
-const NIBBLE = new Int8Array(128).fill(-1);
+const nibble = new Int8Array(128).fill(-1);
 for (let value = 0; value < 16; value++) {
-  NIBBLE[HEX_DIGITS.charCodeAt(value)] = value;
-  NIBBLE[HEX_DIGITS.toUpperCase().charCodeAt(value)] = value;
+  nibble[HEX_DIGITS.charCodeAt(value)] = value;
+  nibble[HEX_DIGITS.toUpperCase().charCodeAt(value)] = value;
 }
 
 /** Convert a hex string to a byte array, stripping the 0x prefix if present. */
@@ -21,8 +21,8 @@ export function hexToBytes(hex: string): Uint8Array {
   }
   const bytes = new Uint8Array(clean.length / 2);
   for (let i = 0; i < bytes.length; i++) {
-    const high = NIBBLE[clean.charCodeAt(i * 2)] ?? -1;
-    const low = NIBBLE[clean.charCodeAt(i * 2 + 1)] ?? -1;
+    const high = nibble[clean.charCodeAt(i * 2)] ?? -1;
+    const low = nibble[clean.charCodeAt(i * 2 + 1)] ?? -1;
     if (high < 0 || low < 0) {
       throw new CallciumError("INVALID_HEX", "Invalid hex characters");
     }
@@ -32,12 +32,12 @@ export function hexToBytes(hex: string): Uint8Array {
 }
 
 // Pre-computed hex lookup avoids per-byte toString + padStart in the hot path.
-const HEX_LUT = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
+const hexPairs = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
 
 /** Convert a byte array to a 0x-prefixed lowercase hex string. */
 export function bytesToHex(bytes: Uint8Array): Hex {
   let body = "";
-  for (let i = 0; i < bytes.length; i++) body += HEX_LUT[bytes[i]!];
+  for (let i = 0; i < bytes.length; i++) body += hexPairs[bytes[i]!];
   return `0x${body}`;
 }
 
@@ -93,7 +93,7 @@ export function toAddress(hex: string): Address {
   if (body.length !== 40) {
     throw new CallciumError("INVALID_HEX", `Invalid address length: expected 40 hex chars, got ${body.length}`);
   }
-  if (!HEX_BODY_RE.test(body)) {
+  if (!hexBodyPattern.test(body)) {
     throw new CallciumError("INVALID_HEX", "Invalid hex characters in address");
   }
   return `0x${body}`;

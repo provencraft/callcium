@@ -4,16 +4,10 @@ import {
   lookupOp,
   lookupScope,
   lookupContextProperty,
-  lookupQuantifier,
-  lookupTypeCode,
-  classifyTypeCode,
-  isValidOperatorData,
   Op,
   Scope,
   ContextProperty,
   MAX_CONTEXT_PROPERTY_ID,
-  Quantifier,
-  TypeCode,
 } from "../src/constants";
 import { expectErrorCode } from "./helpers";
 
@@ -184,97 +178,5 @@ describe("lookupContextProperty", () => {
 
   test("rejects unknown context property code", () => {
     expectErrorCode(() => lookupContextProperty(MAX_CONTEXT_PROPERTY_ID + 1), "UNKNOWN_CONTEXT_PROPERTY");
-  });
-});
-
-describe("lookupQuantifier", () => {
-  test("ALL", () => {
-    expect(lookupQuantifier(Quantifier.ALL)).toEqual({ label: "all" });
-  });
-
-  test("ANY", () => {
-    expect(lookupQuantifier(Quantifier.ANY)).toEqual({ label: "any" });
-  });
-
-  test("rejects unknown quantifier code", () => {
-    expectErrorCode(() => lookupQuantifier(0x0000), "UNKNOWN_QUANTIFIER");
-  });
-});
-
-describe("classifyTypeCode", () => {
-  test("throws for reserved zero type code", () => {
-    expect(() => classifyTypeCode(0x00)).toThrow();
-  });
-
-  test("throws for reserved range 0x82-0x8f", () => {
-    expect(() => classifyTypeCode(0x83)).toThrow();
-  });
-
-  test("returns tuple for TypeCode.TUPLE", () => {
-    expect(classifyTypeCode(TypeCode.TUPLE).typeClass).toBe("tuple");
-  });
-
-  test("throws for unrecognized code beyond all ranges", () => {
-    expect(() => classifyTypeCode(0xff)).toThrow();
-  });
-});
-
-describe("isValidOperatorData", () => {
-  test("returns false for unknown opcode", () => {
-    expect(isValidOperatorData(0xff, 32)).toBe(false);
-  });
-});
-
-describe("lookupTypeCode", () => {
-  test("returns label and class for uint256", () => {
-    const info = lookupTypeCode(TypeCode.UINT_MAX);
-    expect(info.label).toBe("uint256");
-    expect(info.typeClass).toBe("elementary");
-  });
-
-  test("returns label and class for int8", () => {
-    const info = lookupTypeCode(TypeCode.INT_MIN);
-    expect(info.label).toBe("int8");
-    expect(info.typeClass).toBe("elementary");
-  });
-
-  test("returns label for address", () => {
-    expect(lookupTypeCode(TypeCode.ADDRESS).label).toBe("address");
-  });
-
-  test("returns label for bool", () => {
-    expect(lookupTypeCode(TypeCode.BOOL).label).toBe("bool");
-  });
-
-  test("returns label for bytes32", () => {
-    expect(lookupTypeCode(TypeCode.FIXED_BYTES_MIN + 31).label).toBe("bytes32");
-  });
-
-  test("returns label for bytes (dynamic)", () => {
-    expect(lookupTypeCode(TypeCode.BYTES).label).toBe("bytes");
-  });
-
-  test("returns label for string (dynamic)", () => {
-    expect(lookupTypeCode(TypeCode.STRING).label).toBe("string");
-  });
-
-  test("returns label for tuple", () => {
-    expect(lookupTypeCode(TypeCode.TUPLE).label).toBe("tuple");
-  });
-
-  test("returns label for static array", () => {
-    expect(lookupTypeCode(TypeCode.STATIC_ARRAY).label).toBe("T[k]");
-  });
-
-  test("returns label for dynamic array", () => {
-    expect(lookupTypeCode(TypeCode.DYNAMIC_ARRAY).label).toBe("T[]");
-  });
-
-  test("returns label for function", () => {
-    expect(lookupTypeCode(TypeCode.FUNCTION).label).toBe("function");
-  });
-
-  test("throws for unknown type code", () => {
-    expect(() => lookupTypeCode(0xff)).toThrow();
   });
 });

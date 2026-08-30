@@ -1,7 +1,8 @@
 import { readU16, readU24 } from "./bytes";
-import { DescriptorFormat as DF, TypeCode, lookupTypeCode, classifyTypeCode } from "./constants";
+import { DescriptorFormat as DF, TypeCode } from "./constants";
 import { Descriptor } from "./descriptor";
 import { CallciumError } from "./errors";
+import { classifyTypeCode, lookupTypeCode } from "./operators";
 import { address, array, bool, bytes, bytesN, function_, intN, string_, tuple, uintN } from "./type-desc";
 
 import type { DecodedParam, Hex } from "./types";
@@ -78,26 +79,26 @@ function parseTuple(input: string, start: number, end: number): Uint8Array {
     throw new CallciumError("MALFORMED_TYPE_STRING", `Expected '(' at position ${start}`);
   }
   let depth = 0;
-  let closePos = -1;
+  let closeIndex = -1;
   for (let i = start; i < end; i++) {
     if (input[i] === "(") depth++;
     else if (input[i] === ")") {
       depth--;
       if (depth === 0) {
-        closePos = i;
+        closeIndex = i;
         break;
       }
     }
   }
-  if (closePos === -1) {
+  if (closeIndex === -1) {
     throw new CallciumError("MALFORMED_TYPE_STRING", `Unmatched '(' at position ${start}`);
   }
-  if (closePos !== end - 1) {
-    throw new CallciumError("MALFORMED_TYPE_STRING", `Unexpected characters after ')' at position ${closePos + 1}`);
+  if (closeIndex !== end - 1) {
+    throw new CallciumError("MALFORMED_TYPE_STRING", `Unexpected characters after ')' at position ${closeIndex + 1}`);
   }
 
   const innerStart = start + 1;
-  const innerEnd = closePos;
+  const innerEnd = closeIndex;
   const commas = commaPositions(input, innerStart, innerEnd);
 
   const segments: Array<[number, number]> = [];
@@ -158,20 +159,20 @@ function parseType(input: string, start: number, end: number): Uint8Array {
   let baseEnd = end;
 
   while (baseEnd > start && input[baseEnd - 1] === "]") {
-    const closePos = baseEnd - 1;
-    let openPos = closePos - 1;
+    const closeIndex = baseEnd - 1;
+    let openIndex = closeIndex - 1;
     // Walk back past digits (for static arrays).
-    while (openPos > start && input[openPos] !== "[") {
-      openPos--;
+    while (openIndex > start && input[openIndex] !== "[") {
+      openIndex--;
     }
-    if (input[openPos] !== "[") {
-      throw new CallciumError("MALFORMED_TYPE_STRING", `Unmatched ']' at position ${closePos}`);
+    if (input[openIndex] !== "[") {
+      throw new CallciumError("MALFORMED_TYPE_STRING", `Unmatched ']' at position ${closeIndex}`);
     }
-    const innerStart = openPos + 1;
-    const innerEnd = closePos;
+    const innerStart = openIndex + 1;
+    const innerEnd = closeIndex;
     // A dynamic array spells no length at all.
     suffixes.unshift(innerStart === innerEnd ? undefined : parseUint(input, innerStart, innerEnd));
-    baseEnd = openPos;
+    baseEnd = openIndex;
   }
 
   // Every `[` a base carries belongs to a suffix the scan above already took; one left behind is
@@ -219,10 +220,7 @@ function fromTypes(typesCsv: string): Uint8Array {
 
   const paramDescs = segments.map(([start, end]) => parseType(typesCsv, start, end));
   if (paramDescs.length > DF.MAX_PARAMS) {
-    throw new CallciumError(
-      "TOO_MANY_PARAMS",
-      `Parameter count ${paramDescs.length} exceeds maximum ${DF.MAX_PARAMS}.`,
-    );
+    throw new CallciumError("TOO_MANY_PARAMS", `Parameter count ${paramDescs.length} exceeds maximum ${DF.MAX_PARAMS}`);
   }
   const totalBytes = paramDescs.reduce((sum, d) => sum + d.length, 0);
   const result = new Uint8Array(DF.HEADER_SIZE + totalBytes);

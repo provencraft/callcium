@@ -79,8 +79,18 @@ Structural representation of a decoded parameter within the descriptor.
 
 A single validation issue found during policy analysis.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L278)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L345)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="Issue" />
+
+### IssueCode
+
+Machine-readable code for a policy validation issue.
+
+Each code names one finding of the semantic validator and matches the constant of the same
+name in the Solidity `IssueCode` library.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L283)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="IssueCode" />
 
 ### IssueSeverity
 
@@ -188,7 +198,7 @@ A union of per-code variants, narrowable with `Extract&lt;Violation, { code: "..
 
 ### NonCanonicalValueViolation
 
-A resolved word is not the canonical encoding of its declared type (spec §7.4).
+A resolved word is not the canonical encoding of its declared type.
 
 `resolvedValue` is the raw 32-byte word as it appeared in calldata, before any masking.
 
@@ -197,7 +207,7 @@ A resolved word is not the canonical encoding of its declared type (spec §7.4).
 
 ### QuantifierLimitExceededViolation
 
-A quantified array exceeded `Limits.MAX_QUANTIFIED_ARRAY_LENGTH`.
+A quantified array exceeded `PolicyFormat.MAX_QUANTIFIED_ARRAY_LENGTH`.
 
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L134)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="QuantifierLimitExceededViolation" />

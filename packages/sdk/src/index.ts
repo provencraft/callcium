@@ -3,7 +3,9 @@
 ///////////////////////////////////////////////////////////////////////////
 
 export { PolicyBuilder } from "./policy-builder";
-export { PolicyCoder, parsePathSteps } from "./policy-coder";
+export { PolicyCoder } from "./policy-coder";
+export { isQuantifier, lookupQuantifier, parsePathSteps, Quantifier } from "./path";
+export type { QuantifierInfo } from "./path";
 export { isOpAllowed, PolicyValidator } from "./policy-validator";
 export {
   arg,
@@ -41,29 +43,16 @@ export {
   Op,
   TypeCode,
   PolicyFormat,
-  Quantifier,
   Scope,
   ContextProperty,
-  Limits,
   MAX_CONTEXT_PROPERTY_ID,
   lookupOp,
   lookupScope,
   lookupContextProperty,
-  lookupQuantifier,
-  lookupTypeCode,
-  isQuantifier,
 } from "./constants";
-export { isLengthOp } from "./operators";
-export type {
-  Operands,
-  OpInfo,
-  ScopeInfo,
-  ContextPropertyInfo,
-  QuantifierInfo,
-  TypeCodeInfo,
-  TypeClassInfo,
-  TypeClass,
-} from "./constants";
+export { isLengthOp, lookupTypeCode } from "./operators";
+export type { TypeCodeInfo, TypeClassInfo, TypeClass } from "./operators";
+export type { Operands, OpInfo, ScopeInfo, ContextPropertyInfo } from "./constants";
 
 ///////////////////////////////////////////////////////////////////////////
 // Types
@@ -81,6 +70,7 @@ export type {
   DecodedRule,
   DecodedParam,
   Issue,
+  IssueCode,
   IssueSeverity,
   IssueCategory,
   Context,

@@ -28,7 +28,10 @@ export const DescriptorFormat = {
 // Policy format
 ///////////////////////////////////////////////////////////////////////////
 
-/** Binary layout constants for the Callcium policy format. */
+/** Byte width of a rule's data length field. */
+const RULE_DATALENGTH_SIZE = 2;
+
+/** Binary layout constants and normative limits for the Callcium policy format. */
 export const PolicyFormat = {
   VERSION: 0x02,
   VERSION_MASK: 0x0f,
@@ -50,7 +53,7 @@ export const PolicyFormat = {
   RULE_PATH_OFFSET: 4,
   PATH_STEP_SIZE: 2,
   RULE_OPCODE_SIZE: 1,
-  RULE_DATALENGTH_SIZE: 2,
+  RULE_DATALENGTH_SIZE,
   RULE_FIXED_OVERHEAD: 7,
   RULE_MIN_SIZE: 9,
   HINT_HEADER_SIZE: 1,
@@ -76,6 +79,10 @@ export const PolicyFormat = {
   HINT_META_DYNAMIC_ARRAY: 0x4000,
   HINT_META_RESERVED_MASK: 0x3000,
   HINT_META_STRIDE_MASK: 0x0fff,
+  // Normative limits.
+  MAX_PATH_DEPTH: 32,
+  MAX_QUANTIFIED_ARRAY_LENGTH: 256,
+  MAX_SET_MEMBERS: Math.floor((256 ** RULE_DATALENGTH_SIZE - 1) / 32),
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -91,7 +98,9 @@ type CodeMap<T extends readonly { readonly key: string; readonly code: number }[
 };
 
 /** Build a plain `{ KEY: code }` object from a table at runtime. */
-function buildCodeMap<T extends readonly { readonly key: string; readonly code: number }[]>(table: T): CodeMap<T> {
+export function buildCodeMap<T extends readonly { readonly key: string; readonly code: number }[]>(
+  table: T,
+): CodeMap<T> {
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- derived from the same const table that defines the type.
   return Object.fromEntries(table.map((e) => [e.key, e.code])) as CodeMap<T>;
 }
@@ -111,7 +120,9 @@ export const Scope = buildCodeMap(SCOPE_TABLE);
 /** Display metadata for a scope code. */
 export type ScopeInfo = { label: string };
 
-const scopeByCode = new Map<number, ScopeInfo>(SCOPE_TABLE.map((e) => [e.code, { label: e.label }]));
+const scopeByCode: ReadonlyMap<number, ScopeInfo> = new Map<number, ScopeInfo>(
+  SCOPE_TABLE.map((e) => [e.code, { label: e.label }]),
+);
 
 /**
  * Map a scope code to its display label.
@@ -151,40 +162,29 @@ export const TypeCode = {
 // Context property IDs
 ///////////////////////////////////////////////////////////////////////////
 
-const CTX_PROP_TABLE = [
-  { key: "MSG_SENDER", code: 0x0000, label: "msg.sender", typeCode: TypeCode.ADDRESS },
-  { key: "MSG_VALUE", code: 0x0001, label: "msg.value", typeCode: TypeCode.UINT_MAX },
-  { key: "BLOCK_TIMESTAMP", code: 0x0002, label: "block.timestamp", typeCode: TypeCode.UINT_MAX },
-  { key: "BLOCK_NUMBER", code: 0x0003, label: "block.number", typeCode: TypeCode.UINT_MAX },
-  { key: "CHAIN_ID", code: 0x0004, label: "block.chainid", typeCode: TypeCode.UINT_MAX },
-  { key: "TX_ORIGIN", code: 0x0005, label: "tx.origin", typeCode: TypeCode.ADDRESS },
-  { key: "BASE_FEE", code: 0x0006, label: "block.basefee", typeCode: TypeCode.UINT_MAX },
-  { key: "GAS_PRICE", code: 0x0007, label: "tx.gasprice", typeCode: TypeCode.UINT_MAX },
+// oxfmt-ignore
+const CTX_PROPERTY_TABLE = [
+  { key: "MSG_SENDER", code: 0x0000, label: "msg.sender", contextKey: "msgSender", typeCode: TypeCode.ADDRESS },
+  { key: "MSG_VALUE", code: 0x0001, label: "msg.value", contextKey: "msgValue", typeCode: TypeCode.UINT_MAX },
+  { key: "BLOCK_TIMESTAMP", code: 0x0002, label: "block.timestamp", contextKey: "blockTimestamp", typeCode: TypeCode.UINT_MAX },
+  { key: "BLOCK_NUMBER", code: 0x0003, label: "block.number", contextKey: "blockNumber", typeCode: TypeCode.UINT_MAX },
+  { key: "CHAIN_ID", code: 0x0004, label: "block.chainid", contextKey: "chainId", typeCode: TypeCode.UINT_MAX },
+  { key: "TX_ORIGIN", code: 0x0005, label: "tx.origin", contextKey: "txOrigin", typeCode: TypeCode.ADDRESS },
+  { key: "BASE_FEE", code: 0x0006, label: "block.basefee", contextKey: "baseFee", typeCode: TypeCode.UINT_MAX },
+  { key: "GAS_PRICE", code: 0x0007, label: "tx.gasprice", contextKey: "gasPrice", typeCode: TypeCode.UINT_MAX },
 ] as const;
 
 /** Well-known context property IDs for context-scope rules. */
-export const ContextProperty = buildCodeMap(CTX_PROP_TABLE);
+export const ContextProperty = buildCodeMap(CTX_PROPERTY_TABLE);
 
 /** Maximum valid context property ID. */
-export const MAX_CONTEXT_PROPERTY_ID = Math.max(...CTX_PROP_TABLE.map((e) => e.code));
+export const MAX_CONTEXT_PROPERTY_ID = Math.max(...CTX_PROPERTY_TABLE.map((e) => e.code));
 
 /** Display metadata for a context property code. */
 export type ContextPropertyInfo = { label: string; contextKey: keyof import("./types").Context; typeCode: number };
 
-/** Maps each context property table key to its camelCase Context key. */
-const CTX_KEY_MAP: Record<(typeof CTX_PROP_TABLE)[number]["key"], keyof import("./types").Context> = {
-  MSG_SENDER: "msgSender",
-  MSG_VALUE: "msgValue",
-  BLOCK_TIMESTAMP: "blockTimestamp",
-  BLOCK_NUMBER: "blockNumber",
-  CHAIN_ID: "chainId",
-  TX_ORIGIN: "txOrigin",
-  BASE_FEE: "baseFee",
-  GAS_PRICE: "gasPrice",
-};
-
-const ctxPropByCode = new Map<number, ContextPropertyInfo>(
-  CTX_PROP_TABLE.map((e) => [e.code, { label: e.label, contextKey: CTX_KEY_MAP[e.key], typeCode: e.typeCode }]),
+const ctxPropertyByCode: ReadonlyMap<number, ContextPropertyInfo> = new Map<number, ContextPropertyInfo>(
+  CTX_PROPERTY_TABLE.map((e) => [e.code, { label: e.label, contextKey: e.contextKey, typeCode: e.typeCode }]),
 );
 
 /**
@@ -194,21 +194,10 @@ const ctxPropByCode = new Map<number, ContextPropertyInfo>(
  * @throws {CallciumError} If the code is not a recognised context property.
  */
 export function lookupContextProperty(code: number): ContextPropertyInfo {
-  const info = ctxPropByCode.get(code);
+  const info = ctxPropertyByCode.get(code);
   if (!info) throw new CallciumError("UNKNOWN_CONTEXT_PROPERTY", `Unknown context property ${code}`);
   return info;
 }
-
-///////////////////////////////////////////////////////////////////////////
-// Protocol limits
-///////////////////////////////////////////////////////////////////////////
-
-/** Protocol-imposed safety limits for path depth and quantifier array size. */
-export const Limits = {
-  MAX_PATH_DEPTH: 32,
-  MAX_QUANTIFIED_ARRAY_LENGTH: 256,
-  MAX_SET_MEMBERS: Math.floor((256 ** PolicyFormat.RULE_DATALENGTH_SIZE - 1) / 32),
-} as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////
 // Operator codes
@@ -244,7 +233,9 @@ export const Op: CodeMap<typeof OP_TABLE> & { readonly NOT: 0x80 } = { ...buildC
 /** Display metadata for an operator code. */
 export type OpInfo = { label: string; operands: Operands };
 
-const opByCode = new Map<number, OpInfo>(OP_TABLE.map((e) => [e.code, { label: e.label, operands: e.operands }]));
+const opByCode: ReadonlyMap<number, OpInfo> = new Map<number, OpInfo>(
+  OP_TABLE.map((e) => [e.code, { label: e.label, operands: e.operands }]),
+);
 
 /**
  * Map an operator code to its display label. Strips the NOT flag automatically.
@@ -260,137 +251,7 @@ export function lookupOp(code: number): OpInfo {
   return info;
 }
 
-/**
- * Check whether an operator's data payload has the correct length.
- * @param opBase - Base operator code with the NOT flag stripped.
- * @param dataLength - Byte length of the operator's data payload.
- * @returns True if the data length is valid for the given operator.
- */
-export function isValidOperatorData(opBase: number, dataLength: number): boolean {
-  const operands = opByCode.get(opBase)?.operands;
-  if (operands === "single") return dataLength === 32;
-  if (operands === "range") return dataLength === 64;
-  if (operands === "variadic") return dataLength > 0 && dataLength % 32 === 0;
-  return false;
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Quantifier steps
-///////////////////////////////////////////////////////////////////////////
-
-const QUANTIFIER_TABLE = [
-  { key: "ALL", code: 0xffff, label: "all" },
-  { key: "ANY", code: 0xfffe, label: "any" },
-] as const;
-
-/** Reserved path step values that trigger quantified evaluation over array elements. */
-export const Quantifier = buildCodeMap(QUANTIFIER_TABLE);
-
-/** Display metadata for a quantifier step. */
-export type QuantifierInfo = { label: string };
-
-const quantifierByCode = new Map<number, QuantifierInfo>(QUANTIFIER_TABLE.map((e) => [e.code, { label: e.label }]));
-
-/** Check whether a path step is a quantifier (ALL or ANY). */
-export function isQuantifier(step: number): boolean {
-  return step >= Quantifier.ANY;
-}
-
-/**
- * Map a quantifier path step to its display label.
- * @param code - Quantifier step value.
- * @returns Display metadata for the quantifier.
- * @throws {CallciumError} If the code is not a recognised quantifier.
- */
-export function lookupQuantifier(code: number): QuantifierInfo {
-  const info = quantifierByCode.get(code);
-  if (!info) throw new CallciumError("UNKNOWN_QUANTIFIER", `Unknown quantifier step 0x${code.toString(16)}`);
-  return info;
-}
-
-/** Structural category for a descriptor type code. */
-export type TypeClass = "elementary" | "tuple" | "staticArray" | "dynamicArray";
-
-/** Structural classification without label. */
-export type TypeClassInfo = { typeClass: TypeClass; isDynamic: boolean };
-
-/** Display metadata for a descriptor type code. */
-export type TypeCodeInfo = TypeClassInfo & { label: string };
-
-/** Throw an UNKNOWN_TYPE_CODE error. */
-function unknownTypeCode(code: number): never {
-  throw new CallciumError("UNKNOWN_TYPE_CODE", `Unknown type code 0x${code.toString(16).padStart(2, "0")}`);
-}
-
-// Pre-allocated constant objects for fixed type codes (avoids per-call allocation).
-const ELEMENTARY = { typeClass: "elementary", isDynamic: false } as const;
-const ELEMENTARY_DYN = { typeClass: "elementary", isDynamic: true } as const;
-const STATIC_ARR = { typeClass: "staticArray", isDynamic: false } as const;
-const DYNAMIC_ARR = { typeClass: "dynamicArray", isDynamic: true } as const;
-const TUPLE = { typeClass: "tuple", isDynamic: false } as const;
-
-/**
- * Classify a type code into its structural category and dynamism.
- * Lightweight variant of `lookupTypeCode` that skips label computation.
- * @param code - A single-byte descriptor type code.
- * @returns Type class and whether the type is ABI-dynamic.
- * @throws {CallciumError} If the code is not a recognised type code.
- */
-export function classifyTypeCode(code: number): TypeClassInfo {
-  if (code >= TypeCode.UINT_MIN && code <= TypeCode.UINT_MAX) return ELEMENTARY;
-  if (code >= TypeCode.INT_MIN && code <= TypeCode.INT_MAX) return ELEMENTARY;
-  if (code === TypeCode.ADDRESS || code === TypeCode.BOOL || code === TypeCode.FUNCTION) return ELEMENTARY;
-  if (code >= 0x44 && code <= 0x4f) unknownTypeCode(code);
-  if (code >= TypeCode.FIXED_BYTES_MIN && code <= TypeCode.FIXED_BYTES_MAX) return ELEMENTARY;
-  if (code === TypeCode.BYTES || code === TypeCode.STRING) return ELEMENTARY_DYN;
-  if (code >= 0x72 && code <= 0x7f) unknownTypeCode(code);
-  if (code === TypeCode.STATIC_ARRAY) return STATIC_ARR;
-  if (code === TypeCode.DYNAMIC_ARRAY) return DYNAMIC_ARR;
-  if (code >= 0x82 && code <= 0x8f) unknownTypeCode(code);
-  if (code === TypeCode.TUPLE) return TUPLE;
-  unknownTypeCode(code);
-}
-
-/**
- * Determine whether a type code names a value an operator can read: a scalar word or a declared
- * length. Tuples, static arrays, and undefined codes address nothing.
- * @param code - A single-byte descriptor type code.
- * @returns True when an operator can be applied to a target of this type.
- */
-export function isAddressableTarget(code: number): boolean {
-  let info: TypeClassInfo;
-  try {
-    // An undefined code is reported by a throw, and addresses nothing either way.
-    info = classifyTypeCode(code);
-  } catch {
-    return false;
-  }
-  return info.typeClass === "elementary" || info.typeClass === "dynamicArray";
-}
-
-/** Compute the ABI type label for a type code. */
-function typeCodeLabel(code: number): string {
-  if (code >= TypeCode.UINT_MIN && code <= TypeCode.UINT_MAX) return `uint${(code - TypeCode.UINT_MIN + 1) * 8}`;
-  if (code >= TypeCode.INT_MIN && code <= TypeCode.INT_MAX) return `int${(code - TypeCode.INT_MIN + 1) * 8}`;
-  if (code === TypeCode.ADDRESS) return "address";
-  if (code === TypeCode.BOOL) return "bool";
-  if (code === TypeCode.FUNCTION) return "function";
-  if (code >= TypeCode.FIXED_BYTES_MIN && code <= TypeCode.FIXED_BYTES_MAX)
-    return `bytes${code - TypeCode.FIXED_BYTES_MIN + 1}`;
-  if (code === TypeCode.BYTES) return "bytes";
-  if (code === TypeCode.STRING) return "string";
-  if (code === TypeCode.STATIC_ARRAY) return "T[k]";
-  if (code === TypeCode.DYNAMIC_ARRAY) return "T[]";
-  if (code === TypeCode.TUPLE) return "tuple";
-  return `0x${code.toString(16).padStart(2, "0")}`;
-}
-
-/**
- * Map a raw type code byte to its ABI type label, structural category, and dynamism.
- * @param code - A single-byte descriptor type code.
- * @returns Label, type class, and whether the type is ABI-dynamic.
- * @throws {CallciumError} If the code is not a recognised type code.
- */
-export function lookupTypeCode(code: number): TypeCodeInfo {
-  return { label: typeCodeLabel(code), ...classifyTypeCode(code) };
+/** Operand count category for an operator code, or undefined when unrecognised. */
+export function operandsOf(opBase: number): Operands | undefined {
+  return opByCode.get(opBase)?.operands;
 }

@@ -1,4 +1,4 @@
-import type { Hex, Issue } from "./types";
+import type { Hex, Issue, IssueCode } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Constants
@@ -12,7 +12,7 @@ const ZERO: Hex = `0x${"0".repeat(64)}`;
 
 /** Create an issue from operator compatibility results. */
 export function fromOpRule(
-  code: string,
+  code: IssueCode,
   message: string,
   groupIndex: number,
   constraintIndex: number,
@@ -304,7 +304,7 @@ export function unsortedInSet(groupIndex: number, constraintIndex: number): Issu
     code: "UNSORTED_IN_SET",
     value1: ZERO,
     value2: ZERO,
-    message: "isIn/notIn set is not strictly sorted and deduplicated.",
+    message: "isIn/notIn set is not strictly sorted and deduplicated",
   };
 }
 
@@ -318,7 +318,7 @@ export function emptyGroup(groupIndex: number): Issue {
     code: "EMPTY_GROUP",
     value1: ZERO,
     value2: ZERO,
-    message: "Group contains zero constraints.",
+    message: "Group contains zero constraints",
   };
 }
 

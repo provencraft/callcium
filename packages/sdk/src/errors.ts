@@ -88,7 +88,6 @@ export class CallciumError extends Error {
     super(`${prefix}${message}`);
     this.name = "CallciumError";
     this.code = code;
-    Object.setPrototypeOf(this, CallciumError.prototype);
   }
 }
 
@@ -106,7 +105,6 @@ export class ValidationError extends CallciumError {
     super("VALIDATION_ERROR", issues[0]?.message ?? "Policy validation failed");
     this.name = "ValidationError";
     this.issues = issues;
-    Object.setPrototypeOf(this, ValidationError.prototype);
   }
 }
 
@@ -126,7 +124,6 @@ export class PolicyViolationError extends Error {
     super(formatDiagnostic(violations[0]));
     this.name = "PolicyViolationError";
     this.violations = violations;
-    Object.setPrototypeOf(this, PolicyViolationError.prototype);
   }
 }
 

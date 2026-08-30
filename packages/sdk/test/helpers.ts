@@ -47,10 +47,10 @@ export function firstViolation<C extends ViolationCode>(
   return violation;
 }
 
-/** Assert that calling fn() throws a CallciumError with the given code. */
-export function expectErrorCode(fn: () => void, code: string): void {
+/** Assert that calling call() throws a CallciumError with the given code. */
+export function expectErrorCode(call: () => void, code: string): void {
   try {
-    fn();
+    call();
     expect.unreachable("Expected CallciumError");
   } catch (error) {
     expect(error).toBeInstanceOf(CallciumError);

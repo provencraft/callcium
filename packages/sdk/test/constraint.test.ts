@@ -1,16 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import { Scope, ContextProperty, MAX_CONTEXT_PROPERTY_ID, Op } from "../src/constants";
-import {
-  arg,
-  msgSender,
-  msgValue,
-  blockTimestamp,
-  blockNumber,
-  chainId,
-  txOrigin,
-  MAX_SET_MEMBERS,
-} from "../src/constraint";
+import { PolicyFormat, Scope, ContextProperty, MAX_CONTEXT_PROPERTY_ID, Op } from "../src/constants";
+import { arg, msgSender, msgValue, blockTimestamp, blockNumber, chainId, txOrigin } from "../src/constraint";
 import { CallciumError } from "../src/errors";
 import { expectErrorCode } from "./helpers";
 
@@ -156,8 +147,8 @@ describe("value encoding", () => {
   });
 
   test(".eq(address) — 12 zero bytes + 20 address bytes", () => {
-    const addr = "0x0000000000000000000000000000000000000001";
-    const op = arg(0).eq(addr).operators[0];
+    const address = "0x0000000000000000000000000000000000000001";
+    const op = arg(0).eq(address).operators[0];
     // data portion starts at index 4 (after "0x" + opCode byte)
     const data = op.slice(4); // 64 hex chars = 32 bytes
     expect(data.slice(0, 24)).toBe("000000000000000000000000"); // 12 zero bytes
@@ -224,18 +215,18 @@ describe(".isIn() / .notIn()", () => {
   });
 
   test(".isIn() — accepts the largest set a rule's data length can hold", () => {
-    const values = Array.from({ length: MAX_SET_MEMBERS }, (_, i) => BigInt(i));
+    const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS }, (_, i) => BigInt(i));
     const op = arg(0).isIn(values).operators[0];
-    expect((op.length - 4) / 2).toBe(MAX_SET_MEMBERS * 32);
+    expect((op.length - 4) / 2).toBe(PolicyFormat.MAX_SET_MEMBERS * 32);
   });
 
   test(".isIn() — throws SET_TOO_LARGE one member past the limit", () => {
-    const values = Array.from({ length: MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
+    const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
     expectErrorCode(() => arg(0).isIn(values), "SET_TOO_LARGE");
   });
 
   test(".notIn() — throws SET_TOO_LARGE one member past the limit", () => {
-    const values = Array.from({ length: MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
+    const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
     expectErrorCode(() => arg(0).notIn(values), "SET_TOO_LARGE");
   });
 });

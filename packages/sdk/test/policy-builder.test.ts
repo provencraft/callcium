@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { Quantifier, Scope } from "../src/constants";
+import { Scope } from "../src/constants";
 import { arg, msgSender } from "../src/constraint";
 import { CallciumError, ValidationError } from "../src/errors";
+import { Quantifier } from "../src/path";
 import { PolicyBuilder } from "../src/policy-builder";
 import { PolicyCoder } from "../src/policy-coder";
 import { expectErrorCode } from "./helpers";
@@ -153,8 +154,8 @@ describe("PolicyBuilder", () => {
     let caught: unknown;
     try {
       PolicyBuilder.create("foo(uint256,string)").add(arg(0).gte(0n)).add(arg(1).eq(42n)).build();
-    } catch (err) {
-      caught = err;
+    } catch (error) {
+      caught = error;
     }
     expect(caught).toBeInstanceOf(ValidationError);
     if (caught instanceof ValidationError) {
@@ -224,11 +225,11 @@ describe("PolicyBuilder", () => {
     try {
       PolicyBuilder.create("transfer(address,uint256)").add(invalid);
       expect.unreachable("should have thrown");
-    } catch (err) {
-      if (err instanceof CallciumError) {
-        expect(err.code).toBe("INVALID_SCOPE");
+    } catch (error) {
+      if (error instanceof CallciumError) {
+        expect(error.code).toBe("INVALID_SCOPE");
       } else {
-        throw err;
+        throw error;
       }
     }
   });
@@ -237,11 +238,11 @@ describe("PolicyBuilder", () => {
     try {
       PolicyBuilder.create("transfer(address,uint256)").or();
       expect.unreachable("should have thrown");
-    } catch (err) {
-      if (err instanceof CallciumError) {
-        expect(err.code).toBe("EMPTY_GROUP");
+    } catch (error) {
+      if (error instanceof CallciumError) {
+        expect(error.code).toBe("EMPTY_GROUP");
       } else {
-        throw err;
+        throw error;
       }
     }
   });
@@ -253,11 +254,11 @@ describe("PolicyBuilder", () => {
         .or()
         .build();
       expect.unreachable("should have thrown");
-    } catch (err) {
-      if (err instanceof CallciumError) {
-        expect(err.code).toBe("EMPTY_GROUP");
+    } catch (error) {
+      if (error instanceof CallciumError) {
+        expect(error.code).toBe("EMPTY_GROUP");
       } else {
-        throw err;
+        throw error;
       }
     }
   });
@@ -279,11 +280,11 @@ describe("PolicyBuilder", () => {
     try {
       PolicyBuilder.create("transfer(address,uint256)").add(invalid);
       expect.unreachable("should have thrown");
-    } catch (err) {
-      if (err instanceof CallciumError) {
-        expect(err.code).toBe("INVALID_CONTEXT_PATH");
+    } catch (error) {
+      if (error instanceof CallciumError) {
+        expect(error.code).toBe("INVALID_CONTEXT_PATH");
       } else {
-        throw err;
+        throw error;
       }
     }
   });
@@ -301,11 +302,11 @@ describe("PolicyBuilder", () => {
     try {
       PolicyBuilder.create("transfer(address,uint256)").add(invalid);
       expect.unreachable("should have thrown");
-    } catch (err) {
-      if (err instanceof CallciumError) {
-        expect(err.code).toBe("UNKNOWN_CONTEXT_PROPERTY");
+    } catch (error) {
+      if (error instanceof CallciumError) {
+        expect(error.code).toBe("UNKNOWN_CONTEXT_PROPERTY");
       } else {
-        throw err;
+        throw error;
       }
     }
   });

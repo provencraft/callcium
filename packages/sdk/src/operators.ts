@@ -1,4 +1,4 @@
-import { Op, TypeCode } from "./constants";
+import { Op, TypeCode, operandsOf } from "./constants";
 import { CallciumError } from "./errors";
 
 /** Read a big-endian 256-bit unsigned integer from a 32-byte window. */
@@ -28,7 +28,7 @@ export function isLeftAligned(typeCode: number): boolean {
 }
 
 /**
- * Canonicalize a raw 256-bit calldata word to its ABI value for the declared type (Policy Spec §7.8).
+ * Canonicalize a raw 256-bit calldata word to its ABI value for the declared type.
  * A scalar loaded from untrusted calldata may carry bits outside the declared width; masking
  * unsigned/address/bool/function/bytesN to width and sign-extending signed integers makes the
  * comparison use the canonical ABI value rather than the raw bytes.
@@ -103,14 +103,14 @@ function compareTyped(a: bigint, b: bigint, typeCode: number): number {
 /** Binary search over a sorted array of 32-byte words. Comparison is always unsigned. */
 function isIn(value: bigint, data: Uint8Array): boolean {
   const count = data.length / 32;
-  let lo = 0;
-  let hi = count - 1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >>> 1;
+  let low = 0;
+  let high = count - 1;
+  while (low <= high) {
+    const mid = (low + high) >>> 1;
     const elem = toBigInt(data, mid * 32);
     if (value === elem) return true;
-    if (value < elem) hi = mid - 1;
-    else lo = mid + 1;
+    if (value < elem) high = mid - 1;
+    else low = mid + 1;
   }
   return false;
 }
@@ -196,9 +196,114 @@ export function applyOperator(
     }
 
     default:
-      throw new CallciumError("UNKNOWN_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}.`);
+      throw new CallciumError("UNKNOWN_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}`);
   }
 
   const negate = (opCode & Op.NOT) !== 0;
   return negate ? !result : result;
+}
+
+/**
+ * Check whether an operator's data payload has the correct length.
+ * @param opBase - Base operator code with the NOT flag stripped.
+ * @param dataLength - Byte length of the operator's data payload.
+ * @returns True if the data length is valid for the given operator.
+ */
+export function isValidOperatorData(opBase: number, dataLength: number): boolean {
+  const operands = operandsOf(opBase);
+  if (operands === "single") return dataLength === 32;
+  if (operands === "range") return dataLength === 64;
+  if (operands === "variadic") return dataLength > 0 && dataLength % 32 === 0;
+  return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Type code classification
+///////////////////////////////////////////////////////////////////////////
+
+/** Structural category for a descriptor type code. */
+export type TypeClass = "elementary" | "tuple" | "staticArray" | "dynamicArray";
+
+/** Structural classification without label. */
+export type TypeClassInfo = { typeClass: TypeClass; isDynamic: boolean };
+
+/** Display metadata for a descriptor type code. */
+export type TypeCodeInfo = TypeClassInfo & { label: string };
+
+/** Throw an UNKNOWN_TYPE_CODE error. */
+function unknownTypeCode(code: number): never {
+  throw new CallciumError("UNKNOWN_TYPE_CODE", `Unknown type code 0x${code.toString(16).padStart(2, "0")}`);
+}
+
+// Pre-allocated constant objects for fixed type codes (avoids per-call allocation).
+const ELEMENTARY = { typeClass: "elementary", isDynamic: false } as const;
+const ELEMENTARY_DYNAMIC = { typeClass: "elementary", isDynamic: true } as const;
+const STATIC_ARR = { typeClass: "staticArray", isDynamic: false } as const;
+const DYNAMIC_ARR = { typeClass: "dynamicArray", isDynamic: true } as const;
+const TUPLE = { typeClass: "tuple", isDynamic: false } as const;
+
+/**
+ * Classify a type code into its structural category and dynamism.
+ * Lightweight variant of `lookupTypeCode` that skips label computation.
+ * @param code - A single-byte descriptor type code.
+ * @returns Type class and whether the type is ABI-dynamic.
+ * @throws {CallciumError} If the code is not a recognised type code.
+ */
+export function classifyTypeCode(code: number): TypeClassInfo {
+  if (code >= TypeCode.UINT_MIN && code <= TypeCode.UINT_MAX) return ELEMENTARY;
+  if (code >= TypeCode.INT_MIN && code <= TypeCode.INT_MAX) return ELEMENTARY;
+  if (code === TypeCode.ADDRESS || code === TypeCode.BOOL || code === TypeCode.FUNCTION) return ELEMENTARY;
+  if (code >= 0x44 && code <= 0x4f) unknownTypeCode(code);
+  if (code >= TypeCode.FIXED_BYTES_MIN && code <= TypeCode.FIXED_BYTES_MAX) return ELEMENTARY;
+  if (code === TypeCode.BYTES || code === TypeCode.STRING) return ELEMENTARY_DYNAMIC;
+  if (code >= 0x72 && code <= 0x7f) unknownTypeCode(code);
+  if (code === TypeCode.STATIC_ARRAY) return STATIC_ARR;
+  if (code === TypeCode.DYNAMIC_ARRAY) return DYNAMIC_ARR;
+  if (code >= 0x82 && code <= 0x8f) unknownTypeCode(code);
+  if (code === TypeCode.TUPLE) return TUPLE;
+  unknownTypeCode(code);
+}
+
+/**
+ * Determine whether a type code names a value an operator can read: a scalar word or a declared
+ * length. Tuples, static arrays, and undefined codes address nothing.
+ * @param code - A single-byte descriptor type code.
+ * @returns True when an operator can be applied to a target of this type.
+ */
+export function isAddressableTarget(code: number): boolean {
+  let info: TypeClassInfo;
+  try {
+    // An undefined code is reported by a throw, and addresses nothing either way.
+    info = classifyTypeCode(code);
+  } catch {
+    return false;
+  }
+  return info.typeClass === "elementary" || info.typeClass === "dynamicArray";
+}
+
+/** Compute the ABI type label for a type code. */
+function typeCodeLabel(code: number): string {
+  if (code >= TypeCode.UINT_MIN && code <= TypeCode.UINT_MAX) return `uint${(code - TypeCode.UINT_MIN + 1) * 8}`;
+  if (code >= TypeCode.INT_MIN && code <= TypeCode.INT_MAX) return `int${(code - TypeCode.INT_MIN + 1) * 8}`;
+  if (code === TypeCode.ADDRESS) return "address";
+  if (code === TypeCode.BOOL) return "bool";
+  if (code === TypeCode.FUNCTION) return "function";
+  if (code >= TypeCode.FIXED_BYTES_MIN && code <= TypeCode.FIXED_BYTES_MAX)
+    return `bytes${code - TypeCode.FIXED_BYTES_MIN + 1}`;
+  if (code === TypeCode.BYTES) return "bytes";
+  if (code === TypeCode.STRING) return "string";
+  if (code === TypeCode.STATIC_ARRAY) return "T[k]";
+  if (code === TypeCode.DYNAMIC_ARRAY) return "T[]";
+  if (code === TypeCode.TUPLE) return "tuple";
+  return `0x${code.toString(16).padStart(2, "0")}`;
+}
+
+/**
+ * Map a raw type code byte to its ABI type label, structural category, and dynamism.
+ * @param code - A single-byte descriptor type code.
+ * @returns Label, type class, and whether the type is ABI-dynamic.
+ * @throws {CallciumError} If the code is not a recognised type code.
+ */
+export function lookupTypeCode(code: number): TypeCodeInfo {
+  return { label: typeCodeLabel(code), ...classifyTypeCode(code) };
 }

@@ -130,7 +130,7 @@ export type CalldataNavigationViolation =
   | CalldataNavigationVariant<"CALLDATA_OUT_OF_BOUNDS">
   | CalldataNavigationVariant<"ARRAY_INDEX_OUT_OF_BOUNDS">;
 
-/** A quantified array exceeded `Limits.MAX_QUANTIFIED_ARRAY_LENGTH`. */
+/** A quantified array exceeded `PolicyFormat.MAX_QUANTIFIED_ARRAY_LENGTH`. */
 export type QuantifierLimitExceededViolation = {
   code: "QUANTIFIER_LIMIT_EXCEEDED";
   group: number;
@@ -142,7 +142,7 @@ export type QuantifierLimitExceededViolation = {
 };
 
 /**
- * A resolved word is not the canonical encoding of its declared type (spec §7.4).
+ * A resolved word is not the canonical encoding of its declared type.
  *
  * `resolvedValue` is the raw 32-byte word as it appeared in calldata, before any masking.
  */
@@ -274,13 +274,80 @@ export type IssueSeverity = "info" | "warning" | "error";
 /** Category of a validation issue. */
 export type IssueCategory = "typeMismatch" | "contradiction" | "redundancy" | "vacuity" | "compatibility";
 
+/**
+ * Machine-readable code for a policy validation issue.
+ *
+ * Each code names one finding of the semantic validator and matches the constant of the same
+ * name in the Solidity `IssueCode` library.
+ */
+export type IssueCode =
+  // Type mismatch.
+  | "VALUE_OP_ON_DYNAMIC"
+  | "VALUE_OP_ON_COMPOSITE"
+  | "NUMERIC_OP_ON_NON_NUMERIC"
+  | "BITMASK_ON_INVALID"
+  | "IN_ON_BOOL"
+  | "LENGTH_ON_STATIC"
+  | "CONTEXT_TYPE_MISMATCH"
+  | "UNKNOWN_OPERATOR"
+  | "NON_CANONICAL_OPERAND"
+  | "UNNAVIGABLE_PATH"
+  | "NESTED_QUANTIFIER"
+  | "HINT_MISMATCH"
+  // Contradiction.
+  | "EQ_NEQ_CONTRADICTION"
+  | "CONFLICTING_EQUALITY"
+  | "OUT_OF_PHYSICAL_BOUNDS"
+  | "IMPOSSIBLE_GT"
+  | "IMPOSSIBLE_LT"
+  | "BOUNDS_EXCLUDE_EQUALITY"
+  | "IMPOSSIBLE_RANGE"
+  | "SET_EXCLUDES_EQUALITY"
+  | "EMPTY_SET_INTERSECTION"
+  | "SET_FULLY_EXCLUDED"
+  | "LENGTH_EQ_NEQ_CONTRADICTION"
+  | "CONFLICTING_LENGTH"
+  | "BOUNDS_EXCLUDE_LENGTH"
+  | "IMPOSSIBLE_LENGTH_RANGE"
+  | "OUT_OF_PHYSICAL_LENGTH_BOUNDS"
+  | "IMPOSSIBLE_LENGTH_GT"
+  | "IMPOSSIBLE_LENGTH_LT"
+  | "BITMASK_CONTRADICTION"
+  | "BITMASK_ANY_IMPOSSIBLE"
+  | "UNSORTED_IN_SET"
+  | "EMPTY_GROUP"
+  // Redundancy.
+  | "DOMINATED_BOUND"
+  | "REDUNDANT_BOUND"
+  | "SET_REDUCTION"
+  | "SET_REDUNDANCY"
+  | "SET_PARTIALLY_EXCLUDED"
+  | "DOMINATED_LENGTH_BOUND"
+  | "REDUNDANT_LENGTH_BOUND"
+  | "REDUNDANT_BITMASK"
+  | "DUPLICATE_CONSTRAINT"
+  | "FUSIBLE_RANGE"
+  | "FUSIBLE_LENGTH_RANGE"
+  // Vacuity.
+  | "VACUOUS_GTE"
+  | "VACUOUS_LTE"
+  | "VACUOUS_LENGTH_GTE"
+  | "VACUOUS_LENGTH_LTE"
+  | "VACUOUS_NEGATED_RANGE"
+  | "VACUOUS_NEGATED_LENGTH_RANGE"
+  // Compatibility.
+  | "PATH_DEPTH_EXCEEDED"
+  | "QUANTIFIER_OVER_STATIC_LIMIT"
+  | "UNKNOWN_CONTEXT_PROPERTY"
+  | "NEGATION_UNDER_ANY";
+
 /** A single validation issue found during policy analysis. */
 export type Issue = {
   severity: IssueSeverity;
   category: IssueCategory;
   groupIndex: number;
   constraintIndex: number;
-  code: string;
+  code: IssueCode;
   value1: Hex;
   value2: Hex;
   message: string;

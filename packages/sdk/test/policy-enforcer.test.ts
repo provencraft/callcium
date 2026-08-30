@@ -43,7 +43,7 @@ const POLICY_MULTI_GROUP = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(2n
 // Two calldata rules in one group: GT(0) AND LTE(100).
 const POLICY_TWO_CONSTRAINTS = PolicyBuilder.create("foo(uint256)").add(arg(0).gt(0n).lte(100n)).build();
 
-// Mixed scope: context msg.sender=addr(1) AND calldata arg(0)=uint256(42).
+// Mixed scope: context msg.sender=address(1) AND calldata arg(0)=uint256(42).
 const POLICY_MIXED_SCOPE = PolicyBuilder.create("foo(uint256)")
   .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
   .add(arg(0).eq(42n))
@@ -118,9 +118,9 @@ function encodeStaticBytesArray3(elements: string[]): Hex {
 }
 
 /** Encode selectorless calldata for (uint256,address)[] with given tuples. */
-function encodeTupleArray(tuples: Array<{ amount: bigint; addr: bigint }>): Hex {
+function encodeTupleArray(tuples: Array<{ amount: bigint; address: bigint }>): Hex {
   let body = word(32n) + word(BigInt(tuples.length));
-  for (const tuple of tuples) body += word(tuple.amount) + word(tuple.addr);
+  for (const tuple of tuples) body += word(tuple.amount) + word(tuple.address);
   return `0x${body}`;
 }
 
@@ -129,7 +129,7 @@ function encodeTupleArray(tuples: Array<{ amount: bigint; addr: bigint }>): Hex 
  * Used only for the path-depth test where the structural change (33 path steps)
  * cascades into rule and group size fields that can't be patched post-hoc.
  */
-function craftPolicy(opts: {
+function craftPolicy(options: {
   descriptor: string;
   scope: number;
   pathHex: string;
@@ -138,28 +138,28 @@ function craftPolicy(opts: {
   /** Hint block; defaults to a hop-free block addressing a uint256 first argument. */
   hintHex?: string;
 }): Hex {
-  const desc = opts.descriptor;
-  const descLen = desc.length / 2;
-  const pathBytes = opts.pathHex;
+  const desc = options.descriptor;
+  const descLength = desc.length / 2;
+  const pathBytes = options.pathHex;
   const depth = pathBytes.length / 4;
-  const dataBytes = opts.dataHex;
-  const dataLen = dataBytes.length / 2;
-  const hintBytes = opts.scope === Scope.CALLDATA ? (opts.hintHex ?? "0000000000000020") : "";
-  const ruleSize = 7 + depth * 2 + hintBytes.length / 2 + dataLen;
+  const dataBytes = options.dataHex;
+  const dataLength = dataBytes.length / 2;
+  const hintBytes = options.scope === Scope.CALLDATA ? (options.hintHex ?? "0000000000000020") : "";
+  const ruleSize = 7 + depth * 2 + hintBytes.length / 2 + dataLength;
 
   const rule =
     ruleSize.toString(16).padStart(4, "0") +
-    opts.scope.toString(16).padStart(2, "0") +
+    options.scope.toString(16).padStart(2, "0") +
     depth.toString(16).padStart(2, "0") +
     pathBytes +
     hintBytes +
-    opts.opCode.toString(16).padStart(2, "0") +
-    dataLen.toString(16).padStart(4, "0") +
+    options.opCode.toString(16).padStart(2, "0") +
+    dataLength.toString(16).padStart(4, "0") +
     dataBytes;
 
   const group = "0001" + (rule.length / 2).toString(16).padStart(8, "0") + rule;
   const headerByte = (PolicyFormat.VERSION | PolicyFormat.FLAG_NO_SELECTOR).toString(16).padStart(2, "0");
-  const header = headerByte + "00000000" + descLen.toString(16).padStart(4, "0") + desc + "01" + group;
+  const header = headerByte + "00000000" + descLength.toString(16).padStart(4, "0") + desc + "01" + group;
   return `0x${header}`;
 }
 
@@ -179,10 +179,10 @@ function expectRejects(run: () => unknown, code: string): void {
   try {
     run();
     expect.unreachable("should have thrown");
-  } catch (err) {
-    expect(err).toBeInstanceOf(CallciumError);
-    if (err instanceof CallciumError) {
-      expect(err.code).toBe(code);
+  } catch (error) {
+    expect(error).toBeInstanceOf(CallciumError);
+    if (error instanceof CallciumError) {
+      expect(error.code).toBe(code);
     }
   }
 }
@@ -383,25 +383,25 @@ describe("enforce (throwing)", () => {
   });
 
   test("PolicyViolationError with empty violations carries fallback message", () => {
-    const err = new PolicyViolationError([]);
-    expect(err.message).toBe("Policy violation");
-    expect(err.violations).toHaveLength(0);
+    const error = new PolicyViolationError([]);
+    expect(error.message).toBe("Policy violation");
+    expect(error.violations).toHaveLength(0);
   });
 
   test("PolicyViolationError surfaces structured violation fields, not formatted text", () => {
-    const err = new PolicyViolationError([
+    const error = new PolicyViolationError([
       {
         code: "SELECTOR_MISMATCH",
         resolvedValue: "0x12345678",
         expectedValue: "0xabcdef00",
       },
     ]);
-    expect(err.violations[0]).toMatchObject({
+    expect(error.violations[0]).toMatchObject({
       code: "SELECTOR_MISMATCH",
       resolvedValue: "0x12345678",
       expectedValue: "0xabcdef00",
     });
-    expect(err.message).toContain("SELECTOR_MISMATCH");
+    expect(error.message).toContain("SELECTOR_MISMATCH");
   });
 
   test("throws CallciumError for malformed policy", () => {
@@ -682,8 +682,8 @@ describe("enforce - quantifier with suffix path", () => {
       .add(arg(0, Quantifier.ALL, 0).gt(0n))
       .build();
     const callData = encodeTupleArray([
-      { amount: 10n, addr: 1n },
-      { amount: 20n, addr: 2n },
+      { amount: 10n, address: 1n },
+      { amount: 20n, address: 2n },
     ]);
     expect(PolicyEnforcer.check(policy, callData).ok).toBe(true);
   });
@@ -693,8 +693,8 @@ describe("enforce - quantifier with suffix path", () => {
       .add(arg(0, Quantifier.ALL, 0).gt(0n))
       .build();
     const callData = encodeTupleArray([
-      { amount: 10n, addr: 1n },
-      { amount: 0n, addr: 2n },
+      { amount: 10n, address: 1n },
+      { amount: 0n, address: 2n },
     ]);
     const result = PolicyEnforcer.check(policy, callData);
     const violation = firstViolation(result, "VALUE_MISMATCH");
@@ -709,8 +709,8 @@ describe("enforce - quantifier with suffix path", () => {
       .add(arg(0, Quantifier.ANY, 0).eq(42n))
       .build();
     const callData = encodeTupleArray([
-      { amount: 1n, addr: 1n },
-      { amount: 42n, addr: 2n },
+      { amount: 1n, address: 1n },
+      { amount: 42n, address: 2n },
     ]);
     expect(PolicyEnforcer.check(policy, callData).ok).toBe(true);
   });
@@ -720,8 +720,8 @@ describe("enforce - quantifier with suffix path", () => {
       .add(arg(0, Quantifier.ANY, 0).eq(42n))
       .build();
     const callData = encodeTupleArray([
-      { amount: 1n, addr: 1n },
-      { amount: 2n, addr: 2n },
+      { amount: 1n, address: 1n },
+      { amount: 2n, address: 2n },
     ]);
     const result = PolicyEnforcer.check(policy, callData);
     firstViolation(result, "VALUE_MISMATCH");
@@ -936,11 +936,11 @@ describe("enforce - tampered policy blobs (attack surface testing)", () => {
     try {
       PolicyEnforcer.check(policy, `0x${"00".repeat(32)}`);
       expect.unreachable("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(CallciumError);
-      if (err instanceof CallciumError) {
-        expect(err.code).toBe("PATH_TOO_DEEP");
-        expect(err.message).toContain("exceeds maximum");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CallciumError);
+      if (error instanceof CallciumError) {
+        expect(error.code).toBe("PATH_TOO_DEEP");
+        expect(error.message).toContain("exceeds maximum");
       }
     }
   });
@@ -951,17 +951,17 @@ describe("enforce - tampered policy blobs (attack surface testing)", () => {
       .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
       .build();
     // Tamper: overwrite the 2-byte path from 0x0000 to 0xFFFF.
-    const descLen = 3; // "020120" = 3 bytes.
-    const pathOffset = 1 + 4 + 2 + descLen + 1 + 6 + 2 + 1 + 1;
+    const descLength = 3; // "020120" = 3 bytes.
+    const pathOffset = 1 + 4 + 2 + descLength + 1 + 6 + 2 + 1 + 1;
     const tamperedPolicy = tamper(validPolicy, pathOffset, "ffff");
     try {
       PolicyEnforcer.check(tamperedPolicy, `0x${"00".repeat(32)}`);
       expect.unreachable("should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(CallciumError);
-      if (err instanceof CallciumError) {
-        expect(err.code).toBe("UNKNOWN_CONTEXT_PROPERTY");
-        expect(err.message).toContain("ffff");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CallciumError);
+      if (error instanceof CallciumError) {
+        expect(error.code).toBe("UNKNOWN_CONTEXT_PROPERTY");
+        expect(error.message).toContain("ffff");
       }
     }
   });
@@ -1103,8 +1103,8 @@ describe("enforce - hint dispatch", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("enforce - EQ_CTX operator", () => {
-  const ADDR_1: Context["msgSender"] = "0x0000000000000000000000000000000000000001";
-  const ADDR_2: Context["msgSender"] = "0x0000000000000000000000000000000000000002";
+  const ADDRESS_1: Context["msgSender"] = "0x0000000000000000000000000000000000000001";
+  const ADDRESS_2: Context["msgSender"] = "0x0000000000000000000000000000000000000002";
   const ADDRESS_SELECTOR = "0xfdf80bda";
 
   const POLICY_EQ_CTX_SENDER = PolicyBuilder.create("foo(address)")
@@ -1132,12 +1132,12 @@ describe("enforce - EQ_CTX operator", () => {
   }
 
   test("passes when the argument equals msg.sender", () => {
-    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDR_1), { msgSender: ADDR_1 });
+    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDRESS_1), { msgSender: ADDRESS_1 });
     assertPassed(result);
   });
 
   test("fails with VALUE_MISMATCH when the argument differs from msg.sender", () => {
-    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDR_1), { msgSender: ADDR_2 });
+    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDRESS_1), { msgSender: ADDRESS_2 });
     const violation = firstViolation(result, "VALUE_MISMATCH");
     expect(violation.opCode).toBe(Op.EQ_CTX);
     expect(violation.resolvedValue).toBe(bigintToHex(1n));
@@ -1145,12 +1145,12 @@ describe("enforce - EQ_CTX operator", () => {
   });
 
   test("negated form passes when the argument differs from msg.sender", () => {
-    const result = PolicyEnforcer.check(POLICY_NEQ_CTX_SENDER, encodeAddressArg(ADDR_1), { msgSender: ADDR_2 });
+    const result = PolicyEnforcer.check(POLICY_NEQ_CTX_SENDER, encodeAddressArg(ADDRESS_1), { msgSender: ADDRESS_2 });
     assertPassed(result);
   });
 
   test("fails with MISSING_CONTEXT when the referenced property is absent", () => {
-    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDR_1), {});
+    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDRESS_1), {});
     const violation = firstViolation(result, "MISSING_CONTEXT");
     expect(violation.typeCode).toBe(TypeCode.ADDRESS);
     expect(violation.scope).toBe(Scope.CALLDATA);
@@ -1158,13 +1158,19 @@ describe("enforce - EQ_CTX operator", () => {
 
   test("context subject: passes when msg.sender equals tx.origin", () => {
     const callData = encodeUint256(SELECTOR, 42n);
-    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, { msgSender: ADDR_1, txOrigin: ADDR_1 });
+    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, {
+      msgSender: ADDRESS_1,
+      txOrigin: ADDRESS_1,
+    });
     assertPassed(result);
   });
 
   test("context subject: fails when tx.origin differs", () => {
     const callData = encodeUint256(SELECTOR, 42n);
-    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, { msgSender: ADDR_1, txOrigin: ADDR_2 });
+    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, {
+      msgSender: ADDRESS_1,
+      txOrigin: ADDRESS_2,
+    });
     const violation = firstViolation(result, "VALUE_MISMATCH");
     expect(violation.resolvedValue).toBe(bigintToHex(1n));
     expect(violation.resolvedOperand).toBe(bigintToHex(2n));
@@ -1172,20 +1178,20 @@ describe("enforce - EQ_CTX operator", () => {
 
   test("context subject: missing operand property reports MISSING_CONTEXT", () => {
     const callData = encodeUint256(SELECTOR, 42n);
-    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, { msgSender: ADDR_1 });
+    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, { msgSender: ADDRESS_1 });
     const violation = firstViolation(result, "MISSING_CONTEXT");
     expect(violation.typeCode).toBe(TypeCode.ADDRESS);
   });
 
   test("quantified: missing context reports MISSING_CONTEXT without an element index", () => {
-    const result = PolicyEnforcer.check(POLICY_ALL_EQ_CTX, encodeSingleElementArrayArg(ADDR_1));
+    const result = PolicyEnforcer.check(POLICY_ALL_EQ_CTX, encodeSingleElementArrayArg(ADDRESS_1));
     const violation = firstViolation(result, "MISSING_CONTEXT");
     expect("elementIndex" in violation).toBe(false);
   });
 
   test("quantified ANY: aggregate failure carries the resolved operand without a resolved value", () => {
-    const result = PolicyEnforcer.check(POLICY_ANY_EQ_CTX, encodeSingleElementArrayArg(ADDR_1), {
-      msgSender: ADDR_2,
+    const result = PolicyEnforcer.check(POLICY_ANY_EQ_CTX, encodeSingleElementArrayArg(ADDRESS_1), {
+      msgSender: ADDRESS_2,
     });
     const violation = firstViolation(result, "VALUE_MISMATCH");
     expect("resolvedValue" in violation).toBe(false);
@@ -1195,7 +1201,7 @@ describe("enforce - EQ_CTX operator", () => {
   test("rejects a tampered operand above the property range at decode", () => {
     const tampered: Hex = `0x${POLICY_EQ_CTX_SENDER.slice(2, -4)}ffff`;
     expectRejects(
-      () => PolicyEnforcer.check(tampered, encodeAddressArg(ADDR_1), { msgSender: ADDR_1 }),
+      () => PolicyEnforcer.check(tampered, encodeAddressArg(ADDRESS_1), { msgSender: ADDRESS_1 }),
       "UNKNOWN_CONTEXT_PROPERTY",
     );
   });
