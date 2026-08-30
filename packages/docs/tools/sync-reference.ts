@@ -122,7 +122,7 @@ function extractTitle(tree: Root): string {
  * and the description paragraph, returning the description's text. The description is
  * the first paragraph after the title; a heading reached first means there is none.
  */
-function takeMetadata(tree: Root): string {
+export function takeMetadata(tree: Root): string {
   let description = "";
   let pastTitle = false;
   let resolved = false;
@@ -532,7 +532,6 @@ async function main() {
   console.log(`Generated ${totalPages} reference pages.`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (import.meta.main) {
+  await main();
+}
