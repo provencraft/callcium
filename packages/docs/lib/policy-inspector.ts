@@ -33,18 +33,18 @@ export type ExplainedPolicy = {
   span?: Span;
 };
 
-export type ExplainedParam = {
+type ExplainedParam = {
   index: number;
   name: string | null;
   type: string;
   isDynamic: boolean;
 };
 
-export type ExplainedGroup = {
+type ExplainedGroup = {
   constraints: ExplainedConstraint[];
 };
 
-export type ExplainedConstraint = {
+type ExplainedConstraint = {
   scope: string;
   path: Hex;
   pathLabel: string;
@@ -53,19 +53,19 @@ export type ExplainedConstraint = {
   span?: Span;
 };
 
-export type ExplainedRule = {
+type ExplainedRule = {
   operator: string;
   negated: boolean;
   operands: string[];
   arity: Operands;
 };
 
-export type ExplainedFlatRule = {
+type ExplainedFlatRule = {
   constraint: ExplainedConstraint;
   rule: ExplainedRule;
 };
 
-export type ExplainOptions = {
+type ExplainOptions = {
   abi?: Abi;
 };
 

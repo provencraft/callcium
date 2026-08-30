@@ -15,9 +15,7 @@ export const CONTEXT_PROPERTIES = Object.values(ContextProperty).map((code) => (
 }));
 
 /** Map from camelCase context property keys to SDK property codes. */
-export const CONTEXT_IDS: Record<string, number> = Object.fromEntries(
-  CONTEXT_PROPERTIES.map((p) => [p.contextKey, p.code]),
-);
+const CONTEXT_IDS: Record<string, number> = Object.fromEntries(CONTEXT_PROPERTIES.map((p) => [p.contextKey, p.code]));
 
 /** Total number of context properties (derived from SDK). */
 export const CONTEXT_PROPERTY_COUNT = CONTEXT_PROPERTIES.length;

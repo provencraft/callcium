@@ -26,7 +26,7 @@ function toWord64(hex: Hex): string {
  * `true`/`false`, fixed bytes as the left-aligned hex slice. Unknown types fall
  * back to a `0x`-prefixed hex word.
  */
-export function decodeOperand(hex32: string, typeCode: number): string {
+function decodeOperand(hex32: string, typeCode: number): string {
   const raw = BigInt(`0x${hex32}`);
 
   if (typeCode === TypeCode.ADDRESS) {
@@ -60,7 +60,7 @@ export function decodeOperand(hex32: string, typeCode: number): string {
  * Variadic operators yield one chunk per 32-byte word, range operators yield
  * two, and the remainder yield one. Returned chunks are bare hex (no `0x`).
  */
-export function operandChunks(dataHex: Hex, opBase: number): string[] {
+function operandChunks(dataHex: Hex, opBase: number): string[] {
   const hex = dataHex.slice(2);
   const { operands } = lookupOp(opBase);
 

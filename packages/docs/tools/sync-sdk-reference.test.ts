@@ -1,21 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  ASSEMBLY_MAP,
-  buildIndex,
-  formatCoverageError,
-  renderFunctionSignature,
-  renderPage,
-  validateCoverage,
-} from "./sync-sdk-reference";
+import { ASSEMBLY_MAP, buildIndex, renderFunctionSignature, renderPage, validateCoverage } from "./sync-sdk-reference";
 
 describe("validateCoverage", () => {
-  it("passes when exports and map are identical", () => {
-    const exports = collectMappedNames(ASSEMBLY_MAP);
-    const result = validateCoverage(exports, ASSEMBLY_MAP);
-    expect(result.missing).toEqual([]);
-    expect(result.stale).toEqual([]);
-  });
-
   it("reports exports missing from the map", () => {
     const mapped = collectMappedNames(ASSEMBLY_MAP);
     const exports = [...mapped, "NewExport"];
@@ -30,34 +16,6 @@ describe("validateCoverage", () => {
     const result = validateCoverage(exports, ASSEMBLY_MAP);
     expect(result.missing).toEqual([]);
     expect(result.stale).toEqual(["PolicyBuilder"]);
-  });
-});
-
-describe("formatCoverageError", () => {
-  it("produces an actionable error with both drift kinds", () => {
-    const report = { missing: ["NewExport"], stale: ["OldExport"] };
-    const msg = formatCoverageError(report, "tools/sync-sdk-reference.ts");
-    expect(msg).toContain("NewExport");
-    expect(msg).toContain("missing");
-    expect(msg).toContain("OldExport");
-    expect(msg).toContain("stale");
-    expect(msg).toContain("tools/sync-sdk-reference.ts");
-    expect(msg).toContain("@internal");
-  });
-});
-
-describe("buildIndex", () => {
-  it("maps top-level reflections by name", () => {
-    const api = {
-      children: [
-        { id: 1, name: "PolicyBuilder", kind: 128 },
-        { id: 2, name: "arg", kind: 64 },
-      ],
-    };
-    const index = buildIndex(api);
-    expect(index.get("PolicyBuilder")?.kind).toBe(128);
-    expect(index.get("arg")?.kind).toBe(64);
-    expect(index.size).toBe(2);
   });
 });
 

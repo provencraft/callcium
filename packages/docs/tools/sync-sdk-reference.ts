@@ -164,7 +164,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
 // Coverage validation
 ///////////////////////////////////////////////////////////////////////////
 
-export interface CoverageReport {
+interface CoverageReport {
   missing: string[];
   stale: string[];
 }
@@ -187,7 +187,7 @@ export function validateCoverage(publicExports: readonly string[], map: Record<s
 // Error reporting
 ///////////////////////////////////////////////////////////////////////////
 
-export function formatCoverageError(report: CoverageReport, mapSource: string): string {
+function formatCoverageError(report: CoverageReport, mapSource: string): string {
   const lines: string[] = [];
   if (report.missing.length > 0) {
     lines.push(`Unmapped public SDK exports (${report.missing.length}):`);

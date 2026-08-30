@@ -68,7 +68,7 @@ export type ConstraintConfig = {
 };
 
 /** A named constraint group (OR-branch). */
-export type ConstraintGroup = {
+type ConstraintGroup = {
   /** Stable identity for React keying. Assigned by the engine on creation. */
   id: string;
   constraints: ConstraintConfig[];
@@ -79,7 +79,7 @@ export type ConstraintGroup = {
 ///////////////////////////////////////////////////////////////////////////
 
 /** An operator option for the UI. */
-export type OpOption = { value: string; label: string };
+type OpOption = { value: string; label: string };
 
 /** One selectable operator: its op code, its display polarity, and how it reaches the SDK builder. */
 type OpMethod = {
@@ -175,7 +175,7 @@ function skipNode(desc: Uint8Array, offset: number): number {
 }
 
 /** A minimal name tree extracted from viem's ABI parameter. */
-export type NameTree = { name: string | null; components?: NameTree[] };
+type NameTree = { name: string | null; components?: NameTree[] };
 
 /** Walk a descriptor node and build a ParamNode tree. */
 function walkDescNode(desc: Uint8Array, offset: number, index: number, nameTree: NameTree | null): ParamNode {

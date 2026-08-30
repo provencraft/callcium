@@ -17,8 +17,7 @@
     "sync:sdk-reference": "bun run --cwd ../sdk typedoc && bun tools/sync-sdk-reference.ts",
     "sync:specs": "bun tools/sync-specs.ts",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "tools:policy:explain": "bun tools/explain-policy.ts"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@callcium/sdk": "workspace:*",
