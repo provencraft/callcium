@@ -226,10 +226,10 @@ library PolicyFormat {
                                 NORMATIVE LIMITS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Maximum path depth accepted by the reference enforcer (policy spec §8.4).
+    /// @dev Maximum path depth a well-formed policy may declare (PWF-17).
     uint8 internal constant MAX_PATH_DEPTH = 32;
 
-    /// @dev Maximum array length for quantifier iteration (policy spec §8.4, gas DoS protection).
+    /// @dev Maximum array length for quantifier iteration (PV-7).
     uint256 internal constant MAX_QUANTIFIED_ARRAY_LENGTH = 256;
 
     /// @dev Maximum number of members an IN set can hold: the words the `dataLength` field can span.

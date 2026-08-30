@@ -128,9 +128,9 @@ library IssueCode {
                                   COMPATIBILITY
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// Path exceeds the reference enforcer's depth cap.
+    /// Path deeper than the cap PWF-17 fixes.
     bytes32 internal constant PATH_DEPTH_EXCEEDED = "PATH_DEPTH_EXCEEDED";
-    /// Quantifier over a static array longer than the reference enforcer's iteration cap.
+    /// Quantifier over a static array beyond the iteration cap PV-7 fixes.
     bytes32 internal constant QUANTIFIER_OVER_STATIC_LIMIT = "QUANTIFIER_OVER_STATIC_LIMIT";
     /// Context property ID is not in the assigned set.
     bytes32 internal constant UNKNOWN_CONTEXT_PROPERTY = "UNKNOWN_CONTEXT_PROPERTY";

@@ -521,7 +521,7 @@ library ValidationIssue {
             code: IssueCode.UNSORTED_IN_SET,
             value1: bytes32(0),
             value2: bytes32(0),
-            message: "isIn/notIn set is not strictly sorted and deduplicated."
+            message: "isIn/notIn set is not strictly sorted and deduplicated"
         });
     }
 
@@ -536,7 +536,7 @@ library ValidationIssue {
             code: IssueCode.EMPTY_GROUP,
             value1: bytes32(0),
             value2: bytes32(0),
-            message: "Group contains zero constraints."
+            message: "Group contains zero constraints"
         });
     }
 
@@ -708,7 +708,7 @@ library ValidationIssue {
         });
     }
 
-    /// @notice Creates a warning for a path deeper than the reference enforcer's cap.
+    /// @notice Creates a warning for a path deeper than the cap PWF-17 fixes.
     /// @return The constructed validation issue.
     function pathDepthExceeded(
         uint32 groupIndex,
@@ -728,11 +728,11 @@ library ValidationIssue {
             code: IssueCode.PATH_DEPTH_EXCEEDED,
             value1: bytes32(depth),
             value2: bytes32(maxDepth),
-            message: "Path depth exceeds the reference enforcer cap"
+            message: "Path depth exceeds the maximum a well-formed policy may declare"
         });
     }
 
-    /// @notice Creates an error for a quantifier over a static array beyond the iteration cap.
+    /// @notice Creates an error for a quantifier over a static array beyond the iteration cap PV-7 fixes.
     /// @return The constructed validation issue.
     function quantifierOverStaticLimit(
         uint32 groupIndex,
@@ -752,7 +752,7 @@ library ValidationIssue {
             code: IssueCode.QUANTIFIER_OVER_STATIC_LIMIT,
             value1: bytes32(arrayLength),
             value2: bytes32(maxLength),
-            message: "Quantifier over static array exceeds the reference enforcer cap"
+            message: "Quantifier over static array exceeds the maximum quantified length"
         });
     }
 

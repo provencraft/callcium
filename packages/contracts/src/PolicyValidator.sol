@@ -155,20 +155,20 @@ library PolicyValidator {
             Constraint memory constraint = constraints[constraintIndex];
 
             // Look up existing context for this (scope, path) pair; max signals no match.
-            uint256 ctxIdx = type(uint256).max;
+            uint256 ctxIndex = type(uint256).max;
             for (uint256 i = 0; i < contexts.length; ++i) {
                 if (contexts[i].scope == constraint.scope && LibBytes.eq(contexts[i].path, constraint.path)) {
-                    ctxIdx = i;
+                    ctxIndex = i;
                     break;
                 }
             }
 
             // First constraint on this path: resolve its type and create a fresh context.
             ConstraintContext memory ctx;
-            if (ctxIdx == type(uint256).max) {
+            if (ctxIndex == type(uint256).max) {
                 Descriptor.TypeInfo memory typeInfo;
                 if (constraint.scope == PF.SCOPE_CALLDATA) {
-                    // Compatibility warnings against the reference enforcer's limits (spec §8.4).
+                    // Compatibility warnings against the limits the spec fixes (PWF-17, PV-7).
                     uint256 depth = constraint.path.length / 2;
                     if (depth > PF.MAX_PATH_DEPTH) {
                         issues.push(
@@ -205,19 +205,19 @@ library PolicyValidator {
                         Descriptor.TypeInfo({ code: _contextPropertyType(ctxId), isDynamic: false, staticSize: 32 });
                 }
                 ctx = _initContext(constraint.scope, constraint.path, typeInfo);
-                ctxIdx = contexts.length;
+                ctxIndex = contexts.length;
                 assembly ("memory-safe") {
-                    mstore(contexts, add(ctxIdx, 1))
+                    mstore(contexts, add(ctxIndex, 1))
                 }
-                contexts[ctxIdx] = ctx;
+                contexts[ctxIndex] = ctx;
             } else {
-                ctx = contexts[ctxIdx];
+                ctx = contexts[ctxIndex];
             }
 
             // A carried hint must equal the compilation of its own path; constraints without an
             // encoding carry none, and the encoder compiles theirs from the same descriptor. Reaching
             // here means the path navigates the descriptor and quantifies at most once, so only the
-            // depth the reference enforcer accepts remains to be established.
+            // depth PWF-17 bounds remains to be established.
             // forgefmt: disable-next-item
             if (
                 constraint.scope == PF.SCOPE_CALLDATA && constraint.hint.length != 0
