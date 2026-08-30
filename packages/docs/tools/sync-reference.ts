@@ -158,13 +158,7 @@ function stripMetadata(tree: Root, description: string): void {
     if (isGitSourceParagraph(node)) return false;
     if (isTitleBlock(node)) return false;
     // Strip the first paragraph after metadata — it's the description we extracted.
-    if (
-      !descriptionStripped &&
-      pastTitle &&
-      node.type === "paragraph" &&
-      !isGitSourceParagraph(node) &&
-      !isTitleBlock(node)
-    ) {
+    if (!descriptionStripped && pastTitle && node.type === "paragraph") {
       descriptionStripped = true;
       return false;
     }
@@ -369,6 +363,13 @@ function normalizeProse(md: string): string {
   return result.join("\n");
 }
 
+/** Serialized markdown to a page body: struct bodies re-indented, prose normalized, blank runs collapsed. */
+function normalizeBody(md: string): string {
+  return normalizeProse(reindentStructBodies(md))
+    .replace(/^\n+/, "")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // File processing
 ///////////////////////////////////////////////////////////////////////////
@@ -469,6 +470,76 @@ function isMainFile(filename: string): boolean {
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Page rendering
+///////////////////////////////////////////////////////////////////////////
+
+/** A contract's forge doc output to a rendered MDX page, or null when forge doc produced no directory for it. */
+async function renderContractPage(contractDir: string): Promise<string | null> {
+  const srcDir = join(FORGE_DOC_ROOT, contractDir);
+
+  let allFiles: string[];
+  try {
+    allFiles = (await readdir(srcDir)).filter((f) => f.endsWith(".md"));
+  } catch {
+    console.warn(`Warning: ${srcDir} not found, skipping ${contractDir}`);
+    return null;
+  }
+
+  const files = allFiles.filter((f) => !isInternalStructFile(f, contractDir));
+  const ordered = assembleOrder(files, contractDir);
+
+  // Load source-line map from the solc AST artifact; drop internal structs
+  // so they don't linger as unused queue entries after assembly.
+  const symbolMap = await buildSymbolMap(CONTRACTS_ROOT, contractDir);
+  for (const name of INTERNAL_STRUCTS[contractDir] ?? []) delete symbolMap.struct[name];
+
+  const parsed: ProcessedFile[] = [];
+  for (const filename of ordered) {
+    parsed.push(await readForgeDoc(srcDir, filename));
+  }
+
+  // Strip metadata, filter sections, inject source links.
+  for (const file of parsed) {
+    if (isMainFile(file.filename)) {
+      processMainFile(file, contractDir);
+    } else {
+      processAuxFile(file);
+    }
+    injectSourceLinks(file.filename, file.tree, contractDir, symbolMap);
+  }
+
+  warnUnconsumed(contractDir, symbolMap);
+
+  // Assemble the final AST by concatenating all processed trees. The contract-level
+  // Git Source link sits at the top so it renders directly under the frontmatter
+  // description, matching the SDK layout.
+  const assembledChildren: RootContent[] = [];
+  if (symbolMap.contract !== undefined) {
+    assembledChildren.push(gitSourceParagraph(contractDir, symbolMap.contract));
+  }
+  for (const file of parsed) {
+    assembledChildren.push(...file.tree.children);
+  }
+  const assembledTree: Root = { type: "root", children: assembledChildren };
+
+  // Title and description come from the main file, falling back to the first file.
+  const mainFile = parsed.find((file) => isMainFile(file.filename)) ?? parsed[0];
+  const title = PAGE_TITLES[contractDir] ?? mainFile.title;
+  const description = mainFile.description;
+
+  const frontmatter = [
+    "---",
+    `title: "${title}"`,
+    description ? `description: "${description.replace(/"/g, '\\"')}"` : null,
+    "---",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return `${frontmatter}\n\n${normalizeBody(processor.stringify(assembledTree))}`;
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Main
 ///////////////////////////////////////////////////////////////////////////
 
@@ -479,100 +550,12 @@ async function main() {
   let totalPages = 0;
 
   for (const contractDir of INCLUDED_CONTRACTS) {
-    const srcDir = join(FORGE_DOC_ROOT, contractDir);
-    const slug = contractSlug(contractDir);
-
-    let allFiles: string[];
-    try {
-      allFiles = (await readdir(srcDir)).filter((f) => f.endsWith(".md"));
-    } catch {
-      console.warn(`Warning: ${srcDir} not found, skipping ${contractDir}`);
-      continue;
-    }
-
-    // Filter out internal struct files.
-    const files = allFiles.filter((f) => !isInternalStructFile(f, contractDir));
-
-    // Determine assembly order.
-    const ordered = assembleOrder(files, contractDir);
-
-    // Load source-line map from the solc AST artifact; drop internal structs
-    // so they don't linger as unused queue entries after assembly.
-    const symbolMap = await buildSymbolMap(CONTRACTS_ROOT, contractDir);
-    for (const name of INTERNAL_STRUCTS[contractDir] ?? []) delete symbolMap.struct[name];
-
-    // Read and parse all files.
-    const parsed = new Map<string, ProcessedFile>();
-    for (const filename of ordered) {
-      parsed.set(filename, await readForgeDoc(srcDir, filename));
-    }
-
-    // Process files (strip metadata + filter sections + inject source links).
-    for (const [filename, file] of parsed) {
-      if (isMainFile(filename)) {
-        processMainFile(file, contractDir);
-      } else {
-        processAuxFile(file);
-      }
-      injectSourceLinks(filename, file.tree, contractDir, symbolMap);
-    }
-
-    warnUnconsumed(contractDir, symbolMap);
-
-    // Determine title and description.
-    // Use the first main file, or the custom title, or the first file.
-    const mainFilename = ordered.find(isMainFile);
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- ordered is non-empty and all entries are keys in parsed.
-    const firstFile = parsed.get(ordered[0])!;
-    // oxlint-disable-next-line typescript/no-non-null-assertion -- mainFilename is a key in parsed by construction.
-    const mainFile = mainFilename ? parsed.get(mainFilename)! : firstFile;
-
-    const pageTitle = PAGE_TITLES[contractDir] ?? mainFile.title;
-    const pageDescription = mainFile.description;
-
-    // Assemble the final AST by concatenating all processed trees.
-    const assembledChildren: RootContent[] = [];
-    // Contract-level Git Source link sits at the top of the body so it renders
-    // directly under the frontmatter description, matching the SDK layout.
-    if (symbolMap.contract !== undefined) {
-      assembledChildren.push(gitSourceParagraph(contractDir, symbolMap.contract));
-    }
-    for (const filename of ordered) {
-      // oxlint-disable-next-line typescript/no-non-null-assertion -- filename is a key in parsed by construction.
-      const file = parsed.get(filename)!;
-      assembledChildren.push(...file.tree.children);
-    }
-
-    const assembledTree: Root = { type: "root", children: assembledChildren };
-
-    // Serialize.
-    let body = processor.stringify(assembledTree);
-
-    // Re-indent struct bodies that forge doc output without indentation.
-    body = reindentStructBodies(body);
-
-    body = normalizeProse(body);
-
-    // Clean up leading/trailing whitespace.
-    body = body.replace(/^\n+/, "").replace(/\n{3,}/g, "\n\n");
-
-    // Build frontmatter.
-    const frontmatter = [
-      "---",
-      `title: "${pageTitle}"`,
-      pageDescription ? `description: "${pageDescription.replace(/"/g, '\\"')}"` : null,
-      "---",
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    const mdx = `${frontmatter}\n\n${body}`;
-
-    await writeFile(join(OUTPUT_ROOT, `${slug}.mdx`), mdx);
+    const mdx = await renderContractPage(contractDir);
+    if (mdx === null) continue;
+    await writeFile(join(OUTPUT_ROOT, `${contractSlug(contractDir)}.mdx`), mdx);
     totalPages++;
   }
 
-  // Write meta.json.
   const meta = {
     title: "API",
     pages: INCLUDED_CONTRACTS.map(contractSlug),
