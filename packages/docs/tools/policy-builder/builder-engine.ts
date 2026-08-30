@@ -336,23 +336,7 @@ function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
     builder = factory();
   } else {
     const steps = config.path!;
-    // arg() has fixed overloads (1-4 params), dispatch by length.
-    switch (steps.length) {
-      case 1:
-        builder = arg(steps[0]);
-        break;
-      case 2:
-        builder = arg(steps[0], steps[1]);
-        break;
-      case 3:
-        builder = arg(steps[0], steps[1], steps[2]);
-        break;
-      case 4:
-        builder = arg(steps[0], steps[1], steps[2], steps[3]);
-        break;
-      default:
-        throw new Error(`Path too deep: ${steps.length} steps (max 4).`);
-    }
+    builder = arg(steps[0], ...steps.slice(1));
   }
 
   for (const rule of config.rules) {

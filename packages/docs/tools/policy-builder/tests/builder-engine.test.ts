@@ -219,6 +219,28 @@ describe("addConstraint", () => {
     expect(s2.errors).toEqual([]);
   });
 
+  it("constrains a leaf five tuple levels deep", () => {
+    const s1 = createSession("foo(((((uint256)))))");
+    const s2 = addConstraint(s1, 0, {
+      scope: "calldata",
+      path: [0, 0, 0, 0, 0],
+      rules: [{ operator: "eq", values: [100n] }],
+    });
+    expect(s2.hex).not.toBeNull();
+    expect(s2.errors).toEqual([]);
+  });
+
+  it("reports the descriptor error when a path descends past its leaf", () => {
+    const s1 = createSession("foo(((((uint256)))))");
+    const s2 = addConstraint(s1, 0, {
+      scope: "calldata",
+      path: [0, 0, 0, 0, 0, 0],
+      rules: [{ operator: "eq", values: [100n] }],
+    });
+    expect(s2.hex).toBeNull();
+    expect(s2.errors[0]).toContain("NOT_COMPOSITE");
+  });
+
   it("adds a multi-operator constraint (gte + lte) and produces hex", () => {
     const s1 = createSession("approve(address,uint256)");
     const s2 = addConstraint(s1, 0, {
