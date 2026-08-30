@@ -16,9 +16,9 @@ import {
   parsePathSteps,
 } from "@callcium/sdk";
 import { type Abi, type AbiFunction, type AbiParameter, toFunctionSelector } from "viem";
-import { formatCalldataPath, formatOpLabel } from "../../lib/format-path";
-import { decodeOperandsFromData } from "../../lib/format-value";
-import { type ParamNode, parseDescriptor, toNameTree } from "../policy-builder/builder-engine";
+import { formatCalldataPath, formatOpLabel } from "./format-path";
+import { decodeOperandsFromData } from "./format-value";
+import { type ParamNode, parseDescriptor, toNameTree } from "./policy-builder";
 
 ///////////////////////////////////////////////////////////////////////////
 // Types

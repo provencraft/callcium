@@ -22,8 +22,8 @@ import {
   txOrigin,
 } from "@callcium/sdk";
 import { type AbiFunction, parseAbiItem, toFunctionSignature } from "viem";
-import { formatError } from "../../lib/format-error";
-import { formatOpLabel } from "../../lib/format-path";
+import { formatError } from "./format-error";
+import { formatOpLabel } from "./format-path";
 
 ///////////////////////////////////////////////////////////////////////////
 // Types

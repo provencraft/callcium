@@ -22,9 +22,9 @@ import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { PillToggle } from "@/components/ui/pill-toggle";
 import { lookup4byte, parseAbiJson } from "@/lib/abi";
 import { formatError } from "@/lib/format-error";
+import { type ExplainedPolicy, explainPolicy, flattenGroup, formatOperands } from "@/lib/policy-inspector";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
-import { type ExplainedPolicy, explainPolicy, flattenGroup, formatOperands } from "@/tools/policy-inspector/explainer";
 
 const plural = (n: number) => (n === 1 ? "" : "s");
 

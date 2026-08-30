@@ -18,7 +18,7 @@
     "sync:specs": "bun tools/sync-specs.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "tools:policy:explain": "bun tools/policy-inspector/cli.ts"
+    "tools:policy:explain": "bun tools/explain-policy.ts"
   },
   "dependencies": {
     "@callcium/sdk": "workspace:*",

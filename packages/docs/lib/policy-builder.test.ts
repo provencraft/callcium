@@ -1,6 +1,6 @@
 import { ContextProperty, Op, PolicyCoder, type ScalarValue, Quantifier } from "@callcium/sdk";
 import { describe, expect, it } from "vitest";
-import { formatOpLabel } from "../../../lib/format-path";
+import { formatOpLabel } from "./format-path";
 import {
   createSession,
   addConstraint,
@@ -10,7 +10,7 @@ import {
   addGroup,
   removeGroup,
   type ConstraintInput,
-} from "../builder-engine";
+} from "./policy-builder";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers

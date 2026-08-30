@@ -17,8 +17,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { lookup4byte, descriptorToTypes } from "@/lib/abi";
 import { parseAbiJson } from "@/lib/abi";
 import { CONTEXT_PROPERTIES, CONTEXT_PROPERTY_COUNT, contextPropertyType, formatPath } from "@/lib/format-path";
-import { useDebounce } from "@/lib/use-debounce";
-import { cn } from "@/lib/utils";
 import {
   createSession,
   addConstraint,
@@ -32,7 +30,9 @@ import {
   type ConstraintInput,
   type OperatorRule,
   type ParamNode,
-} from "@/tools/policy-builder/builder-engine";
+} from "@/lib/policy-builder";
+import { useDebounce } from "@/lib/use-debounce";
+import { cn } from "@/lib/utils";
 
 // Both context properties are 32-byte elementary types despite address being 20 bytes on-chain.
 const CTX_ADDRESS: TypeInfo = { typeCode: TypeCode.ADDRESS, isDynamic: false, staticSize: 32 };

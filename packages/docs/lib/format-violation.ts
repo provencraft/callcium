@@ -11,7 +11,7 @@ import {
 } from "@callcium/sdk";
 import { formatCalldataPath, formatContextPath, formatOpLabel } from "./format-path";
 import { decodeOperandsFromData, decodeValue } from "./format-value";
-import type { ParamNode } from "@/tools/policy-builder/builder-engine";
+import type { ParamNode } from "@/lib/policy-builder";
 
 ///////////////////////////////////////////////////////////////////////////
 // Path

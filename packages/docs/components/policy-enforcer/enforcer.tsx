@@ -12,9 +12,9 @@ import { MonoInput } from "@/components/ui/mono-input";
 import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { CONTEXT_PROPERTIES } from "@/lib/format-path";
 import { formatViolation } from "@/lib/format-violation";
+import { checkPolicy, type EnforceOutput } from "@/lib/policy-enforcer";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
-import { checkPolicy, type EnforceOutput } from "@/tools/policy-enforcer/enforcer-engine";
 
 function tryParseBigInt(value: string): bigint | undefined {
   const trimmed = value.trim();

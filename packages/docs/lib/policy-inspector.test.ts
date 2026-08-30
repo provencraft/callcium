@@ -2,9 +2,9 @@ import { PolicyCoder } from "@callcium/sdk";
 import { describe, expect, it } from "vitest";
 import type { Hex } from "@callcium/sdk";
 import type { Abi } from "viem";
-import policyVectors from "../../../../../spec/vectors/policies.json";
-import { explainPolicy } from "../explainer";
-import B from "./explainer-blobs.json";
+import policyVectors from "../../../spec/vectors/policies.json";
+import { explainPolicy } from "./policy-inspector";
+import B from "./policy-inspector-blobs.json";
 
 ///////////////////////////////////////////////////////////////////////////
 // Test helpers

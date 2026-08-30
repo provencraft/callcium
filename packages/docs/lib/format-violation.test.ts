@@ -1,6 +1,6 @@
 import { ContextProperty, Op, Scope, TypeCode, type Violation } from "@callcium/sdk";
 import { describe, expect, it } from "vitest";
-import { formatViolation } from "../format-violation";
+import { formatViolation } from "./format-violation";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers

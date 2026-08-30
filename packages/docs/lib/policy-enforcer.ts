@@ -7,8 +7,8 @@ import {
   PolicyEnforcer,
   type Violation,
 } from "@callcium/sdk";
-import { formatError } from "../../lib/format-error";
-import { type ParamNode, parseDescriptor } from "../policy-builder/builder-engine";
+import { formatError } from "./format-error";
+import { type ParamNode, parseDescriptor } from "./policy-builder";
 
 ///////////////////////////////////////////////////////////////////////////
 // Types

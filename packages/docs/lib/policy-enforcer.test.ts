@@ -2,8 +2,8 @@ import { ContextProperty, PolicyBuilder, arg, msgSender } from "@callcium/sdk";
 import { encodeFunctionData, parseAbi } from "viem";
 import { describe, expect, it } from "vitest";
 import type { Hex } from "@callcium/sdk";
-import { formatViolation } from "../../../lib/format-violation";
-import { checkPolicy } from "../enforcer-engine";
+import { formatViolation } from "./format-violation";
+import { checkPolicy } from "./policy-enforcer";
 
 ///////////////////////////////////////////////////////////////////////////
 // Test helpers

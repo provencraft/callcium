@@ -1,11 +1,11 @@
 import { type Hex, PolicyCoder } from "@callcium/sdk";
 import type { Abi } from "viem";
-import { explainPolicy } from "./explainer";
+import { explainPolicy } from "@/lib/policy-inspector";
 
 const args = process.argv.slice(2);
 
 if (args.length === 0 || args[0] === "--help" || args[0] === "-h") {
-  console.log("Usage: bun run tools/policy-inspector/cli.ts <policy-hex> [abi.json]");
+  console.log("Usage: bun run tools/explain-policy.ts <policy-hex> [abi.json]");
   console.log();
   console.log("  policy-hex  Hex-encoded policy blob (with or without 0x prefix)");
   console.log("  abi.json    Path to a JSON ABI file (optional)");
