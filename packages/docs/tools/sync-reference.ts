@@ -91,36 +91,19 @@ function isTitleBlock(node: RootContent): boolean {
   return first.children.length === 1 && first.children[0].type === "text" && first.children[0].value === "Title:";
 }
 
-/**
- * Extract the description paragraph — the first paragraph after the metadata
- * (title heading, Git Source, Title block) that isn't a section heading.
- */
-function extractDescription(tree: Root): string {
-  let pastMetadata = false;
-  for (const node of tree.children) {
-    if (node.type === "heading" && node.depth === 1) {
-      pastMetadata = true;
-      continue;
-    }
-    if (!pastMetadata) continue;
-    if (isGitSourceParagraph(node) || isTitleBlock(node)) continue;
-    if (node.type === "heading") return "";
-    if (node.type === "paragraph") {
-      // Serialize this paragraph's text content.
-      return node.children
-        .map((c: PhrasingContent) => {
-          if (c.type === "text") return c.value;
-          if (c.type === "inlineCode") return `\`${c.value}\``;
-          if (c.type === "strong") {
-            const text = c.children.map((sc: PhrasingContent) => (sc.type === "text" ? sc.value : "")).join("");
-            return `**${text}**`;
-          }
-          return "";
-        })
-        .join("");
-    }
-  }
-  return "";
+/** Serialize a paragraph's inline content, keeping inline-code and strong markers. */
+function paragraphText(paragraph: Paragraph): string {
+  return paragraph.children
+    .map((c: PhrasingContent) => {
+      if (c.type === "text") return c.value;
+      if (c.type === "inlineCode") return `\`${c.value}\``;
+      if (c.type === "strong") {
+        const text = c.children.map((sc: PhrasingContent) => (sc.type === "text" ? sc.value : "")).join("");
+        return `**${text}**`;
+      }
+      return "";
+    })
+    .join("");
 }
 
 /** Extract the title from the # heading. */
@@ -141,29 +124,31 @@ function extractTitle(tree: Root): string {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Remove metadata nodes from the top of the AST:
- * - The # title heading
- * - The [Git Source](...) paragraph
- * - The **Title:** paragraph
- * - The description paragraph (first paragraph after metadata)
+ * Remove the `#` title heading, every `[Git Source](...)` and `**Title:**` paragraph,
+ * and the description paragraph, returning the description's text. The description is
+ * the first paragraph after the title; a heading reached first means there is none.
  */
-function stripMetadata(tree: Root, description: string): void {
-  let descriptionStripped = !description;
+function takeMetadata(tree: Root): string {
+  let description = "";
   let pastTitle = false;
+  let resolved = false;
   tree.children = tree.children.filter((node) => {
     if (node.type === "heading" && node.depth === 1) {
       pastTitle = true;
       return false;
     }
-    if (isGitSourceParagraph(node)) return false;
-    if (isTitleBlock(node)) return false;
-    // Strip the first paragraph after metadata — it's the description we extracted.
-    if (!descriptionStripped && pastTitle && node.type === "paragraph") {
-      descriptionStripped = true;
-      return false;
+    if (isGitSourceParagraph(node) || isTitleBlock(node)) return false;
+    if (pastTitle && !resolved) {
+      if (node.type === "paragraph") {
+        resolved = true;
+        description = paragraphText(node);
+        return false;
+      }
+      if (node.type === "heading") resolved = true;
     }
     return true;
   });
+  return description;
 }
 
 /**
@@ -381,21 +366,18 @@ interface ProcessedFile {
   tree: Root;
 }
 
-/** Read and parse a forge doc markdown file. */
+/** Read a forge doc markdown file and lift its title and description out of the tree. */
 async function readForgeDoc(dir: string, filename: string): Promise<ProcessedFile> {
   const content = await readFile(join(dir, filename), "utf-8");
   const tree = processor.parse(content);
   const title = extractTitle(tree);
-  const description = extractDescription(tree);
-  return { filename, title, description, tree };
+  return { filename, title, description: takeMetadata(tree), tree };
 }
 
-/** Process a "main" file (library.* or abstract.*). */
-function processMainFile(file: ProcessedFile, contractDir: string): void {
-  stripMetadata(file.tree, file.description);
+/** Filter the sections a "main" file (library.* or abstract.*) does not publish. */
+function processMainFile(file: ProcessedFile, internalStructs: ReadonlySet<string>): void {
   // Abstract contracts expose protected internal methods as their API — don't filter.
   const hidesPrivateFunctions = !file.filename.startsWith("abstract.");
-  const internalStructs = new Set(INTERNAL_STRUCTS[contractDir] ?? []);
   removeSections(
     file.tree,
     (heading, body) =>
@@ -404,11 +386,6 @@ function processMainFile(file: ProcessedFile, contractDir: string): void {
       body.some((node) => node.type === "code" && node.value.includes("private constant")),
   );
   removeEmptySections(file.tree, ["State Variables", "Structs"]);
-}
-
-/** Process an auxiliary file (struct.*, function.*). Strip metadata, keep body. */
-function processAuxFile(file: ProcessedFile): void {
-  stripMetadata(file.tree, file.description);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -456,12 +433,10 @@ function assembleOrder(files: string[], contractDir: string): string[] {
   return result;
 }
 
-/** Check if a file represents an internal struct that should be skipped. */
-function isInternalStructFile(filename: string, contractDir: string): boolean {
+/** Check if a file holds one of the given structs. */
+function isStructFileOf(filename: string, structs: ReadonlySet<string>): boolean {
   if (!filename.startsWith("struct.")) return false;
-  const internalNames = INTERNAL_STRUCTS[contractDir] ?? [];
-  const structName = filename.replace(/^struct\./, "").replace(/\.md$/, "");
-  return internalNames.includes(structName);
+  return structs.has(filename.replace(/^struct\./, "").replace(/\.md$/, ""));
 }
 
 /** Check if a file is a "main" file (library or abstract). */
@@ -485,26 +460,24 @@ async function renderContractPage(contractDir: string): Promise<string | null> {
     return null;
   }
 
-  const files = allFiles.filter((f) => !isInternalStructFile(f, contractDir));
+  // Internal structs are excluded from three places: their own page files, the
+  // main file's sections, and the symbol map queues.
+  const internalStructs = new Set(INTERNAL_STRUCTS[contractDir] ?? []);
+
+  const files = allFiles.filter((f) => !isStructFileOf(f, internalStructs));
   const ordered = assembleOrder(files, contractDir);
 
-  // Load source-line map from the solc AST artifact; drop internal structs
-  // so they don't linger as unused queue entries after assembly.
   const symbolMap = await buildSymbolMap(CONTRACTS_ROOT, contractDir);
-  for (const name of INTERNAL_STRUCTS[contractDir] ?? []) delete symbolMap.struct[name];
+  for (const name of internalStructs) delete symbolMap.struct[name];
 
   const parsed: ProcessedFile[] = [];
   for (const filename of ordered) {
     parsed.push(await readForgeDoc(srcDir, filename));
   }
 
-  // Strip metadata, filter sections, inject source links.
+  // Filter sections and inject source links.
   for (const file of parsed) {
-    if (isMainFile(file.filename)) {
-      processMainFile(file, contractDir);
-    } else {
-      processAuxFile(file);
-    }
+    if (isMainFile(file.filename)) processMainFile(file, internalStructs);
     injectSourceLinks(file.filename, file.tree, contractDir, symbolMap);
   }
 
