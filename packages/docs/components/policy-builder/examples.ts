@@ -1,5 +1,5 @@
 import { ContextProperty } from "@callcium/sdk";
-import type { ConstraintInput } from "@/tools/policy-builder";
+import type { ConstraintInput } from "@/tools/policy-builder/builder-engine";
 
 export type BuilderExample = {
   name: string;

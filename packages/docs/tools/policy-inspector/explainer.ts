@@ -85,35 +85,14 @@ export function formatOperands(rule: ExplainedRule): string {
 // Path resolution
 ///////////////////////////////////////////////////////////////////////////
 
-function resolveContextPath(steps: number[]): {
-  pathLabel: string;
-  targetType: string;
-  leafTypeCode: number;
-} {
+function resolveContextPath(steps: number[]): { pathLabel: string; leafTypeCode: number } {
   const propertyCode = steps[0];
   try {
     const property = lookupContextProperty(propertyCode);
-    return {
-      pathLabel: property.label,
-      targetType: lookupTypeCode(property.typeCode).label,
-      leafTypeCode: property.typeCode,
-    };
+    return { pathLabel: property.label, leafTypeCode: property.typeCode };
   } catch {
-    return { pathLabel: `context(${propertyCode})`, targetType: "uint256", leafTypeCode: TypeCode.UINT_MAX };
+    return { pathLabel: `context(${propertyCode})`, leafTypeCode: TypeCode.UINT_MAX };
   }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// ABI matching
-///////////////////////////////////////////////////////////////////////////
-
-function findAbiFunction(abi: Abi, selector: Hex): AbiFunction | null {
-  for (const item of abi) {
-    if (item.type === "function") {
-      if (toFunctionSelector(item) === selector) return item;
-    }
-  }
-  return null;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -127,7 +106,9 @@ export function explainPolicy(policy: DecodedPolicy, options?: ExplainOptions): 
   let abiInputs: readonly AbiParameter[] | undefined;
 
   if (options?.abi && !policy.isSelectorless) {
-    const matched = findAbiFunction(options.abi, policy.selector.value);
+    const matched = options.abi.find(
+      (item): item is AbiFunction => item.type === "function" && toFunctionSelector(item) === policy.selector.value,
+    );
     if (matched) {
       functionName = matched.name;
       abiInputs = matched.inputs;
@@ -146,23 +127,18 @@ export function explainPolicy(policy: DecodedPolicy, options?: ExplainOptions): 
   }));
 
   const groups: ExplainedGroup[] = policy.groups.map((group) => {
-    // Group flat rules by (scope, path) into constraints.
+    // Group flat rules by (scope, path) into constraints. Map iteration preserves wire order.
     const constraintMap = new Map<string, DecodedRule[]>();
-    const constraintOrder: string[] = [];
 
     for (const rule of group.rules) {
       const key = `${rule.scope.value}:${rule.path.value}`;
       const existing = constraintMap.get(key);
-      if (existing) {
-        existing.push(rule);
-      } else {
-        constraintMap.set(key, [rule]);
-        constraintOrder.push(key);
-      }
+      if (existing) existing.push(rule);
+      else constraintMap.set(key, [rule]);
     }
 
     return {
-      constraints: constraintOrder.map((key) => explainConstraint(constraintMap.get(key)!, descBytes, paramNodes)),
+      constraints: [...constraintMap.values()].map((rules) => explainConstraint(rules, descBytes, paramNodes)),
     };
   });
 
@@ -184,17 +160,15 @@ function explainConstraint(rules: DecodedRule[], descBytes: Uint8Array, paramNod
   const scopeLabel = lookupScope(scope).label;
   const isContext = scope === Scope.CONTEXT;
   let pathLabel: string;
-  let targetType: string;
   let leafTypeCode: number;
 
   if (isContext) {
-    ({ pathLabel, targetType, leafTypeCode } = resolveContextPath(steps));
+    ({ pathLabel, leafTypeCode } = resolveContextPath(steps));
   } else {
     pathLabel = formatCalldataPath(steps, paramNodes);
-    const leaf = Descriptor.typeAt(descBytes, steps);
-    targetType = lookupTypeCode(leaf.typeCode).label;
-    leafTypeCode = leaf.typeCode;
+    leafTypeCode = Descriptor.typeAt(descBytes, steps).typeCode;
   }
+  const targetType = lookupTypeCode(leafTypeCode).label;
 
   const explainedRules: ExplainedRule[] = rules.map((rule) => {
     const opCode = rule.opCode.value;

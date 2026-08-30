@@ -1,6 +1,6 @@
 import { type Hex, PolicyCoder } from "@callcium/sdk";
 import type { Abi } from "viem";
-import { explainPolicy } from "./index";
+import { explainPolicy } from "./explainer";
 
 const args = process.argv.slice(2);
 

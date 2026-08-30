@@ -65,19 +65,18 @@ export async function buildSymbolMap(contractsRoot: string, contractDir: string)
   const primaryFileIndex = Number.parseInt(ast.src?.split(":")[2] ?? "", 10);
   if (!Number.isFinite(primaryFileIndex)) return emptyMap();
 
-  const lineStarts = buildLineStartOffsets(sourceBuffer);
   const isAbstractSource = (ast.nodes ?? []).some((n) => n.nodeType === "ContractDefinition" && n.abstract === true);
 
   const map = emptyMap();
   let earliestTopLevel: number | undefined;
 
   for (const node of ast.nodes ?? []) {
-    const line = nodeLine(node, lineStarts, primaryFileIndex);
+    const line = nodeLine(node, sourceBuffer, primaryFileIndex);
     if (line === null) continue;
     if (node.nodeType !== "PragmaDirective" && node.nodeType !== "ImportDirective") {
       earliestTopLevel = earliestTopLevel === undefined ? line : Math.min(earliestTopLevel, line);
     }
-    classify(node, line, map, lineStarts, primaryFileIndex, isAbstractSource);
+    classify(node, line, map, sourceBuffer, primaryFileIndex, isAbstractSource);
   }
 
   // Fall back to the first non-directive top-level line when the file has no contract definition.
@@ -117,7 +116,7 @@ function classify(
   node: AstNode,
   line: number,
   map: SymbolMap,
-  lineStarts: number[],
+  source: Buffer,
   primaryFileIndex: number,
   isAbstractSource: boolean,
 ): void {
@@ -125,8 +124,8 @@ function classify(
     case "ContractDefinition":
       if (node.name && (map.contract === undefined || line < map.contract)) map.contract = line;
       for (const child of node.nodes ?? []) {
-        const childLine = nodeLine(child, lineStarts, primaryFileIndex);
-        if (childLine !== null) classify(child, childLine, map, lineStarts, primaryFileIndex, isAbstractSource);
+        const childLine = nodeLine(child, source, primaryFileIndex);
+        if (childLine !== null) classify(child, childLine, map, source, primaryFileIndex, isAbstractSource);
       }
       return;
     case "FunctionDefinition": {
@@ -161,15 +160,11 @@ function classify(
 // Offset → line
 ///////////////////////////////////////////////////////////////////////////
 
-function buildLineStartOffsets(buffer: Buffer): number[] {
-  const offsets: number[] = [0];
-  for (let i = 0; i < buffer.length; i++) {
-    if (buffer[i] === 0x0a) offsets.push(i + 1);
-  }
-  return offsets;
-}
-
-function nodeLine(node: AstNode, lineStarts: number[], primaryFileIndex: number): number | null {
+/**
+ * Resolve a node's 1-indexed source line from its `src` byte offset.
+ * Offsets are byte-based, so the newline scan runs over the buffer, not a decoded string.
+ */
+function nodeLine(node: AstNode, source: Buffer, primaryFileIndex: number): number | null {
   const parts = node.src?.split(":");
   if (!parts || parts.length !== 3) return null;
   const offset = Number.parseInt(parts[0], 10);
@@ -177,12 +172,9 @@ function nodeLine(node: AstNode, lineStarts: number[], primaryFileIndex: number)
   // Skip nodes sourced from imports or other compilation units.
   if (!Number.isFinite(offset) || fileIndex !== primaryFileIndex) return null;
 
-  let low = 0;
-  let high = lineStarts.length - 1;
-  while (low < high) {
-    const mid = (low + high + 1) >>> 1;
-    if (lineStarts[mid] <= offset) low = mid;
-    else high = mid - 1;
+  let line = 1;
+  for (let i = 0; i < offset; i++) {
+    if (source[i] === 0x0a) line++;
   }
-  return low + 1;
+  return line;
 }

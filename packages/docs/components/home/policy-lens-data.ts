@@ -1,6 +1,6 @@
 import { arg, PolicyBuilder, PolicyCoder, type Span } from "@callcium/sdk";
 import type { Abi } from "viem";
-import { explainPolicy, flattenGroup, formatOperands } from "@/tools/policy-inspector";
+import { explainPolicy, flattenGroup, formatOperands } from "@/tools/policy-inspector/explainer";
 
 /** One decoded "meaning" row, carrying the byte span it owns for bytes↔rule linking. */
 export type LensRow = {

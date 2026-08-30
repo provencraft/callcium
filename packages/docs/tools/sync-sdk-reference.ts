@@ -6,8 +6,7 @@ import { join, relative } from "node:path";
 // Configuration
 ///////////////////////////////////////////////////////////////////////////
 
-const TYPEDOC_DIR = join(import.meta.dirname, "../../sdk/.typedoc");
-const TYPEDOC_JSON = join(TYPEDOC_DIR, "api.json");
+const TYPEDOC_JSON = join(import.meta.dirname, "../../sdk/.typedoc/api.json");
 const OUTPUT_ROOT = join(import.meta.dirname, "../content/docs/sdk/reference");
 const SDK_SRC_REL = relative(OUTPUT_ROOT, join(import.meta.dirname, "../../sdk/src"));
 
@@ -185,28 +184,6 @@ export function validateCoverage(publicExports: readonly string[], map: Record<s
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// TypeDoc JSON reader
-///////////////////////////////////////////////////////////////////////////
-
-interface TypeDocChild {
-  name: string;
-  kind: number;
-  flags?: { isExternal?: boolean };
-}
-
-export function readPublicExports(apiJsonPath: string): string[] {
-  if (!existsSync(apiJsonPath)) {
-    throw new Error(`TypeDoc JSON not found at ${apiJsonPath}. Run typedoc first.`);
-  }
-  const raw = JSON.parse(readFileSync(apiJsonPath, "utf8")) as {
-    children?: TypeDocChild[];
-  };
-  const children = raw.children ?? [];
-  const names = children.filter((child) => !child.flags?.isExternal).map((child) => child.name);
-  return [...new Set(names)].toSorted();
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Error reporting
 ///////////////////////////////////////////////////////////////////////////
 
@@ -281,11 +258,7 @@ interface TypeDocRoot {
 }
 
 export function buildIndex(root: TypeDocRoot): Map<string, TypeDocReflection> {
-  const index = new Map<string, TypeDocReflection>();
-  for (const child of root.children ?? []) {
-    index.set(child.name, child);
-  }
-  return index;
+  return new Map((root.children ?? []).map((child) => [child.name, child]));
 }
 
 function summaryText(comment: TypeDocComment | undefined): string {
@@ -551,14 +524,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if (existsSync(OUTPUT_ROOT)) {
-    const { readdir } = await import("node:fs/promises");
-    for (const entry of await readdir(OUTPUT_ROOT)) {
-      await rm(join(OUTPUT_ROOT, entry), { recursive: true, force: true });
-    }
-  } else {
-    await mkdir(OUTPUT_ROOT, { recursive: true });
-  }
+  await rm(OUTPUT_ROOT, { recursive: true, force: true });
+  await mkdir(OUTPUT_ROOT, { recursive: true });
 
   for (const [slug, spec] of Object.entries(ASSEMBLY_MAP)) {
     const mdx = renderPage(slug, spec, index);

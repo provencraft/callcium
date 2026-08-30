@@ -1,12 +1,8 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   ASSEMBLY_MAP,
   buildIndex,
   formatCoverageError,
-  readPublicExports,
   renderFunctionSignature,
   renderPage,
   validateCoverage,
@@ -34,29 +30,6 @@ describe("validateCoverage", () => {
     const result = validateCoverage(exports, ASSEMBLY_MAP);
     expect(result.missing).toEqual([]);
     expect(result.stale).toEqual(["PolicyBuilder"]);
-  });
-});
-
-describe("readPublicExports", () => {
-  it("extracts top-level exported names from TypeDoc JSON", () => {
-    const dir = mkdtempSync(join(tmpdir(), "sync-sdk-ref-"));
-    const jsonPath = join(dir, "api.json");
-    writeFileSync(
-      jsonPath,
-      JSON.stringify({
-        children: [
-          { name: "PolicyBuilder", kind: 128 },
-          { name: "arg", kind: 64 },
-          { name: "Hex", kind: 2097152 },
-        ],
-      }),
-    );
-    try {
-      const names = readPublicExports(jsonPath);
-      expect(names).toEqual(["Hex", "PolicyBuilder", "arg"]);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
   });
 });
 

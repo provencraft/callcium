@@ -1,7 +1,7 @@
 import { lookupQuantifier, Quantifier, TypeCode, type TypeInfo } from "@callcium/sdk";
 import { describe, expect, it } from "vitest";
 import { formatPath } from "../format-path";
-import type { ParamNode } from "@/tools/policy-builder";
+import type { ParamNode } from "@/tools/policy-builder/builder-engine";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers

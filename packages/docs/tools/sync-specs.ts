@@ -31,21 +31,12 @@ const SPECS: Record<string, SpecMeta> = {
 // Remark processor
 ///////////////////////////////////////////////////////////////////////////
 
-const processor = unified().use(remarkParse).use(remarkGfm);
-const serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, {
+const processor = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, {
   bullet: "-",
   fences: true,
   listItemIndent: "one",
   resourceLink: true,
 });
-
-function parse(md: string): Root {
-  return processor.parse(md);
-}
-
-function stringify(tree: Root): string {
-  return serializer.stringify(tree);
-}
 
 /** Remove the first h1 heading from the tree (title goes into frontmatter). */
 function stripH1(tree: Root): void {
@@ -75,7 +66,7 @@ async function main() {
   await mkdir(OUTPUT_DIR, { recursive: true });
 
   for (const [slug, { title, description }] of Object.entries(SPECS)) {
-    const tree = parse(await readFile(join(SPEC_DIR, `${slug}.md`), "utf-8"));
+    const tree = processor.parse(await readFile(join(SPEC_DIR, `${slug}.md`), "utf-8"));
     stripH1(tree);
 
     const frontmatter = [
@@ -87,7 +78,7 @@ async function main() {
     ].join("\n");
 
     // Escape curly braces outside fenced code blocks for MDX compatibility.
-    const md = escapeBracesOutsideCodeBlocks(stringify(tree));
+    const md = escapeBracesOutsideCodeBlocks(processor.stringify(tree));
     await writeFile(join(OUTPUT_DIR, `${slug}.mdx`), frontmatter + md);
   }
 

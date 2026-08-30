@@ -24,7 +24,7 @@ import { lookup4byte, parseAbiJson } from "@/lib/abi";
 import { formatError } from "@/lib/format-error";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
-import { type ExplainedPolicy, explainPolicy, flattenGroup, formatOperands } from "@/tools/policy-inspector";
+import { type ExplainedPolicy, explainPolicy, flattenGroup, formatOperands } from "@/tools/policy-inspector/explainer";
 
 const plural = (n: number) => (n === 1 ? "" : "s");
 

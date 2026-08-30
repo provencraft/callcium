@@ -12,8 +12,7 @@ import { buildSymbolMap, type SymbolMap } from "./sol-symbol-map";
 ///////////////////////////////////////////////////////////////////////////
 
 const CONTRACTS_ROOT = join(import.meta.dirname, "../../contracts");
-const FORGE_DOC_DIR = join(CONTRACTS_ROOT, ".forge-doc");
-const FORGE_DOC_ROOT = join(FORGE_DOC_DIR, "src/src");
+const FORGE_DOC_ROOT = join(CONTRACTS_ROOT, ".forge-doc/src/src");
 const OUTPUT_ROOT = join(import.meta.dirname, "../content/docs/solidity/reference");
 const GITHUB_BLOB_BASE = "https://github.com/provencraft/callcium/blob/main/packages/contracts/src";
 
@@ -52,21 +51,12 @@ const PAGE_TITLES: Record<string, string> = {
 // Remark processor
 ///////////////////////////////////////////////////////////////////////////
 
-const processor = unified().use(remarkParse).use(remarkGfm);
-const serializer = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, {
+const processor = unified().use(remarkParse).use(remarkGfm).use(remarkStringify, {
   bullet: "-",
   fences: true,
   listItemIndent: "one",
   resourceLink: true,
 });
-
-function parse(md: string): Root {
-  return processor.parse(md);
-}
-
-function stringify(tree: Root): string {
-  return serializer.stringify(tree);
-}
 
 ///////////////////////////////////////////////////////////////////////////
 // AST helpers
@@ -183,71 +173,23 @@ function stripMetadata(tree: Root, description: string): void {
 }
 
 /**
- * Remove private function sections (### _functionName) from the AST.
- * Removes the heading and all content until the next heading of depth ≤ 3.
+ * Remove every depth-3 section the predicate accepts, from its heading up to the
+ * next heading of depth ≤ 3. The predicate sees the heading text and the section body.
  */
-function removePrivateFunctions(tree: Root): void {
+function removeSections(tree: Root, matches: (heading: string, body: RootContent[]) => boolean): void {
   const children = tree.children;
   let i = 0;
   while (i < children.length) {
     const node = children[i];
     if (node.type === "heading" && node.depth === 3) {
-      const text = headingText(node);
-      if (text.startsWith("_")) {
-        // Find end of section.
-        let end = i + 1;
-        while (end < children.length) {
-          const next = children[end];
-          if (next.type === "heading" && next.depth <= 3) break;
-          end++;
-        }
-        children.splice(i, end - i);
-        continue;
-      }
-    }
-    i++;
-  }
-}
-
-/**
- * Remove private constant sections from the AST.
- * These appear as ### ConstantName within ## State Variables,
- * with a code block containing "private constant".
- * If all constants are removed, the ## State Variables heading is also removed.
- */
-function removePrivateConstants(tree: Root): void {
-  const children = tree.children;
-  let i = 0;
-  while (i < children.length) {
-    const node = children[i];
-    if (node.type === "heading" && node.depth === 3) {
-      // Find end of section.
       let end = i + 1;
       while (end < children.length) {
         const next = children[end];
         if (next.type === "heading" && next.depth <= 3) break;
         end++;
       }
-      // Check if any code block in this section contains "private constant".
-      const isPrivate = children
-        .slice(i, end)
-        .some((n) => n.type === "code" && (n as { value: string }).value.includes("private constant"));
-      if (isPrivate) {
+      if (matches(headingText(node), children.slice(i + 1, end))) {
         children.splice(i, end - i);
-        continue;
-      }
-    }
-    i++;
-  }
-
-  // If ## State Variables section is now empty, remove it.
-  i = 0;
-  while (i < children.length) {
-    const node = children[i];
-    if (node.type === "heading" && node.depth === 2 && headingText(node) === "State Variables") {
-      const next = children[i + 1];
-      if (!next || (next.type === "heading" && next.depth <= 2)) {
-        children.splice(i, 1);
         continue;
       }
     }
@@ -255,42 +197,13 @@ function removePrivateConstants(tree: Root): void {
   }
 }
 
-/**
- * Remove internal struct sections from the AST.
- * These appear as ### StructName within ## Structs.
- * If all structs in a ## Structs section are internal, remove the entire section.
- */
-function removeInternalStructs(tree: Root, internalNames: string[]): void {
-  if (internalNames.length === 0) return;
-  const nameSet = new Set(internalNames);
+/** Remove each named depth-2 heading whose section body is empty. */
+function removeEmptySections(tree: Root, titles: string[]): void {
   const children = tree.children;
-
-  // First pass: remove individual ### StructName sections.
   let i = 0;
   while (i < children.length) {
     const node = children[i];
-    if (node.type === "heading" && node.depth === 3) {
-      const text = headingText(node);
-      if (nameSet.has(text)) {
-        let end = i + 1;
-        while (end < children.length) {
-          const next = children[end];
-          if (next.type === "heading" && next.depth <= 3) break;
-          end++;
-        }
-        children.splice(i, end - i);
-        continue;
-      }
-    }
-    i++;
-  }
-
-  // Second pass: if ## Structs section is now empty, remove it.
-  i = 0;
-  while (i < children.length) {
-    const node = children[i];
-    if (node.type === "heading" && node.depth === 2 && headingText(node) === "Structs") {
-      // Check if next node is another ## heading (or EOF) — meaning section is empty.
+    if (node.type === "heading" && node.depth === 2 && titles.includes(headingText(node))) {
       const next = children[i + 1];
       if (!next || (next.type === "heading" && next.depth <= 2)) {
         children.splice(i, 1);
@@ -385,7 +298,7 @@ function injectSourceLinks(filename: string, tree: Root, contractDir: string, sy
 
 function warnUnconsumed(contractDir: string, symbolMap: SymbolMap): void {
   for (const [kind, bucket] of Object.entries(symbolMap)) {
-    if (kind === "contract" || typeof bucket === "number") continue;
+    if (kind === "contract") continue;
     for (const [name, lines] of Object.entries(bucket as Record<string, number[]>)) {
       if (lines.length > 0) {
         console.warn(`sync-reference: ${contractDir} ${kind}:${name} — unconsumed lines [${lines.join(", ")}]`);
@@ -404,44 +317,23 @@ function warnUnconsumed(contractDir: string, symbolMap: SymbolMap): void {
  * for lines between the opening `{` and closing `}`.
  */
 function reindentStructBodies(md: string): string {
-  const lines = md.split("\n");
   let inCodeBlock = false;
+  // Only ever set inside a code block, and cleared when one closes.
   let inBody = false;
   const result: string[] = [];
 
-  for (const line of lines) {
+  for (const line of md.split("\n")) {
     if (line.startsWith("```")) {
       inCodeBlock = !inCodeBlock;
-      if (!inCodeBlock) inBody = false;
-      result.push(line);
-      continue;
-    }
-
-    if (!inCodeBlock) {
-      result.push(line);
-      continue;
-    }
-
-    // Detect struct/error/enum opening line.
-    if (/^(struct|error|enum)\s+\w+.*\{/.test(line)) {
+      inBody = inBody && inCodeBlock;
+    } else if (inCodeBlock && /^(struct|error|enum)\s+\w+.*\{/.test(line)) {
       inBody = true;
-      result.push(line);
-      continue;
-    }
-
-    // Detect closing brace.
-    if (inBody && line.startsWith("}")) {
+    } else if (inBody && line.startsWith("}")) {
       inBody = false;
-      result.push(line);
-      continue;
-    }
-
-    // Indent body lines that aren't already indented.
-    if (inBody && line.trim() && !line.startsWith("    ")) {
+    } else if (inBody && line.trim() && !line.startsWith("    ")) {
       result.push(`    ${line}`);
       continue;
     }
-
     result.push(line);
   }
 
@@ -449,60 +341,29 @@ function reindentStructBodies(md: string): string {
 }
 
 /**
- * Undo remark-stringify's backslash escaping of characters that are safe in our context.
- * E.g., `POLICY\_STORE\_SLOT` → `POLICY_STORE_SLOT`, `\~bytes32` → `~bytes32`.
- * Only applies outside code blocks (code blocks are not escaped by remark-stringify).
+ * Drop remark-stringify's backslash escaping of characters that are safe here
+ * (`POLICY\_STORE\_SLOT` → `POLICY_STORE_SLOT`), then escape bare `<` so MDX
+ * doesn't read it as JSX. Fenced blocks and inline code spans keep their `<`.
  */
-function unescapeRemarkArtifacts(md: string): string {
-  const lines = md.split("\n");
+function normalizeProse(md: string): string {
   let inCodeBlock = false;
   const result: string[] = [];
 
-  for (const line of lines) {
+  for (const line of md.split("\n")) {
     if (line.startsWith("```")) {
       inCodeBlock = !inCodeBlock;
       result.push(line);
       continue;
     }
-    if (inCodeBlock) {
-      result.push(line);
-      continue;
-    }
-    // Remove backslash escapes for underscores and tildes outside code blocks.
-    result.push(line.replace(/\\([_~])/g, "$1"));
-  }
-
-  return result.join("\n");
-}
-
-/**
- * Escape bare `<` in prose so MDX doesn't interpret them as JSX.
- * Preserves code blocks (``` ... ```) and inline code (` ... `).
- */
-function escapeForMdx(md: string): string {
-  const lines = md.split("\n");
-  let inCodeBlock = false;
-  const result: string[] = [];
-
-  for (const line of lines) {
-    if (line.startsWith("```")) {
-      inCodeBlock = !inCodeBlock;
-      result.push(line);
-      continue;
-    }
-    if (inCodeBlock) {
-      result.push(line);
-      continue;
-    }
-    // Split by inline code spans and only escape outside them.
-    const parts = line.split(/(`[^`]+`)/);
-    const escaped = parts
-      .map((part, i) => {
-        if (i % 2 === 1) return part;
-        return part.replace(/</g, "&lt;");
-      })
-      .join("");
-    result.push(escaped);
+    result.push(
+      inCodeBlock
+        ? line
+        : line
+            .replace(/\\([_~])/g, "$1")
+            .split(/(`[^`]+`)/)
+            .map((part, i) => (i % 2 === 1 ? part : part.replace(/</g, "&lt;")))
+            .join(""),
+    );
   }
 
   return result.join("\n");
@@ -522,7 +383,7 @@ interface ProcessedFile {
 /** Read and parse a forge doc markdown file. */
 async function readForgeDoc(dir: string, filename: string): Promise<ProcessedFile> {
   const content = await readFile(join(dir, filename), "utf-8");
-  const tree = parse(content);
+  const tree = processor.parse(content);
   const title = extractTitle(tree);
   const description = extractDescription(tree);
   return { filename, title, description, tree };
@@ -532,12 +393,16 @@ async function readForgeDoc(dir: string, filename: string): Promise<ProcessedFil
 function processMainFile(file: ProcessedFile, contractDir: string): void {
   stripMetadata(file.tree, file.description);
   // Abstract contracts expose protected internal methods as their API — don't filter.
-  if (!file.filename.startsWith("abstract.")) {
-    removePrivateFunctions(file.tree);
-  }
-  removePrivateConstants(file.tree);
-  const internalStructs = INTERNAL_STRUCTS[contractDir] ?? [];
-  removeInternalStructs(file.tree, internalStructs);
+  const hidesPrivateFunctions = !file.filename.startsWith("abstract.");
+  const internalStructs = new Set(INTERNAL_STRUCTS[contractDir] ?? []);
+  removeSections(
+    file.tree,
+    (heading, body) =>
+      (hidesPrivateFunctions && heading.startsWith("_")) ||
+      internalStructs.has(heading) ||
+      body.some((node) => node.type === "code" && node.value.includes("private constant")),
+  );
+  removeEmptySections(file.tree, ["State Variables", "Structs"]);
 }
 
 /** Process an auxiliary file (struct.*, function.*). Strip metadata, keep body. */
@@ -681,16 +546,12 @@ async function main() {
     const assembledTree: Root = { type: "root", children: assembledChildren };
 
     // Serialize.
-    let body = stringify(assembledTree);
+    let body = processor.stringify(assembledTree);
 
     // Re-indent struct bodies that forge doc output without indentation.
     body = reindentStructBodies(body);
 
-    // Undo remark-stringify's backslash escaping of underscores and tildes.
-    body = unescapeRemarkArtifacts(body);
-
-    // Escape for MDX.
-    body = escapeForMdx(body);
+    body = normalizeProse(body);
 
     // Clean up leading/trailing whitespace.
     body = body.replace(/^\n+/, "").replace(/\n{3,}/g, "\n\n");

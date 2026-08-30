@@ -55,7 +55,6 @@
     "typescript": "5.9.3",
     "unified": "11.0.5",
     "unist-util-remove": "4.0.0",
-    "unist-util-visit": "5.1.0",
     "vitest": "4.1.5"
   }
 }

@@ -81,28 +81,38 @@ export type ConstraintGroup = {
 /** An operator option for the UI. */
 export type OpOption = { value: string; label: string };
 
-// Method dispatch table — maps ConstraintBuilder method names to op codes.
-const OP_METHODS: readonly { method: string; opCode: number; negated?: boolean }[] = [
-  { method: "eq", opCode: Op.EQ },
-  { method: "neq", opCode: Op.EQ, negated: true },
-  { method: "eqCtx", opCode: Op.EQ_CTX },
-  { method: "neqCtx", opCode: Op.EQ_CTX, negated: true },
-  { method: "gt", opCode: Op.GT },
-  { method: "lt", opCode: Op.LT },
-  { method: "gte", opCode: Op.GTE },
-  { method: "lte", opCode: Op.LTE },
-  { method: "between", opCode: Op.BETWEEN },
-  { method: "isIn", opCode: Op.IN },
-  { method: "notIn", opCode: Op.IN, negated: true },
-  { method: "bitmaskAll", opCode: Op.BITMASK_ALL },
-  { method: "bitmaskAny", opCode: Op.BITMASK_ANY },
-  { method: "bitmaskNone", opCode: Op.BITMASK_NONE },
-  { method: "lengthEq", opCode: Op.LENGTH_EQ },
-  { method: "lengthGt", opCode: Op.LENGTH_GT },
-  { method: "lengthLt", opCode: Op.LENGTH_LT },
-  { method: "lengthGte", opCode: Op.LENGTH_GTE },
-  { method: "lengthLte", opCode: Op.LENGTH_LTE },
-  { method: "lengthBetween", opCode: Op.LENGTH_BETWEEN },
+/** One selectable operator: its op code, its display polarity, and how it reaches the SDK builder. */
+type OpMethod = {
+  method: string;
+  opCode: number;
+  negated?: boolean;
+  apply: (builder: SDKConstraintBuilder, values: ScalarValue[]) => void;
+};
+
+// Numeric operators take their operands as bigint | number; the UI parses them ahead of dispatch.
+const num = (value: ScalarValue) => value as bigint | number;
+
+const OP_METHODS: readonly OpMethod[] = [
+  { method: "eq", opCode: Op.EQ, apply: (b, v) => b.eq(v[0]) },
+  { method: "neq", opCode: Op.EQ, negated: true, apply: (b, v) => b.neq(v[0]) },
+  { method: "eqCtx", opCode: Op.EQ_CTX, apply: (b, v) => b.eqCtx(Number(v[0])) },
+  { method: "neqCtx", opCode: Op.EQ_CTX, negated: true, apply: (b, v) => b.neqCtx(Number(v[0])) },
+  { method: "gt", opCode: Op.GT, apply: (b, v) => b.gt(num(v[0])) },
+  { method: "lt", opCode: Op.LT, apply: (b, v) => b.lt(num(v[0])) },
+  { method: "gte", opCode: Op.GTE, apply: (b, v) => b.gte(num(v[0])) },
+  { method: "lte", opCode: Op.LTE, apply: (b, v) => b.lte(num(v[0])) },
+  { method: "between", opCode: Op.BETWEEN, apply: (b, v) => b.between(num(v[0]), num(v[1])) },
+  { method: "isIn", opCode: Op.IN, apply: (b, v) => b.isIn(v) },
+  { method: "notIn", opCode: Op.IN, negated: true, apply: (b, v) => b.notIn(v) },
+  { method: "bitmaskAll", opCode: Op.BITMASK_ALL, apply: (b, v) => b.bitmaskAll(v[0] as bigint) },
+  { method: "bitmaskAny", opCode: Op.BITMASK_ANY, apply: (b, v) => b.bitmaskAny(v[0] as bigint) },
+  { method: "bitmaskNone", opCode: Op.BITMASK_NONE, apply: (b, v) => b.bitmaskNone(v[0] as bigint) },
+  { method: "lengthEq", opCode: Op.LENGTH_EQ, apply: (b, v) => b.lengthEq(num(v[0])) },
+  { method: "lengthGt", opCode: Op.LENGTH_GT, apply: (b, v) => b.lengthGt(num(v[0])) },
+  { method: "lengthLt", opCode: Op.LENGTH_LT, apply: (b, v) => b.lengthLt(num(v[0])) },
+  { method: "lengthGte", opCode: Op.LENGTH_GTE, apply: (b, v) => b.lengthGte(num(v[0])) },
+  { method: "lengthLte", opCode: Op.LENGTH_LTE, apply: (b, v) => b.lengthLte(num(v[0])) },
+  { method: "lengthBetween", opCode: Op.LENGTH_BETWEEN, apply: (b, v) => b.lengthBetween(num(v[0]), num(v[1])) },
 ];
 
 /** Look up the display label for an operator method name. */
@@ -138,8 +148,6 @@ export type BuilderSession = {
   errors: string[];
   /** Parse error if the signature was invalid. */
   error?: string;
-  /** Internal: raw descriptor bytes for path validation. */
-  _descriptor: Uint8Array | null;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -252,74 +260,6 @@ export function parseDescriptor(desc: Uint8Array, nameTrees: NameTree[] = []): P
 // Constraint translation
 ///////////////////////////////////////////////////////////////////////////
 
-/** Apply a single operator rule to a constraint builder. */
-function dispatchOperator(builder: SDKConstraintBuilder, operator: string, values: ScalarValue[]): void {
-  switch (operator) {
-    case "eq":
-      builder.eq(values[0]);
-      break;
-    case "neq":
-      builder.neq(values[0]);
-      break;
-    case "eqCtx":
-      builder.eqCtx(Number(values[0]));
-      break;
-    case "neqCtx":
-      builder.neqCtx(Number(values[0]));
-      break;
-    case "gt":
-      builder.gt(values[0] as bigint | number);
-      break;
-    case "lt":
-      builder.lt(values[0] as bigint | number);
-      break;
-    case "gte":
-      builder.gte(values[0] as bigint | number);
-      break;
-    case "lte":
-      builder.lte(values[0] as bigint | number);
-      break;
-    case "between":
-      builder.between(values[0] as bigint | number, values[1] as bigint | number);
-      break;
-    case "isIn":
-      builder.isIn(values);
-      break;
-    case "notIn":
-      builder.notIn(values);
-      break;
-    case "bitmaskAll":
-      builder.bitmaskAll(values[0] as bigint);
-      break;
-    case "bitmaskAny":
-      builder.bitmaskAny(values[0] as bigint);
-      break;
-    case "bitmaskNone":
-      builder.bitmaskNone(values[0] as bigint);
-      break;
-    case "lengthEq":
-      builder.lengthEq(values[0] as bigint | number);
-      break;
-    case "lengthGt":
-      builder.lengthGt(values[0] as bigint | number);
-      break;
-    case "lengthLt":
-      builder.lengthLt(values[0] as bigint | number);
-      break;
-    case "lengthGte":
-      builder.lengthGte(values[0] as bigint | number);
-      break;
-    case "lengthLte":
-      builder.lengthLte(values[0] as bigint | number);
-      break;
-    case "lengthBetween":
-      builder.lengthBetween(values[0] as bigint | number, values[1] as bigint | number);
-      break;
-    default:
-      throw new Error(`Unknown operator: ${operator}`);
-  }
-}
-
 /** Build an SDK ConstraintBuilder from a ConstraintConfig. */
 function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
   if (config.rules.length === 0) {
@@ -340,7 +280,9 @@ function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
   }
 
   for (const rule of config.rules) {
-    dispatchOperator(builder, rule.operator, rule.values);
+    const entry = OP_METHODS.find((op) => op.method === rule.operator);
+    if (!entry) throw new Error(`Unknown operator: ${rule.operator}`);
+    entry.apply(builder, rule.values);
   }
 
   return builder;
@@ -353,7 +295,7 @@ function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
 /** Rebuild a PolicyBuilder from session state and return hex + issues. */
 function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; errors: string[] } {
   const hasConstraints = session.groups.some((g) => g.constraints.length > 0);
-  if (!hasConstraints || !session._descriptor) {
+  if (!hasConstraints || session.error !== undefined) {
     return { hex: null, issues: [], errors: [] };
   }
 
@@ -471,7 +413,6 @@ export function createSession(signature: string, options?: { selectorless?: bool
       hex: null,
       issues: [],
       errors: [],
-      _descriptor: desc,
     };
   } catch (e) {
     return {
@@ -483,7 +424,6 @@ export function createSession(signature: string, options?: { selectorless?: bool
       issues: [],
       errors: [],
       error: e instanceof Error ? e.message : String(e),
-      _descriptor: null,
     };
   }
 }

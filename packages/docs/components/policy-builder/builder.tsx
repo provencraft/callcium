@@ -32,7 +32,7 @@ import {
   type ConstraintInput,
   type OperatorRule,
   type ParamNode,
-} from "@/tools/policy-builder";
+} from "@/tools/policy-builder/builder-engine";
 
 // Both context properties are 32-byte elementary types despite address being 20 bytes on-chain.
 const CTX_ADDRESS: TypeInfo = { typeCode: TypeCode.ADDRESS, isDynamic: false, staticSize: 32 };

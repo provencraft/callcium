@@ -1,14 +1,33 @@
-import { ContextProperty, Quantifier } from "@callcium/sdk";
+import { ContextProperty, Op, PolicyCoder, type ScalarValue, Quantifier } from "@callcium/sdk";
 import { describe, expect, it } from "vitest";
+import { formatOpLabel } from "../../../lib/format-path";
 import {
   createSession,
   addConstraint,
+  getOperatorLabel,
   getOperatorOptions,
   removeConstraint,
   addGroup,
   removeGroup,
   type ConstraintInput,
 } from "../builder-engine";
+
+///////////////////////////////////////////////////////////////////////////
+// Helpers
+///////////////////////////////////////////////////////////////////////////
+
+const ADDRESS_A = "0x1111111254eeb25477b68fb85ed929f73a960582";
+const ADDRESS_B = "0x2222222222222222222222222222222222222222";
+
+/** Operands satisfying one operator against a target of the given Solidity type. */
+function operandsFor(method: string, targetType: string): ScalarValue[] {
+  if (method === "eqCtx" || method === "neqCtx") {
+    return [targetType === "address" ? ContextProperty.MSG_SENDER : ContextProperty.MSG_VALUE];
+  }
+  if (method === "isIn" || method === "notIn") return targetType === "address" ? [ADDRESS_A, ADDRESS_B] : [1n, 2n];
+  if (method === "between" || method === "lengthBetween") return [1n, 2n];
+  return [targetType === "address" ? ADDRESS_A : 1n];
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // Session creation
@@ -333,5 +352,42 @@ describe("group management", () => {
     const s2 = addGroup(s1);
     const s3 = removeGroup(s2, 1);
     expect(s3.groups).toHaveLength(1);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Operator dispatch
+///////////////////////////////////////////////////////////////////////////
+
+describe("operator dispatch", () => {
+  // One target per operator family: address covers equality and set ops, uint256 adds
+  // ordering and bitmask, bytes adds the length ops.
+  const session = createSession("f(address,uint256,bytes)");
+
+  const cases = session.params.flatMap((param) =>
+    getOperatorOptions(param.typeInfo).map((option) => ({
+      method: option.value,
+      argIndex: param.index,
+      targetType: param.type,
+    })),
+  );
+
+  it("reaches every operator the UI can offer", () => {
+    expect(new Set(cases.map((c) => c.method)).size).toBe(20);
+  });
+
+  it.each(cases)("encodes $method on $targetType", ({ method, argIndex, targetType }) => {
+    const next = addConstraint(session, 0, {
+      scope: "calldata",
+      path: [argIndex],
+      rules: [{ operator: method, values: operandsFor(method, targetType) }],
+    });
+    expect(next.errors).toEqual([]);
+    expect(next.hex).not.toBeNull();
+
+    // The encoded op must be the one the label promised, not a neighbour in the table.
+    const rule = PolicyCoder.inspect(next.hex!).groups[0].rules[0];
+    const opCode = rule.opCode.value;
+    expect(formatOpLabel(opCode & ~Op.NOT, (opCode & Op.NOT) !== 0)).toBe(getOperatorLabel(method));
   });
 });

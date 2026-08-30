@@ -14,7 +14,7 @@ import { CONTEXT_PROPERTIES } from "@/lib/format-path";
 import { formatViolation } from "@/lib/format-violation";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
-import { checkPolicy, type EnforceOutput } from "@/tools/policy-enforcer";
+import { checkPolicy, type EnforceOutput } from "@/tools/policy-enforcer/enforcer-engine";
 
 function tryParseBigInt(value: string): bigint | undefined {
   const trimmed = value.trim();

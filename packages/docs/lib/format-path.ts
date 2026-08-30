@@ -6,7 +6,7 @@ import {
   lookupQuantifier,
   lookupTypeCode,
 } from "@callcium/sdk";
-import type { ParamNode } from "@/tools/policy-builder";
+import type { ParamNode } from "@/tools/policy-builder/builder-engine";
 
 /** Canonical, SDK-derived list of context properties: code, camelCase key, display label, ABI type code. */
 export const CONTEXT_PROPERTIES = Object.values(ContextProperty).map((code) => ({
