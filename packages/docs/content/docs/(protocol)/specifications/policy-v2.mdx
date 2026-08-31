@@ -488,8 +488,8 @@ Lexicographic comparison of byte arrays: compare byte-by-byte from index 0. At t
 2. If `FLAG_NO_SELECTOR` is not set: verify selector in calldata matches policy selector; set `baseOffset = 4`.
 3. If `FLAG_NO_SELECTOR` is set: skip selector validation; set `baseOffset = 0`.
 4. Locate the groups region past the embedded descriptor (`descLength`).
-5. Evaluate groups in order; first passing group succeeds (OR semantics).
-6. Within each group, all rules must pass (AND semantics).
+5. Evaluate groups in stored order; the first passing group satisfies the policy (OR semantics).
+6. Within each group, all rules must pass (AND semantics). Rules evaluate in stored order; the first rule that produces a violation ends the group's evaluation, and only that violation's effect (Section 9.3) applies.
 
 ### 7.2 Rule Evaluation
 
@@ -677,7 +677,9 @@ Each violation code has a normative effect on evaluation:
 - **Group-local**: the containing group fails; evaluation continues with the next group.
 - **Abort**: evaluation stops; the policy rejects without evaluating further groups.
 
-Enforcers MUST produce the same accept/reject verdict for identical policy, calldata, and context. Control flow and reporting MAY differ: a fail-fast enforcer that stops at the first failure and a collect-all enforcer that reports every violation of the evaluated groups are both conformant, provided the verdict is identical.
+Only violations reached by the evaluation order of Section 7.1 have an effect: a group's first violation fixes that group's outcome, and whether a later rule of the same group would have produced a group-local or an abort violation never influences the verdict.
+
+Enforcers MUST produce the same accept/reject verdict for identical policy, calldata, and context. Reporting MAY differ: an enforcer MAY evaluate additional rules or groups to collect diagnostics, but such evaluation has no verdict effect.
 
 ***
 
