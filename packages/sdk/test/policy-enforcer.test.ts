@@ -416,7 +416,7 @@ describe("enforce (throwing)", () => {
 describe("applyOperator - unknown opcode", () => {
   test("throws CallciumError for unrecognized base opcode", () => {
     const operand = new Uint8Array(32);
-    expect(() => applyOperator(0x30, 42n, 32, operand, TypeCode.UINT_MAX)).toThrow(CallciumError);
+    expect(() => applyOperator(0x30, 42n, 32n, operand, TypeCode.UINT_MAX)).toThrow(CallciumError);
   });
 });
 

@@ -128,7 +128,7 @@ function isIn(value: bigint, data: Uint8Array): boolean {
 export function applyOperator(
   opCode: number,
   value: bigint,
-  valueLength: number,
+  valueLength: bigint,
   operandData: Uint8Array,
   typeCode: number,
 ): boolean {
@@ -138,7 +138,7 @@ export function applyOperator(
   // value and the opcode maps onto its EQ/GT/LT/GTE/LTE/BETWEEN twin. Counts are non-negative,
   // so the comparison is always unsigned — force an unsigned type code regardless of the target.
   if (isLengthOp(base)) {
-    value = BigInt(valueLength);
+    value = valueLength;
     typeCode = TypeCode.UINT_MAX;
     base = lengthToValueOp(base);
   }

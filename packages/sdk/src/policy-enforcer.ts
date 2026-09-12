@@ -1,5 +1,5 @@
 import { hexToBytes, bytesToHex, readU16, readU32, bigintToHex, toAddress } from "./bytes";
-import { loadWord, readPointer } from "./calldata-reader";
+import { loadWord, readLength, readPointer } from "./calldata-reader";
 import { PolicyFormat as PF, Scope, MAX_CONTEXT_PROPERTY_ID, Op, TypeCode, lookupContextProperty } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
 import { applyOperator, toBigInt, isLengthOp, isLengthValidType, canonicalize, classifyTypeCode } from "./operators";
@@ -225,8 +225,8 @@ function chainResolve(
     const meta = readU16(hint, hop + PF.HINT_HOP_META_OFFSET);
     let elems = base;
     if ((meta & PF.HINT_META_DYNAMIC_ARRAY) !== 0) {
-      const length = readPointer(callData, elems);
-      if (typeof length !== "number") return length;
+      const length = readLength(callData, elems);
+      if (typeof length !== "bigint") return length;
       if (index >= length) return { code: "ARRAY_INDEX_OUT_OF_BOUNDS" };
       elems += 32;
     }
@@ -275,16 +275,16 @@ function evalTarget(
     if (!isLengthOp(opCode)) {
       throw new CallciumError("OPERATOR_TARGET_MISMATCH", "Value operator on a target without a scalar word");
     }
-    const length = readPointer(callData, target);
-    if (typeof length !== "number") return { error: length.code };
+    const length = readLength(callData, target);
+    if (typeof length !== "bigint") return { error: length.code };
 
     // The declared payload of `length` items must lie within calldata past the length word.
     const stride = typeCode === TypeCode.DYNAMIC_ARRAY ? (block.targetMeta & PF.HINT_META_STRIDE_MASK) * 32 : 1;
     const room = callData.length - (target + 32);
-    if (stride !== 0 && length > Math.floor(room / stride)) return { error: "CALLDATA_OUT_OF_BOUNDS" };
+    if (stride !== 0 && length > BigInt(Math.floor(room / stride))) return { error: "CALLDATA_OUT_OF_BOUNDS" };
 
     const passed = applyOperator(opCode, 0n, length, operandData, typeCode);
-    return { passed, value: BigInt(length) };
+    return { passed, value: length };
   }
 
   if (classifyTypeCode(typeCode).typeClass !== "elementary") {
@@ -305,7 +305,7 @@ function evalTarget(
     return { passed, value, ctxOperand: operand };
   }
 
-  const passed = applyOperator(opCode, value, 32, operandData, typeCode);
+  const passed = applyOperator(opCode, value, 32n, operandData, typeCode);
   return { passed, value };
 }
 
@@ -480,24 +480,25 @@ function evaluateQuantified(
   let elems = chained + arrayDelta;
 
   // A frame declaring no count spans a dynamic array, whose length word precedes its elements.
-  let count = readU16(hint, frameOffset + PF.HINT_FRAME_COUNT_OFFSET);
-  if (count === 0) {
-    const length = readPointer(callDataBytes, elems);
-    if (typeof length !== "number") return navigationViolation(frame, length.code);
-    count = length;
+  let elementCount = BigInt(readU16(hint, frameOffset + PF.HINT_FRAME_COUNT_OFFSET));
+  if (elementCount === 0n) {
+    const length = readLength(callDataBytes, elems);
+    if (typeof length !== "bigint") return navigationViolation(frame, length.code);
+    elementCount = length;
     elems += 32;
   }
 
-  if (count > PF.MAX_QUANTIFIED_ARRAY_LENGTH) {
+  if (elementCount > BigInt(PF.MAX_QUANTIFIED_ARRAY_LENGTH)) {
     return {
       group: groupIndex,
       rule: ruleIndex,
       code: "QUANTIFIER_LIMIT_EXCEEDED",
       scope: Scope.CALLDATA,
       path: pathHex,
-      resolvedValue: bigintToHex(BigInt(count)),
+      resolvedValue: bigintToHex(elementCount),
     };
   }
+  const count = Number(elementCount);
 
   const isUniversal = kind === PF.HINT_KIND_ALL;
   if (count === 0) {
@@ -630,7 +631,7 @@ function evaluateContextRule(
     result = (value === operand) !== ((opCode & Op.NOT) !== 0);
     ctxOperand = operand;
   } else {
-    result = applyOperator(opCode, value, 32, operandData, propertyInfo.typeCode);
+    result = applyOperator(opCode, value, 32n, operandData, propertyInfo.typeCode);
   }
 
   if (!result) {

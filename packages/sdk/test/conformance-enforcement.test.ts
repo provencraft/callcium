@@ -58,9 +58,14 @@ function parseContext(ctx: VectorContext): Context {
     result.txOrigin = toAddress(ctx.txOrigin);
   }
 
-  result.msgValue = parseUint(ctx.msgValue);
-  result.baseFee = parseUint(ctx.baseFee);
-  result.gasPrice = parseUint(ctx.gasPrice);
+  const msgValue = parseUint(ctx.msgValue);
+  if (msgValue !== undefined) result.msgValue = msgValue;
+
+  const baseFee = parseUint(ctx.baseFee);
+  if (baseFee !== undefined) result.baseFee = baseFee;
+
+  const gasPrice = parseUint(ctx.gasPrice);
+  if (gasPrice !== undefined) result.gasPrice = gasPrice;
 
   return result;
 }
