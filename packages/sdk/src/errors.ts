@@ -1,8 +1,9 @@
 /**
  * Machine-readable error code for structural decoding and validation failures.
  *
- * Each code names one invariant and matches the Solidity error raised for the same
- * invariant, transliterated from `PascalCase` to `SCREAMING_SNAKE_CASE`.
+ * Each code names one invariant. Where Solidity detects the same invariant, the code is its error
+ * name transliterated from `PascalCase` to `SCREAMING_SNAKE_CASE`. The codes under "Inputs and
+ * validation" have no counterpart: they name input a Solidity signature cannot express.
  */
 export type CallciumErrorCode =
   // Policy and descriptor framing.
@@ -72,6 +73,7 @@ export type CallciumErrorCode =
   // Inputs and validation.
   | "UNKNOWN_QUANTIFIER"
   | "INVALID_HEX"
+  | "MALFORMED_SELECTOR"
   | "VALIDATION_ERROR";
 
 /**

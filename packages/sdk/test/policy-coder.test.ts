@@ -13,6 +13,9 @@ import type { Constraint, Hex, PolicyData } from "../src/types";
 // Encode check order
 ///////////////////////////////////////////////////////////////////////////
 
+/** A minimal calldata rule: arg 0 equals zero. */
+const eqZeroRule: Constraint = { scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.EQ, 0n)] };
+
 /** Build PolicyData around `groups`, defaulting the descriptor to a single uint256 param. */
 function policyData(groups: Constraint[][], descriptor?: Hex): PolicyData {
   return {
@@ -48,8 +51,31 @@ describe("PolicyCoder.encode check order", () => {
 
 describe("PolicyCoder.encode descriptor guards", () => {
   test("rejects a descriptor declaring a param it does not hold", () => {
-    const rule: Constraint = { scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.EQ, 0n)] };
-    expectErrorCode(() => PolicyCoder.encode(policyData([[rule]], "0x0201")), "UNEXPECTED_END");
+    expectErrorCode(() => PolicyCoder.encode(policyData([[eqZeroRule]], "0x0201")), "UNEXPECTED_END");
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Encode selector width
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyCoder.encode selector width", () => {
+  /** Build PolicyData carrying `selector` in the blob. */
+  function withSelector(selector: Hex): PolicyData {
+    return { ...policyData([[eqZeroRule]]), isSelectorless: false, selector };
+  }
+
+  test("accepts a selector the width of the field", () => {
+    expect(PolicyCoder.decode(PolicyCoder.encode(withSelector("0xaabbccdd"))).selector).toBe("0xaabbccdd");
+  });
+
+  test.each<Hex>(["0x", "0xaabbcc", "0xaabbccddee"])("rejects selector %s", (selector) => {
+    expectErrorCode(() => PolicyCoder.encode(withSelector(selector)), "MALFORMED_SELECTOR");
+  });
+
+  test("ignores the field when the policy is selectorless", () => {
+    const data: PolicyData = { ...policyData([[eqZeroRule]]), selector: "0xaabbcc" };
+    expect(PolicyCoder.decode(PolicyCoder.encode(data)).selector).toBe("0x00000000");
   });
 });
 

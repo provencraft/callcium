@@ -547,7 +547,13 @@ function encode(data: PolicyData): Hex {
     encodedGroups.sort((a, b) => compareBytes(hashes.get(a)!, hashes.get(b)!));
   }
 
-  const selectorBytes = data.isSelectorless ? new Uint8Array(4) : hexToBytes(data.selector);
+  const selectorBytes = data.isSelectorless ? new Uint8Array(PF.SELECTOR_SIZE) : hexToBytes(data.selector);
+  if (selectorBytes.length !== PF.SELECTOR_SIZE) {
+    throw new CallciumError(
+      "MALFORMED_SELECTOR",
+      `Selector must be ${PF.SELECTOR_SIZE} bytes, got ${selectorBytes.length}`,
+    );
+  }
 
   const headerByte = PF.VERSION | (data.isSelectorless ? PF.FLAG_NO_SELECTOR : 0);
 
