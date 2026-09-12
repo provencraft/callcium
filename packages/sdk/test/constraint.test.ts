@@ -231,6 +231,16 @@ describe(".isIn() / .notIn()", () => {
     expect(word3).toBe(3n);
   });
 
+  test("orders members by their encoded words, not by signed value", () => {
+    const data = arg(0).isIn([-1n, 5n]).operators[0].slice(4);
+    expect(BigInt(`0x${data.slice(0, 64)}`)).toBe(5n);
+    expect(BigInt(`0x${data.slice(64)}`)).toBe(2n ** 256n - 1n);
+  });
+
+  test("treats a negative member and its unsigned alias as one member", () => {
+    expect(arg(0).isIn([-1n, 2n ** 256n - 1n]).operators[0]).toHaveLength(2 + 2 + 64);
+  });
+
   test(".notIn([1n, 2n]) — opCode=0x87", () => {
     const op = arg(0).notIn([1n, 2n]).operators[0];
     expect(op.slice(2, 4)).toBe((Op.IN | Op.NOT).toString(16).padStart(2, "0"));

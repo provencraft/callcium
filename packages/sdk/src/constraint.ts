@@ -94,14 +94,17 @@ function checkContextPropertyId(contextPropertyId: number): number {
 
 /** Convert values to bigint, sort ascending (unsigned), deduplicate, and pack as set payload. */
 function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
-  const bigs = values.map((v) => {
-    if (typeof v === "bigint" || typeof v === "number") return toWordValue(v);
+  // PWF-21 orders members by their 32-byte encodings, so a negative operand and its unsigned
+  // alias are one member at one position. Normalising after the domain check keeps an
+  // out-of-range value an error rather than folding it into the word.
+  const words = values.map((v) => {
+    if (typeof v === "bigint" || typeof v === "number") return BigInt.asUintN(256, toWordValue(v));
     if (typeof v === "boolean") return v ? 1n : 0n;
     // String address.
     return BigInt("0x" + addressBody(v));
   });
 
-  const deduped = [...new Set(bigs)].toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const deduped = [...new Set(words)].toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   if (deduped.length === 0) {
     throw new CallciumError("EMPTY_SET", "Set must contain at least one value");
