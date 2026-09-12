@@ -480,28 +480,27 @@ function evaluateQuantified(
   let elems = chained + arrayDelta;
 
   // A frame declaring no count spans a dynamic array, whose length word precedes its elements.
-  let elementCount = BigInt(readU16(hint, frameOffset + PF.HINT_FRAME_COUNT_OFFSET));
-  if (elementCount === 0n) {
+  let count = BigInt(readU16(hint, frameOffset + PF.HINT_FRAME_COUNT_OFFSET));
+  if (count === 0n) {
     const length = readLength(callDataBytes, elems);
     if (typeof length !== "bigint") return navigationViolation(frame, length.code);
-    elementCount = length;
+    count = length;
     elems += 32;
   }
 
-  if (elementCount > BigInt(PF.MAX_QUANTIFIED_ARRAY_LENGTH)) {
+  if (count > BigInt(PF.MAX_QUANTIFIED_ARRAY_LENGTH)) {
     return {
       group: groupIndex,
       rule: ruleIndex,
       code: "QUANTIFIER_LIMIT_EXCEEDED",
       scope: Scope.CALLDATA,
       path: pathHex,
-      resolvedValue: bigintToHex(elementCount),
+      resolvedValue: bigintToHex(count),
     };
   }
-  const count = Number(elementCount);
 
   const isUniversal = kind === PF.HINT_KIND_ALL;
-  if (count === 0) {
+  if (count === 0n) {
     if (isUniversal) return null;
     return {
       group: groupIndex,

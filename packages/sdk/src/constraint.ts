@@ -21,7 +21,7 @@ const OPERAND_MAX = 2n ** 256n - 1n;
  * @throws {CallciumError} When a number carries no exact integer value, or the integer lies outside
  * the word's range.
  */
-function toWordValue(value: bigint | number): bigint {
+function toOperandValue(value: bigint | number): bigint {
   if (typeof value === "number" && !Number.isSafeInteger(value)) {
     throw new CallciumError("MALFORMED_OPERAND", `Operand must be a safe integer, got ${value}`);
   }
@@ -53,7 +53,7 @@ function encodeWord(value: ScalarValue): Uint8Array {
   }
 
   // A negative operand occupies the word in two's complement, which is the signed target's encoding.
-  let bigValue = toWordValue(value);
+  let bigValue = toOperandValue(value);
   for (let i = 31; i >= 0; i--) {
     word[i] = Number(bigValue & 0xffn);
     bigValue >>= 8n;
@@ -72,15 +72,15 @@ function singleOp(opCode: number, value: ScalarValue): Hex {
 /** Pack a range operator (opCode byte + min word + max word). */
 function rangeOp(opCode: number, min: bigint | number, max: bigint | number): Hex {
   // Order compares the operands as written; the encoded words of a signed range run the other way.
-  const low = toWordValue(min);
-  const high = toWordValue(max);
-  if (low > high) {
-    throw new CallciumError("INVALID_RANGE", `Range min (${low}) must not exceed max (${high})`);
+  const minValue = toOperandValue(min);
+  const maxValue = toOperandValue(max);
+  if (minValue > maxValue) {
+    throw new CallciumError("INVALID_RANGE", `Range min (${minValue}) must not exceed max (${maxValue})`);
   }
   const buffer = new Uint8Array(65);
   buffer[0] = opCode;
-  buffer.set(encodeWord(low), 1);
-  buffer.set(encodeWord(high), 33);
+  buffer.set(encodeWord(minValue), 1);
+  buffer.set(encodeWord(maxValue), 33);
   return bytesToHex(buffer);
 }
 
@@ -98,7 +98,7 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   // alias are one member at one position. Normalising after the domain check keeps an
   // out-of-range value an error rather than folding it into the word.
   const words = values.map((v) => {
-    if (typeof v === "bigint" || typeof v === "number") return BigInt.asUintN(256, toWordValue(v));
+    if (typeof v === "bigint" || typeof v === "number") return BigInt.asUintN(256, toOperandValue(v));
     if (typeof v === "boolean") return v ? 1n : 0n;
     // String address.
     return BigInt("0x" + addressBody(v));
