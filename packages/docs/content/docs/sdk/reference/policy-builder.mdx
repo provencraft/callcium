@@ -91,7 +91,7 @@ Build the policy into an encoded binary blob with strict validation.
 Throws on any issue, regardless of severity. Use validate to
 inspect issues, or buildUnsafe to encode without validation.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L201)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L203)
 
 ```ts
 function build(): templateLiteral;
@@ -107,7 +107,7 @@ Build the policy into an encoded binary blob without validation.
 The resulting policy may be invalid. Prefer build; use this
 only to knowingly bypass a reported issue.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L218)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L220)
 
 ```ts
 function buildUnsafe(): templateLiteral;
@@ -121,7 +121,7 @@ function buildUnsafe(): templateLiteral;
 
 Validate the policy without encoding.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L227)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L229)
 
 ```ts
 function validate(): Issue[];

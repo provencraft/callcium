@@ -197,6 +197,8 @@ export class PolicyBuilder {
    * @returns The policy as a 0x-prefixed hex string.
    * @throws {CallciumError} If any group is empty.
    * @throws {ValidationError} If validation finds any issue.
+   * @throws {CallciumError} With code `RULE_SIZE_OVERFLOW` when a rule's encoded bytes exceed the
+   * width of the rule size field.
    */
   build(): Hex {
     this.checkGroups();
