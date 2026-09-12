@@ -7,6 +7,7 @@ import { decodePolicy } from "./policy-coder";
 
 import type { ReadResult } from "./calldata-reader";
 import type {
+  Address,
   Context,
   DecodedRule,
   EnforceResult,
@@ -29,9 +30,19 @@ const abortViolationCodes: ReadonlySet<ViolationCode> = new Set<ViolationCode>([
   "QUANTIFIER_LIMIT_EXCEEDED",
 ]);
 
-/** Validate a hex address and read it as a 256-bit bigint. */
-function addressToBigInt(hex: string): bigint {
-  return BigInt(toAddress(hex));
+/**
+ * Read a supplied context value as the 32-byte word that carries it.
+ * @throws {CallciumError} When an integer lies outside the range a 32-byte word represents.
+ */
+function contextValueToWord(value: bigint | Address): bigint {
+  if (typeof value === "string") return BigInt(toAddress(value));
+  if (BigInt.asUintN(256, value) !== value) {
+    throw new CallciumError(
+      "CONTEXT_VALUE_OVERFLOW",
+      `Context value ${value} is outside the range a 32-byte word represents`,
+    );
+  }
+  return value;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -44,7 +55,8 @@ function addressToBigInt(hex: string): bigint {
  * @param callData - ABI-encoded call data as 0x-prefixed hex string.
  * @param context - Optional execution context for context-scoped rules.
  * @returns Pass with matched group index, or fail with one violation per evaluated failing group.
- * @throws {CallciumError} If the policy blob is structurally malformed.
+ * @throws {CallciumError} If the policy blob is structurally malformed, or a context value a rule
+ * reads is not an address or an integer a 32-byte word represents.
  */
 function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
   const { policy: decoded, data: policyBytes } = decodePolicy(policy);
@@ -111,7 +123,8 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
  * @param callData - ABI-encoded call data as 0x-prefixed hex string.
  * @param context - Optional execution context for context-scoped rules.
  * @throws {PolicyViolationError} If the policy rejects the call data.
- * @throws {CallciumError} If the policy blob is structurally malformed.
+ * @throws {CallciumError} If the policy blob is structurally malformed, or a context value a rule
+ * reads is not an address or an integer a 32-byte word represents.
  */
 function enforce(policy: Hex, callData: Hex, context?: Context): void {
   const result = check(policy, callData, context);
@@ -173,7 +186,7 @@ function resolveContextOperand(operandData: Uint8Array, context?: Context): bigi
   const propertyInfo = lookupContextProperty(Number(toBigInt(operandData, 0)));
   const value = context?.[propertyInfo.contextKey];
   if (value === undefined) return { ctxTypeCode: propertyInfo.typeCode };
-  return typeof value === "string" ? addressToBigInt(value) : value;
+  return contextValueToWord(value);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -604,12 +617,7 @@ function evaluateContextRule(
     };
   }
 
-  let value: bigint;
-  if (typeof contextValue === "string") {
-    value = addressToBigInt(contextValue);
-  } else {
-    value = contextValue;
-  }
+  const value = contextValueToWord(contextValue);
 
   let result: boolean;
   let ctxOperand: bigint | undefined;

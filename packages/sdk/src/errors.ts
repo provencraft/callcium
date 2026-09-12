@@ -77,6 +77,7 @@ export type CallciumErrorCode =
   | "MALFORMED_OPERAND"
   | "MALFORMED_PATH_STEP"
   | "OPERAND_OVERFLOW"
+  | "CONTEXT_VALUE_OVERFLOW"
   | "VALIDATION_ERROR";
 
 /**

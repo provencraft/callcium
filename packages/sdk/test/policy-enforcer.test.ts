@@ -1013,6 +1013,13 @@ describe("enforce - context numeric properties", () => {
     assertPassed(result);
   });
 
+  test("rejects a context value outside the range a 32-byte word represents", () => {
+    const policy = PolicyBuilder.createRaw("uint256").add(msgValue().lte(1000n)).add(arg(0).eq(42n)).build();
+    const callData = encodeRawUint256(42n);
+    expectRejects(() => PolicyEnforcer.check(policy, callData, { msgValue: -1n }), "CONTEXT_VALUE_OVERFLOW");
+    expectRejects(() => PolicyEnforcer.check(policy, callData, { msgValue: 2n ** 256n }), "CONTEXT_VALUE_OVERFLOW");
+  });
+
   test("context txOrigin check works", () => {
     const policy = PolicyBuilder.createRaw("uint256")
       .add(txOrigin().eq("0x0000000000000000000000000000000000000001"))
