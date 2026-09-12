@@ -44,11 +44,19 @@ export function lookupQuantifier(code: number): QuantifierInfo {
 // Path steps
 ///////////////////////////////////////////////////////////////////////////
 
-/** Encode a sequence of uint16 path steps as a big-endian hex string. */
+/**
+ * Encode a sequence of uint16 path steps as a big-endian hex string.
+ * @throws {CallciumError} When a step is not an integer the field holds. A wrapped step would
+ * address a different argument, or land on a quantifier sentinel.
+ */
 export function encodePath(steps: readonly number[]): Hex {
   const buffer = new Uint8Array(steps.length * 2);
   for (let i = 0; i < steps.length; i++) {
-    writeBE16(buffer, i * 2, steps[i]!);
+    const step = steps[i]!;
+    if (!Number.isInteger(step) || step < 0 || step > PF.MAX_PATH_STEP) {
+      throw new CallciumError("MALFORMED_PATH_STEP", `Path step ${step} is outside the path step field`);
+    }
+    writeBE16(buffer, i * 2, step);
   }
   return bytesToHex(buffer);
 }

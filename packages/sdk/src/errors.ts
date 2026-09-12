@@ -75,6 +75,7 @@ export type CallciumErrorCode =
   | "INVALID_HEX"
   | "MALFORMED_SELECTOR"
   | "MALFORMED_OPERAND"
+  | "MALFORMED_PATH_STEP"
   | "OPERAND_OVERFLOW"
   | "VALIDATION_ERROR";
 

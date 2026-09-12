@@ -31,6 +31,9 @@ export const DescriptorFormat = {
 /** Byte width of a rule's data length field. */
 const RULE_DATALENGTH_SIZE = 2;
 
+/** Byte width of one path step. */
+const PATH_STEP_SIZE = 2;
+
 /** Binary layout constants and normative limits for the Callcium policy format. */
 export const PolicyFormat = {
   VERSION: 0x02,
@@ -51,7 +54,7 @@ export const PolicyFormat = {
   RULE_SCOPE_OFFSET: 2,
   RULE_DEPTH_OFFSET: 3,
   RULE_PATH_OFFSET: 4,
-  PATH_STEP_SIZE: 2,
+  PATH_STEP_SIZE,
   RULE_OPCODE_SIZE: 1,
   RULE_DATALENGTH_SIZE,
   RULE_FIXED_OVERHEAD: 7,
@@ -83,6 +86,7 @@ export const PolicyFormat = {
   MAX_PATH_DEPTH: 32,
   MAX_QUANTIFIED_ARRAY_LENGTH: 256,
   MAX_SET_MEMBERS: Math.floor((256 ** RULE_DATALENGTH_SIZE - 1) / 32),
+  MAX_PATH_STEP: 256 ** PATH_STEP_SIZE - 1,
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { Quantifier, isQuantifier, lookupQuantifier, parsePathSteps } from "../src/path";
+import { Quantifier, encodePath, isQuantifier, lookupQuantifier, parsePathSteps } from "../src/path";
 import { expectErrorCode } from "./helpers";
 
 describe("parsePathSteps", () => {
@@ -30,6 +30,20 @@ describe("parsePathSteps", () => {
 
   test("byte length that is not a whole number of steps throws MALFORMED_PATH", () => {
     expectErrorCode(() => parsePathSteps("0x000000"), "MALFORMED_PATH");
+  });
+});
+
+describe("encodePath", () => {
+  test("encodes ordinary steps and both quantifier sentinels", () => {
+    expect(encodePath([0, 1])).toBe("0x00000001");
+    expect(encodePath([0, Quantifier.ALL])).toBe("0x0000ffff");
+    expect(encodePath([0, Quantifier.ANY])).toBe("0x0000fffe");
+  });
+
+  test("rejects a step the field cannot hold", () => {
+    expectErrorCode(() => encodePath([-1]), "MALFORMED_PATH_STEP");
+    expectErrorCode(() => encodePath([0x10000]), "MALFORMED_PATH_STEP");
+    expectErrorCode(() => encodePath([1.5]), "MALFORMED_PATH_STEP");
   });
 });
 
