@@ -132,6 +132,48 @@ describe(".between()", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
+// Operand domain
+///////////////////////////////////////////////////////////////////////////
+
+describe("operand domain", () => {
+  const INT256_MIN = -(2n ** 255n);
+  const UINT256_MAX = 2n ** 256n - 1n;
+
+  test("accepts the widest signed and unsigned operands", () => {
+    expect(arg(0).eq(INT256_MIN).operators).toHaveLength(1);
+    expect(arg(0).eq(UINT256_MAX).operators).toHaveLength(1);
+  });
+
+  test("a negative operand keeps its two's-complement word", () => {
+    expect(arg(0).eq(-1n).operators[0]).toBe(`0x${Op.EQ.toString(16).padStart(2, "0")}${"ff".repeat(32)}`);
+  });
+
+  test("rejects an operand outside the word's range", () => {
+    expectErrorCode(() => arg(0).eq(UINT256_MAX + 1n), "OPERAND_OVERFLOW");
+    expectErrorCode(() => arg(0).eq(INT256_MIN - 1n), "OPERAND_OVERFLOW");
+  });
+
+  test("rejects a number carrying no exact integer", () => {
+    expectErrorCode(() => arg(0).eq(1.5), "MALFORMED_OPERAND");
+    expectErrorCode(() => arg(0).eq(2 ** 53 + 1), "MALFORMED_OPERAND");
+  });
+
+  test("guards every operand of a range", () => {
+    expectErrorCode(() => arg(0).between(0n, 2n ** 256n), "OPERAND_OVERFLOW");
+    expectErrorCode(() => arg(0).between(1.5, 2), "MALFORMED_OPERAND");
+  });
+
+  test("guards every member of a set", () => {
+    expectErrorCode(() => arg(0).isIn([1n, 2n ** 256n]), "OPERAND_OVERFLOW");
+  });
+
+  test("orders a range by the operands as written, not by their encoded words", () => {
+    expect(arg(0).between(-1n, 5n).operators).toHaveLength(1);
+    expectErrorCode(() => arg(0).between(5n, -1n), "INVALID_RANGE");
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
 // Boolean and address encoding
 ///////////////////////////////////////////////////////////////////////////
 

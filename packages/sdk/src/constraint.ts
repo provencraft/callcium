@@ -12,6 +12,26 @@ import type { Hex, Constraint } from "./types";
 /** Accepted scalar value types for operator arguments. */
 export type ScalarValue = bigint | number | boolean | string;
 
+// Bounds of the integers a 32-byte operand word represents, spanning signed and unsigned targets.
+const OPERAND_MIN = -(2n ** 255n);
+const OPERAND_MAX = 2n ** 256n - 1n;
+
+/**
+ * Narrow a numeric operand to the integers a 32-byte word represents.
+ * @throws {CallciumError} When a number carries no exact integer value, or the integer lies outside
+ * the word's range.
+ */
+function toWordValue(value: bigint | number): bigint {
+  if (typeof value === "number" && !Number.isSafeInteger(value)) {
+    throw new CallciumError("MALFORMED_OPERAND", `Operand must be a safe integer, got ${value}`);
+  }
+  const big = BigInt(value);
+  if (big < OPERAND_MIN || big > OPERAND_MAX) {
+    throw new CallciumError("OPERAND_OVERFLOW", `Operand ${big} is outside the range a 32-byte word represents`);
+  }
+  return big;
+}
+
 /** Strip an optional 0x prefix and validate a 40-hex-char (20-byte) address body. */
 function addressBody(value: string): string {
   return toAddress(value).slice(2);
@@ -32,8 +52,8 @@ function encodeWord(value: ScalarValue): Uint8Array {
     return word;
   }
 
-  // bigint | number — unsigned 256-bit big-endian.
-  let bigValue = typeof value === "number" ? BigInt(value) : value;
+  // A negative operand occupies the word in two's complement, which is the signed target's encoding.
+  let bigValue = toWordValue(value);
   for (let i = 31; i >= 0; i--) {
     word[i] = Number(bigValue & 0xffn);
     bigValue >>= 8n;
@@ -50,14 +70,17 @@ function singleOp(opCode: number, value: ScalarValue): Hex {
 }
 
 /** Pack a range operator (opCode byte + min word + max word). */
-function rangeOp(opCode: number, min: bigint, max: bigint): Hex {
-  if (min > max) {
-    throw new CallciumError("INVALID_RANGE", `Range min (${min}) must not exceed max (${max})`);
+function rangeOp(opCode: number, min: bigint | number, max: bigint | number): Hex {
+  // Order compares the operands as written; the encoded words of a signed range run the other way.
+  const low = toWordValue(min);
+  const high = toWordValue(max);
+  if (low > high) {
+    throw new CallciumError("INVALID_RANGE", `Range min (${low}) must not exceed max (${high})`);
   }
   const buffer = new Uint8Array(65);
   buffer[0] = opCode;
-  buffer.set(encodeWord(min), 1);
-  buffer.set(encodeWord(max), 33);
+  buffer.set(encodeWord(low), 1);
+  buffer.set(encodeWord(high), 33);
   return bytesToHex(buffer);
 }
 
@@ -72,8 +95,7 @@ function checkContextPropertyId(contextPropertyId: number): number {
 /** Convert values to bigint, sort ascending (unsigned), deduplicate, and pack as set payload. */
 function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   const bigs = values.map((v) => {
-    if (typeof v === "bigint") return v;
-    if (typeof v === "number") return BigInt(v);
+    if (typeof v === "bigint" || typeof v === "number") return toWordValue(v);
     if (typeof v === "boolean") return v ? 1n : 0n;
     // String address.
     return BigInt("0x" + addressBody(v));
@@ -171,7 +193,7 @@ export class ConstraintBuilder implements Constraint {
    * @throws {CallciumError} If min > max.
    */
   between(min: bigint | number, max: bigint | number): this {
-    return this.push(rangeOp(Op.BETWEEN, BigInt(min), BigInt(max)));
+    return this.push(rangeOp(Op.BETWEEN, min, max));
   }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -248,7 +270,7 @@ export class ConstraintBuilder implements Constraint {
    * @throws {CallciumError} If min > max.
    */
   lengthBetween(min: bigint | number, max: bigint | number): this {
-    return this.push(rangeOp(Op.LENGTH_BETWEEN, BigInt(min), BigInt(max)));
+    return this.push(rangeOp(Op.LENGTH_BETWEEN, min, max));
   }
 }
 

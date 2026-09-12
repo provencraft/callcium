@@ -74,6 +74,8 @@ export type CallciumErrorCode =
   | "UNKNOWN_QUANTIFIER"
   | "INVALID_HEX"
   | "MALFORMED_SELECTOR"
+  | "MALFORMED_OPERAND"
+  | "OPERAND_OVERFLOW"
   | "VALIDATION_ERROR";
 
 /**
