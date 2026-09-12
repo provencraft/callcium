@@ -16,7 +16,7 @@ import { bytesToHex } from "../src/bytes";
 import { MAX_CONTEXT_PROPERTY_ID } from "../src/constants";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { PolicyValidator } from "../src/policy-validator";
-import { op, rangeOp, inOp } from "./helpers";
+import { expectErrorCode, op, rangeOp, inOp } from "./helpers";
 
 import type { Constraint, Hex, Issue, PolicyData } from "../src/types";
 
@@ -1048,6 +1048,24 @@ describe("PolicyValidator - malformed descriptors", () => {
       groups: [[constraint]],
     };
     expect(() => PolicyValidator.validate(data)).toThrow(CallciumError);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Malformed operators
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyValidator - malformed operators", () => {
+  test("throws INVALID_HEX on non-hex operator characters", () => {
+    const opcode = rawPolicy("uint256", Scope.CALLDATA, "0x0000", ["0xzz"]);
+    expectErrorCode(() => PolicyValidator.validate(opcode), "INVALID_HEX");
+    const payload = rawPolicy("uint256", Scope.CALLDATA, "0x0000", [`0x01${"zz".repeat(32)}`]);
+    expectErrorCode(() => PolicyValidator.validate(payload), "INVALID_HEX");
+  });
+
+  test("throws INVALID_OPERATOR_BYTES on an operator carrying no opcode", () => {
+    const data = rawPolicy("uint256", Scope.CALLDATA, "0x0000", ["0x"]);
+    expectErrorCode(() => PolicyValidator.validate(data), "INVALID_OPERATOR_BYTES");
   });
 });
 

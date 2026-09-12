@@ -11,6 +11,7 @@ import {
   isLengthValidType,
   classifyTypeCode,
   isValidOperatorData,
+  toOperatorBytes,
 } from "./operators";
 import { Quantifier, isQuantifier, parsePathSteps } from "./path";
 import * as ValidationIssue from "./validation-issue";
@@ -856,11 +857,13 @@ function validateConstraint(
   const underAny = constraint.scope === Scope.CALLDATA && ctx.steps.includes(Quantifier.ANY);
 
   for (const opHex of operators) {
-    const opCode = parseInt(opHex.slice(2, 4), 16);
+    // Every later read slices the hex, so the operator is established as bytes first.
+    const opBytes = toOperatorBytes(opHex);
+    const opCode = opBytes[0]!;
     const base = opCode & ~Op.NOT;
 
     // An unassigned opcode or mismatched payload size has no defined semantics to analyze.
-    const dataLength = (opHex.length - 4) / 2;
+    const dataLength = opBytes.length - 1;
     if (dataLength > 0xffff || !isValidOperatorData(base, dataLength)) {
       issues.push(
         ValidationIssue.fromOpRule(

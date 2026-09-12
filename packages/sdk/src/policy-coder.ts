@@ -5,7 +5,14 @@ import { DescriptorFormat as DF, PolicyFormat as PF, Scope, Op, TypeCode, MAX_CO
 import { Descriptor } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError } from "./errors";
-import { isLengthOp, isLengthValidType, toBigInt, isAddressableTarget, isValidOperatorData } from "./operators";
+import {
+  isLengthOp,
+  isLengthValidType,
+  toBigInt,
+  isAddressableTarget,
+  isValidOperatorData,
+  toOperatorBytes,
+} from "./operators";
 import { parsePathSteps } from "./path";
 
 import type {
@@ -397,12 +404,7 @@ type Rule = { scope: number; path: Uint8Array; operator: Uint8Array; hint: Uint8
 
 /** Flatten a Constraint into one Rule per operator, compiling its hint against the descriptor. */
 function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
-  const operators = constraint.operators.map(hexToBytes);
-  for (const operator of operators) {
-    if (operator.length < 1) {
-      throw new CallciumError("INVALID_OPERATOR_BYTES", "Operator must have at least one byte (opcode)");
-    }
-  }
+  const operators = constraint.operators.map(toOperatorBytes);
 
   const path = hexToBytes(constraint.path);
 

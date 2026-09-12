@@ -1,5 +1,8 @@
+import { hexToBytes } from "./bytes";
 import { Op, TypeCode, operandsOf } from "./constants";
 import { CallciumError } from "./errors";
+
+import type { Hex } from "./types";
 
 /** Read a big-endian 256-bit unsigned integer from a 32-byte window. */
 export function toBigInt(bytes: Uint8Array, offset = 0): bigint {
@@ -215,6 +218,20 @@ export function isValidOperatorData(opBase: number, dataLength: number): boolean
   if (operands === "range") return dataLength === 64;
   if (operands === "variadic") return dataLength > 0 && dataLength % 32 === 0;
   return false;
+}
+
+/**
+ * Read an operator's encoding as bytes: one opcode byte followed by its data payload.
+ * @param operator - 0x-prefixed hex string holding a single operator.
+ * @returns The operator's bytes, opcode first.
+ * @throws {CallciumError} If the hex is malformed or carries no opcode byte.
+ */
+export function toOperatorBytes(operator: Hex): Uint8Array {
+  const bytes = hexToBytes(operator);
+  if (bytes.length < 1) {
+    throw new CallciumError("INVALID_OPERATOR_BYTES", "Operator must have at least one byte (opcode)");
+  }
+  return bytes;
 }
 
 ///////////////////////////////////////////////////////////////////////////
