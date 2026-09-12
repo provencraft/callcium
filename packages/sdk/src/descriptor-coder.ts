@@ -202,6 +202,7 @@ function parseType(input: string, start: number, end: number): Uint8Array {
  * @returns Binary descriptor bytes starting with the version+paramCount header.
  * @throws {CallciumError} With code `MALFORMED_TYPE_STRING` for malformed input.
  * @throws {CallciumError} With code `UNKNOWN_TYPE` for unrecognised type names.
+ * @throws {CallciumError} With code `NESTING_TOO_DEEP` when composite nesting exceeds `MAX_NESTING_DEPTH`.
  */
 function fromTypes(typesCsv: string): Uint8Array {
   if (typesCsv === "") {
@@ -231,6 +232,8 @@ function fromTypes(typesCsv: string): Uint8Array {
     result.set(desc, offset);
     offset += desc.length;
   }
+  // Nesting depth is a property of the assembled descriptor, not of any single node.
+  decodeDescriptor(result);
   return result;
 }
 

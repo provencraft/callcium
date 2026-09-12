@@ -335,6 +335,17 @@ describe("decodeDescriptor nesting depth", () => {
   });
 });
 
+describe("DescriptorCoder.fromTypes nesting depth", () => {
+  test("accepts array nesting at the maximum depth", () => {
+    expect(decodeParamCount(DescriptorCoder.fromTypes(`uint256${"[]".repeat(DF.MAX_NESTING_DEPTH)}`))).toBe(1);
+  });
+
+  test("rejects array nesting beyond the maximum depth", () => {
+    const types = `uint256${"[]".repeat(DF.MAX_NESTING_DEPTH + 1)}`;
+    expectErrorCode(() => DescriptorCoder.fromTypes(types), "NESTING_TOO_DEEP");
+  });
+});
+
 ///////////////////////////////////////////////////////////////////////////
 // Reserved zero type code
 ///////////////////////////////////////////////////////////////////////////

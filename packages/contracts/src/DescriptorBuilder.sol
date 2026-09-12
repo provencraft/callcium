@@ -51,6 +51,8 @@ library DescriptorBuilder {
         desc = draft.buffer.data;
         require(desc.length >= DF.HEADER_SIZE, MalformedDescriptor());
         desc[DF.HEADER_PARAMCOUNT_OFFSET] = bytes1(draft.paramCount);
+        // Nesting depth is a property of the assembled descriptor, not of any single node.
+        Descriptor.validate(desc);
     }
 
     /// @notice Adds a top-level parameter with the given type descriptor.

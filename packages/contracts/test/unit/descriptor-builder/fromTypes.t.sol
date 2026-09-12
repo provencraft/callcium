@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { DescriptorBuilderTest } from "../DescriptorBuilder.t.sol";
+import { Descriptor } from "src/Descriptor.sol";
 import { DescriptorBuilder } from "src/DescriptorBuilder.sol";
 import { DescriptorFormat as DF } from "src/DescriptorFormat.sol";
 import { TypeDesc } from "src/TypeDesc.sol";
@@ -346,5 +347,20 @@ contract FromTypesTest is DescriptorBuilderTest {
     function test_RevertWhen_CharactersFollowArraySuffix() public {
         vm.expectRevert(DescriptorBuilder.MalformedTypeString.selector);
         DescriptorBuilder.fromTypes("(uint256,address)[]extra");
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                  NESTING DEPTH
+    /////////////////////////////////////////////////////////////////////////*/
+
+    function test_NestingAtMaxDepth() public pure {
+        bytes memory desc = DescriptorBuilder.fromTypes(_nestedArrays(DF.MAX_NESTING_DEPTH));
+        assertEq(Descriptor.paramCount(desc), 1);
+    }
+
+    function test_RevertWhen_NestingTooDeep() public {
+        uint256 offset = DF.HEADER_SIZE + DF.MAX_NESTING_DEPTH * DF.ARRAY_HEADER_SIZE;
+        vm.expectRevert(abi.encodeWithSelector(Descriptor.NestingTooDeep.selector, offset));
+        DescriptorBuilder.fromTypes(_nestedArrays(DF.MAX_NESTING_DEPTH + 1));
     }
 }
