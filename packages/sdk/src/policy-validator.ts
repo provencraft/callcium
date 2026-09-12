@@ -9,7 +9,7 @@ import {
   isSigned,
   isLengthOp,
   isLengthValidType,
-  classifyTypeCode,
+  isElementary,
   isValidOperatorData,
   toOperatorBytes,
 } from "./operators";
@@ -163,7 +163,7 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: IssueCode; mes
     if (isDynamic || staticSize !== 32) {
       return { code: "VALUE_OP_ON_DYNAMIC", message: "Value operator used on dynamic type" };
     }
-    if (classifyTypeCode(typeCode).typeClass !== "elementary") {
+    if (!isElementary(typeCode)) {
       return { code: "VALUE_OP_ON_COMPOSITE", message: "Value operator used on composite type" };
     }
     if (isComparisonOp(opBase) && !isNumericType(typeCode)) {

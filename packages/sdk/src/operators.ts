@@ -282,6 +282,20 @@ export function classifyTypeCode(code: number): TypeClassInfo {
 }
 
 /**
+ * Determine whether a type code names an elementary type.
+ * @param code - A single-byte descriptor type code.
+ * @returns True for an elementary code; false for a composite or unassigned one.
+ */
+export function isElementary(code: number): boolean {
+  try {
+    // An undefined code is reported by a throw, and names no elementary type either way.
+    return classifyTypeCode(code).typeClass === "elementary";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Determine whether a type code names a value an operator can read: a scalar word or a declared
  * length. Tuples, static arrays, and undefined codes address nothing.
  * @param code - A single-byte descriptor type code.

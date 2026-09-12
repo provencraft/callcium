@@ -19,6 +19,7 @@ const dynamicBytes: TypeInfo = { typeCode: TypeCode.BYTES, isDynamic: true, stat
 const string_: TypeInfo = { typeCode: TypeCode.STRING, isDynamic: true, staticSize: 0 };
 const dynamicArray: TypeInfo = { typeCode: TypeCode.DYNAMIC_ARRAY, isDynamic: true, staticSize: 0 };
 const tuple: TypeInfo = { typeCode: TypeCode.TUPLE, isDynamic: false, staticSize: 64 };
+const unassigned: TypeInfo = { typeCode: TypeCode.TUPLE + 1, isDynamic: false, staticSize: 32 };
 
 ///////////////////////////////////////////////////////////////////////////
 // Context reference operator (EQ_CTX)
@@ -207,5 +208,18 @@ describe("isOpAllowed - unknown opcodes", () => {
   test("returns false for unknown op code", () => {
     expect(isOpAllowed(0xff, uint256)).toBe(false);
     expect(isOpAllowed(0x30, address)).toBe(false);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Unassigned type codes
+///////////////////////////////////////////////////////////////////////////
+
+describe("isOpAllowed - unassigned type codes", () => {
+  test("returns false for every operator class", () => {
+    expect(isOpAllowed(Op.EQ, unassigned)).toBe(false);
+    expect(isOpAllowed(Op.GT, unassigned)).toBe(false);
+    expect(isOpAllowed(Op.BITMASK_ALL, unassigned)).toBe(false);
+    expect(isOpAllowed(Op.LENGTH_EQ, unassigned)).toBe(false);
   });
 });
