@@ -7,13 +7,13 @@ description: "ABI descriptor model and coder."
 
 Inspect and navigate raw descriptor bytes.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L388)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L416)
 
 ### Methods
 
 ### paramCount
 
-Return paramCount from header byte 1.
+Return the declared top-level parameter count.
 
 ```ts
 function paramCount(desc: Uint8Array): number;
@@ -152,8 +152,6 @@ function staticArrayLength(desc: Uint8Array, offset: number): number;
 ### nodeLength
 
 Return the byte length of the node at `offset`.
-Elementary nodes occupy exactly one byte; composite nodes encode their
-length in the lower 12 bits of the 24-bit meta field.
 
 ```ts
 function nodeLength(desc: Uint8Array, offset: number): number;
@@ -232,7 +230,7 @@ function compileHint(desc: Uint8Array, steps: number[]): Uint8Array;
 
 Encode and decode descriptors.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor-coder.ts#L459)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor-coder.ts#L427)
 
 ### Methods
 
@@ -280,4 +278,4 @@ function toTypes(desc: Uint8Array): string;
 
 Structural type information extracted from a descriptor node.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L11)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L12)

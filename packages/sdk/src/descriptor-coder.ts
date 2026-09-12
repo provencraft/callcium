@@ -1,6 +1,6 @@
-import { readU16, readU24 } from "./bytes";
+import { readU16 } from "./bytes";
 import { DescriptorFormat as DF, TypeCode } from "./constants";
-import { Descriptor } from "./descriptor";
+import { Descriptor, readNode } from "./descriptor";
 import { CallciumError } from "./errors";
 import { classifyTypeCode, lookupTypeCode } from "./operators";
 import { address, array, bool, bytes, bytesN, function_, intN, string_, tuple, uintN } from "./type-desc";
@@ -240,7 +240,7 @@ function fromTypes(typesCsv: string): Uint8Array {
 
 /** Reconstruct an ABI type string from a descriptor node at the given offset. */
 function nodeToTypeString(desc: Uint8Array, offset: number): string {
-  const typeCode = desc[offset]!;
+  const { typeCode } = Descriptor.inspect(desc, offset);
 
   if (typeCode === TypeCode.TUPLE) {
     const fieldCount = Descriptor.tupleFieldCount(desc, offset);
@@ -296,21 +296,14 @@ type ParseResult = { typeCode: number; isDynamic: boolean; staticSize: number; n
 
 /** Recursively parse a single descriptor node starting at offset. */
 function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult {
-  if (offset >= data.length) {
-    throw new CallciumError("UNEXPECTED_END", "Unexpected end of descriptor", offset);
-  }
-
-  const code = data[offset]!;
+  const { typeCode: code, staticWords, nodeLength } = readNode(data, offset);
   const info = classifyTypeCode(code);
-  const metaOffset = offset + DF.TYPECODE_SIZE;
+  const isDynamic = staticWords === 0;
+  const staticSize = isDynamic ? 0 : staticWords * 32;
+  const nodeEnd = offset + nodeLength;
 
   if (info.typeClass === "elementary") {
-    return {
-      typeCode: code,
-      isDynamic: info.isDynamic,
-      staticSize: info.isDynamic ? 0 : 32,
-      next: metaOffset,
-    };
+    return { typeCode: code, isDynamic, staticSize, next: nodeEnd };
   }
 
   // Only composites nest; a leaf below the deepest allowed composite is fine.
@@ -322,33 +315,8 @@ function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult
     );
   }
 
-  const metaEnd = metaOffset + DF.COMPOSITE_META_SIZE;
-  if (metaEnd > data.length) {
-    throw new CallciumError("UNEXPECTED_END", "Incomplete composite metadata", offset);
-  }
-
-  const meta = readU24(data, metaOffset);
-  const staticWords = meta >> DF.META_STATIC_WORDS_SHIFT;
-  const nodeLength = meta & DF.META_NODE_LENGTH_MASK;
-
-  const minHeader = info.typeClass === "tuple" ? DF.TUPLE_HEADER_SIZE : DF.ARRAY_HEADER_SIZE;
-  if (nodeLength < minHeader) {
-    throw new CallciumError(
-      "NODE_LENGTH_TOO_SMALL",
-      `Composite node length ${nodeLength} is smaller than minimum header ${minHeader}`,
-      offset,
-    );
-  }
-  if (offset + nodeLength > data.length) {
-    throw new CallciumError("NODE_OVERFLOW", "Composite node extends beyond descriptor", offset);
-  }
-
-  const isDynamic = staticWords === 0;
-  const staticSize = isDynamic ? 0 : staticWords * 32;
-  const nodeEnd = offset + nodeLength;
-
   if (info.typeClass === "tuple") {
-    const fieldCountOffset = metaEnd;
+    const fieldCountOffset = offset + DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE;
     if (fieldCountOffset + 2 > data.length) {
       throw new CallciumError("UNEXPECTED_END", "Incomplete tuple header", offset);
     }

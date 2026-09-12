@@ -1,6 +1,7 @@
 import { readU16, readU24, writeBE16, writeBE32 } from "./bytes";
 import { DescriptorFormat as DF, PolicyFormat as PF, TypeCode } from "./constants";
 import { CallciumError } from "./errors";
+import { classifyTypeCode } from "./operators";
 import { Quantifier, isQuantifier } from "./path";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -41,15 +42,51 @@ type HintWalk = {
 // Internal helpers
 ///////////////////////////////////////////////////////////////////////////
 
+/** A descriptor node's type code, static word count, and total byte length. */
+type Node = { typeCode: number; staticWords: number; nodeLength: number };
+
+/**
+ * Read the node at `offset`.
+ * Elementary nodes occupy exactly one byte; composite nodes encode their static
+ * word count and length in the 24-bit meta field that follows the type code.
+ * @throws {CallciumError} When the node starts past the descriptor, carries an undefined type code,
+ * or declares a length below its own header or beyond the descriptor.
+ */
+export function readNode(desc: Uint8Array, offset: number): Node {
+  if (offset >= desc.length) {
+    throw new CallciumError("UNEXPECTED_END", "Unexpected end of descriptor", offset);
+  }
+  const typeCode = desc[offset]!;
+  const info = classifyTypeCode(typeCode);
+  if (info.typeClass === "elementary") {
+    return { typeCode, staticWords: info.isDynamic ? 0 : 1, nodeLength: DF.TYPECODE_SIZE };
+  }
+
+  if (offset + DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE > desc.length) {
+    throw new CallciumError("UNEXPECTED_END", "Incomplete composite metadata", offset);
+  }
+  const meta = readU24(desc, offset + DF.TYPECODE_SIZE);
+  const length = meta & DF.META_NODE_LENGTH_MASK;
+  const minHeader = info.typeClass === "tuple" ? DF.TUPLE_HEADER_SIZE : DF.ARRAY_HEADER_SIZE;
+  if (length < minHeader) {
+    throw new CallciumError(
+      "NODE_LENGTH_TOO_SMALL",
+      `Composite node length ${length} is smaller than minimum header ${minHeader}`,
+      offset,
+    );
+  }
+  if (offset + length > desc.length) {
+    throw new CallciumError("NODE_OVERFLOW", "Composite node extends beyond descriptor", offset);
+  }
+  return { typeCode, staticWords: meta >> DF.META_STATIC_WORDS_SHIFT, nodeLength: length };
+}
+
 /**
  * Return the byte length of the node at `offset`.
- * Elementary nodes occupy exactly one byte; composite nodes encode their
- * length in the lower 12 bits of the 24-bit meta field.
+ * @throws {CallciumError} When the descriptor holds no readable node at `offset`.
  */
 function nodeLength(desc: Uint8Array, offset: number): number {
-  const typeCode = desc[offset]!;
-  if (typeCode < TypeCode.STATIC_ARRAY) return DF.TYPECODE_SIZE;
-  return readU24(desc, offset + 1) & DF.META_NODE_LENGTH_MASK;
+  return readNode(desc, offset).nodeLength;
 }
 
 /**
@@ -68,14 +105,20 @@ function tupleFieldOffset(desc: Uint8Array, tupleOffset: number, fieldIndex: num
 // Public interface
 ///////////////////////////////////////////////////////////////////////////
 
-/** Return paramCount from header byte 1. */
+/**
+ * Return the declared top-level parameter count.
+ * @throws {CallciumError} When the descriptor is too short to hold a header.
+ */
 function paramCount(desc: Uint8Array): number {
+  if (desc.length < DF.HEADER_SIZE) {
+    throw new CallciumError("MALFORMED_HEADER", "Descriptor too short for header");
+  }
   return desc[1]!;
 }
 
 /** Return byte offset of the N-th top-level param (0-indexed). */
 function paramOffset(desc: Uint8Array, index: number): number {
-  const count = desc[1]!;
+  const count = paramCount(desc);
   if (index >= count) {
     throw new CallciumError("PARAM_INDEX_OUT_OF_BOUNDS", `Param index ${index} out of range (paramCount=${count})`);
   }
@@ -91,17 +134,11 @@ function paramOffset(desc: Uint8Array, index: number): number {
  * @param desc - Raw descriptor bytes.
  * @param offset - Byte position of the node.
  * @returns typeCode, isDynamic, and staticSize in bytes.
+ * @throws {CallciumError} When the descriptor holds no readable node at `offset`.
  */
 function inspect(desc: Uint8Array, offset: number): TypeInfo {
-  const typeCode = desc[offset]!;
-  let staticWords: number;
-  if (typeCode < TypeCode.STATIC_ARRAY) {
-    staticWords = typeCode === TypeCode.BYTES || typeCode === TypeCode.STRING ? 0 : 1;
-  } else {
-    staticWords = readU24(desc, offset + 1) >> DF.META_STATIC_WORDS_SHIFT;
-  }
-  const isDynamic = staticWords === 0;
-  return { typeCode, isDynamic, staticSize: staticWords * 32 };
+  const { typeCode, staticWords } = readNode(desc, offset);
+  return { typeCode, isDynamic: staticWords === 0, staticSize: staticWords * 32 };
 }
 
 /**
@@ -134,16 +171,7 @@ function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quan
     throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
   }
 
-  const paramIndex = steps[0]!;
-  const count = desc[1]!;
-  if (paramIndex >= count) {
-    throw new CallciumError(
-      "PARAM_INDEX_OUT_OF_BOUNDS",
-      `Param index ${paramIndex} out of range (paramCount=${count})`,
-    );
-  }
-
-  let cursor = paramOffset(desc, paramIndex);
+  let cursor = paramOffset(desc, steps[0]!);
   let quantifiedStaticLength = 0;
 
   for (let stepIndex = 1; stepIndex < steps.length; stepIndex++) {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { bytesToHex } from "../src/bytes";
-import { TypeCode } from "../src/constants";
+import { DescriptorFormat as DF, TypeCode } from "../src/constants";
 import { Descriptor } from "../src/descriptor";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { Quantifier } from "../src/path";
@@ -20,6 +20,10 @@ describe("Descriptor.paramCount", () => {
   test("returns 0 for empty descriptor", () => {
     const desc = DescriptorCoder.fromTypes("");
     expect(Descriptor.paramCount(desc)).toBe(0);
+  });
+
+  test("throws MALFORMED_HEADER for a buffer too short to hold a header", () => {
+    expectErrorCode(() => Descriptor.paramCount(new Uint8Array(0)), "MALFORMED_HEADER");
   });
 });
 
@@ -59,6 +63,11 @@ describe("Descriptor.inspect", () => {
     expect(info.typeCode).toBe(TypeCode.TUPLE);
     expect(info.isDynamic).toBe(true);
     expect(info.staticSize).toBe(0);
+  });
+
+  test("throws UNEXPECTED_END for a node starting past the descriptor", () => {
+    const desc = new Uint8Array([DF.VERSION, 0x01]);
+    expectErrorCode(() => Descriptor.inspect(desc, DF.HEADER_SIZE), "UNEXPECTED_END");
   });
 });
 

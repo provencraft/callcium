@@ -5,7 +5,7 @@ import { MAX_CONTEXT_PROPERTY_ID, Op, PolicyFormat, Scope } from "../src/constan
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { PolicyCoder } from "../src/policy-coder";
 import { SignatureParser } from "../src/signature";
-import { expectErrorCode } from "./helpers";
+import { expectErrorCode, op } from "./helpers";
 
 import type { Constraint, Hex, PolicyData } from "../src/types";
 
@@ -39,6 +39,17 @@ describe("PolicyCoder.encode check order", () => {
     const oversized: Hex = `0x${"00".repeat(0x10000)}`;
     const contextRule: Constraint = { scope: Scope.CONTEXT, path: "0x0000", operators: [`0x01${"0".repeat(64)}`] };
     expectErrorCode(() => PolicyCoder.encode(policyData([[contextRule], []], oversized)), "DESC_LENGTH_OVERFLOW");
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Encode descriptor guards
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyCoder.encode descriptor guards", () => {
+  test("rejects a descriptor declaring a param it does not hold", () => {
+    const rule: Constraint = { scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.EQ, 0n)] };
+    expectErrorCode(() => PolicyCoder.encode(policyData([[rule]], "0x0201")), "UNEXPECTED_END");
   });
 });
 
