@@ -604,6 +604,13 @@ describe("PolicyValidator - context scope", () => {
     const issues = validate("uint256", (b) => b.add(msgValue().gte(100n)));
     expect(issues).toHaveLength(0);
   });
+
+  test("throws EMPTY_PATH on a path with no step, whichever scope carries it", () => {
+    const context = rawPolicy("uint256", Scope.CONTEXT, "0x", [op(Op.EQ, 1n)]);
+    expectErrorCode(() => PolicyValidator.validate(context), "EMPTY_PATH");
+    const calldata = rawPolicy("uint256", Scope.CALLDATA, "0x", [op(Op.EQ, 1n)]);
+    expectErrorCode(() => PolicyValidator.validate(calldata), "EMPTY_PATH");
+  });
 });
 
 ///////////////////////////////////////////////////////////////////////////

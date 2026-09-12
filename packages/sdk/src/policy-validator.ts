@@ -24,7 +24,6 @@ import type { Constraint, Hex, Issue, IssueCode, PolicyData } from "./types";
 
 /** Codes a path walk raises when the path does not navigate the descriptor (PV-1). */
 const navigabilityCodes: ReadonlySet<CallciumErrorCode> = new Set<CallciumErrorCode>([
-  "EMPTY_PATH",
   "PARAM_INDEX_OUT_OF_BOUNDS",
   "TUPLE_FIELD_OUT_OF_BOUNDS",
   "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS",
@@ -1033,6 +1032,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
 
     if (!ctx) {
       const steps = parsePathSteps(constraint.path);
+      if (steps.length === 0) throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
       let typeInfo: TypeInfo;
       if (constraint.scope === Scope.CALLDATA) {
         // Compatibility warnings against the limits the spec fixes (PWF-17, PV-7).
