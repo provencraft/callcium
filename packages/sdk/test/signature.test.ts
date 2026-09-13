@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { CallciumError } from "../src/errors";
 import { SignatureParser } from "../src/signature";
+import { expectErrorCode } from "./helpers";
 
 describe("SignatureParser", () => {
   test("parses transfer(address,uint256)", () => {
@@ -48,8 +49,20 @@ describe("SignatureParser", () => {
     expect(() => SignatureParser.parse("transfer\n(uint256)")).toThrow(CallciumError);
   });
 
-  test("rejects non-ASCII characters", () => {
-    expect(() => SignatureParser.parse("tránsfer(uint256)")).toThrow(CallciumError);
+  test("rejects a non-ASCII character in the function name", () => {
+    // Every character outside ASCII fails the same alphanumeric test the name already applies.
+    expectErrorCode(() => SignatureParser.parse("tránsfer(uint256)"), "INVALID_FUNCTION_NAME");
+  });
+
+  test("rejects an empty function name", () => {
+    expectErrorCode(() => SignatureParser.parse("(uint256)"), "INVALID_FUNCTION_NAME");
+  });
+
+  test("leaves a non-ASCII character between the parentheses to the type parser", () => {
+    // The selector hashes the signature's UTF-8 bytes, which is the preimage the contract hashes.
+    const result = SignatureParser.parse("foo(é)");
+    expect(result.selector).toBe("0x4cc3fd17");
+    expect(result.types).toBe("é");
   });
 
   test("accepts underscore-prefixed function name", () => {

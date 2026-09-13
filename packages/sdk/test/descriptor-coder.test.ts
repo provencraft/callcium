@@ -185,6 +185,33 @@ describe("DescriptorCoder.fromTypes", () => {
     expectErrorCode(() => DescriptorCoder.fromTypes("bytes33"), "UNKNOWN_TYPE");
   });
 
+  test("bare width prefix throws UNKNOWN_TYPE", () => {
+    // A prefix carrying no width names no type; it is not a width spelled wrongly.
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint"), "UNKNOWN_TYPE");
+    expectErrorCode(() => DescriptorCoder.fromTypes("int"), "UNKNOWN_TYPE");
+  });
+
+  test("unknown base under an array suffix throws UNKNOWN_TYPE", () => {
+    // The base is read before the suffix length, so the unknown base is what gets reported.
+    expectErrorCode(() => DescriptorCoder.fromTypes("foo[x]"), "UNKNOWN_TYPE");
+  });
+
+  test("leading array suffix throws UNKNOWN_TYPE", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("[]uint256"), "UNKNOWN_TYPE");
+  });
+
+  test("unbalanced brackets throw MALFORMED_TYPE_STRING", () => {
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[3"), "MALFORMED_TYPE_STRING");
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[]]"), "MALFORMED_TYPE_STRING");
+  });
+
+  test("a closer with nothing open throws MALFORMED_TYPE_STRING, not an unknown type", () => {
+    // The segment scan carries the balance invariant; without it the stray closer is swallowed into
+    // a segment and reported as the type it is not.
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[],]uint8"), "MALFORMED_TYPE_STRING");
+    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[],(uint8"), "MALFORMED_TYPE_STRING");
+  });
+
   test("malformed tuple '(' throws MALFORMED_TYPE_STRING", () => {
     expectErrorCode(() => DescriptorCoder.fromTypes("("), "MALFORMED_TYPE_STRING");
   });

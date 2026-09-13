@@ -23,10 +23,16 @@ function commaPositions(input: string, start: number, end: number): number[] {
     if (char === "(" || char === "[") {
       depth++;
     } else if (char === ")" || char === "]") {
+      if (depth === 0) {
+        throw new CallciumError("MALFORMED_TYPE_STRING", `Unmatched '${char}' at position ${i}`);
+      }
       depth--;
     } else if (char === "," && depth === 0) {
       positions.push(i);
     }
+  }
+  if (depth !== 0) {
+    throw new CallciumError("MALFORMED_TYPE_STRING", `Unclosed '${input.slice(start, end)}'`);
   }
   return positions;
 }
@@ -131,9 +137,11 @@ function parseBaseType(input: string, start: number, end: number): Uint8Array {
   if (segment === "string") return string_();
   if (segment.startsWith("(")) return parseTuple(input, start, end);
 
-  if (segment.startsWith("uint")) return uintN(parseUint(input, start + 4, end));
-  if (segment.startsWith("int")) return intN(parseUint(input, start + 3, end));
-  if (segment.startsWith("bytes")) return bytesN(parseUint(input, start + 5, end));
+  // A prefix with no width after it spells no type, so it falls through to the unknown-type report
+  // rather than being read as a width that is not there.
+  if (segment.length > 4 && segment.startsWith("uint")) return uintN(parseUint(input, start + 4, end));
+  if (segment.length > 3 && segment.startsWith("int")) return intN(parseUint(input, start + 3, end));
+  if (segment.length > 5 && segment.startsWith("bytes")) return bytesN(parseUint(input, start + 5, end));
 
   throw new CallciumError("UNKNOWN_TYPE", `Unrecognised type '${segment}'`);
 }
@@ -153,9 +161,9 @@ function parseType(input: string, start: number, end: number): Uint8Array {
     throw new CallciumError("MALFORMED_TYPE_STRING", "Empty type segment");
   }
 
-  // Collect array suffixes by scanning backward.
-  // Each suffix is either `[]` (dynamic) or `[N]` (static with length N).
-  const suffixes: Array<number | undefined> = [];
+  // Locate array suffixes by scanning backward, reading no length yet: the base names the type, so
+  // an unrecognised one is reported before a suffix it carries is parsed.
+  const spans: Array<[number, number]> = [];
   let baseEnd = end;
 
   while (baseEnd > start && input[baseEnd - 1] === "]") {
@@ -168,24 +176,16 @@ function parseType(input: string, start: number, end: number): Uint8Array {
     if (input[openIndex] !== "[") {
       throw new CallciumError("MALFORMED_TYPE_STRING", `Unmatched ']' at position ${closeIndex}`);
     }
-    const innerStart = openIndex + 1;
-    const innerEnd = closeIndex;
-    // A dynamic array spells no length at all.
-    suffixes.unshift(innerStart === innerEnd ? undefined : parseUint(input, innerStart, innerEnd));
+    spans.unshift([openIndex + 1, closeIndex]);
     baseEnd = openIndex;
-  }
-
-  // Every `[` a base carries belongs to a suffix the scan above already took; one left behind is
-  // unclosed. A tuple base is exempt: the brackets inside it belong to its fields.
-  if (input[start] !== "(" && input.slice(start, baseEnd).includes("[")) {
-    throw new CallciumError("MALFORMED_TYPE_STRING", `Unmatched '[' in '${input.slice(start, baseEnd)}'`);
   }
 
   let desc = parseBaseType(input, start, baseEnd);
 
   // Apply suffixes left-to-right: the leftmost suffix is the outermost array.
-  for (const length of suffixes) {
-    desc = array(desc, length);
+  // A dynamic array spells no length at all.
+  for (const [innerStart, innerEnd] of spans) {
+    desc = array(desc, innerStart === innerEnd ? undefined : parseUint(input, innerStart, innerEnd));
   }
 
   return desc;
