@@ -1127,6 +1127,9 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
  * @returns All validation issues found, ordered by group and constraint index.
  * @throws {CallciumError} If the descriptor is not well-formed; semantic validation is
  * defined only over a well-formed descriptor.
+ * @throws {CallciumError} With code `EMPTY_PATH` when a constraint carries no path step, and
+ * `INVALID_HEX` or `INVALID_OPERATOR_BYTES` when an operator is not a readable encoding. Analysis
+ * is defined over canonical data, so these reject the input rather than report an issue on it.
  */
 function validate(data: PolicyData): Issue[] {
   const descBytes = hexToBytes(data.descriptor);
