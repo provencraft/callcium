@@ -605,6 +605,68 @@
     "builds": false
   },
   {
+    "id": "out-of-physical-bounds-neq",
+    "description": "neq(300) on uint8",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020101",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x81000000000000000000000000000000000000000000000000000000000000012c"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "OUT_OF_PHYSICAL_BOUNDS",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "out-of-physical-bounds-not-in-member",
+    "description": "notIn(5, 1000) on uint8",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020101",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x87000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000003e8"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "OUT_OF_PHYSICAL_BOUNDS",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
     "id": "impossible-gt",
     "description": "gt(255) on uint8",
     "policy": {
@@ -1216,6 +1278,37 @@
               "path": "0x0000",
               "operators": [
                 "0x200000000000000000000000000000000000000000000000000000000100000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "OUT_OF_PHYSICAL_LENGTH_BOUNDS",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "out-of-physical-length-bounds-neq",
+    "description": "negated lengthEq(2^32)",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020170",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0xa00000000000000000000000000000000000000000000000000000000100000000"
               ]
             }
           ]
@@ -3472,6 +3565,123 @@
       }
     ],
     "builds": false
+  },
+  {
+    "id": "bitmask-all-above-width",
+    "description": "bitmaskAll(256) on uint8, bit above the width",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020101",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x100000000000000000000000000000000000000000000000000000000000000100"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "BITMASK_CONTRADICTION",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "bitmask-any-above-width",
+    "description": "bitmaskAny(256) on uint8, every bit above the width",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020101",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x110000000000000000000000000000000000000000000000000000000000000100"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "BITMASK_ANY_IMPOSSIBLE",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "bitmask-none-above-width",
+    "description": "bitmaskNone(256) on uint8, every bit above the width",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020101",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x120000000000000000000000000000000000000000000000000000000000000100"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "REDUNDANT_BITMASK",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "bitmask-all-high-bit-bytes32",
+    "description": "bitmaskAll(1 << 255) on bytes32, no issues",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x02016f",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x108000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
   },
   {
     "id": "context-path-resembling-quantifier",

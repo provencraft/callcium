@@ -487,6 +487,10 @@ library PolicyValidator {
         // Negated equality (neq) is handled separately as a hole.
         if (isNegated) {
             if (base == OpCode.EQ) {
+                // A hole outside the type's domain excludes nothing.
+                if (_isOutsideDomain(domain, value)) {
+                    issues.push(ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, value));
+                }
                 if (domain.hasEq && domain.eq == value) {
                     issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, value));
                 }
@@ -515,7 +519,7 @@ library PolicyValidator {
         }
 
         // Physical bounds and impossibility.
-        if (_isLt(value, domain.min, domain.isSigned) || _isGt(value, domain.max, domain.isSigned)) {
+        if (_isOutsideDomain(domain, value)) {
             issues.push(ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, value));
         } else if (base == OpCode.GT && value == domain.max) {
             issues.push(ValidationIssue.impossibleGt(isLength, groupIndex, constraintIndex, value));
@@ -696,6 +700,14 @@ library PolicyValidator {
         private
         pure
     {
+        // Physical bounds: a member outside the type's domain never occurs, so it neither matches nor excludes
+        // anything.
+        for (uint256 i = 0; i < values.length; ++i) {
+            if (_isOutsideDomain(ctx.numeric, values[i])) {
+                issues.push(ValidationIssue.outOfPhysicalBounds(false, groupIndex, constraintIndex, values[i]));
+            }
+        }
+
         if (isNegated) {
             for (uint256 i = 0; i < values.length; ++i) {
                 uint256 value = values[i];
@@ -719,14 +731,6 @@ library PolicyValidator {
             }
             _checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
         } else {
-            // Physical bounds: a member outside the type's domain can never be matched.
-            for (uint256 i = 0; i < values.length; ++i) {
-                if (
-                    _isLt(values[i], ctx.numeric.min, ctx.numeric.isSigned)
-                        || _isGt(values[i], ctx.numeric.max, ctx.numeric.isSigned)
-                ) issues.push(ValidationIssue.outOfPhysicalBounds(false, groupIndex, constraintIndex, values[i]));
-            }
-
             if (ctx.numeric.hasEq) {
                 bool found = false;
                 for (uint256 i = 0; i < values.length; ++i) {
@@ -963,6 +967,9 @@ library PolicyValidator {
         ctx.numeric.isSigned = TypeRule.isSigned(typeInfo.code);
         (ctx.numeric.min, ctx.numeric.max) = TypeRule.getDomainLimits(typeInfo.code);
 
+        // Bits above the target's width are zero in every canonical value.
+        ctx.bitmask.mustBeZero = OpRule.isBitmaskCompatible(typeInfo.code) ? ~ctx.numeric.max : 0;
+
         ctx.length.min = 0;
         ctx.length.max = type(uint32).max;
     }
@@ -1052,5 +1059,10 @@ library PolicyValidator {
     function _isLte(uint256 a, uint256 b, bool isSigned) private pure returns (bool) {
         // forge-lint: disable-next-line(unsafe-typecast) intentional uint256->int256 reinterpret.
         return isSigned ? int256(a) <= int256(b) : a <= b;
+    }
+
+    /// @dev True when a value lies outside the domain's physical bounds.
+    function _isOutsideDomain(BoundDomain memory domain, uint256 value) private pure returns (bool) {
+        return _isLt(value, domain.min, domain.isSigned) || _isGt(value, domain.max, domain.isSigned);
     }
 }

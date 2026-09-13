@@ -92,6 +92,13 @@ function signedCompare(a: bigint, b: bigint, signed: boolean): bigint {
   return toS(a) - toS(b);
 }
 
+/** True when a value lies outside the domain's physical bounds. */
+function isOutsideDomain(domain: BoundDomain, value: bigint): boolean {
+  return (
+    signedCompare(value, domain.min, domain.isSigned) < 0n || signedCompare(value, domain.max, domain.isSigned) > 0n
+  );
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Type classification
 ///////////////////////////////////////////////////////////////////////////
@@ -304,7 +311,8 @@ function initContext(scope: number, path: Hex, steps: number[], typeInfo: TypeIn
     steps,
     typeInfo,
     numeric: emptyBoundDomain(isSigned(typeInfo.typeCode), min, max),
-    bitmask: { mustBeOne: 0n, mustBeZero: 0n },
+    // Bits above the target's width are zero in every canonical value.
+    bitmask: { mustBeOne: 0n, mustBeZero: isBitmaskCompatible(typeInfo.typeCode) ? UINT256_MAX ^ max : 0n },
     length: emptyBoundDomain(false, 0n, LENGTH_MAX),
     set: {
       hasIn: false,
@@ -331,6 +339,10 @@ function updateBound(
 ): void {
   if (isNegated) {
     if (base === Op.EQ) {
+      // A hole outside the type's domain excludes nothing.
+      if (isOutsideDomain(domain, value)) {
+        issues.push(ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, bigintToHex(value)));
+      }
       if (domain.hasEq && domain.eq === value) {
         issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, bigintToHex(value)));
       }
@@ -358,10 +370,7 @@ function updateBound(
   }
 
   // Physical bounds and impossibility.
-  if (
-    signedCompare(value, domain.min, domain.isSigned) < 0n ||
-    signedCompare(value, domain.max, domain.isSigned) > 0n
-  ) {
+  if (isOutsideDomain(domain, value)) {
     issues.push(ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, bigintToHex(value)));
   } else if (base === Op.GT && value === domain.max) {
     issues.push(ValidationIssue.impossibleGt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
@@ -681,6 +690,13 @@ function updateSet(
   constraintIndex: number,
   issues: Issue[],
 ): void {
+  // Physical bounds: a member outside the type's domain never occurs, so it neither matches nor excludes anything.
+  for (const value of values) {
+    if (isOutsideDomain(ctx.numeric, value)) {
+      issues.push(ValidationIssue.outOfPhysicalBounds(false, groupIndex, constraintIndex, bigintToHex(value)));
+    }
+  }
+
   if (isNegated) {
     for (const value of values) {
       if (ctx.numeric.hasEq && ctx.numeric.eq === value) {
@@ -702,16 +718,6 @@ function updateSet(
     }
     checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
   } else {
-    // Physical bounds: a member outside the type's domain can never be matched.
-    for (const value of values) {
-      if (
-        signedCompare(value, ctx.numeric.min, ctx.numeric.isSigned) < 0n ||
-        signedCompare(value, ctx.numeric.max, ctx.numeric.isSigned) > 0n
-      ) {
-        issues.push(ValidationIssue.outOfPhysicalBounds(false, groupIndex, constraintIndex, bigintToHex(value)));
-      }
-    }
-
     if (ctx.numeric.hasEq) {
       let found = false;
       for (const candidate of values) {
