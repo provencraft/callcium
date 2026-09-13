@@ -1791,5 +1791,97 @@
         "selector": "0x00000000"
       }
     }
+  },
+  {
+    "blob": "0x022fbebd380003020120010000000000ff0031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: group overruns the blob and declares no rules; the overrun is reported first",
+    "error": "GroupOverflow",
+    "errorArgs": [
+      "0x000000000000000000000000000000000000000000000000000000000000000b"
+    ],
+    "id": "group-overflow-precedes-empty-group",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x022fbebd380003020120010001000000090031050100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: rule overruns its group but not the blob and declares an undefined scope; the scope is reported first",
+    "error": "InvalidScope",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "invalid-scope-precedes-group-rule-overflow",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x01000000000000",
+    "description": "MUST reject: blob is exactly the header prefix and declares version nibble 1",
+    "error": "UnsupportedVersion",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000001"
+    ],
+    "id": "unsupported-version-at-header-prefix",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
+    "blob": "0x022fbebd380003020120010001000000090031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "MUST reject: rule is well-formed and inside the blob but overruns its declared group",
+    "error": "RuleOverflow",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "rule-overflow-within-blob",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
   }
 ]

@@ -130,7 +130,7 @@ function hintTargetTypeCode(data: Uint8Array, hintStart: number, hintSize: numbe
 /** Decode a policy blob, returning the structural representation and the blob bytes it spans. */
 export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Array } {
   const data = hexToBytes(blob);
-  if (data.length < PF.DESC_OFFSET + 1) {
+  if (data.length < PF.DESC_OFFSET) {
     throw new CallciumError("MALFORMED_HEADER", "Policy blob is too short");
   }
 
@@ -198,6 +198,10 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
     const groupBodyStart = offset + PF.GROUP_HEADER_SIZE;
     const groupEnd = groupBodyStart + groupSizeValue;
 
+    if (groupEnd > data.length) {
+      throw new CallciumError("GROUP_OVERFLOW", "Group extends beyond policy blob", offset);
+    }
+
     const ruleCountStart = offset;
     const ruleCountValue = readU16(data, ruleCountStart);
     if (ruleCountValue === 0) {
@@ -205,9 +209,6 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
     }
     if (groupSizeValue < ruleCountValue * PF.RULE_MIN_SIZE) {
       throw new CallciumError("GROUP_TOO_SMALL", "Declared group size is too small for its rule count", offset);
-    }
-    if (groupEnd > data.length) {
-      throw new CallciumError("GROUP_OVERFLOW", "Group extends beyond policy blob", offset);
     }
 
     const rules: DecodedRule[] = [];
@@ -226,8 +227,8 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
           ruleOffset,
         );
       }
-      if (ruleOffset + ruleSizeValue > groupEnd) {
-        throw new CallciumError("RULE_OVERFLOW", "Rule extends beyond group boundary", ruleOffset);
+      if (ruleOffset + ruleSizeValue > data.length) {
+        throw new CallciumError("RULE_OVERFLOW", "Rule extends beyond policy blob", ruleOffset);
       }
 
       const scopeOffset = ruleOffset + PF.RULE_SCOPE_OFFSET;
@@ -355,6 +356,9 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
         span: { start: ruleOffset, end: ruleOffset + ruleSizeValue },
       });
 
+      if (ruleOffset + ruleSizeValue > groupEnd) {
+        throw new CallciumError("RULE_OVERFLOW", "Rule extends beyond group boundary", ruleOffset);
+      }
       ruleOffset += ruleSizeValue;
     }
 
