@@ -94,6 +94,8 @@ export class CallciumError extends Error {
     super(`${prefix}${message}`);
     this.name = "CallciumError";
     this.code = code;
+    // The property is declared optional, so it stays absent rather than present and undefined.
+    if (offset !== undefined) this.offset = offset;
   }
 }
 
