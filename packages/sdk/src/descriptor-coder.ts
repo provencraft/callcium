@@ -397,11 +397,11 @@ export function decodeDescriptor(data: Uint8Array): { descriptor: DecodedDescrip
   let cursor: number = DF.HEADER_SIZE;
 
   while (cursor < data.length) {
-    if (params.length >= DF.MAX_PARAMS) {
+    const { typeCode, isDynamic, staticSize, next } = parseNode(data, cursor, 1);
+
+    if (params.length === DF.MAX_PARAMS) {
       throw new CallciumError("TOO_MANY_PARAMS", `Descriptor exceeds the maximum of ${DF.MAX_PARAMS} top-level params`);
     }
-
-    const { typeCode, isDynamic, staticSize, next } = parseNode(data, cursor, 1);
 
     params.push({
       index: params.length,
