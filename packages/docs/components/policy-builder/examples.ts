@@ -76,7 +76,7 @@ export const EXAMPLES = [
         config: {
           scope: "calldata",
           path: [0],
-          rules: [{ operator: "eqCtx", values: [ContextProperty.MSG_SENDER] }],
+          rules: [{ operator: "eqCtx", values: [BigInt(ContextProperty.MSG_SENDER)] }],
         },
       },
     ],

@@ -10,26 +10,21 @@ import type { Address, Hex, Constraint } from "./types";
 ///////////////////////////////////////////////////////////////////////////
 
 /** Accepted scalar value types for operator arguments. */
-export type ScalarValue = bigint | number | boolean | string;
+export type ScalarValue = bigint | boolean | string;
 
 // Bounds of the integers a 32-byte operand word represents, spanning signed and unsigned targets.
 const OPERAND_MIN = -(2n ** 255n);
 const OPERAND_MAX = 2n ** 256n - 1n;
 
 /**
- * Narrow a numeric operand to the integers a 32-byte word represents.
- * @throws {CallciumError} When a number carries no exact integer value, or the integer lies outside
- * the word's range.
+ * Require an operand within the integers a 32-byte word represents and return it.
+ * @throws {CallciumError} When the operand lies outside the word's range.
  */
-function toOperandValue(value: bigint | number): bigint {
-  if (typeof value === "number" && !Number.isSafeInteger(value)) {
-    throw new CallciumError("MALFORMED_OPERAND", `Operand must be a safe integer, got ${value}`);
+function checkOperandRange(value: bigint): bigint {
+  if (value < OPERAND_MIN || value > OPERAND_MAX) {
+    throw new CallciumError("OPERAND_OVERFLOW", `Operand ${value} is outside the range a 32-byte word represents`);
   }
-  const big = BigInt(value);
-  if (big < OPERAND_MIN || big > OPERAND_MAX) {
-    throw new CallciumError("OPERAND_OVERFLOW", `Operand ${big} is outside the range a 32-byte word represents`);
-  }
-  return big;
+  return value;
 }
 
 /** Strip an optional 0x prefix and validate a 40-hex-char (20-byte) address body. */
@@ -53,7 +48,7 @@ function encodeWord(value: ScalarValue): Uint8Array {
   }
 
   // A negative operand occupies the word in two's complement, which is the signed target's encoding.
-  let bigValue = toOperandValue(value);
+  let bigValue = checkOperandRange(value);
   for (let i = 31; i >= 0; i--) {
     word[i] = Number(bigValue & 0xffn);
     bigValue >>= 8n;
@@ -70,10 +65,10 @@ function singleOp(opCode: number, value: ScalarValue): Hex {
 }
 
 /** Pack a range operator (opCode byte + min word + max word). */
-function rangeOp(opCode: number, min: bigint | number, max: bigint | number): Hex {
+function rangeOp(opCode: number, min: bigint, max: bigint): Hex {
   // Order compares the operands as written; the encoded words of a signed range run the other way.
-  const minValue = toOperandValue(min);
-  const maxValue = toOperandValue(max);
+  const minValue = checkOperandRange(min);
+  const maxValue = checkOperandRange(max);
   if (minValue > maxValue) {
     throw new CallciumError("INVALID_RANGE", `Range min (${minValue}) must not exceed max (${maxValue})`);
   }
@@ -101,7 +96,7 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   // alias are one member at one position. Normalising after the domain check keeps an
   // out-of-range value an error rather than folding it into the word.
   const words = values.map((value) => {
-    if (typeof value === "bigint" || typeof value === "number") return BigInt.asUintN(256, toOperandValue(value));
+    if (typeof value === "bigint") return BigInt.asUintN(256, checkOperandRange(value));
     if (typeof value === "boolean") return value ? 1n : 0n;
     // String address.
     return BigInt("0x" + addressBody(value));
@@ -183,10 +178,9 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
    */
   private push(opHex: Hex, values: readonly ScalarValue[] = []): this {
     for (const value of values) {
-      if (typeof value !== "bigint" && typeof value !== "number") continue;
-      const written = BigInt(value);
-      if (written < this.operandExtremes.leastNegative) this.operandExtremes.leastNegative = written;
-      if (written > this.operandExtremes.greatest) this.operandExtremes.greatest = written;
+      if (typeof value !== "bigint") continue;
+      if (value < this.operandExtremes.leastNegative) this.operandExtremes.leastNegative = value;
+      if (value > this.operandExtremes.greatest) this.operandExtremes.greatest = value;
     }
     this.operators.push(opHex);
     return this;
@@ -208,31 +202,31 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
 
   /** Assert the value equals the context property `contextPropertyId`. */
   eqCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.EQ_CTX, checkContextPropertyId(contextPropertyId)));
+    return this.push(singleOp(Op.EQ_CTX, BigInt(checkContextPropertyId(contextPropertyId))));
   }
 
   /** Assert the value does not equal the context property `contextPropertyId`. */
   neqCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.EQ_CTX | Op.NOT, checkContextPropertyId(contextPropertyId)));
+    return this.push(singleOp(Op.EQ_CTX | Op.NOT, BigInt(checkContextPropertyId(contextPropertyId))));
   }
 
   /** Assert the value is greater than `bound`. */
-  gt(bound: bigint | number): this {
+  gt(bound: bigint): this {
     return this.push(singleOp(Op.GT, bound), [bound]);
   }
 
   /** Assert the value is less than `bound`. */
-  lt(bound: bigint | number): this {
+  lt(bound: bigint): this {
     return this.push(singleOp(Op.LT, bound), [bound]);
   }
 
   /** Assert the value is greater than or equal to `bound`. */
-  gte(bound: bigint | number): this {
+  gte(bound: bigint): this {
     return this.push(singleOp(Op.GTE, bound), [bound]);
   }
 
   /** Assert the value is less than or equal to `bound`. */
-  lte(bound: bigint | number): this {
+  lte(bound: bigint): this {
     return this.push(singleOp(Op.LTE, bound), [bound]);
   }
 
@@ -240,7 +234,7 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
    * Assert the value is within [min, max] inclusive.
    * @throws {CallciumError} If min > max.
    */
-  between(min: bigint | number, max: bigint | number): this {
+  between(min: bigint, max: bigint): this {
     return this.push(rangeOp(Op.BETWEEN, min, max), [min, max]);
   }
 
@@ -289,27 +283,27 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
   ///////////////////////////////////////////////////////////////////////////
 
   /** Assert the runtime length equals `length`. */
-  lengthEq(length: bigint | number): this {
+  lengthEq(length: bigint): this {
     return this.push(singleOp(Op.LENGTH_EQ, length));
   }
 
   /** Assert the runtime length is greater than `length`. */
-  lengthGt(length: bigint | number): this {
+  lengthGt(length: bigint): this {
     return this.push(singleOp(Op.LENGTH_GT, length));
   }
 
   /** Assert the runtime length is less than `length`. */
-  lengthLt(length: bigint | number): this {
+  lengthLt(length: bigint): this {
     return this.push(singleOp(Op.LENGTH_LT, length));
   }
 
   /** Assert the runtime length is greater than or equal to `length`. */
-  lengthGte(length: bigint | number): this {
+  lengthGte(length: bigint): this {
     return this.push(singleOp(Op.LENGTH_GTE, length));
   }
 
   /** Assert the runtime length is less than or equal to `length`. */
-  lengthLte(length: bigint | number): this {
+  lengthLte(length: bigint): this {
     return this.push(singleOp(Op.LENGTH_LTE, length));
   }
 
@@ -317,7 +311,7 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
    * Assert the runtime length is within [min, max] inclusive.
    * @throws {CallciumError} If min > max.
    */
-  lengthBetween(min: bigint | number, max: bigint | number): this {
+  lengthBetween(min: bigint, max: bigint): this {
     return this.push(rangeOp(Op.LENGTH_BETWEEN, min, max));
   }
 }

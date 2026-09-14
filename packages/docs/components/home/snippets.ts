@@ -92,7 +92,7 @@ bytes memory policy = PolicyBuilder
 // function batch(Transfer[] transfers)
 const policy = PolicyBuilder
     .create("batch((address,uint256)[])")
-    .add(arg(0).lengthBetween(1, 50))                    // transfers.length
+    .add(arg(0).lengthBetween(1n, 50n))                  // transfers.length
     .add(arg(0, Quantifier.ALL, 0).notIn(denied))        // transfers[*].to
     .add(arg(0, Quantifier.ALL, 1).lte(1n * 10n ** 18n)) // transfers[*].value
     .build();`,

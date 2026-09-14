@@ -14,7 +14,7 @@ import {
 import { CallciumError } from "../src/errors";
 import { expectErrorCode } from "./helpers";
 
-import type { ConstraintBuilder } from "../src/constraint";
+import type { ConstraintBuilder, ScalarValue } from "../src/constraint";
 import type { Address } from "../src/types";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -98,7 +98,6 @@ describe("context factories", () => {
     // operand stays as wide as the union until then.
     expectTypeOf(arg(0)).toEqualTypeOf<ConstraintBuilder>();
 
-    expect(arg(0).eq(1).operators).toHaveLength(1);
     expect(arg(0).eq(1n).operators).toHaveLength(1);
     expect(arg(0).eq(true).operators).toHaveLength(1);
     expect(arg(0).eq("0x0000000000000000000000000000000000000001").operators).toHaveLength(1);
@@ -183,6 +182,11 @@ describe("operand domain", () => {
   const INT256_MIN = -(2n ** 255n);
   const UINT256_MAX = 2n ** 256n - 1n;
 
+  test("an operand is a bigint, an address or a boolean", () => {
+    // Re-admitting number would restore the inexact-operand path this union exists to close.
+    expectTypeOf<ScalarValue>().toEqualTypeOf<bigint | boolean | string>();
+  });
+
   test("accepts the widest signed and unsigned operands", () => {
     expect(arg(0).eq(INT256_MIN).operators).toHaveLength(1);
     expect(arg(0).eq(UINT256_MAX).operators).toHaveLength(1);
@@ -197,14 +201,9 @@ describe("operand domain", () => {
     expectErrorCode(() => arg(0).eq(INT256_MIN - 1n), "OPERAND_OVERFLOW");
   });
 
-  test("rejects a number carrying no exact integer", () => {
-    expectErrorCode(() => arg(0).eq(1.5), "MALFORMED_OPERAND");
-    expectErrorCode(() => arg(0).eq(2 ** 53 + 1), "MALFORMED_OPERAND");
-  });
-
   test("guards every operand of a range", () => {
     expectErrorCode(() => arg(0).between(0n, 2n ** 256n), "OPERAND_OVERFLOW");
-    expectErrorCode(() => arg(0).between(1.5, 2), "MALFORMED_OPERAND");
+    expectErrorCode(() => arg(0).between(INT256_MIN - 1n, 0n), "OPERAND_OVERFLOW");
   });
 
   test("guards every member of a set", () => {

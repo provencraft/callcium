@@ -89,30 +89,30 @@ type OpMethod = {
   apply: (builder: SDKConstraintBuilder, values: ScalarValue[]) => void;
 };
 
-// Numeric operators take their operands as bigint | number; the UI parses them ahead of dispatch.
-const num = (value: ScalarValue) => value as bigint | number;
+// The UI parses every numeric operand to a bigint before dispatch; this narrows the union it carries.
+const big = (value: ScalarValue) => value as bigint;
 
 const OP_METHODS: readonly OpMethod[] = [
   { method: "eq", opCode: Op.EQ, apply: (b, v) => b.eq(v[0]) },
   { method: "neq", opCode: Op.EQ, negated: true, apply: (b, v) => b.neq(v[0]) },
   { method: "eqCtx", opCode: Op.EQ_CTX, apply: (b, v) => b.eqCtx(Number(v[0])) },
   { method: "neqCtx", opCode: Op.EQ_CTX, negated: true, apply: (b, v) => b.neqCtx(Number(v[0])) },
-  { method: "gt", opCode: Op.GT, apply: (b, v) => b.gt(num(v[0])) },
-  { method: "lt", opCode: Op.LT, apply: (b, v) => b.lt(num(v[0])) },
-  { method: "gte", opCode: Op.GTE, apply: (b, v) => b.gte(num(v[0])) },
-  { method: "lte", opCode: Op.LTE, apply: (b, v) => b.lte(num(v[0])) },
-  { method: "between", opCode: Op.BETWEEN, apply: (b, v) => b.between(num(v[0]), num(v[1])) },
+  { method: "gt", opCode: Op.GT, apply: (b, v) => b.gt(big(v[0])) },
+  { method: "lt", opCode: Op.LT, apply: (b, v) => b.lt(big(v[0])) },
+  { method: "gte", opCode: Op.GTE, apply: (b, v) => b.gte(big(v[0])) },
+  { method: "lte", opCode: Op.LTE, apply: (b, v) => b.lte(big(v[0])) },
+  { method: "between", opCode: Op.BETWEEN, apply: (b, v) => b.between(big(v[0]), big(v[1])) },
   { method: "isIn", opCode: Op.IN, apply: (b, v) => b.isIn(v) },
   { method: "notIn", opCode: Op.IN, negated: true, apply: (b, v) => b.notIn(v) },
-  { method: "bitmaskAll", opCode: Op.BITMASK_ALL, apply: (b, v) => b.bitmaskAll(v[0] as bigint) },
-  { method: "bitmaskAny", opCode: Op.BITMASK_ANY, apply: (b, v) => b.bitmaskAny(v[0] as bigint) },
-  { method: "bitmaskNone", opCode: Op.BITMASK_NONE, apply: (b, v) => b.bitmaskNone(v[0] as bigint) },
-  { method: "lengthEq", opCode: Op.LENGTH_EQ, apply: (b, v) => b.lengthEq(num(v[0])) },
-  { method: "lengthGt", opCode: Op.LENGTH_GT, apply: (b, v) => b.lengthGt(num(v[0])) },
-  { method: "lengthLt", opCode: Op.LENGTH_LT, apply: (b, v) => b.lengthLt(num(v[0])) },
-  { method: "lengthGte", opCode: Op.LENGTH_GTE, apply: (b, v) => b.lengthGte(num(v[0])) },
-  { method: "lengthLte", opCode: Op.LENGTH_LTE, apply: (b, v) => b.lengthLte(num(v[0])) },
-  { method: "lengthBetween", opCode: Op.LENGTH_BETWEEN, apply: (b, v) => b.lengthBetween(num(v[0]), num(v[1])) },
+  { method: "bitmaskAll", opCode: Op.BITMASK_ALL, apply: (b, v) => b.bitmaskAll(big(v[0])) },
+  { method: "bitmaskAny", opCode: Op.BITMASK_ANY, apply: (b, v) => b.bitmaskAny(big(v[0])) },
+  { method: "bitmaskNone", opCode: Op.BITMASK_NONE, apply: (b, v) => b.bitmaskNone(big(v[0])) },
+  { method: "lengthEq", opCode: Op.LENGTH_EQ, apply: (b, v) => b.lengthEq(big(v[0])) },
+  { method: "lengthGt", opCode: Op.LENGTH_GT, apply: (b, v) => b.lengthGt(big(v[0])) },
+  { method: "lengthLt", opCode: Op.LENGTH_LT, apply: (b, v) => b.lengthLt(big(v[0])) },
+  { method: "lengthGte", opCode: Op.LENGTH_GTE, apply: (b, v) => b.lengthGte(big(v[0])) },
+  { method: "lengthLte", opCode: Op.LENGTH_LTE, apply: (b, v) => b.lengthLte(big(v[0])) },
+  { method: "lengthBetween", opCode: Op.LENGTH_BETWEEN, apply: (b, v) => b.lengthBetween(big(v[0]), big(v[1])) },
 ];
 
 /** Look up the display label for an operator method name. */

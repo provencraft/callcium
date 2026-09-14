@@ -24,7 +24,7 @@ Array quantifiers and deeper nested access are covered in [Array Constraints](./
 
 `eq` and `neq` test exact equality. Both accept the 32-byte static types: `uint*`, `int*`, `address`, `bytes32`, `bool`. For boolean parameters, `eq(true)` and `eq(false)` are the only operators; there is no dedicated boolean operator.
 
-Address values are passed as `0x`-prefixed strings; numeric values as `bigint` or `number`.
+Address values are passed as `0x`-prefixed strings; numeric and `bytesN` values as `bigint`.
 
 ```ts
 import { PolicyBuilder, arg } from "@callcium/sdk";
@@ -53,7 +53,7 @@ const policy = PolicyBuilder
 
 `isIn` requires the value to match one element in a set. `notIn` requires it to match none.
 
-**Type restriction:** accepts arrays of 32-byte static values: addresses, `uint*`/`int*` (as `bigint` or `number`), and `bytes32` (hex strings). The builder sorts and deduplicates the set automatically. The set must have at least one element and no more than 2,047.
+**Type restriction:** accepts arrays of 32-byte static values: addresses (`0x`-prefixed strings), and `uint*`/`int*`/`bytes*` (as `bigint`). The builder sorts and deduplicates the set automatically. The set must have at least one element and no more than 2,047.
 
 Allowlists (`isIn`) are the safer default over denylists (`notIn`). An allowlist is bounded and exhaustive; a denylist can be bypassed by values not yet anticipated.
 
@@ -70,10 +70,14 @@ const policy = PolicyBuilder
   .build();
 ```
 
-Narrower types (`bytes4`, `uint16`, and similar) can be passed directly. The SDK handles canonical 32-byte encoding internally; no manual cast helper is required.
+Narrow numeric types (`uint16`, `int32`, and similar) are passed as `bigint` directly. A `bytesN` value occupies the leading bytes of its 32-byte word, so shift it into that position — an operand that is not the canonical encoding for the declared type is rejected.
 
 ```ts
-const allowedSelectors = ["0xa9059cbb", "0x095ea7b3"]; // transfer, approve
+// bytes4 occupies the leading 4 bytes of the word.
+const allowedSelectors = [
+  BigInt("0xa9059cbb") << 224n, // transfer
+  BigInt("0x095ea7b3") << 224n, // approve
+];
 
 // function dispatch(bytes4 selector, bytes payload)
 const policy = PolicyBuilder
@@ -121,11 +125,11 @@ import { PolicyBuilder, arg } from "@callcium/sdk";
 // function execute(address target, bytes data)
 const policy = PolicyBuilder
   .create("execute(address,bytes)")
-  .add(arg(1).lengthBetween(4, 256)) // data
+  .add(arg(1).lengthBetween(4n, 256n)) // data
   .build();
 ```
 
-`lengthBetween(4, 256)` ensures the payload is at least 4 bytes and imposes a hard upper bound on untrusted input size.
+`lengthBetween(4n, 256n)` ensures the payload is at least 4 bytes and imposes a hard upper bound on untrusted input size.
 
 ## Transaction context
 

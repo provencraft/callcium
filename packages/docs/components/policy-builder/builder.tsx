@@ -592,7 +592,7 @@ function parseConstraintValues(operator: string, valueInput: string, typeInfo: T
     // A context property ID, not a value of the target's type, so this precedes the type branches.
     if (isCtxOp(operator)) {
       const trimmed = valueInput.trim();
-      return trimmed ? [Number(trimmed)] : null;
+      return trimmed ? [BigInt(trimmed)] : null;
     }
     if (operator === "isIn" || operator === "notIn") {
       const parts = valueInput

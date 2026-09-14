@@ -31,7 +31,7 @@ import { Quantifier } from "@callcium/sdk";
 | `Quantifier.ALL` | All elements must satisfy the constraint         | Passes      |
 | `Quantifier.ANY` | At least one element must satisfy the constraint | Fails       |
 
-`Quantifier.ALL` is vacuously true on an empty array. When an empty array must be rejected, add a length constraint to the same group: `lengthGt(0)` alongside the `ALL` constraint.
+`Quantifier.ALL` is vacuously true on an empty array. When an empty array must be rejected, add a length constraint to the same group: `lengthGt(0n)` alongside the `ALL` constraint.
 
 ```ts
 import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";
@@ -88,7 +88,7 @@ import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";
 // function batchTransfer(address[] recipients)
 const policy = PolicyBuilder
   .create("batchTransfer(address[])")
-  .add(arg(0).lengthBetween(1, 32))            // bounded batch size
+  .add(arg(0).lengthBetween(1n, 32n))          // bounded batch size
   .add(arg(0, Quantifier.ALL).isIn(allowlist)) // every recipient approved
   .build();
 ```

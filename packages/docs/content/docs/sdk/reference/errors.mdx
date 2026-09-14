@@ -8,7 +8,7 @@ description: "Error classes thrown by the SDK."
 Thrown when a policy or descriptor blob is structurally malformed.
 The optional `offset` indicates the byte position in the source blob where the error was detected.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L90)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L89)
 
 ## ValidationError
 
@@ -18,7 +18,7 @@ Carries every issue the validator found. The `Error.message` is the first issue'
 message — a diagnostic summary, not a presentation contract. Consumers rendering
 issues to users should iterate `issues` directly.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L112)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L111)
 
 ## PolicyViolationError
 
@@ -30,7 +30,7 @@ Carries the full list of structured violations (one per failed group). The
 first violation's structured fields — not a presentation contract. Consumers
 rendering violations to users should iterate `violations` directly.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L131)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L130)
 
 ## Types
 

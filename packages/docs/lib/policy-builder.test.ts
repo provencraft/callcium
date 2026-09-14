@@ -22,7 +22,7 @@ const ADDRESS_B = "0x2222222222222222222222222222222222222222";
 /** Operands satisfying one operator against a target of the given Solidity type. */
 function operandsFor(method: string, targetType: string): ScalarValue[] {
   if (method === "eqCtx" || method === "neqCtx") {
-    return [targetType === "address" ? ContextProperty.MSG_SENDER : ContextProperty.MSG_VALUE];
+    return [BigInt(targetType === "address" ? ContextProperty.MSG_SENDER : ContextProperty.MSG_VALUE)];
   }
   if (method === "isIn" || method === "notIn") return targetType === "address" ? [ADDRESS_A, ADDRESS_B] : [1n, 2n];
   if (method === "between" || method === "lengthBetween") return [1n, 2n];
@@ -114,7 +114,7 @@ describe("addConstraint", () => {
     const constraint: ConstraintInput = {
       scope: "calldata",
       path: [0],
-      rules: [{ operator: "eqCtx", values: [ContextProperty.MSG_SENDER] }],
+      rules: [{ operator: "eqCtx", values: [BigInt(ContextProperty.MSG_SENDER)] }],
     };
     const s2 = addConstraint(s1, 0, constraint);
     expect(s2.hex).not.toBeNull();
@@ -127,7 +127,7 @@ describe("addConstraint", () => {
     const constraint: ConstraintInput = {
       scope: "calldata",
       path: [0],
-      rules: [{ operator: "neqCtx", values: [ContextProperty.TX_ORIGIN] }],
+      rules: [{ operator: "neqCtx", values: [BigInt(ContextProperty.TX_ORIGIN)] }],
     };
     const s2 = addConstraint(s1, 0, constraint);
     expect(s2.hex).not.toBeNull();
@@ -140,7 +140,7 @@ describe("addConstraint", () => {
     const constraint: ConstraintInput = {
       scope: "calldata",
       path: [1],
-      rules: [{ operator: "eqCtx", values: [ContextProperty.MSG_SENDER] }],
+      rules: [{ operator: "eqCtx", values: [BigInt(ContextProperty.MSG_SENDER)] }],
     };
     const s2 = addConstraint(s1, 0, constraint);
     expect(s2.issues.map((issue) => issue.code)).toContain("CONTEXT_TYPE_MISMATCH");
