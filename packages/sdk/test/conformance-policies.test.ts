@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 
 import rawVectors from "../../../spec/vectors/policies.json";
 import { PolicyCoder } from "../src/policy-coder";
-import { expectErrorCode, hex } from "./helpers";
+import { expectErrorCode, hex, policyDataFromVector } from "./helpers";
 
-import type { CallciumErrorCode, Constraint, PolicyData } from "../src";
+import type { CallciumErrorCode } from "../src";
 
 ///////////////////////////////////////////////////////////////////////////
 // Vector types
@@ -68,23 +68,6 @@ const ERROR_MAP: Record<string, CallciumErrorCode> = {
   PathTooDeep: "PATH_TOO_DEEP",
   UnknownContextProperty: "UNKNOWN_CONTEXT_PROPERTY",
 };
-
-/** Build a PolicyData from a vector's decoded spec. */
-function policyDataFromVector(decoded: VectorDecoded): PolicyData {
-  const groups: Constraint[][] = decoded.groups.map((g) =>
-    g.constraints.map((c) => ({
-      scope: c.scope,
-      path: hex(c.path),
-      operators: c.operators.map((o) => hex(o)),
-    })),
-  );
-  return {
-    isSelectorless: decoded.isSelectorless,
-    selector: hex(decoded.selector),
-    descriptor: hex(decoded.descriptor),
-    groups,
-  };
-}
 
 ///////////////////////////////////////////////////////////////////////////
 // Inspect

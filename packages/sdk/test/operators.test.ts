@@ -10,26 +10,7 @@ import {
   lookupTypeCode,
   toBigInt,
 } from "../src/operators";
-
-/** Packs a bigint into a 32-byte big-endian Uint8Array (two's complement for values that fit in 256 bits). */
-function word(value: bigint): Uint8Array {
-  const buf = new Uint8Array(32);
-  let v = value & 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn;
-  for (let i = 31; i >= 0; i--) {
-    buf[i] = Number(v & 0xffn);
-    v >>= 8n;
-  }
-  return buf;
-}
-
-/** Concatenates multiple 32-byte words into a single Uint8Array. */
-function words(...values: bigint[]): Uint8Array {
-  const buf = new Uint8Array(values.length * 32);
-  for (let i = 0; i < values.length; i++) {
-    buf.set(word(values[i]), i * 32);
-  }
-  return buf;
-}
+import { word, words } from "./helpers";
 
 // Shorthand for the unsigned uint256 type code.
 const UINT256 = TypeCode.UINT_MAX; // 0x20

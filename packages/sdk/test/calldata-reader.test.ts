@@ -1,32 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { loadWord, readPointer } from "../src/calldata-reader";
-
-///////////////////////////////////////////////////////////////////////////
-// Helpers
-///////////////////////////////////////////////////////////////////////////
-
-/** Encode a uint256 value as 32 bytes (big-endian). */
-function word(value: number): Uint8Array {
-  const buf = new Uint8Array(32);
-  buf[28] = (value >>> 24) & 0xff;
-  buf[29] = (value >>> 16) & 0xff;
-  buf[30] = (value >>> 8) & 0xff;
-  buf[31] = value & 0xff;
-  return buf;
-}
-
-/** Concatenate multiple Uint8Arrays. */
-function concat(...arrays: Uint8Array[]): Uint8Array {
-  const total = arrays.reduce((sum, arr) => sum + arr.length, 0);
-  const result = new Uint8Array(total);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
+import { word, words } from "./helpers";
 
 ///////////////////////////////////////////////////////////////////////////
 // loadWord and readPointer
@@ -34,7 +9,7 @@ function concat(...arrays: Uint8Array[]): Uint8Array {
 
 describe("loadWord", () => {
   test("reads 32 bytes at offset 0", () => {
-    const callData = word(42);
+    const callData = word(42n);
     const result = loadWord(callData, 0);
     expect(result).toBeInstanceOf(Uint8Array);
     if (result instanceof Uint8Array) {
@@ -43,7 +18,7 @@ describe("loadWord", () => {
   });
 
   test("reads 32 bytes at nonzero offset", () => {
-    const callData = concat(word(0), word(99));
+    const callData = words(0n, 99n);
     const result = loadWord(callData, 32);
     expect(result).toBeInstanceOf(Uint8Array);
     if (result instanceof Uint8Array) {
@@ -52,7 +27,7 @@ describe("loadWord", () => {
   });
 
   test("returns CALLDATA_OUT_OF_BOUNDS when offset exceeds bounds", () => {
-    const callData = word(1);
+    const callData = word(1n);
     const result = loadWord(callData, 1);
     expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
@@ -63,12 +38,12 @@ describe("loadWord", () => {
   });
 
   test("returns CALLDATA_OUT_OF_BOUNDS for negative offset", () => {
-    const result = loadWord(word(1), -1);
+    const result = loadWord(word(1n), -1);
     expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
   test("succeeds at exact boundary (offset + 32 == length)", () => {
-    const callData = word(7);
+    const callData = word(7n);
     const result = loadWord(callData, 0);
     expect(result).toBeInstanceOf(Uint8Array);
   });
@@ -76,13 +51,13 @@ describe("loadWord", () => {
 
 describe("readPointer", () => {
   test("reads a small value", () => {
-    const callData = word(0x60);
+    const callData = word(0x60n);
     const result = readPointer(callData, 0);
     expect(result).toBe(0x60);
   });
 
   test("reads zero", () => {
-    const result = readPointer(word(0), 0);
+    const result = readPointer(word(0n), 0);
     expect(result).toBe(0);
   });
 

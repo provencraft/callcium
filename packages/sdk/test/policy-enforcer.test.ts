@@ -23,7 +23,15 @@ import { bigintToHex } from "../src/bytes";
 import { ContextProperty, PolicyFormat } from "../src/constants";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { applyOperator } from "../src/operators";
-import { assertFailed, assertPassed, assertViolationCode, expectErrorCode, expectFirstViolation, op } from "./helpers";
+import {
+  assertFailed,
+  assertPassed,
+  assertViolationCode,
+  expectErrorCode,
+  expectFirstViolation,
+  op,
+  wordHex,
+} from "./helpers";
 
 import type { Context, Hex, PolicyData } from "../src";
 
@@ -55,14 +63,9 @@ const POLICY_MIXED_SCOPE = PolicyBuilder.create("foo(uint256)")
 
 const SELECTOR = "0x2fbebd38";
 
-/** Pad a bigint into a 64-char hex word (no 0x prefix), for calldata concatenation. */
-function word(value: bigint): string {
-  return bigintToHex(value).slice(2);
-}
-
 /** Encode a single uint256 arg with selector prefix. */
 function encodeUint256(selector: Hex, value: bigint): Hex {
-  return `${selector}${word(value)}`;
+  return `${selector}${wordHex(value)}`;
 }
 
 /** Encode a raw uint256 without selector. */
@@ -73,19 +76,19 @@ function encodeRawUint256(value: bigint): Hex {
 /** Encode a selectorless calldata blob containing a single `bytes` argument. */
 function encodeBytesArg(dataHex: string): Hex {
   const padded = dataHex.padEnd(64, "0");
-  return `0x${word(32n)}${word(BigInt(dataHex.length / 2))}${padded}`;
+  return `0x${wordHex(32n)}${wordHex(BigInt(dataHex.length / 2))}${padded}`;
 }
 
 /** Encode a selectorless calldata blob containing a single dynamic uint256 array. */
 function encodeDynamicUint256Array(elements: bigint[]): Hex {
-  let body = word(32n) + word(BigInt(elements.length));
-  for (const elem of elements) body += word(elem);
+  let body = wordHex(32n) + wordHex(BigInt(elements.length));
+  for (const elem of elements) body += wordHex(elem);
   return `0x${body}`;
 }
 
 /** Encode a selectorless calldata blob containing a static uint256[3] array. */
 function encodeStaticUint256Array3(first: bigint, second: bigint, third: bigint): Hex {
-  return `0x${word(first)}${word(second)}${word(third)}`;
+  return `0x${wordHex(first)}${wordHex(second)}${wordHex(third)}`;
 }
 
 /** Encode a selectorless calldata blob containing a dynamic int256 array. */
@@ -99,10 +102,10 @@ function encodeDynamicBytesArray(elements: string[]): Hex {
   let tails = "";
   const headSize = elements.length * 32;
   for (const elem of elements) {
-    heads += word(BigInt(headSize + tails.length / 2));
-    tails += word(BigInt(elem.length / 2)) + elem.padEnd(64, "0");
+    heads += wordHex(BigInt(headSize + tails.length / 2));
+    tails += wordHex(BigInt(elem.length / 2)) + elem.padEnd(64, "0");
   }
-  return `0x${word(32n)}${word(BigInt(elements.length))}${heads}${tails}`;
+  return `0x${wordHex(32n)}${wordHex(BigInt(elements.length))}${heads}${tails}`;
 }
 
 /** Encode a selectorless calldata blob containing a static bytes[3] array; elements are hex bodies of at most 32 bytes. */
@@ -111,16 +114,16 @@ function encodeStaticBytesArray3(elements: string[]): Hex {
   let tails = "";
   const headSize = elements.length * 32;
   for (const elem of elements) {
-    heads += word(BigInt(headSize + tails.length / 2));
-    tails += word(BigInt(elem.length / 2)) + elem.padEnd(64, "0");
+    heads += wordHex(BigInt(headSize + tails.length / 2));
+    tails += wordHex(BigInt(elem.length / 2)) + elem.padEnd(64, "0");
   }
-  return `0x${word(32n)}${heads}${tails}`;
+  return `0x${wordHex(32n)}${heads}${tails}`;
 }
 
 /** Encode selectorless calldata for (uint256,address)[] with given tuples. */
 function encodeTupleArray(tuples: Array<{ amount: bigint; address: bigint }>): Hex {
-  let body = word(32n) + word(BigInt(tuples.length));
-  for (const tuple of tuples) body += word(tuple.amount) + word(tuple.address);
+  let body = wordHex(32n) + wordHex(BigInt(tuples.length));
+  for (const tuple of tuples) body += wordHex(tuple.amount) + wordHex(tuple.address);
   return `0x${body}`;
 }
 
@@ -227,7 +230,7 @@ describe("enforce", () => {
     // Groups sort by hash, so the group holding each operand is derived from the built policy.
     function groupIndexOf(operand: bigint): number {
       return PolicyCoder.decode(POLICY_MULTI_GROUP).groups.findIndex((group) =>
-        group[0].operators[0].endsWith(word(operand)),
+        group[0].operators[0].endsWith(wordHex(operand)),
       );
     }
 
@@ -736,7 +739,7 @@ describe("enforce - navigation failure", () => {
   test("LENGTH_EQ on dynamic bytes with truncated calldata reports error", () => {
     const policy = PolicyBuilder.createRaw("bytes").add(arg(0).lengthEq(10n)).build();
     // Offset pointing beyond calldata.
-    const callData: Hex = `0x${word(999n)}`;
+    const callData: Hex = `0x${wordHex(999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     assertFailed(result);
   });
@@ -765,7 +768,7 @@ describe("enforce - quantifier element resolution failures", () => {
   test("ALL fails when arrayElementAt returns error (static array, truncated calldata)", () => {
     const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ALL).gt(0n)).build();
     // Only 64 bytes — static array expects 96 bytes (3 * 32). Element 2 will fail.
-    const callData: Hex = `0x${word(1n)}${word(2n)}`;
+    const callData: Hex = `0x${wordHex(1n)}${wordHex(2n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     const violation = expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
     expect(violation.elementIndex).toBe(2);
@@ -781,7 +784,7 @@ describe("enforce - quantifier element resolution failures", () => {
       .add(arg(1).eq(5n))
       .build();
     // The array claims two elements but supplies one.
-    const callData: Hex = `0x${word(64n)}${word(5n)}${word(2n)}${word(1n)}`;
+    const callData: Hex = `0x${wordHex(64n)}${wordHex(5n)}${wordHex(2n)}${wordHex(1n)}`;
 
     expectFirstViolation(PolicyEnforcer.check(policy, callData), "CALLDATA_OUT_OF_BOUNDS");
   });
@@ -789,7 +792,7 @@ describe("enforce - quantifier element resolution failures", () => {
   test("ANY aborts when arrayElementAt fails", () => {
     const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ANY).eq(999n)).build();
     // Only 64 bytes for 3-element static array.
-    const callData: Hex = `0x${word(1n)}${word(2n)}`;
+    const callData: Hex = `0x${wordHex(1n)}${wordHex(2n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
   });
@@ -800,7 +803,7 @@ describe("enforce - quantifier element resolution failures", () => {
       .add(arg(0, Quantifier.ALL, 0, 0).eq(42n))
       .build();
     // Dynamic array with 1 element: element tuple has field0=uint256[] with a bogus offset pointer.
-    const callData: Hex = `0x${word(32n)}${word(1n)}${word(0n)}${word(9999n)}${word(42n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(0n)}${wordHex(9999n)}${wordHex(42n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     const violation = expectFirstViolation(result, "ARRAY_INDEX_OUT_OF_BOUNDS");
     expect(violation.elementIndex).toBe(0);
@@ -811,7 +814,7 @@ describe("enforce - quantifier element resolution failures", () => {
     const policy = PolicyBuilder.createRaw("(uint256[],uint256)[]")
       .add(arg(0, Quantifier.ANY, 0, 0).eq(42n))
       .build();
-    const callData: Hex = `0x${word(32n)}${word(1n)}${word(0n)}${word(9999n)}${word(42n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(0n)}${wordHex(9999n)}${wordHex(42n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     const violation = expectFirstViolation(result, "ARRAY_INDEX_OUT_OF_BOUNDS");
     expect(violation.elementIndex).toBe(0);
@@ -821,7 +824,7 @@ describe("enforce - quantifier element resolution failures", () => {
     const policy = PolicyBuilder.createRaw("(uint256,uint256)[]")
       .add(arg(0, Quantifier.ALL, 1).gt(0n))
       .build();
-    const callData: Hex = `0x${word(32n)}${word(1n)}${word(42n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(42n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     const violation = expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
     expect(violation.elementIndex).toBe(0);
@@ -835,14 +838,14 @@ describe("enforce - quantifier deep error paths", () => {
   test("ALL with no suffix: leaf error on element causes failure", () => {
     const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthEq(5n)).build();
     // bytes[] with 1 element whose internal offset is invalid.
-    const callData: Hex = `0x${word(32n)}${word(1n)}${word(9999n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(9999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     assertFailed(result);
   });
 
   test("ANY with no suffix: leaf error on an element aborts", () => {
     const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ANY).lengthEq(5n)).build();
-    const callData: Hex = `0x${word(32n)}${word(1n)}${word(9999n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(9999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
   });
@@ -852,7 +855,7 @@ describe("enforce - quantifier deep error paths", () => {
       .add(arg(0, Quantifier.ALL, 1).lengthEq(5n))
       .build();
     // Element with bogus bytes offset.
-    const callData: Hex = `0x${word(32n)}${word(1n)}${word(0n)}${word(42n)}${word(9999n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(0n)}${wordHex(42n)}${wordHex(9999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     assertFailed(result);
   });
@@ -861,7 +864,7 @@ describe("enforce - quantifier deep error paths", () => {
     const policy = PolicyBuilder.createRaw("(uint256,bytes)[]")
       .add(arg(0, Quantifier.ANY, 1).lengthEq(5n))
       .build();
-    const callData: Hex = `0x${word(32n)}${word(1n)}${word(0n)}${word(42n)}${word(9999n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(0n)}${wordHex(42n)}${wordHex(9999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
   });
@@ -874,7 +877,7 @@ describe("enforce - quantifier deep error paths", () => {
 describe("enforce - arrayShape failure", () => {
   test("fails when dynamic array offset points beyond calldata", () => {
     const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).eq(1n)).build();
-    const callData: Hex = `0x${word(9999n)}`;
+    const callData: Hex = `0x${wordHex(9999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     assertFailed(result);
   });
@@ -890,7 +893,7 @@ describe("enforce - quantifier element failure paths", () => {
       .add(arg(0, Quantifier.ALL, 1).eq(42n))
       .build();
     // Claims 2 elements but only provides partial data.
-    const callData: Hex = `0x${word(32n)}${word(2n)}${word(42n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(2n)}${wordHex(42n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     assertFailed(result);
   });
@@ -900,7 +903,7 @@ describe("enforce - quantifier element failure paths", () => {
       .add(arg(0, Quantifier.ANY, 1).eq(42n))
       .build();
     // 2 elements — both complete, second has field(1) = 42.
-    const callData: Hex = `0x${word(32n)}${word(2n)}${word(1n)}${word(1n)}${word(99n)}${word(42n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(2n)}${wordHex(1n)}${wordHex(1n)}${wordHex(99n)}${wordHex(42n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     assertPassed(result);
   });
@@ -944,7 +947,7 @@ describe("enforce - tampered policy blobs (attack surface testing)", () => {
     // Valid policy for uint256[] targeting index 1.
     const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, 1).eq(0n)).build();
     // Feed calldata where the dynamic array's base pointer is beyond bounds.
-    const callData: Hex = `0x${word(9999n)}`;
+    const callData: Hex = `0x${wordHex(9999n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     const violation = expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
     expect(violation.scope).toBe(Scope.CALLDATA);
@@ -1022,7 +1025,7 @@ describe("PolicyEnforcer - value operator on non-scalar target", () => {
   test("rejects a value op on a dynamic array element", () => {
     const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).eq(0n)).buildUnsafe();
     // bytes[] with one 2-byte element: outer offset, length 1, element offset, element.
-    const callData: Hex = `0x${word(32n)}${word(1n)}${word(32n)}${word(2n)}${"1122".padEnd(64, "0")}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(32n)}${wordHex(2n)}${"1122".padEnd(64, "0")}`;
     expectErrorCode(() => PolicyEnforcer.check(policy, callData), "OPERATOR_TARGET_MISMATCH");
   });
 });
@@ -1040,7 +1043,7 @@ describe("enforce - hint dispatch", () => {
     // Re-point the target delta at the second argument while the path still names the first.
     const tampered = tamper(policy, hintOffset(policy) + PolicyFormat.HINT_HEADER_SIZE, "00000020");
 
-    assertPassed(PolicyEnforcer.check(tampered, `0x${word(9n)}${word(1n)}`));
+    assertPassed(PolicyEnforcer.check(tampered, `0x${wordHex(9n)}${wordHex(1n)}`));
   });
 
   test("path bytes do not address the target", () => {
@@ -1049,14 +1052,14 @@ describe("enforce - hint dispatch", () => {
     const pathOffset = PolicyCoder.inspect(policy).groups[0].rules[0].path.span.start;
     const tampered = tamper(policy, pathOffset, "0001");
 
-    assertPassed(PolicyEnforcer.check(tampered, `0x${word(1n)}${word(9n)}`));
-    assertFailed(PolicyEnforcer.check(tampered, `0x${word(9n)}${word(1n)}`));
+    assertPassed(PolicyEnforcer.check(tampered, `0x${wordHex(1n)}${wordHex(9n)}`));
+    assertFailed(PolicyEnforcer.check(tampered, `0x${wordHex(9n)}${wordHex(1n)}`));
   });
 
   test("a quantified hint rejects an oversized array pointer", () => {
     const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).eq(1n)).build();
     // The array head word is far beyond calldata, so the read fails instead of wrapping.
-    const callData: Hex = `0x${word(2n ** 200n)}${word(1n)}`;
+    const callData: Hex = `0x${wordHex(2n ** 200n)}${wordHex(1n)}`;
 
     expectFirstViolation(PolicyEnforcer.check(policy, callData), "CALLDATA_OUT_OF_BOUNDS");
   });
@@ -1074,7 +1077,7 @@ describe("enforce - hint dispatch", () => {
       PolicyFormat.HINT_HEADER_SIZE;
     const tampered = tamper(policy, targetDeltaOffset, "00000020");
 
-    const callData: Hex = `0x${word(32n)}${word(2n)}${word(9n)}${word(1n)}${word(9n)}${word(1n)}`;
+    const callData: Hex = `0x${wordHex(32n)}${wordHex(2n)}${wordHex(9n)}${wordHex(1n)}${wordHex(9n)}${wordHex(1n)}`;
     assertPassed(PolicyEnforcer.check(tampered, callData));
   });
 });
@@ -1105,7 +1108,7 @@ describe("enforce - EQ_CTX operator", () => {
     .build();
 
   function encodeSingleElementArrayArg(address: string): Hex {
-    return `0x13cb49d4${word(32n)}${word(1n)}${"00".repeat(12)}${address.slice(2)}`;
+    return `0x13cb49d4${wordHex(32n)}${wordHex(1n)}${"00".repeat(12)}${address.slice(2)}`;
   }
 
   function encodeAddressArg(address: string): Hex {

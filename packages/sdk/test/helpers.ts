@@ -1,6 +1,7 @@
 import { expect } from "vitest";
 
 import { CallciumError } from "../src";
+import { bigintToHex } from "../src/bytes";
 
 import type {
   CallciumErrorCode,
@@ -85,6 +86,35 @@ export function expectErrorCode(call: () => unknown, code: CallciumErrorCode): C
 export function hex(s: string) {
   const body = s.startsWith("0x") ? s.slice(2) : s;
   return `0x${body}` as const;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Word encoding
+///////////////////////////////////////////////////////////////////////////
+
+/** Pack a value into a 32-byte big-endian word, two's complement for a negative. */
+export function word(value: bigint): Uint8Array {
+  const buf = new Uint8Array(32);
+  let remaining = BigInt.asUintN(256, value);
+  for (let i = 31; i >= 0; i--) {
+    buf[i] = Number(remaining & 0xffn);
+    remaining >>= 8n;
+  }
+  return buf;
+}
+
+/** The same word as 64 hex characters with no prefix, for calldata concatenation. */
+export function wordHex(value: bigint): string {
+  return bigintToHex(value).slice(2);
+}
+
+/** Pack values into consecutive 32-byte words. */
+export function words(...values: bigint[]): Uint8Array {
+  const buf = new Uint8Array(values.length * 32);
+  for (let i = 0; i < values.length; i++) {
+    buf.set(word(values[i]), i * 32);
+  }
+  return buf;
 }
 
 ///////////////////////////////////////////////////////////////////////////
