@@ -199,7 +199,12 @@ const ctxPropertyByCode: ReadonlyMap<number, ContextPropertyInfo> = new Map<numb
  */
 export function lookupContextProperty(code: number): ContextPropertyInfo {
   const info = ctxPropertyByCode.get(code);
-  if (!info) throw new CallciumError("UNKNOWN_CONTEXT_PROPERTY", `Unknown context property ${code}`);
+  if (!info) {
+    throw new CallciumError(
+      "UNKNOWN_CONTEXT_PROPERTY",
+      `Unknown context property ID 0x${code.toString(16).padStart(4, "0")}`,
+    );
+  }
   return info;
 }
 

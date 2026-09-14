@@ -4,6 +4,8 @@
  * Each code names one invariant. Where Solidity detects the same invariant, the code is its error
  * name transliterated from `PascalCase` to `SCREAMING_SNAKE_CASE`. The codes under "Inputs and
  * validation" have no counterpart: they name input a Solidity signature cannot express.
+ * `OUT_OF_PHYSICAL_BOUNDS` names an invariant Solidity carries twice, as the error
+ * `PolicyBuilder.OutOfPhysicalBounds` and as an issue code, so the name is shared with `IssueCode`.
  */
 export type CallciumErrorCode =
   // Policy and descriptor framing.
@@ -48,6 +50,7 @@ export type CallciumErrorCode =
   | "EMPTY_SET"
   | "SET_TOO_LARGE"
   | "INVALID_RANGE"
+  | "OUT_OF_PHYSICAL_BOUNDS"
   // Descriptor nodes.
   | "UNKNOWN_TYPE_CODE"
   | "NODE_LENGTH_TOO_SMALL"

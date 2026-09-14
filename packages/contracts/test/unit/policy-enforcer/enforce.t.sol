@@ -1919,7 +1919,14 @@ contract EnforceSelectorlessTest is PolicyEnforcerTest {
         data.groups[0] = new Constraint[](1);
         bytes[] memory operators = new bytes[](1);
         operators[0] = abi.encodePacked(OpCode.EQ, bytes32(uint256(42)));
-        data.groups[0][0] = Constraint({ scope: PF.SCOPE_CALLDATA, path: hex"0000", operators: operators, hint: "" });
+        data.groups[0][0] = Constraint({
+            scope: PF.SCOPE_CALLDATA,
+            path: hex"0000",
+            operators: operators,
+            leastNegativeOperand: 0,
+            greatestOperand: 0,
+            hint: ""
+        });
         return PolicyCoder.encode(data);
     }
 

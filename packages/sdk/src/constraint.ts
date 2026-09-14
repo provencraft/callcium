@@ -87,7 +87,10 @@ function rangeOp(opCode: number, min: bigint | number, max: bigint | number): He
 /** Require a defined context property ID and return it. */
 function checkContextPropertyId(contextPropertyId: number): number {
   if (!Number.isInteger(contextPropertyId) || contextPropertyId < 0 || contextPropertyId > MAX_CONTEXT_PROPERTY_ID) {
-    throw new CallciumError("UNKNOWN_CONTEXT_PROPERTY", `Unknown context property ID ${contextPropertyId}`);
+    throw new CallciumError(
+      "UNKNOWN_CONTEXT_PROPERTY",
+      `Unknown context property ID 0x${contextPropertyId.toString(16).padStart(4, "0")}`,
+    );
   }
   return contextPropertyId;
 }
@@ -122,6 +125,33 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Operand provenance
+///////////////////////////////////////////////////////////////////////////
+
+/** Extremes of the numeric operands a builder's value operators received, as written. */
+export type OperandExtremes = {
+  /** Most negative operand written, or zero when none was negative. */
+  leastNegative: bigint;
+  /** Greatest operand written, or zero when none exceeded it. */
+  greatest: bigint;
+};
+
+// Only the extremes can offend: an operand folds into a target's range from below the range or
+// from above it, and whichever operand reaches furthest gets there first. Encoding folds a
+// negative operand onto its unsigned alias, so the sign survives nowhere else.
+const operandExtremes = new WeakMap<ConstraintBuilder, OperandExtremes>();
+
+/**
+ * Extremes of the numeric operands the value operators of `constraint` received, as written.
+ * They outlive edits to `operators`: removing an operator does not remove what was written to
+ * produce it, and a fresh builder starts with none. Undefined for a plain `Constraint`, whose
+ * operators arrive already encoded.
+ */
+export function readOperandExtremes(constraint: Constraint | ConstraintBuilder): OperandExtremes | undefined {
+  return constraint instanceof ConstraintBuilder ? operandExtremes.get(constraint) : undefined;
+}
+
+///////////////////////////////////////////////////////////////////////////
 // ConstraintBuilder
 ///////////////////////////////////////////////////////////////////////////
 
@@ -141,8 +171,22 @@ export class ConstraintBuilder implements Constraint {
     this.operators = [];
   }
 
-  /** Push a pre-encoded operator hex string and return this for chaining. */
-  private push(opHex: Hex): this {
+  /**
+   * Push a pre-encoded operator hex string and return this for chaining.
+   * `values` are the operands as written; the numeric ones join the record.
+   */
+  private push(opHex: Hex, values: readonly ScalarValue[] = []): this {
+    let extremes = operandExtremes.get(this);
+    for (const value of values) {
+      if (typeof value !== "bigint" && typeof value !== "number") continue;
+      if (extremes === undefined) {
+        extremes = { leastNegative: 0n, greatest: 0n };
+        operandExtremes.set(this, extremes);
+      }
+      const written = BigInt(value);
+      if (written < extremes.leastNegative) extremes.leastNegative = written;
+      if (written > extremes.greatest) extremes.greatest = written;
+    }
     this.operators.push(opHex);
     return this;
   }
@@ -153,12 +197,12 @@ export class ConstraintBuilder implements Constraint {
 
   /** Assert the value equals `value`. */
   eq(value: ScalarValue): this {
-    return this.push(singleOp(Op.EQ, value));
+    return this.push(singleOp(Op.EQ, value), [value]);
   }
 
   /** Assert the value does not equal `value`. */
   neq(value: ScalarValue): this {
-    return this.push(singleOp(Op.EQ | Op.NOT, value));
+    return this.push(singleOp(Op.EQ | Op.NOT, value), [value]);
   }
 
   /** Assert the value equals the context property `contextPropertyId`. */
@@ -173,22 +217,22 @@ export class ConstraintBuilder implements Constraint {
 
   /** Assert the value is greater than `bound`. */
   gt(bound: bigint | number): this {
-    return this.push(singleOp(Op.GT, bound));
+    return this.push(singleOp(Op.GT, bound), [bound]);
   }
 
   /** Assert the value is less than `bound`. */
   lt(bound: bigint | number): this {
-    return this.push(singleOp(Op.LT, bound));
+    return this.push(singleOp(Op.LT, bound), [bound]);
   }
 
   /** Assert the value is greater than or equal to `bound`. */
   gte(bound: bigint | number): this {
-    return this.push(singleOp(Op.GTE, bound));
+    return this.push(singleOp(Op.GTE, bound), [bound]);
   }
 
   /** Assert the value is less than or equal to `bound`. */
   lte(bound: bigint | number): this {
-    return this.push(singleOp(Op.LTE, bound));
+    return this.push(singleOp(Op.LTE, bound), [bound]);
   }
 
   /**
@@ -196,7 +240,7 @@ export class ConstraintBuilder implements Constraint {
    * @throws {CallciumError} If min > max.
    */
   between(min: bigint | number, max: bigint | number): this {
-    return this.push(rangeOp(Op.BETWEEN, min, max));
+    return this.push(rangeOp(Op.BETWEEN, min, max), [min, max]);
   }
 
   ///////////////////////////////////////////////////////////////////////////
@@ -209,7 +253,7 @@ export class ConstraintBuilder implements Constraint {
    * @throws {CallciumError} If the set is empty after deduplication.
    */
   isIn(values: readonly ScalarValue[]): this {
-    return this.push(setOp(Op.IN, values));
+    return this.push(setOp(Op.IN, values), values);
   }
 
   /**
@@ -217,7 +261,7 @@ export class ConstraintBuilder implements Constraint {
    * @throws {CallciumError} If the set is empty after deduplication.
    */
   notIn(values: readonly ScalarValue[]): this {
-    return this.push(setOp(Op.IN | Op.NOT, values));
+    return this.push(setOp(Op.IN | Op.NOT, values), values);
   }
 
   ///////////////////////////////////////////////////////////////////////////

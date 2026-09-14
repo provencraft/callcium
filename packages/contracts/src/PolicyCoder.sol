@@ -436,9 +436,13 @@ library PolicyCoder {
                 assembly ("memory-safe") {
                     mstore(operators, 1)
                 }
-                // forgefmt: disable-next-item
                 constraints[uniqueCount] = Constraint({
-                    scope: rules[i].scope, path: rules[i].path, operators: operators, hint: rules[i].hint
+                    scope: rules[i].scope,
+                    path: rules[i].path,
+                    operators: operators,
+                    leastNegativeOperand: 0,
+                    greatestOperand: 0,
+                    hint: rules[i].hint
                 });
                 keys[uniqueCount] = key;
                 ++uniqueCount;

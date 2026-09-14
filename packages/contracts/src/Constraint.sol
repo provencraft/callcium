@@ -15,6 +15,10 @@ struct Constraint {
     bytes path;
     /// Encoded operators. Each item = opCode(1) || data.
     bytes[] operators;
+    /// Most negative operand written, or zero when none was negative.
+    int256 leastNegativeOperand;
+    /// Greatest operand written, or zero when none exceeded it.
+    uint256 greatestOperand;
     /// Compiled hint block as carried on the wire; empty when the constraint has no encoding.
     bytes hint;
 }
@@ -28,26 +32,39 @@ using Operator for Constraint global;
 /// @notice Creates a constraint targeting `msg.sender`.
 /// @return A context-scoped constraint for msg.sender.
 function msgSender() pure returns (Constraint memory) {
-    return
-        Constraint({
-            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_SENDER), operators: new bytes[](0), hint: ""
-        });
+    return Constraint({
+        scope: PF.SCOPE_CONTEXT,
+        path: Path.encode(PF.CTX_MSG_SENDER),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting `msg.value`.
 /// @return A context-scoped constraint for msg.value.
 function msgValue() pure returns (Constraint memory) {
-    return
-        Constraint({
-            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_MSG_VALUE), operators: new bytes[](0), hint: ""
-        });
+    return Constraint({
+        scope: PF.SCOPE_CONTEXT,
+        path: Path.encode(PF.CTX_MSG_VALUE),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting `block.timestamp`.
 /// @return A context-scoped constraint for block.timestamp.
 function blockTimestamp() pure returns (Constraint memory) {
     return Constraint({
-        scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BLOCK_TIMESTAMP), operators: new bytes[](0), hint: ""
+        scope: PF.SCOPE_CONTEXT,
+        path: Path.encode(PF.CTX_BLOCK_TIMESTAMP),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
     });
 }
 
@@ -55,47 +72,79 @@ function blockTimestamp() pure returns (Constraint memory) {
 /// @return A context-scoped constraint for block.number.
 function blockNumber() pure returns (Constraint memory) {
     return Constraint({
-        scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BLOCK_NUMBER), operators: new bytes[](0), hint: ""
+        scope: PF.SCOPE_CONTEXT,
+        path: Path.encode(PF.CTX_BLOCK_NUMBER),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
     });
 }
 
 /// @notice Creates a constraint targeting `block.chainid`.
 /// @return A context-scoped constraint for block.chainid.
 function chainId() pure returns (Constraint memory) {
-    return
-        Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_CHAIN_ID), operators: new bytes[](0), hint: "" });
+    return Constraint({
+        scope: PF.SCOPE_CONTEXT,
+        path: Path.encode(PF.CTX_CHAIN_ID),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting `tx.origin`.
 /// @return A context-scoped constraint for tx.origin.
 function txOrigin() pure returns (Constraint memory) {
-    return
-        Constraint({
-            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_TX_ORIGIN), operators: new bytes[](0), hint: ""
-        });
+    return Constraint({
+        scope: PF.SCOPE_CONTEXT,
+        path: Path.encode(PF.CTX_TX_ORIGIN),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting `block.basefee`.
 /// @return A context-scoped constraint for block.basefee.
 function baseFee() pure returns (Constraint memory) {
-    return
-        Constraint({ scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_BASE_FEE), operators: new bytes[](0), hint: "" });
+    return Constraint({
+        scope: PF.SCOPE_CONTEXT,
+        path: Path.encode(PF.CTX_BASE_FEE),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting `tx.gasprice`.
 /// @return A context-scoped constraint for tx.gasprice.
 function gasPrice() pure returns (Constraint memory) {
-    return
-        Constraint({
-            scope: PF.SCOPE_CONTEXT, path: Path.encode(PF.CTX_GAS_PRICE), operators: new bytes[](0), hint: ""
-        });
+    return Constraint({
+        scope: PF.SCOPE_CONTEXT,
+        path: Path.encode(PF.CTX_GAS_PRICE),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting a top-level argument.
 /// @param p0 The argument index.
 /// @return A calldata-scoped constraint at the given path.
 function arg(uint16 p0) pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0), operators: new bytes[](0), hint: "" });
+    return Constraint({
+        scope: PF.SCOPE_CALLDATA,
+        path: Path.encode(p0),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting a nested path of depth 2.
@@ -103,7 +152,14 @@ function arg(uint16 p0) pure returns (Constraint memory) {
 /// @param p1 The second path step.
 /// @return A calldata-scoped constraint at the given path.
 function arg(uint16 p0, uint16 p1) pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0, p1), operators: new bytes[](0), hint: "" });
+    return Constraint({
+        scope: PF.SCOPE_CALLDATA,
+        path: Path.encode(p0, p1),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting a nested path of depth 3.
@@ -112,7 +168,14 @@ function arg(uint16 p0, uint16 p1) pure returns (Constraint memory) {
 /// @param p2 The third path step.
 /// @return A calldata-scoped constraint at the given path.
 function arg(uint16 p0, uint16 p1, uint16 p2) pure returns (Constraint memory) {
-    return Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0, p1, p2), operators: new bytes[](0), hint: "" });
+    return Constraint({
+        scope: PF.SCOPE_CALLDATA,
+        path: Path.encode(p0, p1, p2),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint targeting a nested path of depth 4.
@@ -122,8 +185,14 @@ function arg(uint16 p0, uint16 p1, uint16 p2) pure returns (Constraint memory) {
 /// @param p3 The fourth path step.
 /// @return A calldata-scoped constraint at the given path.
 function arg(uint16 p0, uint16 p1, uint16 p2, uint16 p3) pure returns (Constraint memory) {
-    return
-        Constraint({ scope: PF.SCOPE_CALLDATA, path: Path.encode(p0, p1, p2, p3), operators: new bytes[](0), hint: "" });
+    return Constraint({
+        scope: PF.SCOPE_CALLDATA,
+        path: Path.encode(p0, p1, p2, p3),
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @notice Creates a constraint from a pre-encoded BE16 path.
@@ -131,7 +200,14 @@ function arg(uint16 p0, uint16 p1, uint16 p2, uint16 p3) pure returns (Constrain
 /// @return A calldata-scoped constraint at the given path.
 function arg(bytes memory path) pure returns (Constraint memory) {
     Path.validate(path);
-    return Constraint({ scope: PF.SCOPE_CALLDATA, path: path, operators: new bytes[](0), hint: "" });
+    return Constraint({
+        scope: PF.SCOPE_CALLDATA,
+        path: path,
+        operators: new bytes[](0),
+        leastNegativeOperand: 0,
+        greatestOperand: 0,
+        hint: ""
+    });
 }
 
 /// @title Operator
@@ -162,7 +238,7 @@ library Operator {
     /// @param value The expected value.
     /// @return The updated constraint.
     function eq(Constraint memory c, uint256 value) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.EQ, _u256(value));
+        return _pushOp(_recordUnsigned(c, value), OpCode.EQ, _u256(value));
     }
 
     /// @notice Requires the value to not equal `value`.
@@ -170,7 +246,7 @@ library Operator {
     /// @param value The excluded value.
     /// @return The updated constraint.
     function neq(Constraint memory c, uint256 value) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.EQ | OpCode.NOT, _u256(value));
+        return _pushOp(_recordUnsigned(c, value), OpCode.EQ | OpCode.NOT, _u256(value));
     }
 
     /// @notice Requires the value to be strictly greater than `bound`.
@@ -178,7 +254,7 @@ library Operator {
     /// @param bound The lower bound (exclusive).
     /// @return The updated constraint.
     function gt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.GT, _u256(bound));
+        return _pushOp(_recordUnsigned(c, bound), OpCode.GT, _u256(bound));
     }
 
     /// @notice Requires the value to be strictly less than `bound`.
@@ -186,7 +262,7 @@ library Operator {
     /// @param bound The upper bound (exclusive).
     /// @return The updated constraint.
     function lt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.LT, _u256(bound));
+        return _pushOp(_recordUnsigned(c, bound), OpCode.LT, _u256(bound));
     }
 
     /// @notice Requires the value to be greater than or equal to `bound`.
@@ -194,7 +270,7 @@ library Operator {
     /// @param bound The lower bound (inclusive).
     /// @return The updated constraint.
     function gte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.GTE, _u256(bound));
+        return _pushOp(_recordUnsigned(c, bound), OpCode.GTE, _u256(bound));
     }
 
     /// @notice Requires the value to be less than or equal to `bound`.
@@ -202,7 +278,7 @@ library Operator {
     /// @param bound The upper bound (inclusive).
     /// @return The updated constraint.
     function lte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.LTE, _u256(bound));
+        return _pushOp(_recordUnsigned(c, bound), OpCode.LTE, _u256(bound));
     }
 
     /// @notice Requires the value to be within [min, max] inclusive.
@@ -212,7 +288,9 @@ library Operator {
     /// @return The updated constraint.
     function between(Constraint memory c, uint256 min, uint256 max) internal pure returns (Constraint memory) {
         require(min <= max, InvalidRange());
-        return _pushOp(c, OpCode.BETWEEN, abi.encodePacked(_u256(min), _u256(max)));
+        return _pushOp(
+            _recordUnsigned(_recordUnsigned(c, min), max), OpCode.BETWEEN, abi.encodePacked(_u256(min), _u256(max))
+        );
     }
 
     /// @notice Requires the signed value to equal `value`.
@@ -220,7 +298,7 @@ library Operator {
     /// @param value The expected value.
     /// @return The updated constraint.
     function eq(Constraint memory c, int256 value) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.EQ, _i256(value));
+        return _pushOp(_recordSigned(c, value), OpCode.EQ, _i256(value));
     }
 
     /// @notice Requires the signed value to not equal `value`.
@@ -228,7 +306,7 @@ library Operator {
     /// @param value The excluded value.
     /// @return The updated constraint.
     function neq(Constraint memory c, int256 value) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.EQ | OpCode.NOT, _i256(value));
+        return _pushOp(_recordSigned(c, value), OpCode.EQ | OpCode.NOT, _i256(value));
     }
 
     /// @notice Requires the signed value to be strictly greater than `bound`.
@@ -236,7 +314,7 @@ library Operator {
     /// @param bound The lower bound (exclusive).
     /// @return The updated constraint.
     function gt(Constraint memory c, int256 bound) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.GT, _i256(bound));
+        return _pushOp(_recordSigned(c, bound), OpCode.GT, _i256(bound));
     }
 
     /// @notice Requires the signed value to be strictly less than `bound`.
@@ -244,7 +322,7 @@ library Operator {
     /// @param bound The upper bound (exclusive).
     /// @return The updated constraint.
     function lt(Constraint memory c, int256 bound) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.LT, _i256(bound));
+        return _pushOp(_recordSigned(c, bound), OpCode.LT, _i256(bound));
     }
 
     /// @notice Requires the signed value to be greater than or equal to `bound`.
@@ -252,7 +330,7 @@ library Operator {
     /// @param bound The lower bound (inclusive).
     /// @return The updated constraint.
     function gte(Constraint memory c, int256 bound) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.GTE, _i256(bound));
+        return _pushOp(_recordSigned(c, bound), OpCode.GTE, _i256(bound));
     }
 
     /// @notice Requires the signed value to be less than or equal to `bound`.
@@ -260,7 +338,7 @@ library Operator {
     /// @param bound The upper bound (inclusive).
     /// @return The updated constraint.
     function lte(Constraint memory c, int256 bound) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.LTE, _i256(bound));
+        return _pushOp(_recordSigned(c, bound), OpCode.LTE, _i256(bound));
     }
 
     /// @notice Requires the signed value to be within [min, max] inclusive.
@@ -270,7 +348,8 @@ library Operator {
     /// @return The updated constraint.
     function between(Constraint memory c, int256 min, int256 max) internal pure returns (Constraint memory) {
         require(min <= max, InvalidRange());
-        return _pushOp(c, OpCode.BETWEEN, abi.encodePacked(_i256(min), _i256(max)));
+        return
+            _pushOp(_recordSigned(_recordSigned(c, min), max), OpCode.BETWEEN, abi.encodePacked(_i256(min), _i256(max)));
     }
 
     /// @notice Requires the value to equal `value` (address).
@@ -358,7 +437,7 @@ library Operator {
     /// @param values The allowed values.
     /// @return The updated constraint.
     function isIn(Constraint memory c, uint256[] memory values) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.IN, _packSet(values));
+        return _pushOp(_recordUnsigned(c, values), OpCode.IN, _packSet(values));
     }
 
     /// @notice Requires the value to not be in the given uint256 set.
@@ -366,7 +445,7 @@ library Operator {
     /// @param values The excluded values.
     /// @return The updated constraint.
     function notIn(Constraint memory c, uint256[] memory values) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.IN | OpCode.NOT, _packSet(values));
+        return _pushOp(_recordUnsigned(c, values), OpCode.IN | OpCode.NOT, _packSet(values));
     }
 
     /// @notice Requires the value to be in the given int256 set.
@@ -374,7 +453,7 @@ library Operator {
     /// @param values The allowed values.
     /// @return The updated constraint.
     function isIn(Constraint memory c, int256[] memory values) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.IN, _packSet(values));
+        return _pushOp(_recordSigned(c, values), OpCode.IN, _packSet(values));
     }
 
     /// @notice Requires the value to not be in the given int256 set.
@@ -382,7 +461,7 @@ library Operator {
     /// @param values The excluded values.
     /// @return The updated constraint.
     function notIn(Constraint memory c, int256[] memory values) internal pure returns (Constraint memory) {
-        return _pushOp(c, OpCode.IN | OpCode.NOT, _packSet(values));
+        return _pushOp(_recordSigned(c, values), OpCode.IN | OpCode.NOT, _packSet(values));
     }
 
     /// @notice Requires the dynamic type length to equal `length`.
@@ -509,6 +588,34 @@ library Operator {
         }
         next[length] = opWithData;
         c.operators = next;
+        return c;
+    }
+
+    /// @dev Records `value`, written through a signed overload, against `c`'s least operand.
+    function _recordSigned(Constraint memory c, int256 value) private pure returns (Constraint memory) {
+        if (value < c.leastNegativeOperand) c.leastNegativeOperand = value;
+        return c;
+    }
+
+    /// @dev Records `values`, written through a signed overload, against `c`'s least operand.
+    function _recordSigned(Constraint memory c, int256[] memory values) private pure returns (Constraint memory) {
+        for (uint256 i = 0; i < values.length; ++i) {
+            c = _recordSigned(c, values[i]);
+        }
+        return c;
+    }
+
+    /// @dev Records `value`, written through an unsigned overload, against `c`'s greatest operand.
+    function _recordUnsigned(Constraint memory c, uint256 value) private pure returns (Constraint memory) {
+        if (value > c.greatestOperand) c.greatestOperand = value;
+        return c;
+    }
+
+    /// @dev Records `values`, written through an unsigned overload, against `c`'s greatest operand.
+    function _recordUnsigned(Constraint memory c, uint256[] memory values) private pure returns (Constraint memory) {
+        for (uint256 i = 0; i < values.length; ++i) {
+            c = _recordUnsigned(c, values[i]);
+        }
         return c;
     }
 

@@ -118,7 +118,7 @@ contract PolicyCoderConformanceTest is BaseTest {
                     bytes[] memory operators = new bytes[](1);
                     operators[0] = groups[groupIndex].rules[ruleIndex].operator;
                     // forgefmt: disable-next-item
-                    constraints[groupIndex][ruleIndex] = Constraint({ scope: groups[groupIndex].rules[ruleIndex].scope, path: groups[groupIndex].rules[ruleIndex].path, operators: operators, hint: "" });
+                    constraints[groupIndex][ruleIndex] = Constraint({ scope: groups[groupIndex].rules[ruleIndex].scope, path: groups[groupIndex].rules[ruleIndex].path, operators: operators, leastNegativeOperand: 0, greatestOperand: 0, hint: "" });
                 }
             }
             PolicyData memory data;

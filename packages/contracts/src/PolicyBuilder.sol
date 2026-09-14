@@ -11,6 +11,7 @@ import { PolicyFormat as PF } from "./PolicyFormat.sol";
 import { PolicyValidator } from "./PolicyValidator.sol";
 import { SignatureParser } from "./SignatureParser.sol";
 import { TypeCode } from "./TypeCode.sol";
+import { TypeRule } from "./TypeRule.sol";
 import { Issue } from "./ValidationIssue.sol";
 import { LibBytes } from "solady/utils/LibBytes.sol";
 
@@ -48,6 +49,11 @@ library PolicyBuilder {
     /// @notice Thrown when a context-scope path references an undefined context property.
     /// @param contextPropertyId The referenced property ID.
     error UnknownContextProperty(uint16 contextPropertyId);
+
+    /// @notice Thrown when an operand lies outside the target type's range and encodes as a value inside it.
+    /// @param word The 32-byte encoding the operand produced.
+    /// @param typeCode The target's type code.
+    error OutOfPhysicalBounds(bytes32 word, uint8 typeCode);
 
     /// @notice Thrown when a quantifier is used on a non-array node.
     /// @param path The encoded be16 path.
@@ -97,13 +103,19 @@ library PolicyBuilder {
 
         // Validate path navigates correctly for the given scope.
         uint256 depth = Path.validate(constraint.path);
+        // The target type is read only to check a recorded operand against, and reaching it costs a
+        // descriptor walk that a single-step path otherwise skips.
+        bool hasOperand = constraint.leastNegativeOperand < 0 || constraint.greatestOperand != 0;
+        uint8 targetType;
         if (constraint.scope == PF.SCOPE_CALLDATA) {
-            _validateCalldataPath(draft.data.descriptor, constraint.path, depth);
+            targetType = _validateCalldataPath(draft.data.descriptor, constraint.path, depth, hasOperand);
         } else if (constraint.scope == PF.SCOPE_CONTEXT) {
-            _validateContextPath(constraint.path, depth);
+            targetType = _validateContextPath(constraint.path, depth);
         } else {
             revert InvalidScope(constraint.scope);
         }
+
+        if (hasOperand) _checkOperandDomain(constraint, targetType);
 
         // Reject duplicate paths within the same group.
         uint256 groupIndex = draft.data.groups.length - 1;
@@ -204,30 +216,62 @@ library PolicyBuilder {
         }
     }
 
-    /// @dev Validates that `path` targets a valid context property.
-    function _validateContextPath(bytes memory path, uint256 depth) private pure {
+    /// @dev Validates that `path` targets a valid context property and returns its type code.
+    function _validateContextPath(bytes memory path, uint256 depth) private pure returns (uint8) {
         // Context paths must be single-step (no nesting into atomic values like msg.sender).
         require(depth == 1, InvalidContextPath(depth));
         // The step must reference a valid context property.
         uint16 contextPropertyId = Path.atUnchecked(path, 0);
         require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(contextPropertyId));
+        return TypeRule.contextPropertyType(contextPropertyId);
     }
 
-    /// @dev Validates that `path` can be navigated within calldata described by `desc`.
-    function _validateCalldataPath(bytes memory desc, bytes memory path, uint256 depth) private pure {
+    /// @dev Validates that `path` can be navigated within calldata described by `desc`. Returns the
+    /// type code it reaches, or zero when `resolveType` is false and `path` only selects an argument.
+    function _validateCalldataPath(
+        bytes memory desc,
+        bytes memory path,
+        uint256 depth,
+        bool resolveType
+    )
+        private
+        pure
+        returns (uint8 code)
+    {
         uint8 paramCount = Descriptor.paramCount(desc);
         uint16 argIndex = Path.atUnchecked(path, 0);
         require(argIndex < paramCount, Descriptor.ParamIndexOutOfBounds(argIndex, paramCount));
 
-        // Single-step paths only select an argument; no composite descent needed.
-        if (depth == 1) return;
+        // Single-step paths need no composite descent, so the argument's node is read only when the
+        // type is wanted.
+        if (depth == 1 && !resolveType) return 0;
 
         uint256 offset = Descriptor.atUnchecked(desc, argIndex);
-        (uint8 code,,,) = Descriptor.inspect(desc, offset);
+        (code,,,) = Descriptor.inspect(desc, offset);
 
         bool hasQuantifier = false;
         for (uint256 i = 1; i < depth; ++i) {
             (code, offset, hasQuantifier) = _descendPath(desc, offset, code, path, i, hasQuantifier);
+        }
+    }
+
+    /// @dev Reverts when an operand of `constraint` folds onto a value `typeCode` admits. A folded
+    /// operand and that value encode to one word, so the operands as written are the only place
+    /// the two stay distinct. Only the extremes can reach across the range's edge.
+    function _checkOperandDomain(Constraint memory constraint, uint8 typeCode) private pure {
+        // A negative operand occupies the word its unsigned alias does, which only the target
+        // holding the whole word can hold too.
+        if (constraint.leastNegativeOperand < 0 && typeCode == TypeCode.UINT256) {
+            // forge-lint: disable-next-line(unsafe-typecast) intentional int256->uint256 reinterpret.
+            revert OutOfPhysicalBounds(bytes32(uint256(constraint.leastNegativeOperand)), typeCode);
+        }
+
+        if (typeCode < TypeCode.INT8 || typeCode > TypeCode.INT256) return;
+        // An operand at or above the signed minimum's own word denotes that negative, and every
+        // such operand already exceeds the signed maximum.
+        (uint256 min,) = TypeRule.getDomainLimits(typeCode);
+        if (constraint.greatestOperand >= min) {
+            revert OutOfPhysicalBounds(bytes32(constraint.greatestOperand), typeCode);
         }
     }
 

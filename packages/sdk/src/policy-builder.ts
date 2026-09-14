@@ -1,6 +1,6 @@
 import { bytesToHex } from "./bytes";
-import { Scope, TypeCode, MAX_CONTEXT_PROPERTY_ID } from "./constants";
-import { ConstraintBuilder } from "./constraint";
+import { Scope, TypeCode, lookupContextProperty } from "./constants";
+import { ConstraintBuilder, readOperandExtremes } from "./constraint";
 import { Descriptor } from "./descriptor";
 import { DescriptorCoder } from "./descriptor-coder";
 import { CallciumError, ValidationError } from "./errors";
@@ -27,22 +27,16 @@ type PolicyDraft = {
 // Path validation
 ///////////////////////////////////////////////////////////////////////////
 
-/** Validate a context-scope path. */
-function validateContextPath(steps: number[]): void {
+/** Validate a context-scope path and return the referenced property's type code. */
+function validateContextPath(steps: number[]): number {
   if (steps.length !== 1) {
     throw new CallciumError("INVALID_CONTEXT_PATH", "Context-scope path must be exactly one step");
   }
-  const step = steps[0]!;
-  if (step > MAX_CONTEXT_PROPERTY_ID) {
-    throw new CallciumError(
-      "UNKNOWN_CONTEXT_PROPERTY",
-      `Unknown context property ID 0x${step.toString(16).padStart(4, "0")}`,
-    );
-  }
+  return lookupContextProperty(steps[0]!).typeCode;
 }
 
-/** Validate a calldata-scope path against the descriptor. */
-function validateCalldataPath(steps: number[], desc: Uint8Array): void {
+/** Validate a calldata-scope path against the descriptor and return the target's type code. */
+function validateCalldataPath(steps: number[], desc: Uint8Array): number {
   const argIndex = steps[0]!;
   const paramCount = Descriptor.paramCount(desc);
   if (argIndex >= paramCount) {
@@ -94,6 +88,57 @@ function validateCalldataPath(steps: number[], desc: Uint8Array): void {
       throw new CallciumError("NOT_COMPOSITE", "Cannot descend into an elementary type");
     }
   }
+
+  return Descriptor.inspect(desc, offset).typeCode;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Operand domain
+///////////////////////////////////////////////////////////////////////////
+
+// Values a 32-byte word represents, which is the distance between an operand and its alias.
+const WORD_VALUES = 1n << 256n;
+
+/** Integers an integer target admits, or null for any other type. */
+function targetBounds(typeCode: number): { min: bigint; max: bigint } | null {
+  if (typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) {
+    const bits = BigInt(typeCode - TypeCode.UINT_MIN + 1) * 8n;
+    return { min: 0n, max: (1n << bits) - 1n };
+  }
+  if (typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX) {
+    const bits = BigInt(typeCode - TypeCode.INT_MIN + 1) * 8n;
+    const half = 1n << (bits - 1n);
+    return { min: -half, max: half - 1n };
+  }
+  return null;
+}
+
+/** Reject an operand outside the target's range whose word carries a value inside it. */
+function reject(written: bigint, folded: bigint): never {
+  throw new CallciumError(
+    "OUT_OF_PHYSICAL_BOUNDS",
+    `Operand ${written} is outside the physical range of the type and encodes as ${folded}`,
+  );
+}
+
+/**
+ * Reject an operand that two's complement folds onto a value the target admits.
+ * Such an operand and the value it folds onto encode to one word, so the operands as written are
+ * the only place the two stay distinct. An operand whose word the target cannot hold survives
+ * encoding intact and needs no guard here.
+ */
+function checkOperandDomain(constraint: Constraint | ConstraintBuilder, typeCode: number): void {
+  const bounds = targetBounds(typeCode);
+  const extremes = readOperandExtremes(constraint);
+  if (bounds === null || extremes === undefined) return;
+
+  // A negative operand occupies the word its unsigned alias does.
+  const alias = extremes.leastNegative + WORD_VALUES;
+  if (extremes.leastNegative < bounds.min && alias <= bounds.max) reject(extremes.leastNegative, alias);
+
+  // An operand above the range occupies the word of the negative it denotes.
+  const denoted = extremes.greatest - WORD_VALUES;
+  if (extremes.greatest > bounds.max && denoted >= bounds.min) reject(extremes.greatest, denoted);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -142,6 +187,9 @@ export class PolicyBuilder {
   /**
    * Add a constraint to the current group.
    * @param constraint - A `Constraint` object or a `ConstraintBuilder` instance.
+   * @throws {CallciumError} With code `OUT_OF_PHYSICAL_BOUNDS` when a numeric operand lies outside
+   * the target type's range and encodes as a value inside it. Operands are read as written, so a
+   * `Constraint` carrying encoded operator bytes is left to {@link validate}.
    */
   add(constraint: Constraint | ConstraintBuilder): this {
     const c: Constraint = {
@@ -160,13 +208,16 @@ export class PolicyBuilder {
       throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
     }
 
+    let targetTypeCode: number;
     if (c.scope === Scope.CONTEXT) {
-      validateContextPath(steps);
+      targetTypeCode = validateContextPath(steps);
     } else if (c.scope === Scope.CALLDATA) {
-      validateCalldataPath(steps, this.draft.descriptor);
+      targetTypeCode = validateCalldataPath(steps, this.draft.descriptor);
     } else {
       throw new CallciumError("INVALID_SCOPE", `Unknown scope value ${c.scope}`);
     }
+
+    checkOperandDomain(constraint, targetTypeCode);
 
     const key = `${c.scope}:${c.path.toLowerCase()}`;
     const currentHashes = this.draft.pathHashes[this.draft.pathHashes.length - 1]!;

@@ -51,6 +51,8 @@ abstract contract ConformanceTest is Test {
                     scope: uint8(vm.parseJsonUint(json, string.concat(constraintPath, ".scope"))),
                     path: vm.parseJsonBytes(json, string.concat(constraintPath, ".path")),
                     operators: operators,
+                    leastNegativeOperand: 0,
+                    greatestOperand: 0,
                     hint: hint
                 });
             }

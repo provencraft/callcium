@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { Scope } from "../src/constants";
-import { arg, msgSender } from "../src/constraint";
+import { arg, msgSender, msgValue } from "../src/constraint";
 import { CallciumError, ValidationError } from "../src/errors";
 import { Quantifier } from "../src/path";
 import { PolicyBuilder } from "../src/policy-builder";
@@ -336,6 +336,116 @@ describe("PolicyBuilder", () => {
   test("allows valid static array index within range", () => {
     const blob = PolicyBuilder.create("foo(uint256[3])").add(arg(0, 2).eq(1n)).build();
     expect(blob).toMatch(/^0x[0-9a-f]+$/);
+  });
+
+  ///////////////////////////////////////////////////////////////////////////
+  // Operand domain
+  ///////////////////////////////////////////////////////////////////////////
+
+  test("rejects a negative operand on an unsigned target", () => {
+    expectErrorCode(
+      () => PolicyBuilder.create("transfer(address,uint256)").add(arg(1).lte(-5n)),
+      "OUT_OF_PHYSICAL_BOUNDS",
+    );
+  });
+
+  test("rejects an operand above a signed target's maximum", () => {
+    expectErrorCode(() => PolicyBuilder.createRaw("int256").add(arg(0).gt(1n << 255n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects an out-of-domain endpoint of a range", () => {
+    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(arg(0).between(-1n, 5n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects an operand that folds onto a value inside a set", () => {
+    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(arg(0).isIn([5n, -1n])), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects a negative operand on an unsigned context property", () => {
+    expectErrorCode(
+      () => PolicyBuilder.create("transfer(address,uint256)").add(msgValue().lt(-1n)),
+      "OUT_OF_PHYSICAL_BOUNDS",
+    );
+  });
+
+  test("rejects an operand that folds onto a value the element type admits", () => {
+    expectErrorCode(
+      () => PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lte(-1n)),
+      "OUT_OF_PHYSICAL_BOUNDS",
+    );
+  });
+
+  test("accepts a negative operand on a signed target", () => {
+    const blob = PolicyBuilder.createRaw("int256").add(arg(0).between(-5n, 5n)).build();
+    expect(blob).toMatch(/^0x[0-9a-f]+$/);
+  });
+
+  test("accepts the near-maximum bound the unsigned alias would collide with", () => {
+    const blob = PolicyBuilder.createRaw("uint256")
+      .add(arg(0).lte((1n << 256n) - 5n))
+      .build();
+    expect(blob).toMatch(/^0x[0-9a-f]+$/);
+  });
+
+  test("reads one literal against the target rather than against the operand's own width", () => {
+    const unsigned = PolicyBuilder.createRaw("uint256")
+      .add(arg(0).gt(1n << 255n))
+      .build();
+    expect(unsigned).toMatch(/^0x[0-9a-f]+$/);
+    expectErrorCode(() => PolicyBuilder.createRaw("int256").add(arg(0).gt(1n << 255n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects a high literal that reads as a small negative on a narrow signed target", () => {
+    expectErrorCode(() => PolicyBuilder.createRaw("int8").add(arg(0).eq((1n << 256n) - 1n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects a folded operand under a negated operator", () => {
+    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(arg(0).neq(-1n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("checks every literal of a set whose members share one encoding", () => {
+    expectErrorCode(
+      () => PolicyBuilder.createRaw("uint256").add(arg(0).isIn([-1n, (1n << 256n) - 1n])),
+      "OUT_OF_PHYSICAL_BOUNDS",
+    );
+  });
+
+  test("remembers an operand after its operator is removed", () => {
+    const constraint = arg(0).lte(-5n);
+    constraint.operators.pop();
+    constraint.lte((1n << 256n) - 5n);
+    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(constraint), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("names the operand that reaches furthest past the range", () => {
+    expect(() => PolicyBuilder.createRaw("uint256").add(arg(0).gt(-1n).lte(-5n))).toThrow(/Operand -5 /);
+  });
+
+  test("leaves a bitmask operand to the validator, which reads a mask as a bit pattern", () => {
+    const negative = PolicyBuilder.createRaw("uint256").add(arg(0).bitmaskAll(-1n)).build();
+    const allOnes = PolicyBuilder.createRaw("uint256")
+      .add(arg(0).bitmaskAll((1n << 256n) - 1n))
+      .build();
+    expect(negative).toBe(allOnes);
+    const issues = PolicyBuilder.createRaw("int256")
+      .add(arg(0).bitmaskAll(1n << 255n))
+      .validate();
+    expect(issues.map((issue) => issue.code)).toContain("BITMASK_ON_INVALID");
+  });
+
+  test("leaves an operand whose encoding the target cannot hold to the validator", () => {
+    const issues = PolicyBuilder.createRaw("uint8").add(arg(0).eq(256n)).validate();
+    expect(issues.some((issue) => issue.code === "OUT_OF_PHYSICAL_BOUNDS")).toBe(true);
+  });
+
+  test("leaves a plain Constraint to the validator, which has no operands as written", () => {
+    const encoded: Constraint = {
+      scope: Scope.CALLDATA,
+      path: "0x0000",
+      operators: [`0x05${((1n << 256n) - 5n).toString(16).padStart(64, "0")}`],
+    };
+    const issues = PolicyBuilder.createRaw("uint8").add(encoded).validate();
+    expect(issues.some((issue) => issue.code === "OUT_OF_PHYSICAL_BOUNDS")).toBe(true);
   });
 });
 

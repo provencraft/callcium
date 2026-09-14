@@ -201,8 +201,9 @@ library PolicyValidator {
                             ValidationIssue.unknownContextProperty(groupIndex, constraintIndex, ctxId, PF.CTX_MAX)
                         );
                     }
-                    typeInfo =
-                        Descriptor.TypeInfo({ code: _contextPropertyType(ctxId), isDynamic: false, staticSize: 32 });
+                    typeInfo = Descriptor.TypeInfo({
+                        code: TypeRule.contextPropertyType(ctxId), isDynamic: false, staticSize: 32
+                    });
                 }
                 ctx = _initContext(constraint.scope, constraint.path, typeInfo);
                 ctxIndex = contexts.length;
@@ -310,7 +311,7 @@ library PolicyValidator {
                     // Compatibility has already narrowed the target to an address or unsigned type,
                     // so the pairing reduces to whether both sides are addresses.
                     // forge-lint: disable-next-line(unsafe-typecast) bounded by the check above.
-                    bool propertyIsAddress = _contextPropertyType(uint16(ctxOperand)) == TypeCode.ADDRESS;
+                    bool propertyIsAddress = TypeRule.contextPropertyType(uint16(ctxOperand)) == TypeCode.ADDRESS;
                     bool targetIsAddress = ctx.typeInfo.code == TypeCode.ADDRESS;
                     if (propertyIsAddress != targetIsAddress) {
                         issues.push(
@@ -943,11 +944,6 @@ library PolicyValidator {
         for (uint256 i = 0; i < depth; ++i) {
             if (Path.atUnchecked(path, i) >= Path.ANY) ++count;
         }
-    }
-
-    /// @dev Returns the declared type code of the context property `ctxId`.
-    function _contextPropertyType(uint16 ctxId) private pure returns (uint8) {
-        return (ctxId == PF.CTX_MSG_SENDER || ctxId == PF.CTX_TX_ORIGIN) ? TypeCode.ADDRESS : TypeCode.UINT256;
     }
 
     /// @dev Initializes a constraint context with domain limits for the given type.

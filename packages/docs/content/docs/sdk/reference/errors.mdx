@@ -8,7 +8,7 @@ description: "Error classes thrown by the SDK."
 Thrown when a policy or descriptor blob is structurally malformed.
 The optional `offset` indicates the byte position in the source blob where the error was detected.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L87)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L90)
 
 ## ValidationError
 
@@ -18,7 +18,7 @@ Carries every issue the validator found. The `Error.message` is the first issue'
 message — a diagnostic summary, not a presentation contract. Consumers rendering
 issues to users should iterate `issues` directly.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L109)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L112)
 
 ## PolicyViolationError
 
@@ -30,7 +30,7 @@ Carries the full list of structured violations (one per failed group). The
 first violation's structured fields — not a presentation contract. Consumers
 rendering violations to users should iterate `violations` directly.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L128)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L131)
 
 ## Types
 
@@ -41,6 +41,8 @@ Machine-readable error code for structural decoding and validation failures.
 Each code names one invariant. Where Solidity detects the same invariant, the code is its error
 name transliterated from `PascalCase` to `SCREAMING_SNAKE_CASE`. The codes under "Inputs and
 validation" have no counterpart: they name input a Solidity signature cannot express.
+`OUT_OF_PHYSICAL_BOUNDS` names an invariant Solidity carries twice, as the error
+`PolicyBuilder.OutOfPhysicalBounds` and as an issue code, so the name is shared with `IssueCode`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L8)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L10)
 <auto-type-table path="../../../../../sdk/src/errors.ts" name="CallciumErrorCode" />

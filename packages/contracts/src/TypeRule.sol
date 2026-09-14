@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import { PolicyFormat as PF } from "./PolicyFormat.sol";
 import { TypeCode } from "./TypeCode.sol";
 
 /// @title TypeRule
@@ -61,6 +62,15 @@ library TypeRule {
     /// @return True if the code is an elementary type.
     function isElementary(uint8 code) internal pure returns (bool) {
         return (ELEMENTARY_MASK >> code) & 1 != 0;
+    }
+
+    /// @notice Returns the type code a context property carries.
+    /// @dev CTX_MSG_SENDER and CTX_TX_ORIGIN are addresses; every other ID, assigned or not, is UINT256.
+    /// @param contextPropertyId The context property ID.
+    /// @return The type code the property carries.
+    function contextPropertyType(uint16 contextPropertyId) internal pure returns (uint8) {
+        bool isAddress = contextPropertyId == PF.CTX_MSG_SENDER || contextPropertyId == PF.CTX_TX_ORIGIN;
+        return isAddress ? TypeCode.ADDRESS : TypeCode.UINT256;
     }
 
     /// @notice Returns true if `code` is a signed integer type (int8 through int256).

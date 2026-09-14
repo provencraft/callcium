@@ -663,7 +663,7 @@ describe("PolicyValidator - unknown operator", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("PolicyValidator - signed integer boundaries", () => {
-  const INT256_MIN = 1n << 255n;
+  const INT256_MIN = -(1n << 255n);
   const INT256_MAX = (1n << 255n) - 1n;
 
   test("reports IMPOSSIBLE_GT for gt(int256.max)", () => {

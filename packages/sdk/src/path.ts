@@ -47,7 +47,7 @@ export function lookupQuantifier(code: number): QuantifierInfo {
 /**
  * Encode a sequence of uint16 path steps as a big-endian hex string.
  * @throws {CallciumError} When a step is not an integer the field holds. A wrapped step would
- * address a different argument, or land on a quantifier sentinel.
+ * address a different argument.
  */
 export function encodePath(steps: readonly number[]): Hex {
   const buffer = new Uint8Array(steps.length * 2);
