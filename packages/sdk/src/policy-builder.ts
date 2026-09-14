@@ -20,7 +20,8 @@ type PolicyDraft = {
   selector: Hex;
   descriptor: Uint8Array;
   groups: Constraint[][];
-  pathHashes: Set<string>[];
+  /** Scope-qualified paths already taken in the group being built. */
+  groupPathKeys: Set<string>;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -165,7 +166,7 @@ export class PolicyBuilder {
       selector: parsed.selector,
       descriptor,
       groups: [[]],
-      pathHashes: [new Set()],
+      groupPathKeys: new Set(),
     });
   }
 
@@ -180,7 +181,7 @@ export class PolicyBuilder {
       selector: "0x00000000",
       descriptor,
       groups: [[]],
-      pathHashes: [new Set()],
+      groupPathKeys: new Set(),
     });
   }
 
@@ -222,12 +223,11 @@ export class PolicyBuilder {
     checkOperandDomain(constraint, targetTypeCode);
 
     const key = `${c.scope}:${c.path.toLowerCase()}`;
-    const currentHashes = this.draft.pathHashes[this.draft.pathHashes.length - 1]!;
-    if (currentHashes.has(key)) {
+    if (this.draft.groupPathKeys.has(key)) {
       throw new CallciumError("DUPLICATE_PATH_IN_GROUP", `Duplicate path ${c.path} in the same group`);
     }
 
-    currentHashes.add(key);
+    this.draft.groupPathKeys.add(key);
     this.draft.groups[this.draft.groups.length - 1]!.push(c);
     return this;
   }
@@ -239,7 +239,7 @@ export class PolicyBuilder {
       throw new CallciumError("EMPTY_GROUP", "Cannot start a new group when the current group is empty");
     }
     this.draft.groups.push([]);
-    this.draft.pathHashes.push(new Set());
+    this.draft.groupPathKeys.clear();
     return this;
   }
 
