@@ -1,8 +1,8 @@
 import { hexToBytes, bytesToHex, readU16, readU32, bigintToHex, toAddress } from "./bytes";
 import { loadWord, readLength, readPointer } from "./calldata-reader";
-import { PolicyFormat as PF, Scope, MAX_CONTEXT_PROPERTY_ID, Op, TypeCode, lookupContextProperty } from "./constants";
+import { PolicyFormat as PF, Scope, Op, TypeCode, lookupContextProperty } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
-import { applyOperator, toBigInt, isLengthOp, isLengthValidType, canonicalize, classifyTypeCode } from "./operators";
+import { applyOperator, toBigInt, isLengthValidType, canonicalize } from "./operators";
 import { decodePolicy } from "./policy-coder";
 
 import type { ReadResult } from "./calldata-reader";
@@ -285,9 +285,6 @@ function evalTarget(
 
   // A dynamic target's chain ends at its payload, so the word there is the declared length.
   if (isLengthValidType(typeCode)) {
-    if (!isLengthOp(opCode)) {
-      throw new CallciumError("OPERATOR_TARGET_MISMATCH", "Value operator on a target without a scalar word");
-    }
     const length = readLength(callData, target);
     if (typeof length !== "bigint") return { error: length.code };
 
@@ -300,9 +297,6 @@ function evalTarget(
     return { passed, value: length };
   }
 
-  if (classifyTypeCode(typeCode).typeClass !== "elementary") {
-    throw new CallciumError("OPERATOR_TARGET_MISMATCH", "Operator target does not carry a scalar word");
-  }
   const word = loadWord(callData, target);
   if (!(word instanceof Uint8Array)) return { error: word.code };
 
@@ -595,14 +589,6 @@ function evaluateContextRule(
   context?: Context,
 ): Violation | null {
   const propertyId = readU16(pathBytes, 0);
-
-  if (propertyId > MAX_CONTEXT_PROPERTY_ID) {
-    throw new CallciumError(
-      "UNKNOWN_CONTEXT_PROPERTY",
-      `Unknown context property ID 0x${propertyId.toString(16).padStart(4, "0")}`,
-    );
-  }
-
   const propertyInfo = lookupContextProperty(propertyId);
   const contextValue = context?.[propertyInfo.contextKey];
 
