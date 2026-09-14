@@ -6,7 +6,7 @@ import { CallciumError, ValidationError } from "../src/errors";
 import { Quantifier } from "../src/path";
 import { PolicyBuilder } from "../src/policy-builder";
 import { PolicyCoder } from "../src/policy-coder";
-import { expectErrorCode } from "./helpers";
+import { expectErrorCode, expectIssueCode } from "./helpers";
 
 import type { Constraint } from "../src/types";
 
@@ -162,7 +162,7 @@ describe("PolicyBuilder", () => {
       expect(caught.code).toBe("VALIDATION_ERROR");
       expect(caught.issues.length).toBeGreaterThan(1);
       expect(caught.message).toBe(caught.issues[0].message);
-      expect(caught.issues.map((issue) => issue.code)).toContain("VALUE_OP_ON_DYNAMIC");
+      expectIssueCode(caught.issues, "VALUE_OP_ON_DYNAMIC");
     }
   });
 
@@ -218,49 +218,22 @@ describe("PolicyBuilder", () => {
       path: "0x0000",
       operators: [`0x01${"0".repeat(64)}`],
     };
-    expect(() => {
-      PolicyBuilder.create("transfer(address,uint256)").add(invalid);
-    }).toThrow(CallciumError);
-
-    try {
-      PolicyBuilder.create("transfer(address,uint256)").add(invalid);
-      expect.unreachable("should have thrown");
-    } catch (error) {
-      if (error instanceof CallciumError) {
-        expect(error.code).toBe("INVALID_SCOPE");
-      } else {
-        throw error;
-      }
-    }
+    expectErrorCode(() => PolicyBuilder.create("transfer(address,uint256)").add(invalid), "INVALID_SCOPE");
   });
 
   test("or() immediately after creation throws EMPTY_GROUP", () => {
-    try {
-      PolicyBuilder.create("transfer(address,uint256)").or();
-      expect.unreachable("should have thrown");
-    } catch (error) {
-      if (error instanceof CallciumError) {
-        expect(error.code).toBe("EMPTY_GROUP");
-      } else {
-        throw error;
-      }
-    }
+    expectErrorCode(() => PolicyBuilder.create("transfer(address,uint256)").or(), "EMPTY_GROUP");
   });
 
   test("build() throws EMPTY_GROUP when last group has no constraints", () => {
-    try {
-      PolicyBuilder.create("transfer(address,uint256)")
-        .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-        .or()
-        .build();
-      expect.unreachable("should have thrown");
-    } catch (error) {
-      if (error instanceof CallciumError) {
-        expect(error.code).toBe("EMPTY_GROUP");
-      } else {
-        throw error;
-      }
-    }
+    expectErrorCode(
+      () =>
+        PolicyBuilder.create("transfer(address,uint256)")
+          .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
+          .or()
+          .build(),
+      "EMPTY_GROUP",
+    );
   });
 
   ///////////////////////////////////////////////////////////////////////////
@@ -273,20 +246,7 @@ describe("PolicyBuilder", () => {
       path: "0x00000000", // Two steps; a context path carries exactly one.
       operators: [`0x01${"0".repeat(64)}`],
     };
-    expect(() => {
-      PolicyBuilder.create("transfer(address,uint256)").add(invalid);
-    }).toThrow(CallciumError);
-
-    try {
-      PolicyBuilder.create("transfer(address,uint256)").add(invalid);
-      expect.unreachable("should have thrown");
-    } catch (error) {
-      if (error instanceof CallciumError) {
-        expect(error.code).toBe("INVALID_CONTEXT_PATH");
-      } else {
-        throw error;
-      }
-    }
+    expectErrorCode(() => PolicyBuilder.create("transfer(address,uint256)").add(invalid), "INVALID_CONTEXT_PATH");
   });
 
   test("rejects context path with unknown property ID", () => {
@@ -295,20 +255,7 @@ describe("PolicyBuilder", () => {
       path: "0xffff", // Way beyond MAX_CONTEXT_PROPERTY_ID.
       operators: [`0x01${"0".repeat(64)}`],
     };
-    expect(() => {
-      PolicyBuilder.create("transfer(address,uint256)").add(invalid);
-    }).toThrow(CallciumError);
-
-    try {
-      PolicyBuilder.create("transfer(address,uint256)").add(invalid);
-      expect.unreachable("should have thrown");
-    } catch (error) {
-      if (error instanceof CallciumError) {
-        expect(error.code).toBe("UNKNOWN_CONTEXT_PROPERTY");
-      } else {
-        throw error;
-      }
-    }
+    expectErrorCode(() => PolicyBuilder.create("transfer(address,uint256)").add(invalid), "UNKNOWN_CONTEXT_PROPERTY");
   });
 
   ///////////////////////////////////////////////////////////////////////////
@@ -438,12 +385,12 @@ describe("PolicyBuilder", () => {
     const issues = PolicyBuilder.createRaw("int256")
       .add(arg(0).bitmaskAll(1n << 255n))
       .validate();
-    expect(issues.map((issue) => issue.code)).toContain("BITMASK_ON_INVALID");
+    expectIssueCode(issues, "BITMASK_ON_INVALID");
   });
 
   test("leaves an operand whose encoding the target cannot hold to the validator", () => {
     const issues = PolicyBuilder.createRaw("uint8").add(arg(0).eq(256n)).validate();
-    expect(issues.some((issue) => issue.code === "OUT_OF_PHYSICAL_BOUNDS")).toBe(true);
+    expectIssueCode(issues, "OUT_OF_PHYSICAL_BOUNDS");
   });
 
   test("checks a constraint rebuilt around a builder's own fields", () => {
@@ -464,7 +411,7 @@ describe("PolicyBuilder", () => {
       operators: [`0x05${((1n << 256n) - 5n).toString(16).padStart(64, "0")}`],
     };
     const issues = PolicyBuilder.createRaw("uint8").add(encoded).validate();
-    expect(issues.some((issue) => issue.code === "OUT_OF_PHYSICAL_BOUNDS")).toBe(true);
+    expectIssueCode(issues, "OUT_OF_PHYSICAL_BOUNDS");
   });
 });
 

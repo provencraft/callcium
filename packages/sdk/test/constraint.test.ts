@@ -285,14 +285,7 @@ describe(".isIn() / .notIn()", () => {
   });
 
   test(".isIn([]) — throws EMPTY_SET", () => {
-    expect(() => arg(0).isIn([])).toThrow(CallciumError);
-    try {
-      arg(0).isIn([]);
-    } catch (e) {
-      if (e instanceof CallciumError) {
-        expect(e.code).toBe("EMPTY_SET");
-      }
-    }
+    expectErrorCode(() => arg(0).isIn([]), "EMPTY_SET");
   });
 
   test(".isIn() — accepts the largest set a rule's data length can hold", () => {

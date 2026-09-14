@@ -2,7 +2,16 @@ import { expect } from "vitest";
 
 import { CallciumError } from "../src";
 
-import type { Constraint, EnforceResult, PolicyData, Violation, ViolationCode } from "../src";
+import type {
+  CallciumErrorCode,
+  Constraint,
+  EnforceResult,
+  Issue,
+  IssueCode,
+  PolicyData,
+  Violation,
+  ViolationCode,
+} from "../src";
 
 /** Assert an enforcement result is a failure and narrow its type. */
 export function assertFailed(result: EnforceResult): asserts result is Extract<EnforceResult, { ok: false }> {
@@ -29,12 +38,8 @@ export function assertViolationCode<C extends ViolationCode>(
   }
 }
 
-/**
- * Assert a result failed, has at least one violation, and its first violation matches `code`.
- * Returns the narrowed violation. Combines `assertFailed` + first-violation extraction + code check
- * for the common single-violation test pattern.
- */
-export function firstViolation<C extends ViolationCode>(
+/** Assert a result failed and its first violation carries `code`, and return that violation. */
+export function expectFirstViolation<C extends ViolationCode>(
   result: EnforceResult,
   code: C,
 ): Extract<Violation, { code: C }> {
@@ -47,17 +52,33 @@ export function firstViolation<C extends ViolationCode>(
   return violation;
 }
 
-/** Assert that calling call() throws a CallciumError with the given code. */
-export function expectErrorCode(call: () => void, code: string): void {
+/** Assert that `issues` carries one with the given code and return it. */
+export function expectIssueCode(issues: readonly Issue[], code: IssueCode): Issue {
+  const issue = issues.find((candidate) => candidate.code === code);
+  if (issue === undefined) {
+    const found = issues.map((candidate) => candidate.code).join(", ") || "no issues";
+    throw new Error(`Expected issue ${code}, got ${found}`);
+  }
+  return issue;
+}
+
+/** Assert that `issues` carries none with the given code. */
+export function refuteIssueCode(issues: readonly Issue[], code: IssueCode): void {
+  expect(issues.map((issue) => issue.code)).not.toContain(code);
+}
+
+/** Assert that calling call() throws a CallciumError with the given code and return it. */
+export function expectErrorCode(call: () => unknown, code: CallciumErrorCode): CallciumError {
   try {
     call();
-    expect.unreachable("Expected CallciumError");
   } catch (error) {
-    expect(error).toBeInstanceOf(CallciumError);
-    if (error instanceof CallciumError) {
-      expect(error.code).toBe(code);
+    if (!(error instanceof CallciumError)) {
+      throw error;
     }
+    expect(error.code).toBe(code);
+    return error;
   }
+  expect.unreachable(`Expected CallciumError ${code}`);
 }
 
 /** Coerce a plain string to a 0x-prefixed hex value. */
