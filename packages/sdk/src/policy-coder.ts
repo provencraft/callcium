@@ -626,8 +626,8 @@ function decode(blob: Hex): PolicyData {
   const { policy } = decodePolicy(blob);
 
   const groups: Constraint[][] = policy.groups.map((group) => {
+    // A Map keeps its insertion order, which is the order the rules named their constraints in.
     const constraintMap = new Map<string, Constraint>();
-    const constraintOrder: string[] = [];
 
     for (const rule of group.rules) {
       const hintHex = rule.hint?.value;
@@ -646,11 +646,10 @@ function decode(blob: Hex): PolicyData {
           span: rule.span,
         };
         constraintMap.set(key, constraint);
-        constraintOrder.push(key);
       }
     }
 
-    return constraintOrder.map((k) => constraintMap.get(k)!);
+    return [...constraintMap.values()];
   });
 
   return {
