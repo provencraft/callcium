@@ -3,7 +3,7 @@ import { PolicyFormat, Op, Scope, ContextProperty, MAX_CONTEXT_PROPERTY_ID } fro
 import { CallciumError } from "./errors";
 import { encodePath } from "./path";
 
-import type { Hex, Constraint } from "./types";
+import type { Address, Hex, Constraint } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Value encoding helpers
@@ -157,7 +157,7 @@ export function readOperandExtremes(constraint: Constraint | ConstraintBuilder):
  * Mutable builder that accumulates operators targeting a single path.
  * Implements the `Constraint` interface so it can be passed directly to policy builders.
  */
-export class ConstraintBuilder implements Constraint {
+export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implements Constraint {
   readonly scope: number;
   readonly path: Hex;
   readonly operators: Hex[];
@@ -197,12 +197,12 @@ export class ConstraintBuilder implements Constraint {
   ///////////////////////////////////////////////////////////////////////////
 
   /** Assert the value equals `value`. */
-  eq(value: ScalarValue): this {
+  eq(value: Operand): this {
     return this.push(singleOp(Op.EQ, value), [value]);
   }
 
   /** Assert the value does not equal `value`. */
-  neq(value: ScalarValue): this {
+  neq(value: Operand): this {
     return this.push(singleOp(Op.EQ | Op.NOT, value), [value]);
   }
 
@@ -253,7 +253,7 @@ export class ConstraintBuilder implements Constraint {
    * Values are sorted and deduplicated before encoding.
    * @throws {CallciumError} If the set is empty after deduplication.
    */
-  isIn(values: readonly ScalarValue[]): this {
+  isIn(values: readonly Operand[]): this {
     return this.push(setOp(Op.IN, values), values);
   }
 
@@ -261,7 +261,7 @@ export class ConstraintBuilder implements Constraint {
    * Assert the value is not a member of the set.
    * @throws {CallciumError} If the set is empty after deduplication.
    */
-  notIn(values: readonly ScalarValue[]): this {
+  notIn(values: readonly Operand[]): this {
     return this.push(setOp(Op.IN | Op.NOT, values), values);
   }
 
@@ -336,41 +336,41 @@ export function arg(...steps: number[]): ConstraintBuilder {
 }
 
 /** Target the `msg.sender` context property. */
-export function msgSender(): ConstraintBuilder {
+export function msgSender(): ConstraintBuilder<Address> {
   return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.MSG_SENDER]));
 }
 
 /** Target the `msg.value` context property. */
-export function msgValue(): ConstraintBuilder {
+export function msgValue(): ConstraintBuilder<bigint> {
   return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.MSG_VALUE]));
 }
 
 /** Target the `block.timestamp` context property. */
-export function blockTimestamp(): ConstraintBuilder {
+export function blockTimestamp(): ConstraintBuilder<bigint> {
   return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.BLOCK_TIMESTAMP]));
 }
 
 /** Target the `block.number` context property. */
-export function blockNumber(): ConstraintBuilder {
+export function blockNumber(): ConstraintBuilder<bigint> {
   return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.BLOCK_NUMBER]));
 }
 
 /** Target the `block.chainid` context property. */
-export function chainId(): ConstraintBuilder {
+export function chainId(): ConstraintBuilder<bigint> {
   return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.CHAIN_ID]));
 }
 
 /** Target the `tx.origin` context property. */
-export function txOrigin(): ConstraintBuilder {
+export function txOrigin(): ConstraintBuilder<Address> {
   return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.TX_ORIGIN]));
 }
 
 /** Target the `block.basefee` context property. */
-export function baseFee(): ConstraintBuilder {
+export function baseFee(): ConstraintBuilder<bigint> {
   return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.BASE_FEE]));
 }
 
 /** Target the `tx.gasprice` context property. */
-export function gasPrice(): ConstraintBuilder {
+export function gasPrice(): ConstraintBuilder<bigint> {
   return new ConstraintBuilder(Scope.CONTEXT, encodePath([ContextProperty.GAS_PRICE]));
 }

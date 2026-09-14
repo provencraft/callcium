@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, expectTypeOf, test } from "vitest";
 
 import { PolicyFormat, Scope, ContextProperty, MAX_CONTEXT_PROPERTY_ID, Op } from "../src/constants";
 import {
@@ -13,6 +13,9 @@ import {
 } from "../src/constraint";
 import { CallciumError } from "../src/errors";
 import { expectErrorCode } from "./helpers";
+
+import type { ConstraintBuilder } from "../src/constraint";
+import type { Address } from "../src/types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Target factories
@@ -67,6 +70,38 @@ describe("context factories", () => {
 
   test("txOrigin() — path=0x0005", () => {
     expect(txOrigin().path).toBe(`0x${ContextProperty.TX_ORIGIN.toString(16).padStart(4, "0")}`);
+  });
+
+  test("an address property takes an address operand and nothing else", () => {
+    expectTypeOf(msgSender()).toEqualTypeOf<ConstraintBuilder<Address>>();
+    expectTypeOf(txOrigin()).toEqualTypeOf<ConstraintBuilder<Address>>();
+
+    expect(msgSender().eq("0x0000000000000000000000000000000000000001").operators).toHaveLength(1);
+    expect(
+      msgSender().isIn(["0x0000000000000000000000000000000000000001", "0x0000000000000000000000000000000000000002"])
+        .operators,
+    ).toHaveLength(1);
+  });
+
+  test("a uint256 property takes a bigint operand and nothing else", () => {
+    // A uint256 spans values no number represents exactly, so number is not an operand for one.
+    expectTypeOf(msgValue()).toEqualTypeOf<ConstraintBuilder<bigint>>();
+    expectTypeOf(blockTimestamp()).toEqualTypeOf<ConstraintBuilder<bigint>>();
+    expectTypeOf(blockNumber()).toEqualTypeOf<ConstraintBuilder<bigint>>();
+    expectTypeOf(chainId()).toEqualTypeOf<ConstraintBuilder<bigint>>();
+
+    expect(msgValue().eq(0n).operators).toHaveLength(1);
+  });
+
+  test("a calldata target keeps the wide operand union", () => {
+    // The descriptor fixes a calldata target's type, and add() is where it is read, so the
+    // operand stays as wide as the union until then.
+    expectTypeOf(arg(0)).toEqualTypeOf<ConstraintBuilder>();
+
+    expect(arg(0).eq(1).operators).toHaveLength(1);
+    expect(arg(0).eq(1n).operators).toHaveLength(1);
+    expect(arg(0).eq(true).operators).toHaveLength(1);
+    expect(arg(0).eq("0x0000000000000000000000000000000000000001").operators).toHaveLength(1);
   });
 });
 
