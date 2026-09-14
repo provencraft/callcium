@@ -330,17 +330,24 @@ type RuleFrame = {
   typeCode: number;
 };
 
-/** Build a navigation violation for a read the enforcer cannot perform. */
-function navigationViolation(frame: RuleFrame, code: NavigationViolationCode, elementIndex?: number): Violation {
+/** The coordinates, target and operator fields every violation of a calldata rule carries. */
+function ruleFields(frame: RuleFrame) {
   return {
     group: frame.group,
     rule: frame.rule,
-    code,
     scope: Scope.CALLDATA,
     path: frame.path,
     opCode: frame.opCode,
     operandData: bytesToHex(frame.operandData),
     typeCode: frame.typeCode,
+  };
+}
+
+/** Build a navigation violation for a read the enforcer cannot perform. */
+function navigationViolation(frame: RuleFrame, code: NavigationViolationCode, elementIndex?: number): Violation {
+  return {
+    code,
+    ...ruleFields(frame),
     ...(elementIndex !== undefined && { elementIndex }),
   };
 }
@@ -349,27 +356,17 @@ function navigationViolation(frame: RuleFrame, code: NavigationViolationCode, el
 function targetViolation(frame: RuleFrame, result: TargetResult, elementIndex?: number): Violation | null {
   if ("error" in result) {
     if (result.error === "MISSING_CONTEXT") {
+      // The type reported is the absent property's, not the target the operator reads.
       return {
-        group: frame.group,
-        rule: frame.rule,
         code: result.error,
-        scope: Scope.CALLDATA,
-        path: frame.path,
-        opCode: frame.opCode,
-        operandData: bytesToHex(frame.operandData),
+        ...ruleFields(frame),
         typeCode: result.ctxTypeCode,
       };
     }
     if (result.error === "NON_CANONICAL_VALUE") {
       return {
-        group: frame.group,
-        rule: frame.rule,
         code: result.error,
-        scope: Scope.CALLDATA,
-        path: frame.path,
-        opCode: frame.opCode,
-        operandData: bytesToHex(frame.operandData),
-        typeCode: frame.typeCode,
+        ...ruleFields(frame),
         resolvedValue: bigintToHex(result.value),
         ...(elementIndex !== undefined && { elementIndex }),
       };
@@ -379,14 +376,8 @@ function targetViolation(frame: RuleFrame, result: TargetResult, elementIndex?: 
 
   if (result.passed) return null;
   return {
-    group: frame.group,
-    rule: frame.rule,
     code: "VALUE_MISMATCH",
-    scope: Scope.CALLDATA,
-    path: frame.path,
-    opCode: frame.opCode,
-    operandData: bytesToHex(frame.operandData),
-    typeCode: frame.typeCode,
+    ...ruleFields(frame),
     resolvedValue: bigintToHex(result.value),
     ...(result.ctxOperand !== undefined && { resolvedOperand: bigintToHex(result.ctxOperand) }),
     ...(elementIndex !== undefined && { elementIndex }),
@@ -562,14 +553,8 @@ function evaluateQuantified(
   if (isUniversal) return null;
   // Existential (ANY) failure: every element rejected the constraint.
   return {
-    group: groupIndex,
-    rule: ruleIndex,
     code: "VALUE_MISMATCH",
-    scope: Scope.CALLDATA,
-    path: pathHex,
-    opCode,
-    operandData: bytesToHex(operandData),
-    typeCode: block.typeCode,
+    ...ruleFields(frame),
     ...(ctxOperand !== undefined && { resolvedOperand: bigintToHex(ctxOperand) }),
   };
 }
@@ -591,16 +576,10 @@ function evaluateContextRule(
   const propertyId = readU16(pathBytes, 0);
   const propertyInfo = lookupContextProperty(propertyId);
   const contextValue = context?.[propertyInfo.contextKey];
+  const site = { group: groupIndex, rule: ruleIndex, scope: Scope.CONTEXT, path: pathHex };
 
   if (contextValue === undefined) {
-    return {
-      group: groupIndex,
-      rule: ruleIndex,
-      code: "MISSING_CONTEXT",
-      scope: Scope.CONTEXT,
-      path: pathHex,
-      typeCode: propertyInfo.typeCode,
-    };
+    return { code: "MISSING_CONTEXT", ...site, typeCode: propertyInfo.typeCode };
   }
 
   const value = contextValueToWord(contextValue);
@@ -611,11 +590,8 @@ function evaluateContextRule(
     const operand = resolveContextOperand(operandData, context);
     if (typeof operand !== "bigint") {
       return {
-        group: groupIndex,
-        rule: ruleIndex,
         code: "MISSING_CONTEXT",
-        scope: Scope.CONTEXT,
-        path: pathHex,
+        ...site,
         opCode,
         operandData: bytesToHex(operandData),
         typeCode: operand.ctxTypeCode,
@@ -629,11 +605,8 @@ function evaluateContextRule(
 
   if (!result) {
     return {
-      group: groupIndex,
-      rule: ruleIndex,
       code: "VALUE_MISMATCH",
-      scope: Scope.CONTEXT,
-      path: pathHex,
+      ...site,
       opCode,
       operandData: bytesToHex(operandData),
       typeCode: propertyInfo.typeCode,
