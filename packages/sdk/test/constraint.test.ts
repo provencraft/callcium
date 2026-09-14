@@ -272,6 +272,12 @@ describe(".isIn() / .notIn()", () => {
     expect((op.length - 4) / 2).toBe(PolicyFormat.MAX_SET_MEMBERS * 32);
   });
 
+  test(".isIn() — weighs the limit against the deduplicated set, not the members given", () => {
+    const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS + 1 }, () => 1n);
+    const op = arg(0).isIn(values).operators[0];
+    expect((op.length - 4) / 2).toBe(32);
+  });
+
   test(".isIn() — throws SET_TOO_LARGE one member past the limit", () => {
     const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
     expectErrorCode(() => arg(0).isIn(values), "SET_TOO_LARGE");

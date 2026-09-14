@@ -246,6 +246,16 @@ contract ConstraintIsInTest is ConstraintTest {
         arg(0).isIn(values);
     }
 
+    function test_CardinalityWeighedAfterDeduplication() public pure {
+        uint256[] memory values = new uint256[](PF.MAX_SET_MEMBERS + 1);
+        for (uint256 i = 0; i < values.length; ++i) {
+            values[i] = 1;
+        }
+
+        Constraint memory c = arg(0).isIn(values);
+        assertEq(c.operators[0].length, PF.RULE_OPCODE_SIZE + 32);
+    }
+
     function test_MaxCardinalityAccepted() public pure {
         uint256[] memory values = new uint256[](PF.MAX_SET_MEMBERS);
         for (uint256 i = 0; i < values.length; ++i) {
