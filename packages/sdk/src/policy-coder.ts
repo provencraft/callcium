@@ -290,12 +290,13 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       // IN operands must be strictly ascending (unsigned); strictness also rejects duplicates.
       if (opBase === Op.IN) {
         const wordCount = dataLengthValue / 32;
+        let prev = toBigInt(data, dataStart);
         for (let word = 1; word < wordCount; word++) {
-          const prev = data.subarray(dataStart + (word - 1) * 32, dataStart + word * 32);
-          const cur = data.subarray(dataStart + word * 32, dataStart + (word + 1) * 32);
-          if (compareBytes(prev, cur) >= 0) {
+          const cur = toBigInt(data, dataStart + word * 32);
+          if (cur <= prev) {
             throw new CallciumError("UNSORTED_IN_SET", "IN operands must be strictly ascending", ruleOffset);
           }
+          prev = cur;
         }
       }
 
