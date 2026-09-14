@@ -3,7 +3,7 @@ title: "PolicyBuilder"
 description: "Fluent API for drafting policies from constraints."
 ---
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L27)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L28)
 
 ## Functions
 
@@ -11,7 +11,7 @@ description: "Fluent API for drafting policies from constraints."
 
 Creates a selectorless draft from a comma-separated type list.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L73)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L79)
 
 ```solidity
 function createRaw(string memory typesCsv) internal pure returns (PolicyDraft memory draft);
@@ -33,7 +33,7 @@ function createRaw(string memory typesCsv) internal pure returns (PolicyDraft me
 
 Creates a draft from a function signature.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L84)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L90)
 
 ```solidity
 function create(string memory signature) internal pure returns (PolicyDraft memory draft);
@@ -55,7 +55,7 @@ function create(string memory signature) internal pure returns (PolicyDraft memo
 
 Adds a constraint to the active group with validation.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L95)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L101)
 
 ```solidity
 function add(PolicyDraft memory draft, Constraint memory constraint) internal pure returns (PolicyDraft memory);
@@ -78,7 +78,7 @@ function add(PolicyDraft memory draft, Constraint memory constraint) internal pu
 
 Starts a new constraint group (OR semantics between groups).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L143)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L155)
 
 ```solidity
 function or(PolicyDraft memory draft) internal pure returns (PolicyDraft memory);
@@ -102,7 +102,7 @@ Builds the final policy blob with strict validation.
 
 Validates the policy and reverts on any issue.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L164)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L176)
 
 ```solidity
 function build(PolicyDraft memory draft) internal pure returns (bytes memory);
@@ -126,7 +126,7 @@ Builds the final policy blob without validation.
 
 Skips validation. The resulting policy may be invalid.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L178)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L190)
 
 ```solidity
 function buildUnsafe(PolicyDraft memory draft) internal pure returns (bytes memory);
@@ -150,7 +150,7 @@ Validates the policy without building.
 
 Use for inspection, debugging, or custom error handling.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L188)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L200)
 
 ```solidity
 function validate(PolicyDraft memory draft) internal pure returns (Issue[] memory);
@@ -174,7 +174,7 @@ function validate(PolicyDraft memory draft) internal pure returns (Issue[] memor
 
 Thrown when the constraint has no operators.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L33)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L34)
 
 ```solidity
 error NoConstraintOperators();
@@ -184,7 +184,7 @@ error NoConstraintOperators();
 
 Thrown when the same `(scope,path)` appears twice within a group.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L38)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L39)
 
 ```solidity
 error DuplicatePathInGroup(uint8 scope, bytes path);
@@ -201,7 +201,7 @@ error DuplicatePathInGroup(uint8 scope, bytes path);
 
 Thrown when an unsupported scope value is provided.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L42)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L43)
 
 ```solidity
 error InvalidScope(uint8 scope);
@@ -217,7 +217,7 @@ error InvalidScope(uint8 scope);
 
 Thrown when a context-scope path does not have exactly one step.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L46)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L47)
 
 ```solidity
 error InvalidContextPath(uint256 depth);
@@ -233,7 +233,7 @@ error InvalidContextPath(uint256 depth);
 
 Thrown when a context-scope path references an undefined context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L50)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L51)
 
 ```solidity
 error UnknownContextProperty(uint16 contextPropertyId);
@@ -245,11 +245,28 @@ error UnknownContextProperty(uint16 contextPropertyId);
 | ------------------- | -------- | --------------------------- |
 | `contextPropertyId` | `uint16` | The referenced property ID. |
 
+### OutOfPhysicalBounds
+
+Thrown when an operand lies outside the target type's range and encodes as a value inside it.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L56)
+
+```solidity
+error OutOfPhysicalBounds(bytes32 word, uint8 typeCode);
+```
+
+**Parameters**
+
+| Name       | Type      | Description                                |
+| ---------- | --------- | ------------------------------------------ |
+| `word`     | `bytes32` | The 32-byte encoding the operand produced. |
+| `typeCode` | `uint8`   | The target's type code.                    |
+
 ### QuantifierOnNonArray
 
 Thrown when a quantifier is used on a non-array node.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L55)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L61)
 
 ```solidity
 error QuantifierOnNonArray(bytes path, uint256 stepIndex);
@@ -266,7 +283,7 @@ error QuantifierOnNonArray(bytes path, uint256 stepIndex);
 
 Thrown when a path contains more than one quantifier step.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L60)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L66)
 
 ```solidity
 error NestedQuantifier(bytes path, uint256 stepIndex);
@@ -283,7 +300,7 @@ error NestedQuantifier(bytes path, uint256 stepIndex);
 
 Thrown when a group is empty.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L64)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L70)
 
 ```solidity
 error EmptyGroup(uint256 groupIndex);
@@ -294,12 +311,3 @@ error EmptyGroup(uint256 groupIndex);
 | Name         | Type      | Description                   |
 | ------------ | --------- | ----------------------------- |
 | `groupIndex` | `uint256` | The index of the empty group. |
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyBuilder.sol#L18)
-
-```solidity
-struct PolicyDraft {
-    /// The canonical policy data.
-    PolicyData data;
-}
-```

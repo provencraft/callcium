@@ -3,7 +3,7 @@ title: "Constraint"
 description: "Fluent API operators for building Constraints."
 ---
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L139)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L215)
 
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L11)
 
@@ -15,122 +15,16 @@ struct Constraint {
     bytes path;
     /// Encoded operators. Each item = opCode(1) || data.
     bytes[] operators;
+    /// Most negative operand written, or zero when none was negative.
+    int256 leastNegativeOperand;
+    /// Greatest operand written, or zero when none exceeded it.
+    uint256 greatestOperand;
     /// Compiled hint block as carried on the wire; empty when the constraint has no encoding.
     bytes hint;
 }
 ```
 
-### arg(uint16)
-
-Creates a constraint targeting a top-level argument.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L97)
-
-```solidity
-function arg(uint16 p0) pure returns (Constraint memory);
-```
-
-### arg(uint16, uint16)
-
-Creates a constraint targeting a nested path of depth 2.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L105)
-
-```solidity
-function arg(uint16 p0, uint16 p1) pure returns (Constraint memory);
-```
-
-### arg(uint16, uint16, uint16)
-
-Creates a constraint targeting a nested path of depth 3.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L114)
-
-```solidity
-function arg(uint16 p0, uint16 p1, uint16 p2) pure returns (Constraint memory);
-```
-
-### arg(uint16, uint16, uint16, uint16)
-
-Creates a constraint targeting a nested path of depth 4.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L124)
-
-```solidity
-function arg(uint16 p0, uint16 p1, uint16 p2, uint16 p3) pure returns (Constraint memory);
-```
-
-### arg(bytes)
-
-Creates a constraint from a pre-encoded BE16 path.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L132)
-
-```solidity
-function arg(bytes memory path) pure returns (Constraint memory);
-```
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L80)
-
-```solidity
-function baseFee() pure returns (Constraint memory);
-```
-
-**Returns**
-
-| Name     | Type         | Description                                    |
-| -------- | ------------ | ---------------------------------------------- |
-| `<none>` | `Constraint` | A context-scoped constraint for block.basefee. |
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L56)
-
-```solidity
-function blockNumber() pure returns (Constraint memory);
-```
-
-**Returns**
-
-| Name     | Type         | Description                                   |
-| -------- | ------------ | --------------------------------------------- |
-| `<none>` | `Constraint` | A context-scoped constraint for block.number. |
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L48)
-
-```solidity
-function blockTimestamp() pure returns (Constraint memory);
-```
-
-**Returns**
-
-| Name     | Type         | Description                                      |
-| -------- | ------------ | ------------------------------------------------ |
-| `<none>` | `Constraint` | A context-scoped constraint for block.timestamp. |
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L64)
-
-```solidity
-function chainId() pure returns (Constraint memory);
-```
-
-**Returns**
-
-| Name     | Type         | Description                                    |
-| -------- | ------------ | ---------------------------------------------- |
-| `<none>` | `Constraint` | A context-scoped constraint for block.chainid. |
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L87)
-
-```solidity
-function gasPrice() pure returns (Constraint memory);
-```
-
-**Returns**
-
-| Name     | Type         | Description                                  |
-| -------- | ------------ | -------------------------------------------- |
-| `<none>` | `Constraint` | A context-scoped constraint for tx.gasprice. |
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L30)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L34)
 
 ```solidity
 function msgSender() pure returns (Constraint memory);
@@ -142,7 +36,7 @@ function msgSender() pure returns (Constraint memory);
 | -------- | ------------ | ------------------------------------------- |
 | `<none>` | `Constraint` | A context-scoped constraint for msg.sender. |
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L39)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L47)
 
 ```solidity
 function msgValue() pure returns (Constraint memory);
@@ -154,7 +48,43 @@ function msgValue() pure returns (Constraint memory);
 | -------- | ------------ | ------------------------------------------ |
 | `<none>` | `Constraint` | A context-scoped constraint for msg.value. |
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L71)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L60)
+
+```solidity
+function blockTimestamp() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                      |
+| -------- | ------------ | ------------------------------------------------ |
+| `<none>` | `Constraint` | A context-scoped constraint for block.timestamp. |
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L73)
+
+```solidity
+function blockNumber() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                   |
+| -------- | ------------ | --------------------------------------------- |
+| `<none>` | `Constraint` | A context-scoped constraint for block.number. |
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L86)
+
+```solidity
+function chainId() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                    |
+| -------- | ------------ | ---------------------------------------------- |
+| `<none>` | `Constraint` | A context-scoped constraint for block.chainid. |
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L99)
 
 ```solidity
 function txOrigin() pure returns (Constraint memory);
@@ -166,13 +96,153 @@ function txOrigin() pure returns (Constraint memory);
 | -------- | ------------ | ------------------------------------------ |
 | `<none>` | `Constraint` | A context-scoped constraint for tx.origin. |
 
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L112)
+
+```solidity
+function baseFee() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                    |
+| -------- | ------------ | ---------------------------------------------- |
+| `<none>` | `Constraint` | A context-scoped constraint for block.basefee. |
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L125)
+
+```solidity
+function gasPrice() pure returns (Constraint memory);
+```
+
+**Returns**
+
+| Name     | Type         | Description                                  |
+| -------- | ------------ | -------------------------------------------- |
+| `<none>` | `Constraint` | A context-scoped constraint for tx.gasprice. |
+
+### arg(uint16)
+
+Creates a constraint targeting a top-level argument.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L139)
+
+```solidity
+function arg(uint16 p0) pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name | Type     | Description         |
+| ---- | -------- | ------------------- |
+| `p0` | `uint16` | The argument index. |
+
+**Returns**
+
+| Name     | Type         | Description                                     |
+| -------- | ------------ | ----------------------------------------------- |
+| `<none>` | `Constraint` | A calldata-scoped constraint at the given path. |
+
+### arg(uint16, uint16)
+
+Creates a constraint targeting a nested path of depth 2.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L154)
+
+```solidity
+function arg(uint16 p0, uint16 p1) pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name | Type     | Description           |
+| ---- | -------- | --------------------- |
+| `p0` | `uint16` | The argument index.   |
+| `p1` | `uint16` | The second path step. |
+
+**Returns**
+
+| Name     | Type         | Description                                     |
+| -------- | ------------ | ----------------------------------------------- |
+| `<none>` | `Constraint` | A calldata-scoped constraint at the given path. |
+
+### arg(uint16, uint16, uint16)
+
+Creates a constraint targeting a nested path of depth 3.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L170)
+
+```solidity
+function arg(uint16 p0, uint16 p1, uint16 p2) pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name | Type     | Description           |
+| ---- | -------- | --------------------- |
+| `p0` | `uint16` | The argument index.   |
+| `p1` | `uint16` | The second path step. |
+| `p2` | `uint16` | The third path step.  |
+
+**Returns**
+
+| Name     | Type         | Description                                     |
+| -------- | ------------ | ----------------------------------------------- |
+| `<none>` | `Constraint` | A calldata-scoped constraint at the given path. |
+
+### arg(uint16, uint16, uint16, uint16)
+
+Creates a constraint targeting a nested path of depth 4.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L187)
+
+```solidity
+function arg(uint16 p0, uint16 p1, uint16 p2, uint16 p3) pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name | Type     | Description           |
+| ---- | -------- | --------------------- |
+| `p0` | `uint16` | The argument index.   |
+| `p1` | `uint16` | The second path step. |
+| `p2` | `uint16` | The third path step.  |
+| `p3` | `uint16` | The fourth path step. |
+
+**Returns**
+
+| Name     | Type         | Description                                     |
+| -------- | ------------ | ----------------------------------------------- |
+| `<none>` | `Constraint` | A calldata-scoped constraint at the given path. |
+
+### arg(bytes)
+
+Creates a constraint from a pre-encoded BE16 path.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L201)
+
+```solidity
+function arg(bytes memory path) pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name   | Type    | Description                      |
+| ------ | ------- | -------------------------------- |
+| `path` | `bytes` | The pre-encoded BE16 path bytes. |
+
+**Returns**
+
+| Name     | Type         | Description                                     |
+| -------- | ------------ | ----------------------------------------------- |
+| `<none>` | `Constraint` | A calldata-scoped constraint at the given path. |
+
 ## Functions
 
 ### eq
 
 Requires the value to equal `value`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L164)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L240)
 
 ```solidity
 function eq(Constraint memory c, uint256 value) internal pure returns (Constraint memory);
@@ -195,7 +265,7 @@ function eq(Constraint memory c, uint256 value) internal pure returns (Constrain
 
 Requires the value to not equal `value`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L172)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L248)
 
 ```solidity
 function neq(Constraint memory c, uint256 value) internal pure returns (Constraint memory);
@@ -218,7 +288,7 @@ function neq(Constraint memory c, uint256 value) internal pure returns (Constrai
 
 Requires the value to be strictly greater than `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L180)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L256)
 
 ```solidity
 function gt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
@@ -241,7 +311,7 @@ function gt(Constraint memory c, uint256 bound) internal pure returns (Constrain
 
 Requires the value to be strictly less than `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L188)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L264)
 
 ```solidity
 function lt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
@@ -264,7 +334,7 @@ function lt(Constraint memory c, uint256 bound) internal pure returns (Constrain
 
 Requires the value to be greater than or equal to `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L196)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L272)
 
 ```solidity
 function gte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
@@ -287,7 +357,7 @@ function gte(Constraint memory c, uint256 bound) internal pure returns (Constrai
 
 Requires the value to be less than or equal to `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L204)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L280)
 
 ```solidity
 function lte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
@@ -310,7 +380,7 @@ function lte(Constraint memory c, uint256 bound) internal pure returns (Constrai
 
 Requires the value to be within \[min, max] inclusive.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L213)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L289)
 
 ```solidity
 function between(Constraint memory c, uint256 min, uint256 max) internal pure returns (Constraint memory);
@@ -334,7 +404,7 @@ function between(Constraint memory c, uint256 min, uint256 max) internal pure re
 
 Requires the signed value to equal `value`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L222)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L300)
 
 ```solidity
 function eq(Constraint memory c, int256 value) internal pure returns (Constraint memory);
@@ -357,7 +427,7 @@ function eq(Constraint memory c, int256 value) internal pure returns (Constraint
 
 Requires the signed value to not equal `value`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L230)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L308)
 
 ```solidity
 function neq(Constraint memory c, int256 value) internal pure returns (Constraint memory);
@@ -380,7 +450,7 @@ function neq(Constraint memory c, int256 value) internal pure returns (Constrain
 
 Requires the signed value to be strictly greater than `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L238)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L316)
 
 ```solidity
 function gt(Constraint memory c, int256 bound) internal pure returns (Constraint memory);
@@ -403,7 +473,7 @@ function gt(Constraint memory c, int256 bound) internal pure returns (Constraint
 
 Requires the signed value to be strictly less than `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L246)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L324)
 
 ```solidity
 function lt(Constraint memory c, int256 bound) internal pure returns (Constraint memory);
@@ -426,7 +496,7 @@ function lt(Constraint memory c, int256 bound) internal pure returns (Constraint
 
 Requires the signed value to be greater than or equal to `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L254)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L332)
 
 ```solidity
 function gte(Constraint memory c, int256 bound) internal pure returns (Constraint memory);
@@ -449,7 +519,7 @@ function gte(Constraint memory c, int256 bound) internal pure returns (Constrain
 
 Requires the signed value to be less than or equal to `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L262)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L340)
 
 ```solidity
 function lte(Constraint memory c, int256 bound) internal pure returns (Constraint memory);
@@ -472,7 +542,7 @@ function lte(Constraint memory c, int256 bound) internal pure returns (Constrain
 
 Requires the signed value to be within \[min, max] inclusive.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L271)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L349)
 
 ```solidity
 function between(Constraint memory c, int256 min, int256 max) internal pure returns (Constraint memory);
@@ -496,7 +566,7 @@ function between(Constraint memory c, int256 min, int256 max) internal pure retu
 
 Requires the value to equal `value` (address).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L280)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L359)
 
 ```solidity
 function eq(Constraint memory c, address value) internal pure returns (Constraint memory);
@@ -519,7 +589,7 @@ function eq(Constraint memory c, address value) internal pure returns (Constrain
 
 Requires the value to not equal `value` (address).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L288)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L367)
 
 ```solidity
 function neq(Constraint memory c, address value) internal pure returns (Constraint memory);
@@ -542,7 +612,7 @@ function neq(Constraint memory c, address value) internal pure returns (Constrai
 
 Requires the value to equal `value` (bytes32).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L296)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L375)
 
 ```solidity
 function eq(Constraint memory c, bytes32 value) internal pure returns (Constraint memory);
@@ -565,7 +635,7 @@ function eq(Constraint memory c, bytes32 value) internal pure returns (Constrain
 
 Requires the value to not equal `value` (bytes32).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L304)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L383)
 
 ```solidity
 function neq(Constraint memory c, bytes32 value) internal pure returns (Constraint memory);
@@ -588,7 +658,7 @@ function neq(Constraint memory c, bytes32 value) internal pure returns (Constrai
 
 Requires the value to equal `value` (bool).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L312)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L391)
 
 ```solidity
 function eq(Constraint memory c, bool value) internal pure returns (Constraint memory);
@@ -611,7 +681,7 @@ function eq(Constraint memory c, bool value) internal pure returns (Constraint m
 
 Requires the value to not equal `value` (bool).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L320)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L399)
 
 ```solidity
 function neq(Constraint memory c, bool value) internal pure returns (Constraint memory);
@@ -634,7 +704,7 @@ function neq(Constraint memory c, bool value) internal pure returns (Constraint 
 
 Requires the value to be in the given address set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L328)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L407)
 
 ```solidity
 function isIn(Constraint memory c, address[] memory values) internal pure returns (Constraint memory);
@@ -657,7 +727,7 @@ function isIn(Constraint memory c, address[] memory values) internal pure return
 
 Requires the value to not be in the given address set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L336)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L415)
 
 ```solidity
 function notIn(Constraint memory c, address[] memory values) internal pure returns (Constraint memory);
@@ -680,7 +750,7 @@ function notIn(Constraint memory c, address[] memory values) internal pure retur
 
 Requires the value to be in the given bytes32 set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L344)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L423)
 
 ```solidity
 function isIn(Constraint memory c, bytes32[] memory values) internal pure returns (Constraint memory);
@@ -703,7 +773,7 @@ function isIn(Constraint memory c, bytes32[] memory values) internal pure return
 
 Requires the value to not be in the given bytes32 set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L352)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L431)
 
 ```solidity
 function notIn(Constraint memory c, bytes32[] memory values) internal pure returns (Constraint memory);
@@ -726,7 +796,7 @@ function notIn(Constraint memory c, bytes32[] memory values) internal pure retur
 
 Requires the value to be in the given uint256 set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L360)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L439)
 
 ```solidity
 function isIn(Constraint memory c, uint256[] memory values) internal pure returns (Constraint memory);
@@ -749,7 +819,7 @@ function isIn(Constraint memory c, uint256[] memory values) internal pure return
 
 Requires the value to not be in the given uint256 set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L368)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L447)
 
 ```solidity
 function notIn(Constraint memory c, uint256[] memory values) internal pure returns (Constraint memory);
@@ -772,7 +842,7 @@ function notIn(Constraint memory c, uint256[] memory values) internal pure retur
 
 Requires the value to be in the given int256 set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L376)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L455)
 
 ```solidity
 function isIn(Constraint memory c, int256[] memory values) internal pure returns (Constraint memory);
@@ -795,7 +865,7 @@ function isIn(Constraint memory c, int256[] memory values) internal pure returns
 
 Requires the value to not be in the given int256 set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L384)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L463)
 
 ```solidity
 function notIn(Constraint memory c, int256[] memory values) internal pure returns (Constraint memory);
@@ -818,7 +888,7 @@ function notIn(Constraint memory c, int256[] memory values) internal pure return
 
 Requires the dynamic type length to equal `length`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L392)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L471)
 
 ```solidity
 function lengthEq(Constraint memory c, uint256 length) internal pure returns (Constraint memory);
@@ -841,7 +911,7 @@ function lengthEq(Constraint memory c, uint256 length) internal pure returns (Co
 
 Requires the dynamic type length to be strictly greater than `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L400)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L479)
 
 ```solidity
 function lengthGt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
@@ -864,7 +934,7 @@ function lengthGt(Constraint memory c, uint256 bound) internal pure returns (Con
 
 Requires the dynamic type length to be strictly less than `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L408)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L487)
 
 ```solidity
 function lengthLt(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
@@ -887,7 +957,7 @@ function lengthLt(Constraint memory c, uint256 bound) internal pure returns (Con
 
 Requires the dynamic type length to be greater than or equal to `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L416)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L495)
 
 ```solidity
 function lengthGte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
@@ -910,7 +980,7 @@ function lengthGte(Constraint memory c, uint256 bound) internal pure returns (Co
 
 Requires the dynamic type length to be less than or equal to `bound`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L424)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L503)
 
 ```solidity
 function lengthLte(Constraint memory c, uint256 bound) internal pure returns (Constraint memory);
@@ -933,7 +1003,7 @@ function lengthLte(Constraint memory c, uint256 bound) internal pure returns (Co
 
 Requires the dynamic type length to be within \[min, max] inclusive.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L433)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L512)
 
 ```solidity
 function lengthBetween(Constraint memory c, uint256 min, uint256 max) internal pure returns (Constraint memory);
@@ -957,7 +1027,7 @@ function lengthBetween(Constraint memory c, uint256 min, uint256 max) internal p
 
 Requires all bits in `mask` to be set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L442)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L521)
 
 ```solidity
 function bitmaskAll(Constraint memory c, uint256 mask) internal pure returns (Constraint memory);
@@ -980,7 +1050,7 @@ function bitmaskAll(Constraint memory c, uint256 mask) internal pure returns (Co
 
 Requires at least one bit in `mask` to be set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L450)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L529)
 
 ```solidity
 function bitmaskAny(Constraint memory c, uint256 mask) internal pure returns (Constraint memory);
@@ -1003,7 +1073,7 @@ function bitmaskAny(Constraint memory c, uint256 mask) internal pure returns (Co
 
 Requires no bits in `mask` to be set.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L458)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L537)
 
 ```solidity
 function bitmaskNone(Constraint memory c, uint256 mask) internal pure returns (Constraint memory);
@@ -1026,7 +1096,7 @@ function bitmaskNone(Constraint memory c, uint256 mask) internal pure returns (C
 
 Requires the value to equal the context property `contextPropertyId`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L466)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L545)
 
 ```solidity
 function eqCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory);
@@ -1049,7 +1119,7 @@ function eqCtx(Constraint memory c, uint16 contextPropertyId) internal pure retu
 
 Requires the value to not equal the context property `contextPropertyId`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L475)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L554)
 
 ```solidity
 function neqCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory);
@@ -1072,7 +1142,7 @@ function neqCtx(Constraint memory c, uint16 contextPropertyId) internal pure ret
 
 Appends a raw operator with its data payload.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L485)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L564)
 
 ```solidity
 function addOp(Constraint memory c, uint8 op, bytes memory data) internal pure returns (Constraint memory);
@@ -1098,7 +1168,7 @@ function addOp(Constraint memory c, uint8 op, bytes memory data) internal pure r
 
 Thrown when the range minimum exceeds the maximum.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L145)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L221)
 
 ```solidity
 error InvalidRange();
@@ -1108,7 +1178,7 @@ error InvalidRange();
 
 Thrown when an empty set is passed to a set membership operator.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L148)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L224)
 
 ```solidity
 error EmptySet();
@@ -1118,7 +1188,7 @@ error EmptySet();
 
 Thrown when a set exceeds the maximum element count.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L151)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L227)
 
 ```solidity
 error SetTooLarge();
@@ -1128,7 +1198,7 @@ error SetTooLarge();
 
 Thrown when an unknown context property ID is referenced.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L154)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L230)
 
 ```solidity
 error UnknownContextProperty(uint16 contextPropertyId);

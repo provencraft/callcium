@@ -5,6 +5,13 @@ import { join } from "node:path";
 // Types
 ///////////////////////////////////////////////////////////////////////////
 
+/** A file-scope declaration, named as forge doc names the page file that carries it. */
+export interface TopLevelSymbol {
+  kind: "library" | "abstract" | "contract" | "struct" | "function" | "enum";
+  name: string;
+  line: number;
+}
+
 /**
  * Source-line mapping for every public-ish symbol in a Solidity file.
  * Values are FIFO queues of 1-indexed line numbers in source order —
@@ -12,6 +19,8 @@ import { join } from "node:path";
  */
 export interface SymbolMap {
   contract?: number;
+  /** File-scope declarations in source order, one entry per forge doc page file. */
+  topLevel: TopLevelSymbol[];
   function_: Record<string, number[]>;
   struct: Record<string, number[]>;
   error: Record<string, number[]>;
@@ -24,6 +33,7 @@ interface AstNode {
   nodeType: string;
   name?: string;
   kind?: string;
+  contractKind?: string;
   visibility?: string;
   constant?: boolean;
   abstract?: boolean;
@@ -32,7 +42,25 @@ interface AstNode {
 }
 
 function emptyMap(): SymbolMap {
-  return { function_: {}, struct: {}, error: {}, event: {}, modifier: {}, constant: {} };
+  return { topLevel: [], function_: {}, struct: {}, error: {}, event: {}, modifier: {}, constant: {} };
+}
+
+/** The page-file kind forge doc gives a file-scope node, or null when it publishes no page. */
+function topLevelKind(node: AstNode): TopLevelSymbol["kind"] | null {
+  switch (node.nodeType) {
+    case "ContractDefinition":
+      if (node.abstract === true) return "abstract";
+      if (node.contractKind === "library") return "library";
+      return "contract";
+    case "StructDefinition":
+      return "struct";
+    case "FunctionDefinition":
+      return "function";
+    case "EnumDefinition":
+      return "enum";
+    default:
+      return null;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -75,6 +103,11 @@ export async function buildSymbolMap(contractsRoot: string, contractDir: string)
     if (line === null) continue;
     if (node.nodeType !== "PragmaDirective" && node.nodeType !== "ImportDirective") {
       earliestTopLevel = earliestTopLevel === undefined ? line : Math.min(earliestTopLevel, line);
+    }
+    // One page file carries every overload of a name, so the earliest declaration places it.
+    const kind = topLevelKind(node);
+    if (kind && node.name && !map.topLevel.some((s) => s.kind === kind && s.name === node.name)) {
+      map.topLevel.push({ kind, name: node.name, line });
     }
     classify(node, line, map, sourceBuffer, primaryFileIndex, isAbstractSource);
   }

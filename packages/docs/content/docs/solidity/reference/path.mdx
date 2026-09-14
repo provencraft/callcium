@@ -10,7 +10,7 @@ Paths represent navigation through ABI-encoded calldata:
 - path\[0] is the top-level argument index.
 - path\[1..n] are indices into nested composites (tuples, arrays).
 
-## State Variables
+## Constants
 
 ### ALL
 
@@ -21,7 +21,7 @@ Only valid immediately after an array node. Empty arrays yield true (vacuous tru
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L14)
 
 ```solidity
-uint16 internal constant ALL = 0xFFFF
+uint16 internal constant ALL = 0xFFFF;
 ```
 
 ### ANY
@@ -33,7 +33,7 @@ Only valid immediately after an array node. Empty arrays yield false.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Path.sol#L18)
 
 ```solidity
-uint16 internal constant ANY = 0xFFFE
+uint16 internal constant ANY = 0xFFFE;
 ```
 
 ## Functions

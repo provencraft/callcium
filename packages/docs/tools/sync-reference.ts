@@ -1,11 +1,12 @@
 import { toString } from "mdast-util-to-string";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
-import type { Paragraph, PhrasingContent, Root, RootContent } from "mdast";
+import { visit } from "unist-util-visit";
+import type { Paragraph, Root, RootContent } from "mdast";
 import { buildSymbolMap, type SymbolMap } from "./sol-symbol-map";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -13,7 +14,7 @@ import { buildSymbolMap, type SymbolMap } from "./sol-symbol-map";
 ///////////////////////////////////////////////////////////////////////////
 
 const CONTRACTS_ROOT = join(import.meta.dirname, "../../contracts");
-const FORGE_DOC_ROOT = join(CONTRACTS_ROOT, ".forge-doc/src/src");
+const FORGE_DOC_ROOT = join(CONTRACTS_ROOT, ".forge-doc/src/pages/src");
 const OUTPUT_ROOT = join(import.meta.dirname, "../content/docs/solidity/reference");
 const GITHUB_BLOB_BASE = "https://github.com/provencraft/callcium/blob/main/packages/contracts/src";
 
@@ -29,18 +30,10 @@ const INCLUDED_CONTRACTS = [
 
 /** Structs that are internal implementation details — skip from output. */
 const INTERNAL_STRUCTS: Record<string, string[]> = {
+  "PolicyBuilder.sol": ["PolicyDraft"],
   "PolicyManager.sol": ["PolicyManagerStorage"],
   "PolicyEnforcer.sol": ["EvalState", "RuleView", "QParams", "QLoopState"],
   "PolicyValidator.sol": ["BoundDomain", "BitmaskDomain", "SetDomain", "ConstraintContext", "ValidationState"],
-};
-
-/**
- * Assembly order per contract.
- * Each entry is a list of forge doc filenames in the order they should appear.
- * Use "*" as a glob for all matching files of that prefix.
- */
-const ASSEMBLY_ORDER: Record<string, string[]> = {
-  "Constraint.sol": ["struct.Constraint.md", "function.*.md", "library.Operator.md"],
 };
 
 /** Page titles (used for frontmatter). Extracted from main file if not specified. */
@@ -63,25 +56,6 @@ const processor = unified().use(remarkParse).use(remarkGfm).use(remarkStringify,
 // AST helpers
 ///////////////////////////////////////////////////////////////////////////
 
-/**
- * Serialize a paragraph's inline content. Hand-rolled rather than `toString` (which drops
- * the markers) or `processor.stringify` (which backslash-escapes `_` and `<`, and this text
- * lands in frontmatter, where nothing unescapes it).
- */
-function paragraphText(paragraph: Paragraph): string {
-  return paragraph.children
-    .map((c: PhrasingContent) => {
-      if (c.type === "text") return c.value;
-      if (c.type === "inlineCode") return `\`${c.value}\``;
-      if (c.type === "strong") {
-        const text = c.children.map((sc: PhrasingContent) => (sc.type === "text" ? sc.value : "")).join("");
-        return `**${text}**`;
-      }
-      return "";
-    })
-    .join("");
-}
-
 /** Check if a paragraph is a [Git Source](...) link. */
 function isGitSourceParagraph(node: RootContent): boolean {
   if (node.type !== "paragraph") return false;
@@ -100,30 +74,16 @@ function isTitleBlock(node: RootContent): boolean {
   return first.children.length === 1 && first.children[0].type === "text" && first.children[0].value === "Title:";
 }
 
-/** Extract the title from the # heading. */
-function extractTitle(tree: Root): string {
-  for (const node of tree.children) {
-    if (node.type === "heading" && node.depth === 1) {
-      const raw = toString(node);
-      // "function arg" → "arg"
-      if (raw.startsWith("function ")) return raw.slice("function ".length);
-      return raw;
-    }
-  }
-  return "Untitled";
-}
-
 ///////////////////////////////////////////////////////////////////////////
 // Section filtering
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Remove the `#` title heading, every `[Git Source](...)` and `**Title:**` paragraph,
- * and the description paragraph, returning the description's text. The description is
- * the first paragraph after the title; a heading reached first means there is none.
+ * Remove the `#` title heading, every `[Git Source](...)` and `**Title:**` paragraph, and the
+ * description paragraph. The description is the first paragraph after the title; a heading reached
+ * first means there is none.
  */
-export function takeMetadata(tree: Root): string {
-  let description = "";
+export function takeMetadata(tree: Root): void {
   let pastTitle = false;
   let resolved = false;
   tree.children = tree.children.filter((node) => {
@@ -135,14 +95,12 @@ export function takeMetadata(tree: Root): string {
     if (pastTitle && !resolved) {
       if (node.type === "paragraph") {
         resolved = true;
-        description = paragraphText(node);
         return false;
       }
       if (node.type === "heading") resolved = true;
     }
     return true;
   });
-  return description;
 }
 
 /**
@@ -187,6 +145,127 @@ function removeEmptySections(tree: Root, titles: string[]): void {
   }
 }
 
+/** Heading anchors and the `<i>` wrapper forge doc puts around a dev note. */
+const markupNoise = /^(?:<a id="[^"]*"><\/a>|<\/?i>)$/;
+
+/**
+ * Drop forge doc's markup scaffolding, which MDX would otherwise render as JSX. Neither `a` nor `i`
+ * is a block-level tag, so each arrives wrapped in a paragraph of its own, not as a bare html node.
+ */
+function stripMarkup(tree: Root): void {
+  tree.children = tree.children.filter((node) => {
+    if (node.type === "html") return !markupNoise.test(node.value.trim());
+    if (node.type !== "paragraph" || !node.children.every((child) => child.type === "html")) return true;
+    return !markupNoise.test(
+      node.children
+        .map((child) => (child.type === "html" ? child.value : ""))
+        .join("")
+        .trim(),
+    );
+  });
+}
+
+/**
+ * Drop a parameter or return table whose description column is empty, along with the label above
+ * it. Such a table repeats the declaration beside it and states nothing more.
+ */
+export function stripEmptyTables(tree: Root): void {
+  for (let i = tree.children.length - 1; i >= 0; i--) {
+    const node = tree.children[i];
+    if (node.type !== "table") continue;
+    const described = node.children.slice(1).some((row) => toString(row.children[2] ?? row).trim() !== "");
+    if (described) continue;
+    const label = tree.children[i - 1];
+    const start = label?.type === "paragraph" && label.children[0]?.type === "strong" ? i - 1 : i;
+    tree.children.splice(start, i - start + 1);
+    i = start;
+  }
+}
+
+/** Undo the entity escaping forge doc applies inside code, where nothing unescapes it. */
+function decodeCodeEntities(tree: Root): void {
+  visit(tree, ["inlineCode", "code"], (node) => {
+    if (node.type !== "inlineCode" && node.type !== "code") return;
+    node.value = node.value.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  });
+}
+
+/**
+ * Strip the nesting indentation a member's declaration carries into its code block. forge doc
+ * dedents the opening line only, leaving every continuation one level in.
+ */
+export function dedentMemberCode(tree: Root): void {
+  for (const node of tree.children) {
+    if (node.type !== "code") continue;
+    const [opening, ...rest] = node.value.split("\n");
+    if (rest.length === 0) continue;
+    node.value = [opening, ...rest.map((line) => line.replace(/^ {4}/, ""))].join("\n");
+  }
+}
+
+/** Render the name column of a parameter or return table as code, matching the type beside it. */
+function codifyTableNames(tree: Root): void {
+  for (const node of tree.children) {
+    if (node.type !== "table") continue;
+    for (const row of node.children.slice(1)) {
+      const cell = row.children[0];
+      if (cell?.children.length === 1 && cell.children[0].type === "text") {
+        cell.children = [{ type: "inlineCode", value: cell.children[0].value }];
+      }
+    }
+  }
+}
+
+/** The parameter type list of a Solidity declaration, as an overload heading spells it. */
+export function signatureTypes(code: string): string {
+  const open = code.indexOf("(");
+  if (open === -1) return "";
+  let depth = 0;
+  let close = -1;
+  for (let i = open; i < code.length; i++) {
+    if (code[i] === "(") depth++;
+    else if (code[i] === ")" && --depth === 0) {
+      close = i;
+      break;
+    }
+  }
+  if (close === -1) return "";
+  const params = code.slice(open + 1, close).trim();
+  if (params === "") return "";
+  return params
+    .split(",")
+    .map((param) => param.trim().split(/\s+/)[0])
+    .join(", ");
+}
+
+/**
+ * A free-function file carries one declaration per heading. A lone declaration reads from its code
+ * block alone, so its heading goes; overloads keep theirs, told apart by parameter types.
+ */
+function reconcileFreeFunctionHeadings(tree: Root): void {
+  const headings = tree.children.filter((node) => node.type === "heading" && node.depth === 3);
+  if (headings.length === 0) return;
+  if (headings.length === 1) {
+    // The heading and the description under it repeat the file's own, which the metadata pass
+    // already took, so the code block carries the declaration alone.
+    const start = tree.children.indexOf(headings[0]);
+    let end = start + 1;
+    while (end < tree.children.length && tree.children[end].type === "paragraph") end++;
+    tree.children.splice(start, end - start);
+    return;
+  }
+
+  for (let i = 0; i < tree.children.length; i++) {
+    const node = tree.children[i];
+    if (node.type !== "heading" || node.depth !== 3) continue;
+    const name = toString(node);
+    const rest = tree.children.slice(i + 1);
+    const stop = rest.findIndex((next) => next.type === "heading");
+    const code = rest.slice(0, stop === -1 ? rest.length : stop).find((next) => next.type === "code");
+    if (code?.type === "code") node.children = [{ type: "text", value: `${name}(${signatureTypes(code.value)})` }];
+  }
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Source-link injection
 ///////////////////////////////////////////////////////////////////////////
@@ -199,7 +278,7 @@ const SECTION_TO_BUCKET: Record<string, SymbolBucket> = {
   Errors: "error",
   Events: "event",
   Modifiers: "modifier",
-  "State Variables": "constant",
+  Constants: "constant",
 };
 
 function gitSourceParagraph(contractDir: string, line: number): Paragraph {
@@ -221,7 +300,7 @@ function gitSourceParagraph(contractDir: string, line: number): Paragraph {
  * bare-code-block case (e.g. `struct.Foo.md`) by prepending the link before the code.
  */
 function injectSourceLinks(filename: string, tree: Root, contractDir: string, symbolMap: SymbolMap): void {
-  const auxMatch = filename.match(/^(function|struct)\.(.+)\.md$/);
+  const auxMatch = filename.match(/^(function|struct)\.(.+)\.mdx$/);
   const fallbackBucket: SymbolBucket | null = auxMatch ? (auxMatch[1] === "function" ? "function_" : "struct") : null;
   let currentBucket: SymbolBucket | null = fallbackBucket;
 
@@ -285,35 +364,6 @@ function warnUnconsumed(contractDir: string, symbolMap: SymbolMap): void {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Re-indent Solidity struct/error/enum bodies inside code blocks.
- * forge doc strips indentation in separate struct files; we restore 4-space indent
- * for lines between the opening `{` and closing `}`.
- */
-function reindentStructBodies(md: string): string {
-  let inCodeBlock = false;
-  // Only ever set inside a code block, and cleared when one closes.
-  let inBody = false;
-  const result: string[] = [];
-
-  for (const line of md.split("\n")) {
-    if (line.startsWith("```")) {
-      inCodeBlock = !inCodeBlock;
-      inBody = inBody && inCodeBlock;
-    } else if (inCodeBlock && /^(struct|error|enum)\s+\w+.*\{/.test(line)) {
-      inBody = true;
-    } else if (inBody && line.startsWith("}")) {
-      inBody = false;
-    } else if (inBody && line.trim() && !line.startsWith("    ")) {
-      result.push(`    ${line}`);
-      continue;
-    }
-    result.push(line);
-  }
-
-  return result.join("\n");
-}
-
-/**
  * Drop remark-stringify's backslash escaping of characters that are safe here
  * (`POLICY\_STORE\_SLOT` → `POLICY_STORE_SLOT`), then escape bare `<` so MDX
  * doesn't read it as JSX. Fenced blocks and inline code spans keep their `<`.
@@ -342,9 +392,9 @@ function normalizeProse(md: string): string {
   return result.join("\n");
 }
 
-/** Serialized markdown to a page body: struct bodies re-indented, prose normalized, blank runs collapsed. */
+/** Serialized markdown to a page body: prose normalized, blank runs collapsed. */
 function normalizeBody(md: string): string {
-  return normalizeProse(reindentStructBodies(md))
+  return normalizeProse(md)
     .replace(/^\n+/, "")
     .replace(/\n{3,}/g, "\n\n");
 }
@@ -353,6 +403,11 @@ function normalizeBody(md: string): string {
 // File processing
 ///////////////////////////////////////////////////////////////////////////
 
+/** A quoted scalar from forge doc's page frontmatter, which carries only `title` and `description`. */
+function frontmatterField(frontmatter: string | undefined, field: string): string | undefined {
+  return frontmatter?.match(new RegExp(`^${field}: "(.*)"$`, "m"))?.[1];
+}
+
 interface ProcessedFile {
   filename: string;
   title: string;
@@ -360,12 +415,28 @@ interface ProcessedFile {
   tree: Root;
 }
 
-/** Read a forge doc markdown file and lift its title and description out of the tree. */
-async function readForgeDoc(dir: string, filename: string): Promise<ProcessedFile> {
-  const content = await readFile(join(dir, filename), "utf-8");
-  const tree = processor.parse(content);
-  const title = extractTitle(tree);
-  return { filename, title, description: takeMetadata(tree), tree };
+/**
+ * Read a forge doc page and lift its title and description out of the tree, or null when forge doc
+ * published no page for the symbol. Its own frontmatter goes; the assembled page carries ours.
+ */
+async function readForgeDoc(dir: string, filename: string): Promise<ProcessedFile | null> {
+  let content: string;
+  try {
+    content = await readFile(join(dir, filename), "utf-8");
+  } catch {
+    return null;
+  }
+  const frontmatter = content.match(/^---\n([\s\S]*?)\n---\n/);
+  const tree = processor.parse(content.slice(frontmatter?.[0].length ?? 0));
+  const title = frontmatterField(frontmatter?.[1], "title") ?? "Untitled";
+  const description = frontmatterField(frontmatter?.[1], "description") ?? "";
+  takeMetadata(tree);
+  stripMarkup(tree);
+  stripEmptyTables(tree);
+  codifyTableNames(tree);
+  decodeCodeEntities(tree);
+  if (filename.startsWith("function.")) reconcileFreeFunctionHeadings(tree);
+  return { filename, title, description, tree };
 }
 
 /** Filter the sections a "main" file (library.* or abstract.*) does not publish. */
@@ -379,7 +450,7 @@ function processMainFile(file: ProcessedFile, internalStructs: ReadonlySet<strin
       internalStructs.has(heading) ||
       body.some((node) => node.type === "code" && node.value.includes("private constant")),
   );
-  removeEmptySections(file.tree, ["State Variables", "Structs"]);
+  removeEmptySections(file.tree, ["Constants", "Structs"]);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -397,40 +468,11 @@ function contractSlug(contractDir: string): string {
 // Assembly
 ///////////////////////////////////////////////////////////////////////////
 
-/**
- * Determine the ordered list of files for a contract.
- * Uses ASSEMBLY_ORDER if defined, otherwise: main file first, then structs, then functions.
- */
-function assembleOrder(files: string[], contractDir: string): string[] {
-  const order = ASSEMBLY_ORDER[contractDir];
-  if (order) {
-    const result: string[] = [];
-    for (const pattern of order) {
-      if (pattern.includes("*")) {
-        const prefix = pattern.split("*")[0];
-        const matching = files.filter((f) => f.startsWith(prefix)).toSorted();
-        result.push(...matching);
-      } else {
-        if (files.includes(pattern)) result.push(pattern);
-      }
-    }
-    return result;
-  }
-
-  // Default: main file first, then structs, then functions.
-  const mainFile = files.find((f) => f.startsWith("library.") || f.startsWith("abstract."));
-  const structs = files.filter((f) => f.startsWith("struct.")).toSorted();
-  const functions = files.filter((f) => f.startsWith("function.")).toSorted();
-  const result: string[] = [];
-  if (mainFile) result.push(mainFile);
-  result.push(...structs, ...functions);
-  return result;
-}
-
-/** Check if a file holds one of the given structs. */
-function isStructFileOf(filename: string, structs: ReadonlySet<string>): boolean {
-  if (!filename.startsWith("struct.")) return false;
-  return structs.has(filename.replace(/^struct\./, "").replace(/\.md$/, ""));
+/** Page files for a contract, in the order the source declares them. */
+function orderedFiles(symbolMap: SymbolMap, internalStructs: ReadonlySet<string>): string[] {
+  return symbolMap.topLevel
+    .filter((symbol) => !(symbol.kind === "struct" && internalStructs.has(symbol.name)))
+    .map((symbol) => `${symbol.kind}.${symbol.name}.mdx`);
 }
 
 /** Check if a file is a "main" file (library or abstract). */
@@ -442,36 +484,32 @@ function isMainFile(filename: string): boolean {
 // Page rendering
 ///////////////////////////////////////////////////////////////////////////
 
-/** A contract's forge doc output to a rendered MDX page, or null when forge doc produced no directory for it. */
+/** A contract's forge doc output to a rendered MDX page, or null when forge doc published none. */
 async function renderContractPage(contractDir: string): Promise<string | null> {
-  const srcDir = join(FORGE_DOC_ROOT, contractDir);
-
-  let allFiles: string[];
-  try {
-    allFiles = (await readdir(srcDir)).filter((f) => f.endsWith(".md"));
-  } catch {
-    console.warn(`Warning: ${srcDir} not found, skipping ${contractDir}`);
-    return null;
-  }
-
-  // Internal structs are excluded from three places: their own page files, the
-  // main file's sections, and the symbol map queues.
-  const internalStructs = new Set(INTERNAL_STRUCTS[contractDir] ?? []);
-
-  const files = allFiles.filter((f) => !isStructFileOf(f, internalStructs));
-  const ordered = assembleOrder(files, contractDir);
-
   const symbolMap = await buildSymbolMap(CONTRACTS_ROOT, contractDir);
+
+  // Internal structs are excluded from two places: their own page files, and the main file's
+  // sections. Dropping them from the symbol map keeps their source lines out of the link queues.
+  const internalStructs = new Set(INTERNAL_STRUCTS[contractDir] ?? []);
   for (const name of internalStructs) delete symbolMap.struct[name];
 
   const parsed: ProcessedFile[] = [];
-  for (const filename of ordered) {
-    parsed.push(await readForgeDoc(srcDir, filename));
+  for (const filename of orderedFiles(symbolMap, internalStructs)) {
+    const file = await readForgeDoc(FORGE_DOC_ROOT, filename);
+    if (file) parsed.push(file);
+    else console.warn(`sync-reference: ${contractDir} declares ${filename}, which forge doc did not publish`);
+  }
+  if (parsed.length === 0) {
+    console.warn(`Warning: forge doc published no page for ${contractDir}, skipping`);
+    return null;
   }
 
   // Filter sections and inject source links.
   for (const file of parsed) {
-    if (isMainFile(file.filename)) processMainFile(file, internalStructs);
+    if (isMainFile(file.filename)) {
+      processMainFile(file, internalStructs);
+      dedentMemberCode(file.tree);
+    }
     injectSourceLinks(file.filename, file.tree, contractDir, symbolMap);
   }
 
@@ -511,16 +549,24 @@ async function renderContractPage(contractDir: string): Promise<string | null> {
 ///////////////////////////////////////////////////////////////////////////
 
 async function main() {
+  // Every page is rendered before the output is touched, so a run that cannot read forge doc
+  // leaves the published pages standing instead of emptying the directory.
+  const pages = new Map<string, string>();
+  for (const contractDir of INCLUDED_CONTRACTS) {
+    const mdx = await renderContractPage(contractDir);
+    if (mdx !== null) pages.set(contractSlug(contractDir), mdx);
+  }
+
+  if (pages.size < INCLUDED_CONTRACTS.length) {
+    const missing = INCLUDED_CONTRACTS.filter((c) => !pages.has(contractSlug(c)));
+    throw new Error(`sync-reference: no forge doc output for ${missing.join(", ")}; run \`forge doc\` first`);
+  }
+
   await rm(OUTPUT_ROOT, { recursive: true, force: true });
   await mkdir(OUTPUT_ROOT, { recursive: true });
 
-  let totalPages = 0;
-
-  for (const contractDir of INCLUDED_CONTRACTS) {
-    const mdx = await renderContractPage(contractDir);
-    if (mdx === null) continue;
-    await writeFile(join(OUTPUT_ROOT, `${contractSlug(contractDir)}.mdx`), mdx);
-    totalPages++;
+  for (const [slug, mdx] of pages) {
+    await writeFile(join(OUTPUT_ROOT, `${slug}.mdx`), mdx);
   }
 
   const meta = {
@@ -529,7 +575,7 @@ async function main() {
   };
   await writeFile(join(OUTPUT_ROOT, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`);
 
-  console.log(`Generated ${totalPages} reference pages.`);
+  console.log(`Generated ${pages.size} reference pages.`);
 }
 
 if (import.meta.main) {
