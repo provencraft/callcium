@@ -128,7 +128,10 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
 // Operand provenance
 ///////////////////////////////////////////////////////////////////////////
 
-/** Extremes of the numeric operands a builder's value operators received, as written. */
+/**
+ * Extremes of the numeric operands a builder's value operators received, as written. Encoding folds
+ * a negative operand onto its unsigned alias, so the sign survives nowhere else.
+ */
 export type OperandExtremes = {
   /** Most negative operand written, or zero when none was negative. */
   leastNegative: bigint;
@@ -136,19 +139,14 @@ export type OperandExtremes = {
   greatest: bigint;
 };
 
-// Only the extremes can offend: an operand folds into a target's range from below the range or
-// from above it, and whichever operand reaches furthest gets there first. Encoding folds a
-// negative operand onto its unsigned alias, so the sign survives nowhere else.
-const operandExtremes = new WeakMap<ConstraintBuilder, OperandExtremes>();
-
 /**
  * Extremes of the numeric operands the value operators of `constraint` received, as written.
  * They outlive edits to `operators`: removing an operator does not remove what was written to
- * produce it, and a fresh builder starts with none. Undefined for a plain `Constraint`, whose
+ * produce it, and a fresh builder starts at zero. Undefined for a plain `Constraint`, whose
  * operators arrive already encoded.
  */
 export function readOperandExtremes(constraint: Constraint | ConstraintBuilder): OperandExtremes | undefined {
-  return constraint instanceof ConstraintBuilder ? operandExtremes.get(constraint) : undefined;
+  return "operandExtremes" in constraint ? constraint.operandExtremes : undefined;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -163,12 +161,20 @@ export class ConstraintBuilder implements Constraint {
   readonly scope: number;
   readonly path: Hex;
   readonly operators: Hex[];
+  /**
+   * Extremes of the numeric operands the value operators received, as written. Only the extremes
+   * can offend: an operand folds into a target's range from below it or from above it, and
+   * whichever reaches furthest arrives first. Read it through {@link readOperandExtremes}.
+   * @internal
+   */
+  readonly operandExtremes: OperandExtremes;
 
   /** @internal */
   constructor(scope: number, path: Hex) {
     this.scope = scope;
     this.path = path;
     this.operators = [];
+    this.operandExtremes = { leastNegative: 0n, greatest: 0n };
   }
 
   /**
@@ -176,16 +182,11 @@ export class ConstraintBuilder implements Constraint {
    * `values` are the operands as written; the numeric ones join the record.
    */
   private push(opHex: Hex, values: readonly ScalarValue[] = []): this {
-    let extremes = operandExtremes.get(this);
     for (const value of values) {
       if (typeof value !== "bigint" && typeof value !== "number") continue;
-      if (extremes === undefined) {
-        extremes = { leastNegative: 0n, greatest: 0n };
-        operandExtremes.set(this, extremes);
-      }
       const written = BigInt(value);
-      if (written < extremes.leastNegative) extremes.leastNegative = written;
-      if (written > extremes.greatest) extremes.greatest = written;
+      if (written < this.operandExtremes.leastNegative) this.operandExtremes.leastNegative = written;
+      if (written > this.operandExtremes.greatest) this.operandExtremes.greatest = written;
     }
     this.operators.push(opHex);
     return this;

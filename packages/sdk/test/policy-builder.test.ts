@@ -446,6 +446,17 @@ describe("PolicyBuilder", () => {
     expect(issues.some((issue) => issue.code === "OUT_OF_PHYSICAL_BOUNDS")).toBe(true);
   });
 
+  test("checks a constraint rebuilt around a builder's own fields", () => {
+    const builder = arg(0).lte(-5n);
+    const rebuilt = {
+      scope: builder.scope,
+      path: builder.path,
+      operators: builder.operators,
+      operandExtremes: builder.operandExtremes,
+    };
+    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(rebuilt), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
   test("leaves a plain Constraint to the validator, which has no operands as written", () => {
     const encoded: Constraint = {
       scope: Scope.CALLDATA,
