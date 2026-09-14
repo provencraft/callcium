@@ -1,6 +1,6 @@
 import { bytesToHex } from "./bytes";
 import { Scope, TypeCode, lookupContextProperty } from "./constants";
-import { ConstraintBuilder, readOperandExtremes } from "./constraint";
+import { readOperandExtremes } from "./constraint";
 import { Descriptor } from "./descriptor";
 import { DescriptorCoder } from "./descriptor-coder";
 import { CallciumError, ValidationError } from "./errors";
@@ -128,7 +128,7 @@ function reject(written: bigint, folded: bigint): never {
  * the only place the two stay distinct. An operand whose word the target cannot hold survives
  * encoding intact and needs no guard here.
  */
-function checkOperandDomain(constraint: Constraint | ConstraintBuilder, typeCode: number): void {
+function checkOperandDomain(constraint: Constraint, typeCode: number): void {
   const bounds = targetBounds(typeCode);
   const extremes = readOperandExtremes(constraint);
   if (bounds === null || extremes === undefined) return;
@@ -192,7 +192,7 @@ export class PolicyBuilder {
    * the target type's range and encodes as a value inside it. Operands are read as written, so a
    * `Constraint` carrying encoded operator bytes is left to {@link validate}.
    */
-  add(constraint: Constraint | ConstraintBuilder): this {
+  add(constraint: Constraint): this {
     // A builder compiles no hint; one arrives only on a constraint that came already encoded.
     const added: Constraint = {
       scope: constraint.scope,
