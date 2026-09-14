@@ -4,6 +4,7 @@ import { readOperandExtremes } from "./constraint";
 import { Descriptor } from "./descriptor";
 import { DescriptorCoder } from "./descriptor-coder";
 import { CallciumError, ValidationError } from "./errors";
+import { isSigned } from "./operators";
 import { isQuantifier, parsePathSteps } from "./path";
 import { PolicyCoder } from "./policy-coder";
 import { PolicyValidator } from "./policy-validator";
@@ -125,21 +126,27 @@ function reject(written: bigint, folded: bigint): never {
 /**
  * Reject an operand that two's complement folds onto a value the target admits.
  * Such an operand and the value it folds onto encode to one word, so the operands as written are
- * the only place the two stay distinct. An operand whose word the target cannot hold survives
- * encoding intact and needs no guard here.
+ * the only place the two stay distinct. An operand spans no more than one word, which leaves two
+ * ways across: a negative's alias clears every target narrower than the whole word, and a positive
+ * reaches a signed range only at that type's own minimum word.
  */
 function checkOperandDomain(constraint: Constraint, typeCode: number): void {
   const bounds = targetBounds(typeCode);
   const extremes = readOperandExtremes(constraint);
   if (bounds === null || extremes === undefined) return;
 
-  // A negative operand occupies the word its unsigned alias does.
-  const alias = extremes.leastNegative + WORD_VALUES;
-  if (extremes.leastNegative < bounds.min && alias <= bounds.max) reject(extremes.leastNegative, alias);
+  // A negative operand occupies the word its unsigned alias does, which only the target holding
+  // the whole word can hold too.
+  if (extremes.leastNegative < 0n && typeCode === TypeCode.UINT_MAX) {
+    reject(extremes.leastNegative, extremes.leastNegative + WORD_VALUES);
+  }
 
-  // An operand above the range occupies the word of the negative it denotes.
-  const denoted = extremes.greatest - WORD_VALUES;
-  if (extremes.greatest > bounds.max && denoted >= bounds.min) reject(extremes.greatest, denoted);
+  if (!isSigned(typeCode)) return;
+  // An operand at or above the signed minimum's own word denotes that negative, and every such
+  // operand already exceeds the signed maximum.
+  if (extremes.greatest >= WORD_VALUES + bounds.min) {
+    reject(extremes.greatest, extremes.greatest - WORD_VALUES);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////
