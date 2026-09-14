@@ -35,6 +35,24 @@ function field<T>(value: T, start: number, end: number): Field<T> {
   return { value, span: { start, end } };
 }
 
+/**
+ * Wrap the hex rendering of `data[start, end)` with its span, rendering on first read.
+ * Enforcement reads the span as bytes, so the string is built only for a caller that asks.
+ * The field reads and assigns like the plain one it replaces.
+ */
+function hexField(data: Uint8Array, start: number, end: number): Field<Hex> {
+  let hex: Hex | undefined;
+  return {
+    get value(): Hex {
+      return (hex ??= toHex(data, start, end));
+    },
+    set value(replacement: Hex) {
+      hex = replacement;
+    },
+    span: { start, end },
+  };
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Hint block
 ///////////////////////////////////////////////////////////////////////////
@@ -176,7 +194,8 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
       end: descStart + param.span.end,
     },
   }));
-  const descriptorRaw = toHex(data, descStart, descEnd);
+
+  const descriptorRaw = hexField(data, descStart, descEnd);
 
   const groupCountStart = groupCountOffset;
   const groupCountEnd = groupCountStart + PF.GROUP_COUNT_SIZE;
@@ -349,11 +368,11 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
         pathDepth: field(depthValue, depthOffset, depthOffset + 1),
         path: field(pathHex, pathStart, pathStart + pathLength),
         ...(hintSize > 0 && {
-          hint: field(toHex(data, hintStart, hintStart + hintSize), hintStart, hintStart + hintSize),
+          hint: hexField(data, hintStart, hintStart + hintSize),
         }),
         opCode: field(opCodeValue, opCodeOffset, opCodeOffset + PF.RULE_OPCODE_SIZE),
         dataLength: field(dataLengthValue, dataLengthOffset, dataLengthOffset + PF.RULE_DATALENGTH_SIZE),
-        data: field(toHex(data, dataStart, dataStart + dataLengthValue), dataStart, dataStart + dataLengthValue),
+        data: hexField(data, dataStart, dataStart + dataLengthValue),
         span: { start: ruleOffset, end: ruleOffset + ruleSizeValue },
       });
 
@@ -386,7 +405,12 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
     selector: field(selectorHex, selectorStart, selectorEnd),
     descLength: field(descLengthValue, descLengthStart, descLengthStart + PF.DESC_LENGTH_SIZE),
     descriptor: {
-      raw: descriptorRaw,
+      get raw(): Hex {
+        return descriptorRaw.value;
+      },
+      set raw(replacement: Hex) {
+        descriptorRaw.value = replacement;
+      },
       header: field({ version: desc.version, paramCount: desc.params.length }, descStart, descStart + DF.HEADER_SIZE),
       params,
       span: { start: descStart, end: descEnd },
