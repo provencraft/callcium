@@ -1154,6 +1154,29 @@
     }
   },
   {
+    "blob": "0x022fbebd380003020120010001000000710071010100000000000000000020070060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+    "description": "MUST reject: IN operands carrying a duplicate (1,1,2); ascending is strict, so equal adjacent members are rejected",
+    "error": "UnsortedInSet",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "duplicate-in-set",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
     "blob": "0x022fbebd38000302012001000100000029002900010099010020000000000000000000000000000000000000000000000000000000000000002a",
     "description": "MUST reject: context-scope rule referencing undefined context property 0x0099",
     "error": "UnknownContextProperty",
