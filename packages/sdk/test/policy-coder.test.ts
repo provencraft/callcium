@@ -34,8 +34,18 @@ describe("PolicyCoder.encode check order", () => {
     expectErrorCode(() => PolicyCoder.encode(policyData(groups)), "GROUP_COUNT_OVERFLOW");
   });
 
-  test("operator framing outranks path shape", () => {
+  test("the first operator's framing outranks path shape", () => {
     expectErrorCode(() => PolicyCoder.encode(policyData([[brokenRule]])), "INVALID_OPERATOR_BYTES");
+  });
+
+  test("path shape outranks a later operator's framing", () => {
+    const pathless: Constraint = { scope: Scope.CALLDATA, path: "0x", operators: [op(Op.EQ, 0n), "0x"] };
+    expectErrorCode(() => PolicyCoder.encode(policyData([[pathless]])), "EMPTY_PATH");
+  });
+
+  test("a constraint carrying no operator leaves its path unread", () => {
+    const operatorless: Constraint = { scope: Scope.CALLDATA, path: "0x", operators: [] };
+    expectErrorCode(() => PolicyCoder.encode(policyData([[operatorless]])), "EMPTY_GROUP");
   });
 
   test("descriptor length outranks an empty group", () => {

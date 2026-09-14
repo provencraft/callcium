@@ -406,10 +406,11 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
 
 type Rule = { scope: number; path: Uint8Array; operator: Uint8Array; hint: Uint8Array };
 
-/** Flatten a Constraint into one Rule per operator, compiling its hint against the descriptor. */
-function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
-  const operators = constraint.operators.map(toOperatorBytes);
+/** The path bytes and compiled hint every rule a constraint produces carries. */
+type ConstraintTarget = { path: Uint8Array; hint: Uint8Array };
 
+/** Read a constraint's path and compile the hint its rules carry. */
+function readConstraintTarget(constraint: Constraint, desc: Uint8Array): ConstraintTarget {
   const path = hexToBytes(constraint.path);
 
   // Path shape checks precede compilation: the compiler assumes a framed, depth-bounded path.
@@ -428,7 +429,21 @@ function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
     constraint.scope === Scope.CALLDATA
       ? Descriptor.compileHint(desc, parsePathSteps(constraint.path))
       : new Uint8Array(0);
-  return operators.map((operator) => ({ scope: constraint.scope, path, operator, hint }));
+  return { path, hint };
+}
+
+/** Flatten a Constraint into one Rule per operator, compiling its hint against the descriptor. */
+function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
+  // The rule is the unit these checks run over: each rule's operator is established before the
+  // path and hint it shares with its siblings. A constraint carrying no operator produces no rule,
+  // so its path is never read.
+  let target: ConstraintTarget | undefined;
+
+  return constraint.operators.map((operatorHex) => {
+    const operator = toOperatorBytes(operatorHex);
+    target ??= readConstraintTarget(constraint, desc);
+    return { scope: constraint.scope, operator, ...target };
+  });
 }
 
 /** Compare two byte arrays lexicographically. */
