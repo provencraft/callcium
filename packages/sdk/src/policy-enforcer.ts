@@ -178,15 +178,24 @@ function evaluateRule(
   );
 }
 
+/** An `EQ_CTX` operand resolved to its word, or the missing property's type code. */
+type ReferenceOperand = bigint | { ctxTypeCode: number };
+
 /**
  * Resolve an EQ_CTX operand word to the referenced context property's value as a raw word.
  * Returns the missing property's type code when the context does not supply it.
  */
-function resolveContextOperand(operandData: Uint8Array, context?: Context): bigint | { ctxTypeCode: number } {
+function resolveContextOperand(operandData: Uint8Array, context?: Context): ReferenceOperand {
   const propertyInfo = lookupContextProperty(Number(toBigInt(operandData, 0)));
   const value = context?.[propertyInfo.contextKey];
   if (value === undefined) return { ctxTypeCode: propertyInfo.typeCode };
   return contextValueToWord(value);
+}
+
+/** Resolve the reference operand of an `EQ_CTX` rule; every other operator reads a literal. */
+function referenceOperand(opCode: number, operandData: Uint8Array, context?: Context): ReferenceOperand | undefined {
+  if ((opCode & ~Op.NOT) !== Op.EQ_CTX) return undefined;
+  return resolveContextOperand(operandData, context);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -279,7 +288,7 @@ function evalTarget(
   block: TargetBlock,
   opCode: number,
   operandData: Uint8Array,
-  context?: Context,
+  ctxOperand?: ReferenceOperand,
 ): TargetResult {
   const typeCode = block.typeCode;
 
@@ -305,11 +314,10 @@ function evalTarget(
     return { error: "NON_CANONICAL_VALUE", value };
   }
 
-  if ((opCode & ~Op.NOT) === Op.EQ_CTX) {
-    const operand = resolveContextOperand(operandData, context);
-    if (typeof operand !== "bigint") return { error: "MISSING_CONTEXT", ctxTypeCode: operand.ctxTypeCode };
-    const passed = (value === operand) !== ((opCode & Op.NOT) !== 0);
-    return { passed, value, ctxOperand: operand };
+  if (ctxOperand !== undefined) {
+    if (typeof ctxOperand !== "bigint") return { error: "MISSING_CONTEXT", ctxTypeCode: ctxOperand.ctxTypeCode };
+    const passed = (value === ctxOperand) !== ((opCode & Op.NOT) !== 0);
+    return { passed, value, ctxOperand };
   }
 
   const passed = applyOperator(opCode, value, 32n, operandData, typeCode);
@@ -433,7 +441,14 @@ function evaluateCalldataRule(
 
   return targetViolation(
     frame,
-    evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData, context),
+    evalTarget(
+      callDataBytes,
+      base + block.targetDelta,
+      block,
+      opCode,
+      operandData,
+      referenceOperand(opCode, operandData, context),
+    ),
   );
 }
 
@@ -513,8 +528,9 @@ function evaluateQuantified(
   const elemStride = (meta & PF.HINT_META_STRIDE_MASK) * 32;
   const elemIsDynamic = (meta & PF.HINT_META_ELEM_DYNAMIC) !== 0;
 
-  // A reference operand resolves identically for every element; any element's result carries it.
-  let ctxOperand: bigint | undefined;
+  // A reference operand resolves identically for every element, so it resolves before iterating.
+  const reference = referenceOperand(opCode, operandData, context);
+
   for (let elemIndex = 0; elemIndex < count; elemIndex++) {
     const slot = elems + elemIndex * elemStride;
     let elem: number = slot;
@@ -533,7 +549,7 @@ function evaluateQuantified(
       base = chainedElem;
     }
 
-    const applied = evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData, context);
+    const applied = evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData, reference);
     if ("error" in applied) {
       // Error results end the rule whatever the quantifier: a later element cannot rescue
       // calldata the enforcer cannot read (an abort effect), and a missing context
@@ -547,7 +563,6 @@ function evaluateQuantified(
     } else if (isUniversal) {
       return targetViolation(frame, applied, elemIndex);
     }
-    ctxOperand = applied.ctxOperand;
   }
 
   if (isUniversal) return null;
@@ -555,7 +570,7 @@ function evaluateQuantified(
   return {
     code: "VALUE_MISMATCH",
     ...ruleFields(frame),
-    ...(ctxOperand !== undefined && { resolvedOperand: bigintToHex(ctxOperand) }),
+    ...(typeof reference === "bigint" && { resolvedOperand: bigintToHex(reference) }),
   };
 }
 
