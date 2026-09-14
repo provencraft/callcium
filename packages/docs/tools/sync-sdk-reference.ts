@@ -225,6 +225,8 @@ interface TypeDocType {
   value?: string | number;
   types?: TypeDocType[];
   declaration?: TypeDocReflection;
+  head?: string;
+  tail?: [TypeDocType, string][];
 }
 
 interface TypeDocParam {
@@ -274,6 +276,22 @@ function escapeForMdx(text: string): string {
   return text.replace(/</g, "&lt;");
 }
 
+/**
+ * Wrap a rendered type as inline code. A template-literal type carries backticks of its own,
+ * so the delimiter widens past the longest run inside and pads to keep them literal.
+ */
+function inlineCode(text: string): string {
+  const longest = Math.max(0, ...[...text.matchAll(/`+/g)].map((run) => run[0].length));
+  const fence = "`".repeat(longest + 1);
+  const pad = longest > 0 ? " " : "";
+  return `${fence}${pad}${text}${pad}${fence}`;
+}
+
+/** Escape a type for a table cell, where an unescaped pipe ends the cell. */
+function escapeCellCode(text: string): string {
+  return text.replace(/\|/g, "\\|");
+}
+
 /** Quote a string for YAML frontmatter — handles embedded quotes. */
 function yamlString(value: string): string {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
@@ -290,8 +308,12 @@ function renderType(t: TypeDocType | undefined): string {
   if (!t) return "unknown";
   switch (t.type) {
     case "intrinsic":
-    case "reference":
       return t.name ?? "unknown";
+    case "reference": {
+      const name = t.name ?? "unknown";
+      const args = t.typeArguments ?? [];
+      return args.length > 0 ? `${name}<${args.map(renderType).join(", ")}>` : name;
+    }
     case "literal":
       return JSON.stringify(t.value);
     case "array":
@@ -302,6 +324,10 @@ function renderType(t: TypeDocType | undefined): string {
       return (t.types ?? []).map(renderType).join(" & ");
     case "reflection":
       return "object";
+    case "templateLiteral": {
+      const spans = (t.tail ?? []).map(([inner, literal]) => `\${${renderType(inner)}}${literal}`).join("");
+      return `\`${t.head ?? ""}${spans}\``;
+    }
     default:
       return t.name ?? t.type;
   }
@@ -337,7 +363,7 @@ function renderParamTable(params: TypeDocParam[]): string {
   const lines = ["**Parameters**", "", "| Name | Type | Description |", "| --- | --- | --- |"];
   for (const p of params) {
     const desc = escapeForMdx(summaryText(p.comment) || "-");
-    lines.push(`| \`${p.name}\` | \`${renderType(p.type)}\` | ${desc} |`);
+    lines.push(`| \`${p.name}\` | ${inlineCode(escapeCellCode(renderType(p.type)))} | ${desc} |`);
   }
   lines.push("");
   return lines.join("\n");
@@ -346,7 +372,9 @@ function renderParamTable(params: TypeDocParam[]): string {
 function renderReturns(signature: TypeDocSignature): string {
   const desc = signature.comment?.blockTags?.find((tag) => tag.tag === "@returns");
   const descText = desc ? escapeForMdx(desc.content.map((c) => c.text).join("")) : "";
-  return ["**Returns**", "", `\`${renderType(signature.type)}\`${descText ? ` — ${descText}` : ""}`, ""].join("\n");
+  return ["**Returns**", "", `${inlineCode(renderType(signature.type))}${descText ? ` — ${descText}` : ""}`, ""].join(
+    "\n",
+  );
 }
 
 function renderFunction(ref: TypeDocReflection): string {

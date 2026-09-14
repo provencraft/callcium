@@ -12,7 +12,7 @@ Validate and brand a hex string as an address. Throws if the runtime length is n
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L91)
 
 ```ts
-function toAddress(hex: string): templateLiteral;
+function toAddress(hex: string): `0x${string}`;
 ```
 
 **Parameters**
@@ -23,7 +23,7 @@ function toAddress(hex: string): templateLiteral;
 
 **Returns**
 
-`templateLiteral`
+`` `0x${string}` ``
 
 ### hexToBytes
 
@@ -52,7 +52,7 @@ Convert a byte array to a 0x-prefixed lowercase hex string.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L38)
 
 ```ts
-function bytesToHex(bytes: Uint8Array): templateLiteral;
+function bytesToHex(bytes: Uint8Array): `0x${string}`;
 ```
 
 **Parameters**
@@ -63,4 +63,4 @@ function bytesToHex(bytes: Uint8Array): templateLiteral;
 
 **Returns**
 
-`templateLiteral`
+`` `0x${string}` ``

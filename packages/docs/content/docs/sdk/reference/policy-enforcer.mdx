@@ -16,15 +16,15 @@ Check and enforce policies against ABI-encoded call data.
 Check a policy against ABI-encoded call data without throwing on violations.
 
 ```ts
-function check(policy: templateLiteral, callData: templateLiteral, context?: Context): EnforceResult;
+function check(policy: `0x${string}`, callData: `0x${string}`, context?: Context): EnforceResult;
 ```
 
 **Parameters**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `policy` | `templateLiteral` | Binary policy blob as 0x-prefixed hex string. |
-| `callData` | `templateLiteral` | ABI-encoded call data as 0x-prefixed hex string. |
+| `policy` | `` `0x${string}` `` | Binary policy blob as 0x-prefixed hex string. |
+| `callData` | `` `0x${string}` `` | ABI-encoded call data as 0x-prefixed hex string. |
 | `context` | `Context` | Optional execution context for context-scoped rules. |
 
 **Returns**
@@ -36,15 +36,15 @@ function check(policy: templateLiteral, callData: templateLiteral, context?: Con
 Enforce a policy against ABI-encoded call data, throwing on violation.
 
 ```ts
-function enforce(policy: templateLiteral, callData: templateLiteral, context?: Context): void;
+function enforce(policy: `0x${string}`, callData: `0x${string}`, context?: Context): void;
 ```
 
 **Parameters**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `policy` | `templateLiteral` | Binary policy blob as 0x-prefixed hex string. |
-| `callData` | `templateLiteral` | ABI-encoded call data as 0x-prefixed hex string. |
+| `policy` | `` `0x${string}` `` | Binary policy blob as 0x-prefixed hex string. |
+| `callData` | `` `0x${string}` `` | ABI-encoded call data as 0x-prefixed hex string. |
 | `context` | `Context` | Optional execution context for context-scoped rules. |
 
 **Returns**

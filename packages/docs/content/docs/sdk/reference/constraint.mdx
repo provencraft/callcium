@@ -34,12 +34,12 @@ Target the `msg.sender` context property.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L339)
 
 ```ts
-function msgSender(): ConstraintBuilder;
+function msgSender(): ConstraintBuilder<`0x${string}`>;
 ```
 
 **Returns**
 
-`ConstraintBuilder`
+`` ConstraintBuilder<`0x${string}`> ``
 
 ### msgValue
 
@@ -48,12 +48,12 @@ Target the `msg.value` context property.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L344)
 
 ```ts
-function msgValue(): ConstraintBuilder;
+function msgValue(): ConstraintBuilder<bigint>;
 ```
 
 **Returns**
 
-`ConstraintBuilder`
+`ConstraintBuilder<bigint>`
 
 ### blockTimestamp
 
@@ -62,12 +62,12 @@ Target the `block.timestamp` context property.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L349)
 
 ```ts
-function blockTimestamp(): ConstraintBuilder;
+function blockTimestamp(): ConstraintBuilder<bigint>;
 ```
 
 **Returns**
 
-`ConstraintBuilder`
+`ConstraintBuilder<bigint>`
 
 ### blockNumber
 
@@ -76,12 +76,12 @@ Target the `block.number` context property.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L354)
 
 ```ts
-function blockNumber(): ConstraintBuilder;
+function blockNumber(): ConstraintBuilder<bigint>;
 ```
 
 **Returns**
 
-`ConstraintBuilder`
+`ConstraintBuilder<bigint>`
 
 ### chainId
 
@@ -90,12 +90,12 @@ Target the `block.chainid` context property.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L359)
 
 ```ts
-function chainId(): ConstraintBuilder;
+function chainId(): ConstraintBuilder<bigint>;
 ```
 
 **Returns**
 
-`ConstraintBuilder`
+`ConstraintBuilder<bigint>`
 
 ### txOrigin
 
@@ -104,12 +104,12 @@ Target the `tx.origin` context property.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L364)
 
 ```ts
-function txOrigin(): ConstraintBuilder;
+function txOrigin(): ConstraintBuilder<`0x${string}`>;
 ```
 
 **Returns**
 
-`ConstraintBuilder`
+`` ConstraintBuilder<`0x${string}`> ``
 
 ### baseFee
 
@@ -118,12 +118,12 @@ Target the `block.basefee` context property.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L369)
 
 ```ts
-function baseFee(): ConstraintBuilder;
+function baseFee(): ConstraintBuilder<bigint>;
 ```
 
 **Returns**
 
-`ConstraintBuilder`
+`ConstraintBuilder<bigint>`
 
 ### gasPrice
 
@@ -132,12 +132,12 @@ Target the `tx.gasprice` context property.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L374)
 
 ```ts
-function gasPrice(): ConstraintBuilder;
+function gasPrice(): ConstraintBuilder<bigint>;
 ```
 
 **Returns**
 
-`ConstraintBuilder`
+`ConstraintBuilder<bigint>`
 
 ## Types
 

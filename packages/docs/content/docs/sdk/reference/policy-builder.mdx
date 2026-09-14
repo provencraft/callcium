@@ -58,14 +58,14 @@ Add a constraint to the current group.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L195)
 
 ```ts
-function add(constraint: Constraint | ConstraintBuilder): this;
+function add(constraint: Constraint | ConstraintBuilder<ScalarValue>): this;
 ```
 
 **Parameters**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `constraint` | `Constraint | ConstraintBuilder` | A `Constraint` object or a `ConstraintBuilder` instance. |
+| `constraint` | `Constraint \| ConstraintBuilder<ScalarValue>` | A `Constraint` object or a `ConstraintBuilder` instance. |
 
 **Returns**
 
@@ -94,12 +94,12 @@ inspect issues, or buildUnsafe to encode without validation.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L256)
 
 ```ts
-function build(): templateLiteral;
+function build(): `0x${string}`;
 ```
 
 **Returns**
 
-`templateLiteral` — The policy as a 0x-prefixed hex string.
+`` `0x${string}` `` — The policy as a 0x-prefixed hex string.
 
 ### buildUnsafe
 
@@ -110,12 +110,12 @@ only to knowingly bypass a reported issue.
 [Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L273)
 
 ```ts
-function buildUnsafe(): templateLiteral;
+function buildUnsafe(): `0x${string}`;
 ```
 
 **Returns**
 
-`templateLiteral` — The policy as a 0x-prefixed hex string.
+`` `0x${string}` `` — The policy as a 0x-prefixed hex string.
 
 ### validate
 

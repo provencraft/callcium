@@ -16,7 +16,7 @@ Encode, decode, and inspect policies in the canonical binary format.
 Encode a PolicyData structure into the canonical binary format.
 
 ```ts
-function encode(data: PolicyData): templateLiteral;
+function encode(data: PolicyData): `0x${string}`;
 ```
 
 **Parameters**
@@ -27,21 +27,21 @@ function encode(data: PolicyData): templateLiteral;
 
 **Returns**
 
-`templateLiteral` — The encoded policy as a 0x-prefixed hex string.
+`` `0x${string}` `` — The encoded policy as a 0x-prefixed hex string.
 
 ### decode
 
 Decode a binary policy blob into a PolicyData structure.
 
 ```ts
-function decode(blob: templateLiteral): PolicyData;
+function decode(blob: `0x${string}`): PolicyData;
 ```
 
 **Parameters**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `blob` | `templateLiteral` | Binary policy as 0x-prefixed hex string. |
+| `blob` | `` `0x${string}` `` | Binary policy as 0x-prefixed hex string. |
 
 **Returns**
 
@@ -52,14 +52,14 @@ function decode(blob: templateLiteral): PolicyData;
 Inspect a binary policy blob, returning the structural representation with full byte-level spans.
 
 ```ts
-function inspect(blob: templateLiteral): DecodedPolicy;
+function inspect(blob: `0x${string}`): DecodedPolicy;
 ```
 
 **Parameters**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `blob` | `templateLiteral` | Binary policy as 0x-prefixed hex string. |
+| `blob` | `` `0x${string}` `` | Binary policy as 0x-prefixed hex string. |
 
 **Returns**
 
