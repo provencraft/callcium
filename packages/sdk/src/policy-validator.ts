@@ -1103,12 +1103,13 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
     }
 
     // A carried hint must equal the compilation of its own path; constraints without an encoding
-    // carry none, and the encoder compiles theirs from the same descriptor. Reaching here means
-    // the path navigates the descriptor and quantifies at most once, so only the depth PWF-17
-    // admits remains to be established.
+    // carry none, an empty one carries nothing to compare, and the encoder compiles theirs from
+    // the same descriptor. Reaching here means the path navigates the descriptor and quantifies at
+    // most once, so only the depth PWF-17 admits remains to be established.
     if (
       constraint.scope === Scope.CALLDATA &&
       constraint.hint !== undefined &&
+      constraint.hint !== "0x" &&
       ctx.steps.length <= PolicyFormat.MAX_PATH_DEPTH
     ) {
       const compiled = bytesToHex(Descriptor.compileHint(descBytes, ctx.steps));

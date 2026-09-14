@@ -1093,6 +1093,10 @@ describe("hint mismatch", () => {
     refuteIssueCode(PolicyValidator.validate(withHint()), "HINT_MISMATCH");
   });
 
+  test("empty hint reports no issue", () => {
+    refuteIssueCode(PolicyValidator.validate(withHint("0x")), "HINT_MISMATCH");
+  });
+
   test("divergent target delta reports an error", () => {
     const issues = PolicyValidator.validate(withHint("0x0000000020000020"));
     const issue = expectIssueCode(issues, "HINT_MISMATCH");

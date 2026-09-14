@@ -192,10 +192,12 @@ export class PolicyBuilder {
    * `Constraint` carrying encoded operator bytes is left to {@link validate}.
    */
   add(constraint: Constraint | ConstraintBuilder): this {
+    // A builder compiles no hint; one arrives only on a constraint that came already encoded.
     const c: Constraint = {
       scope: constraint.scope,
       path: constraint.path,
       operators: [...constraint.operators],
+      ...("hint" in constraint && constraint.hint !== undefined && { hint: constraint.hint }),
     };
 
     if (c.operators.length === 0) {

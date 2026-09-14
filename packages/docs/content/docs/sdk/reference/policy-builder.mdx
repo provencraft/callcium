@@ -75,7 +75,7 @@ function add(constraint: Constraint | ConstraintBuilder): this;
 
 Start a new constraint group (OR branch).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L234)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L236)
 
 ```ts
 function or(): this;
@@ -91,7 +91,7 @@ Build the policy into an encoded binary blob with strict validation.
 Throws on any issue, regardless of severity. Use validate to
 inspect issues, or buildUnsafe to encode without validation.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L254)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L256)
 
 ```ts
 function build(): templateLiteral;
@@ -107,7 +107,7 @@ Build the policy into an encoded binary blob without validation.
 The resulting policy may be invalid. Prefer build; use this
 only to knowingly bypass a reported issue.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L271)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L273)
 
 ```ts
 function buildUnsafe(): templateLiteral;
@@ -121,7 +121,7 @@ function buildUnsafe(): templateLiteral;
 
 Validate the policy without encoding.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L280)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-builder.ts#L282)
 
 ```ts
 function validate(): Issue[];

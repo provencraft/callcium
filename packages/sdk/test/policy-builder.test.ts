@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
 
-import { Scope } from "../src/constants";
+import { Op, Scope } from "../src/constants";
 import { arg, msgSender, msgValue } from "../src/constraint";
 import { CallciumError, ValidationError } from "../src/errors";
 import { Quantifier } from "../src/path";
 import { PolicyBuilder } from "../src/policy-builder";
 import { PolicyCoder } from "../src/policy-coder";
-import { expectErrorCode, expectIssueCode } from "./helpers";
+import { expectErrorCode, expectIssueCode, op } from "./helpers";
 
 import type { Constraint } from "../src/types";
 
@@ -438,6 +438,17 @@ describe("hint block", () => {
       .build();
 
     expect(PolicyCoder.decode(blob).groups[0][0].hint).toBeUndefined();
+  });
+
+  test("a supplied hint reaches validation", () => {
+    const carried: Constraint = {
+      scope: Scope.CALLDATA,
+      path: "0x0000",
+      operators: [op(Op.EQ, 42n)],
+      hint: "0x0000000020000020",
+    };
+
+    expectIssueCode(PolicyBuilder.create("foo(uint256)").add(carried).validate(), "HINT_MISMATCH");
   });
 
   test("re-encoding a decoded policy reproduces the blob", () => {
