@@ -1,7 +1,16 @@
 import { describe, expect, test } from "vitest";
 
 import { PolicyFormat, Scope, ContextProperty, MAX_CONTEXT_PROPERTY_ID, Op } from "../src/constants";
-import { arg, msgSender, msgValue, blockTimestamp, blockNumber, chainId, txOrigin } from "../src/constraint";
+import {
+  arg,
+  msgSender,
+  msgValue,
+  blockTimestamp,
+  blockNumber,
+  chainId,
+  txOrigin,
+  readOperandExtremes,
+} from "../src/constraint";
 import { CallciumError } from "../src/errors";
 import { expectErrorCode } from "./helpers";
 
@@ -170,6 +179,26 @@ describe("operand domain", () => {
   test("orders a range by the operands as written, not by their encoded words", () => {
     expect(arg(0).between(-1n, 5n).operators).toHaveLength(1);
     expectErrorCode(() => arg(0).between(5n, -1n), "INVALID_RANGE");
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Operand provenance
+///////////////////////////////////////////////////////////////////////////
+
+describe("operand provenance", () => {
+  test("each builder records against itself alone", () => {
+    const negative = arg(0).lte(-5n);
+    const positive = arg(0).lte(10n);
+    const zero = arg(0).eq(0n);
+
+    expect(readOperandExtremes(negative)).toEqual({ leastNegative: -5n, greatest: 0n });
+    expect(readOperandExtremes(positive)).toEqual({ leastNegative: 0n, greatest: 10n });
+    expect(readOperandExtremes(zero)).toEqual({ leastNegative: 0n, greatest: 0n });
+  });
+
+  test("reports nothing for a constraint carrying no operand as written", () => {
+    expect(readOperandExtremes({ scope: Scope.CALLDATA, path: "0x0000", operators: ["0x01"] })).toBeUndefined();
   });
 });
 

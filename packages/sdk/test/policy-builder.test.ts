@@ -410,6 +410,14 @@ describe("PolicyBuilder", () => {
     );
   });
 
+  test("weighs each constraint against its own operands", () => {
+    const folded = arg(0).lte(-5n);
+    const sound = arg(0).lte(10n);
+
+    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(folded), "OUT_OF_PHYSICAL_BOUNDS");
+    expect(PolicyBuilder.createRaw("uint256").add(sound).build()).toMatch(/^0x[0-9a-f]+$/);
+  });
+
   test("remembers an operand after its operator is removed", () => {
     const constraint = arg(0).lte(-5n);
     constraint.operators.pop();
