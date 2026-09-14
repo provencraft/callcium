@@ -108,12 +108,12 @@ function parseTuple(input: string, start: number, end: number): Uint8Array {
   const commas = commaPositions(input, innerStart, innerEnd);
 
   const segments: Array<[number, number]> = [];
-  let segStart = innerStart;
+  let segmentStart = innerStart;
   for (const comma of commas) {
-    segments.push([segStart, comma]);
-    segStart = comma + 1;
+    segments.push([segmentStart, comma]);
+    segmentStart = comma + 1;
   }
-  segments.push([segStart, innerEnd]);
+  segments.push([segmentStart, innerEnd]);
 
   // An empty tuple has no fields to parse; the tuple builder rejects the count.
   if (segments.length === 1 && segments[0]![0] === segments[0]![1]) return tuple([]);

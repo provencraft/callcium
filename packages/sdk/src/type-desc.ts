@@ -77,14 +77,14 @@ export function string_(): Uint8Array {
 
 /**
  * Build a descriptor node for `bytesN`.
- * @param n - Byte width, 1–32.
- * @throws {CallciumError} With code `UNKNOWN_TYPE` if n is out of range.
+ * @param length - Byte width, 1–32.
+ * @throws {CallciumError} With code `UNKNOWN_TYPE` if length is out of range.
  */
-export function bytesN(n: number): Uint8Array {
-  if (n < 1 || n > 32) {
-    throw new CallciumError("UNKNOWN_TYPE", `Invalid bytesN size: ${n}. Must be 1–32`);
+export function bytesN(length: number): Uint8Array {
+  if (length < 1 || length > 32) {
+    throw new CallciumError("UNKNOWN_TYPE", `Invalid bytesN size: ${length}. Must be 1–32`);
   }
-  return new Uint8Array([TypeCode.FIXED_BYTES_MIN + (n - 1)]);
+  return new Uint8Array([TypeCode.FIXED_BYTES_MIN + (length - 1)]);
 }
 
 ///////////////////////////////////////////////////////////////////////////

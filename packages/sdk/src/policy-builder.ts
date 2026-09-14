@@ -194,41 +194,41 @@ export class PolicyBuilder {
    */
   add(constraint: Constraint | ConstraintBuilder): this {
     // A builder compiles no hint; one arrives only on a constraint that came already encoded.
-    const c: Constraint = {
+    const added: Constraint = {
       scope: constraint.scope,
       path: constraint.path,
       operators: [...constraint.operators],
       ...("hint" in constraint && constraint.hint !== undefined && { hint: constraint.hint }),
     };
 
-    if (c.operators.length === 0) {
+    if (added.operators.length === 0) {
       throw new CallciumError("NO_CONSTRAINT_OPERATORS", "Constraint must have at least one operator");
     }
 
     // Path shape is established before the scope decides how to navigate it.
-    const steps = parsePathSteps(c.path);
+    const steps = parsePathSteps(added.path);
     if (steps.length === 0) {
       throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
     }
 
     let targetTypeCode: number;
-    if (c.scope === Scope.CONTEXT) {
+    if (added.scope === Scope.CONTEXT) {
       targetTypeCode = validateContextPath(steps);
-    } else if (c.scope === Scope.CALLDATA) {
+    } else if (added.scope === Scope.CALLDATA) {
       targetTypeCode = validateCalldataPath(steps, this.draft.descriptor);
     } else {
-      throw new CallciumError("INVALID_SCOPE", `Unknown scope value ${c.scope}`);
+      throw new CallciumError("INVALID_SCOPE", `Unknown scope value ${added.scope}`);
     }
 
     checkOperandDomain(constraint, targetTypeCode);
 
-    const key = `${c.scope}:${c.path.toLowerCase()}`;
+    const key = `${added.scope}:${added.path.toLowerCase()}`;
     if (this.draft.groupPathKeys.has(key)) {
-      throw new CallciumError("DUPLICATE_PATH_IN_GROUP", `Duplicate path ${c.path} in the same group`);
+      throw new CallciumError("DUPLICATE_PATH_IN_GROUP", `Duplicate path ${added.path} in the same group`);
     }
 
     this.draft.groupPathKeys.add(key);
-    this.draft.groups[this.draft.groups.length - 1]!.push(c);
+    this.draft.groups[this.draft.groups.length - 1]!.push(added);
     return this;
   }
 

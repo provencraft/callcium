@@ -88,8 +88,8 @@ const INT256_SIGN_BIT = 1n << 255n;
 /** Signed-aware difference of two raw uint256 values: negative if a<b, zero if equal, positive if a>b. */
 function signedCompare(a: bigint, b: bigint, signed: boolean): bigint {
   if (!signed) return a - b;
-  const toS = (v: bigint) => (v >= INT256_SIGN_BIT ? v - (1n << 256n) : v);
-  return toS(a) - toS(b);
+  const toSigned = (word: bigint) => (word >= INT256_SIGN_BIT ? word - (1n << 256n) : word);
+  return toSigned(a) - toSigned(b);
 }
 
 /** True when a value lies outside the domain's physical bounds. */

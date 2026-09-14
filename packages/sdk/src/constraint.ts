@@ -100,11 +100,11 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   // PWF-21 orders members by their 32-byte encodings, so a negative operand and its unsigned
   // alias are one member at one position. Normalising after the domain check keeps an
   // out-of-range value an error rather than folding it into the word.
-  const words = values.map((v) => {
-    if (typeof v === "bigint" || typeof v === "number") return BigInt.asUintN(256, toOperandValue(v));
-    if (typeof v === "boolean") return v ? 1n : 0n;
+  const words = values.map((value) => {
+    if (typeof value === "bigint" || typeof value === "number") return BigInt.asUintN(256, toOperandValue(value));
+    if (typeof value === "boolean") return value ? 1n : 0n;
     // String address.
-    return BigInt("0x" + addressBody(v));
+    return BigInt("0x" + addressBody(value));
   });
 
   const deduped = [...new Set(words)].toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0));
@@ -288,29 +288,29 @@ export class ConstraintBuilder implements Constraint {
   // Length operators
   ///////////////////////////////////////////////////////////////////////////
 
-  /** Assert the runtime length equals `n`. */
-  lengthEq(n: bigint | number): this {
-    return this.push(singleOp(Op.LENGTH_EQ, n));
+  /** Assert the runtime length equals `length`. */
+  lengthEq(length: bigint | number): this {
+    return this.push(singleOp(Op.LENGTH_EQ, length));
   }
 
-  /** Assert the runtime length is greater than `n`. */
-  lengthGt(n: bigint | number): this {
-    return this.push(singleOp(Op.LENGTH_GT, n));
+  /** Assert the runtime length is greater than `length`. */
+  lengthGt(length: bigint | number): this {
+    return this.push(singleOp(Op.LENGTH_GT, length));
   }
 
-  /** Assert the runtime length is less than `n`. */
-  lengthLt(n: bigint | number): this {
-    return this.push(singleOp(Op.LENGTH_LT, n));
+  /** Assert the runtime length is less than `length`. */
+  lengthLt(length: bigint | number): this {
+    return this.push(singleOp(Op.LENGTH_LT, length));
   }
 
-  /** Assert the runtime length is greater than or equal to `n`. */
-  lengthGte(n: bigint | number): this {
-    return this.push(singleOp(Op.LENGTH_GTE, n));
+  /** Assert the runtime length is greater than or equal to `length`. */
+  lengthGte(length: bigint | number): this {
+    return this.push(singleOp(Op.LENGTH_GTE, length));
   }
 
-  /** Assert the runtime length is less than or equal to `n`. */
-  lengthLte(n: bigint | number): this {
-    return this.push(singleOp(Op.LENGTH_LTE, n));
+  /** Assert the runtime length is less than or equal to `length`. */
+  lengthLte(length: bigint | number): this {
+    return this.push(singleOp(Op.LENGTH_LTE, length));
   }
 
   /**

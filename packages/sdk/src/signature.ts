@@ -19,13 +19,13 @@ export type ParsedSignature = {
 };
 
 /** Return true if the char code is an ASCII letter. */
-function isAlpha(c: number): boolean {
-  return (c >= 0x41 && c <= 0x5a) || (c >= 0x61 && c <= 0x7a);
+function isAlpha(char: number): boolean {
+  return (char >= 0x41 && char <= 0x5a) || (char >= 0x61 && char <= 0x7a);
 }
 
 /** Return true if the char code is an ASCII alphanumeric character. */
-function isAlphanum(c: number): boolean {
-  return isAlpha(c) || (c >= 0x30 && c <= 0x39);
+function isAlphanum(char: number): boolean {
+  return isAlpha(char) || (char >= 0x30 && char <= 0x39);
 }
 
 /**
@@ -48,11 +48,11 @@ function parse(signature: string): ParsedSignature {
   // Scan for whitespace and the opening parenthesis in one pass.
   let openParen = -1;
   for (let i = 0; i < signature.length; i++) {
-    const c = signature.charCodeAt(i);
-    if (c === 0x20 || c === 0x09 || c === 0x0a || c === 0x0d) {
+    const char = signature.charCodeAt(i);
+    if (char === 0x20 || char === 0x09 || char === 0x0a || char === 0x0d) {
       throw new CallciumError("SIGNATURE_CONTAINS_WHITESPACE", "Signature must not contain whitespace");
     }
-    if (openParen === -1 && c === 0x28) {
+    if (openParen === -1 && char === 0x28) {
       openParen = i;
     }
   }
@@ -79,8 +79,8 @@ function parse(signature: string): ParsedSignature {
     throw new CallciumError("INVALID_FUNCTION_NAME", "Function name must start with a letter or underscore");
   }
   for (let i = 1; i < openParen; i++) {
-    const c = signature.charCodeAt(i);
-    if (!isAlphanum(c) && c !== 0x5f) {
+    const char = signature.charCodeAt(i);
+    if (!isAlphanum(char) && char !== 0x5f) {
       throw new CallciumError(
         "INVALID_FUNCTION_NAME",
         "Function name must contain only alphanumeric characters or underscores",

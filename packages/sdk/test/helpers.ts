@@ -133,7 +133,7 @@ export function rangeOp(code: number, low: bigint, high: bigint): `0x${string}` 
 
 /** Build an IN operator hex (opcode + N * 32-byte values). */
 export function inOp(code: number, values: bigint[]): `0x${string}` {
-  const body = values.map((v) => v.toString(16).padStart(64, "0")).join("");
+  const body = values.map((value) => value.toString(16).padStart(64, "0")).join("");
   return `0x${code.toString(16).padStart(2, "0")}${body}`;
 }
 

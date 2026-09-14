@@ -106,7 +106,7 @@ export function buildCodeMap<T extends readonly { readonly key: string; readonly
   table: T,
 ): CodeMap<T> {
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- derived from the same const table that defines the type.
-  return Object.fromEntries(table.map((e) => [e.key, e.code])) as CodeMap<T>;
+  return Object.fromEntries(table.map((entry) => [entry.key, entry.code])) as CodeMap<T>;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -125,7 +125,7 @@ export const Scope = buildCodeMap(SCOPE_TABLE);
 export type ScopeInfo = { label: string };
 
 const scopeByCode: ReadonlyMap<number, ScopeInfo> = new Map<number, ScopeInfo>(
-  SCOPE_TABLE.map((e) => [e.code, { label: e.label }]),
+  SCOPE_TABLE.map((entry) => [entry.code, { label: entry.label }]),
 );
 
 /**
@@ -182,13 +182,16 @@ const CTX_PROPERTY_TABLE = [
 export const ContextProperty = buildCodeMap(CTX_PROPERTY_TABLE);
 
 /** Maximum valid context property ID. */
-export const MAX_CONTEXT_PROPERTY_ID = Math.max(...CTX_PROPERTY_TABLE.map((e) => e.code));
+export const MAX_CONTEXT_PROPERTY_ID = Math.max(...CTX_PROPERTY_TABLE.map((entry) => entry.code));
 
 /** Display metadata for a context property code. */
 export type ContextPropertyInfo = { label: string; contextKey: keyof import("./types").Context; typeCode: number };
 
 const ctxPropertyByCode: ReadonlyMap<number, ContextPropertyInfo> = new Map<number, ContextPropertyInfo>(
-  CTX_PROPERTY_TABLE.map((e) => [e.code, { label: e.label, contextKey: e.contextKey, typeCode: e.typeCode }]),
+  CTX_PROPERTY_TABLE.map((entry) => [
+    entry.code,
+    { label: entry.label, contextKey: entry.contextKey, typeCode: entry.typeCode },
+  ]),
 );
 
 /**
@@ -243,7 +246,7 @@ export const Op: CodeMap<typeof OP_TABLE> & { readonly NOT: 0x80 } = { ...buildC
 export type OpInfo = { label: string; operands: Operands };
 
 const opByCode: ReadonlyMap<number, OpInfo> = new Map<number, OpInfo>(
-  OP_TABLE.map((e) => [e.code, { label: e.label, operands: e.operands }]),
+  OP_TABLE.map((entry) => [entry.code, { label: entry.label, operands: entry.operands }]),
 );
 
 /**

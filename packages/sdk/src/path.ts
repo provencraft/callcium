@@ -20,7 +20,7 @@ export const Quantifier = buildCodeMap(QUANTIFIER_TABLE);
 export type QuantifierInfo = { label: string };
 
 const quantifierByCode: ReadonlyMap<number, QuantifierInfo> = new Map<number, QuantifierInfo>(
-  QUANTIFIER_TABLE.map((e) => [e.code, { label: e.label }]),
+  QUANTIFIER_TABLE.map((entry) => [entry.code, { label: entry.label }]),
 );
 
 /** Check whether a path step is a quantifier (ALL or ANY). */
