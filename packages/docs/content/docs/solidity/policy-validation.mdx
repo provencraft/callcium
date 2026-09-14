@@ -43,6 +43,8 @@ Each issue contains:
 | `groupIndex`      | `uint32`        | Constraint group where the issue was found.                  |
 | `constraintIndex` | `uint32`        | Constraint index within the group.                           |
 | `code`            | `bytes32`       | Machine-readable identifier.                                 |
+| `value1`          | `bytes32`       | First value involved in the issue.                           |
+| `value2`          | `bytes32`       | Second value involved in the issue.                          |
 | `message`         | `string`        | Human-readable description.                                  |
 
 ## Severity levels
@@ -59,16 +61,22 @@ Each issue contains:
 
 ### Type compatibility
 
-Operators applied to incompatible types. All are **Error** severity.
+Operators, operands, and paths that do not fit the descriptor's declared types. All are **Error** severity.
 
-| Code                        | Description                                     |
-| --------------------------- | ----------------------------------------------- |
-| `VALUE_OP_ON_DYNAMIC`       | Value operator used on a dynamic type.          |
-| `VALUE_OP_ON_COMPOSITE`     | Value operator used on a composite type.        |
-| `NUMERIC_OP_ON_NON_NUMERIC` | Comparison operator used on a non-numeric type. |
-| `BITMASK_ON_INVALID`        | Bitmask operator used on an incompatible type.  |
-| `LENGTH_ON_STATIC`          | Length operator used on a non-dynamic type.     |
-| `UNKNOWN_OPERATOR`          | Unrecognized operator code.                     |
+| Code                        | Description                                                          |
+| --------------------------- | -------------------------------------------------------------------- |
+| `VALUE_OP_ON_DYNAMIC`       | Value operator used on a dynamic type.                               |
+| `VALUE_OP_ON_COMPOSITE`     | Value operator used on a composite type.                             |
+| `NUMERIC_OP_ON_NON_NUMERIC` | Comparison operator used on a non-numeric type.                      |
+| `BITMASK_ON_INVALID`        | Bitmask operator used on an incompatible type.                       |
+| `IN_ON_BOOL`                | `isIn`/`notIn` used on a `bool`.                                     |
+| `LENGTH_ON_STATIC`          | Length operator used on a non-dynamic type.                          |
+| `CONTEXT_TYPE_MISMATCH`     | Context operand paired with a target type its property cannot match. |
+| `UNKNOWN_OPERATOR`          | Unrecognized operator code.                                          |
+| `NON_CANONICAL_OPERAND`     | Operand word is not the canonical encoding for the declared type.    |
+| `UNNAVIGABLE_PATH`          | Path does not navigate the descriptor.                               |
+| `NESTED_QUANTIFIER`         | Path applies more than one quantifier.                               |
+| `HINT_MISMATCH`             | Stored hint differs from the path compiled against the descriptor.   |
 
 ### Contradictions
 
@@ -123,12 +131,14 @@ Constraints with no effect because they are subsumed. All are **Warning** severi
 
 #### Bound redundancies
 
-| Code                     | Description                                         |
-| ------------------------ | --------------------------------------------------- |
-| `DOMINATED_BOUND`        | Numeric bound dominated by a stricter bound.        |
-| `DOMINATED_LENGTH_BOUND` | Length bound dominated by a stricter bound.         |
-| `REDUNDANT_BOUND`        | Numeric bound redundant because `eq()` is set.      |
-| `REDUNDANT_LENGTH_BOUND` | Length bound redundant because `lengthEq()` is set. |
+| Code                     | Description                                                           |
+| ------------------------ | --------------------------------------------------------------------- |
+| `DOMINATED_BOUND`        | Numeric bound dominated by a stricter bound.                          |
+| `DOMINATED_LENGTH_BOUND` | Length bound dominated by a stricter bound.                           |
+| `REDUNDANT_BOUND`        | Numeric bound redundant because `eq()` is set.                        |
+| `REDUNDANT_LENGTH_BOUND` | Length bound redundant because `lengthEq()` is set.                   |
+| `FUSIBLE_RANGE`          | `gte()` and `lte()` fuse into a single `between()`.                   |
+| `FUSIBLE_LENGTH_RANGE`   | `lengthGte()` and `lengthLte()` fuse into a single `lengthBetween()`. |
 
 #### Set redundancies
 
@@ -154,12 +164,14 @@ Constraints with no effect because they are subsumed. All are **Warning** severi
 
 Constraints that are always true. All are **Info** severity.
 
-| Code                 | Description                             |
-| -------------------- | --------------------------------------- |
-| `VACUOUS_GTE`        | `gte()` on type minimum (always true).  |
-| `VACUOUS_LTE`        | `lte()` on type maximum (always true).  |
-| `VACUOUS_LENGTH_GTE` | `lengthGte(0)` (always true).           |
-| `VACUOUS_LENGTH_LTE` | `lengthLte()` on maximum (always true). |
+| Code                           | Description                                                 |
+| ------------------------------ | ----------------------------------------------------------- |
+| `VACUOUS_GTE`                  | `gte()` on type minimum (always true).                      |
+| `VACUOUS_LTE`                  | `lte()` on type maximum (always true).                      |
+| `VACUOUS_LENGTH_GTE`           | `lengthGte(0)` (always true).                               |
+| `VACUOUS_LENGTH_LTE`           | `lengthLte()` on maximum (always true).                     |
+| `VACUOUS_NEGATED_RANGE`        | Negated `between()` with low > high excludes nothing.       |
+| `VACUOUS_NEGATED_LENGTH_RANGE` | Negated `lengthBetween()` with low > high excludes nothing. |
 
 ### Compatibility
 

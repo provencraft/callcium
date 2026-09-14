@@ -34,12 +34,16 @@ type PolicyData = {
   selector: Hex;
   descriptor: Hex;
   groups: Constraint[][];
+  span?: Span;
 };
 
 type Constraint = {
   scope: number;
   path: Hex;
   operators: Hex[];
+  /** Compiled hint block as carried on the wire; absent when the constraint has no encoding. */
+  hint?: Hex;
+  span?: Span;
 };
 ```
 
@@ -87,7 +91,7 @@ Rule paths are BE16-packed step sequences. Use `parsePathSteps` to decode one in
 import { parsePathSteps } from "@callcium/sdk";
 
 parsePathSteps("0x00000002"); // [0, 2] — arg 0, field 2
-parsePathSteps("0xfffe0001"); // [65534, 1] — Quantifier.ALL on arg path, next step 1
+parsePathSteps("0xfffe0001"); // [65534, 1] — Quantifier.ANY on arg path, next step 1
 ```
 
 Path steps include struct fields, array indices, and quantifier sentinels. See [Constants reference](/docs/sdk/reference/constants) for the `Quantifier` values and their numeric encodings.

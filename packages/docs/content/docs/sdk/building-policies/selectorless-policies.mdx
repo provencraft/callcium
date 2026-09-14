@@ -44,6 +44,7 @@ The full constraint API (`arg()`, context targets, `isIn`, `notIn`, bitmask, len
 A 4-byte selector is 8 hex characters plus the `0x` prefix. Slice from character index 10 to drop it:
 
 ```ts
+import { PolicyEnforcer } from "@callcium/sdk";
 import type { Hex } from "@callcium/sdk";
 
 function stripSelector(data: Hex): Hex {

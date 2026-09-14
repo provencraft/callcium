@@ -3,16 +3,16 @@ title: Policy Validation
 description: Type mismatches, contradictions, redundancies, and vacuities.
 ---
 
-The SDK validates policies through semantic analysis. When `PolicyBuilder.build()` is called, the [`PolicyValidator`](/docs/sdk/reference/policy-validator) inspects every constraint for type errors, logical contradictions, redundancies, and vacuous conditions, then throws if any issue is found — regardless of severity.
+The SDK validates policies through semantic analysis. When `PolicyBuilder.build()` is called, the [`PolicyValidator`](/docs/sdk/reference/policy-validator) inspects every constraint for type errors, logical contradictions, redundancies, and vacuous conditions, then throws a `ValidationError` carrying every issue if any is found — regardless of severity.
 
 ## Using validation
 
-`PolicyBuilder.build()` validates by default and throws a `CallciumError("VALIDATION_ERROR")` on the first issue:
+`PolicyBuilder.build()` validates by default and throws a `ValidationError` — a `CallciumError` with code `VALIDATION_ERROR` — carrying every issue found:
 
 ```ts
 import { PolicyBuilder, arg } from "@callcium/sdk";
 
-// Throws CallciumError("VALIDATION_ERROR") if issues are found.
+// Throws ValidationError if issues are found.
 const policy = PolicyBuilder
   .create("approve(address,uint256)")
   .add(arg(0).isIn(trustedSpenders))
@@ -50,7 +50,7 @@ Each issue is an `Issue` object with the following fields:
 | `category`        | `"typeMismatch" \| "contradiction" \| "redundancy" \| "vacuity" \| "compatibility"` | Nature of the issue.                                      |
 | `groupIndex`      | `number`                                                         | Index of the group containing the issue.                                     |
 | `constraintIndex` | `number`                                                         | Index of the constraint within the group.                                    |
-| `code`            | `string`                                                         | Machine-readable identifier.                                                 |
+| `code`            | `IssueCode`                                                      | Machine-readable identifier.                                                 |
 | `value1`          | `Hex`                                                            | First value involved in the issue (e.g. the lower bound in a contradiction). |
 | `value2`          | `Hex`                                                            | Second value involved in the issue (e.g. the upper bound).                   |
 | `message`         | `string`                                                         | Human-readable description suitable for logs.                                |

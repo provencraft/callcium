@@ -64,12 +64,10 @@ The binding layer is separate from the blob. A binding maps `(target, selector)`
 **Multi-target binding** is where the separation pays off. The `address[]` form of `_storeAndBindPolicy` stores the blob once and binds it to all targets atomically — one SSTORE2 write regardless of target count:
 
 ```solidity
-address[] memory targets = new address[](2);
-targets[0] = address(vaultA);
-targets[1] = address(vaultB);
-
 // function withdraw(address to, uint256 amount)
-bytes32 policyHash = _storeAndBindPolicy(targets, policy);
+function bindVaults(address[] calldata targets, bytes memory policy) external {
+    bytes32 policyHash = _storeAndBindPolicy(targets, policy);
+}
 ```
 
 To bind an already-stored policy to additional targets (for example, when a new contract joins a shared policy), use `_bindPolicy` directly:
