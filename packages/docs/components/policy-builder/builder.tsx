@@ -259,7 +259,7 @@ export function Builder() {
                 type="checkbox"
                 checked={isSelectorless}
                 onChange={(e) => setIsSelectorless(e.target.checked)}
-                className="rounded"
+                className="size-3.5 accent-fd-primary"
                 disabled={!!activeExample}
               />
               Selectorless
