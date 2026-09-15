@@ -147,6 +147,19 @@ export function Builder() {
     setExampleDropdownOpen(false);
   }, []);
 
+  const handleChangeInputMode = useCallback(
+    (mode: "signature" | "abi") => {
+      setInputMode(mode);
+      // A signature that failed to parse is only reachable from the field that produced it.
+      if (session?.error !== undefined) {
+        setSignatureInput("");
+        setSelectedFunctionSignature("");
+        setSession(null);
+      }
+    },
+    [session?.error],
+  );
+
   const handleClear = useCallback(() => {
     setActiveExample(null);
     setSignatureInput("");
@@ -201,7 +214,7 @@ export function Builder() {
               { value: "signature", label: "Signature" },
               { value: "abi", label: "ABI" },
             ]}
-            onChange={setInputMode}
+            onChange={handleChangeInputMode}
           />
 
           {/* Examples dropdown */}
