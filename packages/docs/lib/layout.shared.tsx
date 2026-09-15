@@ -13,7 +13,7 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: (
         <>
-          <Image src="/icon.svg" alt="Callcium Logo" width={28} height={28} />
+          <Image src="/icon.svg" alt="Callcium Logo" width={28} height={28} priority />
           <span
             style={{
               fontSize: "1.2rem",

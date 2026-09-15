@@ -16,7 +16,15 @@ export function Hero() {
       <GridBackground />
 
       <div className="relative mx-auto flex max-w-5xl flex-col items-center gap-7 text-center">
-        <Image src="/logo.svg" alt="Callcium" aria-hidden="true" className="w-24 sm:w-28" width={144} height={144} />
+        <Image
+          src="/logo.svg"
+          alt="Callcium"
+          aria-hidden="true"
+          className="w-24 sm:w-28"
+          width={144}
+          height={144}
+          priority
+        />
 
         <div className="flex flex-col items-center gap-4">
           <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
