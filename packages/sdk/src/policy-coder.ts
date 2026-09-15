@@ -1,10 +1,19 @@
 import { keccak_256 } from "@noble/hashes/sha3.js";
 
 import { bytesToHex, hexToBytes, toHex, readU16, readU32, writeBE16, writeBE32 } from "./bytes";
-import { DescriptorFormat as DF, PolicyFormat as PF, Scope, Op, TypeCode, MAX_CONTEXT_PROPERTY_ID } from "./constants";
+import {
+  DescriptorFormat as DF,
+  fieldMax,
+  formatCode,
+  MAX_CONTEXT_PROPERTY_ID,
+  Op,
+  PolicyFormat as PF,
+  Scope,
+  TypeCode,
+} from "./constants";
 import { Descriptor } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
-import { CallciumError } from "./errors";
+import { CallciumError, type CallciumErrorCode } from "./errors";
 import {
   isLengthOp,
   isLengthValidType,
@@ -355,7 +364,7 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
         if (contextPropertyId > MAX_CONTEXT_PROPERTY_ID) {
           throw new CallciumError(
             "UNKNOWN_CONTEXT_PROPERTY",
-            `Context rule references undefined context property 0x${contextPropertyId.toString(16).padStart(4, "0")}`,
+            `Context rule references undefined context property ${formatCode(contextPropertyId, PF.PATH_STEP_SIZE)}`,
             ruleOffset,
           );
         }
@@ -493,6 +502,12 @@ function sortRules(rules: Rule[]): void {
   });
 }
 
+/** Require a value to fit the big-endian field of `byteWidth` bytes. */
+function requireFieldFits(value: number, byteWidth: number, code: CallciumErrorCode, subject: string): void {
+  const max = fieldMax(byteWidth);
+  if (value > max) throw new CallciumError(code, `${subject} ${value} exceeds maximum ${max}`);
+}
+
 /**
  * Serialize a single rule to its wire format bytes.
  * Path shape and operator framing are established by `flattenConstraint`.
@@ -504,9 +519,7 @@ function encodeRule(rule: Rule): Uint8Array {
   }
   const data = rule.operator.subarray(1);
   const ruleSize = PF.RULE_FIXED_OVERHEAD + rule.path.length + rule.hint.length + data.length;
-  if (ruleSize > 0xffff) {
-    throw new CallciumError("RULE_SIZE_OVERFLOW", `Rule size ${ruleSize} exceeds maximum 65535`);
-  }
+  requireFieldFits(ruleSize, PF.RULE_SIZE_SIZE, "RULE_SIZE_OVERFLOW", "Rule size");
 
   const buf = new Uint8Array(ruleSize);
   writeBE16(buf, 0, ruleSize);
@@ -557,9 +570,7 @@ function encode(data: PolicyData): Hex {
   if (data.groups.length === 0) {
     throw new CallciumError("EMPTY_POLICY", "Policy must contain at least one group");
   }
-  if (data.groups.length > 0xff) {
-    throw new CallciumError("GROUP_COUNT_OVERFLOW", `Group count ${data.groups.length} exceeds maximum 255`);
-  }
+  requireFieldFits(data.groups.length, PF.GROUP_COUNT_SIZE, "GROUP_COUNT_OVERFLOW", "Group count");
 
   // Flatten constraints into rules and sort within each group. Hints are compiled first because
   // they are part of the rule bytes the group hash covers.
@@ -569,20 +580,13 @@ function encode(data: PolicyData): Hex {
     return rules;
   });
 
-  if (descBytes.length > 0xffff) {
-    throw new CallciumError("DESC_LENGTH_OVERFLOW", `Descriptor length ${descBytes.length} exceeds maximum 65535`);
-  }
+  requireFieldFits(descBytes.length, PF.DESC_LENGTH_SIZE, "DESC_LENGTH_OVERFLOW", "Descriptor length");
 
   const encodedGroups = sortedGroups.map((rules, groupIndex) => {
     if (rules.length === 0) {
       throw new CallciumError("EMPTY_GROUP", `Group ${groupIndex} is empty`);
     }
-    if (rules.length > 0xffff) {
-      throw new CallciumError(
-        "RULE_COUNT_OVERFLOW",
-        `Group ${groupIndex} rule count ${rules.length} exceeds maximum 65535`,
-      );
-    }
+    requireFieldFits(rules.length, PF.GROUP_RULECOUNT_SIZE, "RULE_COUNT_OVERFLOW", `Group ${groupIndex} rule count`);
     return { wireBytes: encodeGroupRules(rules), ruleCount: rules.length };
   });
 

@@ -1,4 +1,4 @@
-import { type Hex, lookupOp, lookupContextProperty, MAX_CONTEXT_PROPERTY_ID, Op, TypeCode } from "@callcium/sdk";
+import { type Hex, lookupOp, findContextProperty, Op, TypeCode } from "@callcium/sdk";
 import { getAddress } from "viem";
 
 const TWO_POW_256 = 2n ** 256n;
@@ -84,7 +84,7 @@ export function decodeOperandsFromData(dataHex: Hex, typeCode: number, opBase: n
   if (opBase === Op.EQ_CTX) {
     return operandChunks(dataHex, opBase).map((chunk) => {
       const id = Number.parseInt(chunk.slice(-4), 16);
-      return id <= MAX_CONTEXT_PROPERTY_ID ? lookupContextProperty(id).label : `0x${chunk}`;
+      return findContextProperty(id)?.label ?? `0x${chunk}`;
     });
   }
   return operandChunks(dataHex, opBase).map((chunk) => decodeOperand(chunk, typeCode));

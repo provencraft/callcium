@@ -1,5 +1,5 @@
 import { hexToBytes } from "./bytes";
-import { Op, TypeCode, operandsOf } from "./constants";
+import { DescriptorFormat as DF, formatCode, Op, PolicyFormat as PF, TypeCode, operandsOf } from "./constants";
 import { CallciumError } from "./errors";
 
 import type { Hex } from "./types";
@@ -199,7 +199,7 @@ export function applyOperator(
     }
 
     default:
-      throw new CallciumError("UNKNOWN_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}`);
+      throw new CallciumError("UNKNOWN_OPERATOR", `Unknown operator code ${formatCode(base, PF.RULE_OPCODE_SIZE)}`);
   }
 
   const negate = (opCode & Op.NOT) !== 0;
@@ -249,7 +249,7 @@ export type TypeCodeInfo = TypeClassInfo & { label: string };
 
 /** Throw an UNKNOWN_TYPE_CODE error. */
 function unknownTypeCode(code: number): never {
-  throw new CallciumError("UNKNOWN_TYPE_CODE", `Unknown type code 0x${code.toString(16).padStart(2, "0")}`);
+  throw new CallciumError("UNKNOWN_TYPE_CODE", `Unknown type code ${formatCode(code, DF.TYPECODE_SIZE)}`);
 }
 
 // Pre-allocated constant objects for fixed type codes (avoids per-call allocation).

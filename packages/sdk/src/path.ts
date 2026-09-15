@@ -1,5 +1,5 @@
 import { bytesToHex, hexToBytes, readU16, writeBE16 } from "./bytes";
-import { buildCodeMap, PolicyFormat as PF } from "./constants";
+import { buildCodeMap, formatCode, PolicyFormat as PF } from "./constants";
 import { CallciumError } from "./errors";
 
 import type { Hex } from "./types";
@@ -36,7 +36,8 @@ export function isQuantifier(step: number): boolean {
  */
 export function lookupQuantifier(code: number): QuantifierInfo {
   const info = quantifierByCode.get(code);
-  if (!info) throw new CallciumError("UNKNOWN_QUANTIFIER", `Unknown quantifier step 0x${code.toString(16)}`);
+  if (!info)
+    throw new CallciumError("UNKNOWN_QUANTIFIER", `Unknown quantifier step ${formatCode(code, PF.PATH_STEP_SIZE)}`);
   return info;
 }
 
@@ -50,13 +51,13 @@ export function lookupQuantifier(code: number): QuantifierInfo {
  * address a different argument.
  */
 export function encodePath(steps: readonly number[]): Hex {
-  const buffer = new Uint8Array(steps.length * 2);
+  const buffer = new Uint8Array(steps.length * PF.PATH_STEP_SIZE);
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]!;
-    if (!Number.isInteger(step) || step < 0 || step > PF.MAX_PATH_STEP) {
-      throw new CallciumError("MALFORMED_PATH_STEP", `Path step ${step} is outside the path step field`);
+    if (!Number.isInteger(step) || step < 0 || step > PF.PATH_STEP_MAX) {
+      throw new CallciumError("PATH_STEP_OVERFLOW", `Path step ${step} is outside the path step field`);
     }
-    writeBE16(buffer, i * 2, step);
+    writeBE16(buffer, i * PF.PATH_STEP_SIZE, step);
   }
   return bytesToHex(buffer);
 }

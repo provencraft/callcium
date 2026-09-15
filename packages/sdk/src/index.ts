@@ -46,6 +46,7 @@ export {
   Scope,
   ContextProperty,
   MAX_CONTEXT_PROPERTY_ID,
+  findContextProperty,
   lookupOp,
   lookupScope,
   lookupContextProperty,

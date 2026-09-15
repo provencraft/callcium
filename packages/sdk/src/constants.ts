@@ -34,6 +34,14 @@ const RULE_DATALENGTH_SIZE = 2;
 /** Byte width of one path step. */
 const PATH_STEP_SIZE = 2;
 
+/** Byte overhead of a rule header, excluding the path and the operator payload. */
+const RULE_FIXED_OVERHEAD = 7;
+
+/** Highest value a big-endian field of `byteWidth` bytes holds. */
+export function fieldMax(byteWidth: number): number {
+  return 256 ** byteWidth - 1;
+}
+
 /** Binary layout constants and normative limits for the Callcium policy format. */
 export const PolicyFormat = {
   VERSION: 0x02,
@@ -55,10 +63,11 @@ export const PolicyFormat = {
   RULE_DEPTH_OFFSET: 3,
   RULE_PATH_OFFSET: 4,
   PATH_STEP_SIZE,
+  PATH_STEP_MAX: fieldMax(PATH_STEP_SIZE),
   RULE_OPCODE_SIZE: 1,
   RULE_DATALENGTH_SIZE,
-  RULE_FIXED_OVERHEAD: 7,
-  RULE_MIN_SIZE: 9,
+  RULE_FIXED_OVERHEAD,
+  RULE_MIN_SIZE: RULE_FIXED_OVERHEAD + PATH_STEP_SIZE,
   HINT_HEADER_SIZE: 1,
   HINT_HOP_SIZE: 8,
   HINT_HOP_INDEX_OFFSET: 4,
@@ -85,8 +94,7 @@ export const PolicyFormat = {
   // Normative limits.
   MAX_PATH_DEPTH: 32,
   MAX_QUANTIFIED_ARRAY_LENGTH: 256,
-  MAX_SET_MEMBERS: Math.floor((256 ** RULE_DATALENGTH_SIZE - 1) / 32),
-  MAX_PATH_STEP: 256 ** PATH_STEP_SIZE - 1,
+  MAX_SET_MEMBERS: Math.floor(fieldMax(RULE_DATALENGTH_SIZE) / 32),
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -100,6 +108,17 @@ export const PolicyFormat = {
 type CodeMap<T extends readonly { readonly key: string; readonly code: number }[]> = {
   readonly [E in T[number] as E["key"]]: E["code"];
 };
+
+/**
+ * Render a wire code as fixed-width hex.
+ * @param code - Code value.
+ * @param byteWidth - Byte width of the field the code occupies.
+ * @returns The code as `0x`-prefixed hex, or its decimal form when no such field holds it.
+ */
+export function formatCode(code: number, byteWidth: number): string {
+  if (!Number.isInteger(code) || code < 0 || code > fieldMax(byteWidth)) return String(code);
+  return `0x${code.toString(16).padStart(byteWidth * 2, "0")}`;
+}
 
 /** Build a plain `{ KEY: code }` object from a table at runtime. */
 export function buildCodeMap<T extends readonly { readonly key: string; readonly code: number }[]>(
@@ -195,6 +214,15 @@ const ctxPropertyByCode: ReadonlyMap<number, ContextPropertyInfo> = new Map<numb
 );
 
 /**
+ * Look up a context property code in the assigned set.
+ * @param code - Context property ID.
+ * @returns Display metadata, or undefined when the ID names no assigned property.
+ */
+export function findContextProperty(code: number): ContextPropertyInfo | undefined {
+  return ctxPropertyByCode.get(code);
+}
+
+/**
  * Map a context property code to its display label and ABI type code.
  * @param code - Context property ID.
  * @returns Display metadata including the ABI type code for the property value.
@@ -205,7 +233,7 @@ export function lookupContextProperty(code: number): ContextPropertyInfo {
   if (!info) {
     throw new CallciumError(
       "UNKNOWN_CONTEXT_PROPERTY",
-      `Unknown context property ID 0x${code.toString(16).padStart(4, "0")}`,
+      `Unknown context property ID ${formatCode(code, PATH_STEP_SIZE)}`,
     );
   }
   return info;
@@ -259,7 +287,10 @@ export function lookupOp(code: number): OpInfo {
   const base = code & ~Op.NOT;
   const info = opByCode.get(base);
   if (!info)
-    throw new CallciumError("UNKNOWN_OPERATOR", `Unknown operator code 0x${base.toString(16).padStart(2, "0")}`);
+    throw new CallciumError(
+      "UNKNOWN_OPERATOR",
+      `Unknown operator code ${formatCode(base, PolicyFormat.RULE_OPCODE_SIZE)}`,
+    );
   return info;
 }
 

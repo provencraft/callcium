@@ -1,5 +1,5 @@
 import { bytesToHex, hexToBytes, toAddress } from "./bytes";
-import { PolicyFormat, Op, Scope, ContextProperty, MAX_CONTEXT_PROPERTY_ID } from "./constants";
+import { PolicyFormat, Op, Scope, ContextProperty, lookupContextProperty } from "./constants";
 import { CallciumError } from "./errors";
 import { encodePath } from "./path";
 
@@ -79,15 +79,13 @@ function rangeOp(opCode: number, min: bigint, max: bigint): Hex {
   return bytesToHex(buffer);
 }
 
-/** Require a defined context property ID and return it. */
-function checkContextPropertyId(contextPropertyId: number): number {
-  if (!Number.isInteger(contextPropertyId) || contextPropertyId < 0 || contextPropertyId > MAX_CONTEXT_PROPERTY_ID) {
-    throw new CallciumError(
-      "UNKNOWN_CONTEXT_PROPERTY",
-      `Unknown context property ID 0x${contextPropertyId.toString(16).padStart(4, "0")}`,
-    );
-  }
-  return contextPropertyId;
+/**
+ * Require an assigned context property ID and return it as an operand word.
+ * @throws {CallciumError} When the ID names no assigned property.
+ */
+function contextOperand(contextPropertyId: number): bigint {
+  lookupContextProperty(contextPropertyId);
+  return BigInt(contextPropertyId);
 }
 
 /** Convert values to bigint, sort ascending (unsigned), deduplicate, and pack as set payload. */
@@ -202,12 +200,12 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
 
   /** Assert the value equals the context property `contextPropertyId`. */
   eqCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.EQ_CTX, BigInt(checkContextPropertyId(contextPropertyId))));
+    return this.push(singleOp(Op.EQ_CTX, contextOperand(contextPropertyId)));
   }
 
   /** Assert the value does not equal the context property `contextPropertyId`. */
   neqCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.EQ_CTX | Op.NOT, BigInt(checkContextPropertyId(contextPropertyId))));
+    return this.push(singleOp(Op.EQ_CTX | Op.NOT, contextOperand(contextPropertyId)));
   }
 
   /** Assert the value is greater than `bound`. */

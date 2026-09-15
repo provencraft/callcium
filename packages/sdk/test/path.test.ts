@@ -41,9 +41,9 @@ describe("encodePath", () => {
   });
 
   test("rejects a step the field cannot hold", () => {
-    expectErrorCode(() => encodePath([-1]), "MALFORMED_PATH_STEP");
-    expectErrorCode(() => encodePath([0x10000]), "MALFORMED_PATH_STEP");
-    expectErrorCode(() => encodePath([1.5]), "MALFORMED_PATH_STEP");
+    expectErrorCode(() => encodePath([-1]), "PATH_STEP_OVERFLOW");
+    expectErrorCode(() => encodePath([0x10000]), "PATH_STEP_OVERFLOW");
+    expectErrorCode(() => encodePath([1.5]), "PATH_STEP_OVERFLOW");
   });
 });
 

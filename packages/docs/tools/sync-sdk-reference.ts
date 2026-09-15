@@ -90,7 +90,14 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
     description: "Protocol constants, enums, and lookup helpers.",
     sections: {
       primary: [],
-      helpers: ["lookupOp", "lookupScope", "lookupContextProperty", "lookupTypeCode", "isLengthOp"],
+      helpers: [
+        "lookupOp",
+        "lookupScope",
+        "lookupContextProperty",
+        "findContextProperty",
+        "lookupTypeCode",
+        "isLengthOp",
+      ],
       types: [
         "Op",
         "TypeCode",

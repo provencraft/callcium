@@ -179,4 +179,10 @@ describe("lookupContextProperty", () => {
   test("rejects unknown context property code", () => {
     expectErrorCode(() => lookupContextProperty(MAX_CONTEXT_PROPERTY_ID + 1), "UNKNOWN_CONTEXT_PROPERTY");
   });
+
+  test("names a code the ID field cannot hold in its own decimal form", () => {
+    expect(expectErrorCode(() => lookupContextProperty(-1), "UNKNOWN_CONTEXT_PROPERTY").message).toContain(
+      "property ID -1",
+    );
+  });
 });

@@ -1,5 +1,5 @@
 import { bigintToHex, bytesToHex, hexToBytes } from "./bytes";
-import { PolicyFormat, lookupContextProperty, MAX_CONTEXT_PROPERTY_ID, Op, Scope, TypeCode } from "./constants";
+import { fieldMax, findContextProperty, MAX_CONTEXT_PROPERTY_ID, Op, PolicyFormat, Scope, TypeCode } from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError, type CallciumErrorCode } from "./errors";
@@ -823,6 +823,11 @@ function checkFusibleRange(
   }
 }
 
+/** Check whether a payload length fits the `dataLength` field and matches the operator's arity. */
+function hasValidPayload(opBase: number, dataLength: number): boolean {
+  return dataLength <= fieldMax(PolicyFormat.RULE_DATALENGTH_SIZE) && isValidOperatorData(opBase, dataLength);
+}
+
 /** Return the operand pair when the operators contain exactly one of each unnegated bound opcode. */
 function findLonePair(operators: Hex[], lowerOp: number, upperOp: number): { low: bigint; high: bigint } | null {
   let lowerCount = 0;
@@ -833,7 +838,7 @@ function findLonePair(operators: Hex[], lowerOp: number, upperOp: number): { low
   for (const opHex of operators) {
     const opCode = parseInt(opHex.slice(2, 4), 16);
     const dataLength = (opHex.length - 4) / 2;
-    if (dataLength > 0xffff || !isValidOperatorData(opCode & ~Op.NOT, dataLength)) continue;
+    if (!hasValidPayload(opCode & ~Op.NOT, dataLength)) continue;
     if (opCode === lowerOp) {
       lowerCount++;
       low = readValue(opHex);
@@ -869,7 +874,7 @@ function validateConstraint(
 
     // An unassigned opcode or mismatched payload size has no defined semantics to analyze.
     const dataLength = opBytes.length - 1;
-    if (dataLength > 0xffff || !isValidOperatorData(base, dataLength)) {
+    if (!hasValidPayload(base, dataLength)) {
       issues.push(
         ValidationIssue.fromOpRule(
           "UNKNOWN_OPERATOR",
@@ -906,7 +911,8 @@ function validateConstraint(
     if (base === Op.EQ_CTX) {
       // The operand names a context property, not a value: nothing to fold into a domain.
       const ctxOperand = readValue(opHex);
-      if (ctxOperand > BigInt(MAX_CONTEXT_PROPERTY_ID)) {
+      const property = findContextProperty(Number(ctxOperand));
+      if (!property) {
         issues.push(
           ValidationIssue.unknownContextProperty(
             groupIndex,
@@ -918,7 +924,7 @@ function validateConstraint(
       } else {
         // Compatibility has already narrowed the target to an address or unsigned type,
         // so the pairing reduces to whether both sides are addresses.
-        const propertyIsAddress = lookupContextProperty(Number(ctxOperand)).typeCode === TypeCode.ADDRESS;
+        const propertyIsAddress = property.typeCode === TypeCode.ADDRESS;
         const targetIsAddress = ctx.typeInfo.typeCode === TypeCode.ADDRESS;
         if (propertyIsAddress !== targetIsAddress) {
           issues.push(
@@ -1081,7 +1087,8 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
         typeInfo = walk.typeInfo;
       } else {
         const ctxId = steps[0]!;
-        if (ctxId > MAX_CONTEXT_PROPERTY_ID) {
+        const property = findContextProperty(ctxId);
+        if (!property) {
           // An unassigned ID declares no type, so the analysis proceeds over the widest
           // unsigned domain and the warning carries the ID.
           issues.push(
@@ -1092,11 +1099,8 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
               bigintToHex(BigInt(MAX_CONTEXT_PROPERTY_ID)),
             ),
           );
-          typeInfo = { typeCode: TypeCode.UINT_MAX, isDynamic: false, staticSize: 32 };
-        } else {
-          const typeCode = lookupContextProperty(ctxId).typeCode;
-          typeInfo = { typeCode, isDynamic: false, staticSize: 32 };
         }
+        typeInfo = { typeCode: property?.typeCode ?? TypeCode.UINT_MAX, isDynamic: false, staticSize: 32 };
       }
       ctx = initContext(constraint.scope, normalizedPath, steps, typeInfo);
       contexts.push(ctx);
