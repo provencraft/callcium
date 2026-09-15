@@ -17,7 +17,7 @@ import {
 } from "@callcium/sdk";
 import { type Abi, type AbiFunction, type AbiParameter, toFunctionSelector } from "viem";
 import { formatCalldataPath, formatOpLabel } from "./format-path";
-import { decodeOperandsFromData } from "./format-value";
+import { decodeOperandsFromData, formatOperandList } from "./format-value";
 import { type ParamNode, parseDescriptor, toNameTree } from "./policy-builder";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -76,9 +76,7 @@ export function flattenGroup(group: ExplainedGroup): ExplainedFlatRule[] {
 
 /** Render a rule's operands as a display string, bracketed by operator arity (set vs range vs single). */
 export function formatOperands(rule: ExplainedRule): string {
-  if (rule.arity === "variadic") return `{${rule.operands.join(", ")}}`;
-  if (rule.arity === "range") return `[${rule.operands.join(", ")}]`;
-  return rule.operands.join(", ");
+  return formatOperandList(rule.arity, rule.operands);
 }
 
 ///////////////////////////////////////////////////////////////////////////

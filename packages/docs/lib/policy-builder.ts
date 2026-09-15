@@ -5,6 +5,7 @@ import {
   type Hex,
   type Issue,
   Op,
+  type Operands,
   PolicyBuilder,
   type ScalarValue,
   TypeCode,
@@ -16,6 +17,7 @@ import {
   chainId,
   gasPrice,
   isOpAllowed,
+  lookupOp,
   lookupTypeCode,
   msgSender,
   msgValue,
@@ -114,6 +116,13 @@ const OP_METHODS: readonly OpMethod[] = [
   { method: "lengthLte", opCode: Op.LENGTH_LTE, apply: (b, v) => b.lengthLte(big(v[0])) },
   { method: "lengthBetween", opCode: Op.LENGTH_BETWEEN, apply: (b, v) => b.lengthBetween(big(v[0]), big(v[1])) },
 ];
+
+/** Look up the operand arity for an operator method name. Unknown names read as single-operand. */
+export function getOperatorArity(method: string): Operands {
+  const entry = OP_METHODS.find((op) => op.method === method);
+  if (!entry) return "single";
+  return lookupOp(entry.opCode).operands;
+}
 
 /** Look up the display label for an operator method name. */
 export function getOperatorLabel(method: string): string {

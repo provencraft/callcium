@@ -34,6 +34,22 @@ describe("formatViolation", () => {
     expect(formatViolation(v)).toBe("arg(0): < 1000000000000000000 violated by 105200000000000000000000");
   });
 
+  it("braces a set operand list and brackets a range one", () => {
+    const base = {
+      group: 0,
+      rule: 0,
+      code: "VALUE_MISMATCH",
+      scope: Scope.CALLDATA,
+      path: ARG0_PATH,
+      typeCode: TypeCode.UINT_MAX,
+      resolvedValue: word(7n),
+      operandData: `0x${word(1n).slice(2)}${word(2n).slice(2)}`,
+    } as const;
+
+    expect(formatViolation({ ...base, opCode: Op.IN })).toBe("arg(0): in {1, 2} violated by 7");
+    expect(formatViolation({ ...base, opCode: Op.BETWEEN })).toBe("arg(0): between [1, 2] violated by 7");
+  });
+
   it("formats a context VALUE_MISMATCH with checksummed address rendering", () => {
     const expected = "0x0000000000000000000000000000000000000001";
     const actual = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045";

@@ -17,12 +17,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { lookup4byte, descriptorToTypes } from "@/lib/abi";
 import { parseAbiJson } from "@/lib/abi";
 import { CONTEXT_PROPERTIES, CONTEXT_PROPERTY_COUNT, contextPropertyType, formatPath } from "@/lib/format-path";
+import { formatOperandList } from "@/lib/format-value";
 import {
   createSession,
   addConstraint,
   removeConstraint,
   addGroup,
   removeGroup,
+  getOperatorArity,
   getOperatorOptions,
   getOperatorLabel,
   type BuilderSession,
@@ -583,8 +585,10 @@ function isCtxOp(operator: string): boolean {
 
 /** Render a rule's operand list for display. */
 function formatRuleValues(operator: string, values: ScalarValue[]): string {
-  if (isCtxOp(operator)) return values.map((v) => lookupContextProperty(Number(v)).label).join(", ");
-  return values.map((v) => String(v)).join(", ");
+  const operands = isCtxOp(operator)
+    ? values.map((v) => lookupContextProperty(Number(v)).label)
+    : values.map((v) => String(v));
+  return formatOperandList(getOperatorArity(operator), operands);
 }
 
 function parseConstraintValues(operator: string, valueInput: string, typeInfo: TypeInfo | null): ScalarValue[] | null {

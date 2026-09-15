@@ -10,7 +10,7 @@ import {
   type Violation,
 } from "@callcium/sdk";
 import { formatCalldataPath, formatContextPath, formatOpLabel } from "./format-path";
-import { decodeOperandsFromData, decodeValue } from "./format-value";
+import { decodeOperandsFromData, decodeValue, formatOperandList } from "./format-value";
 import type { ParamNode } from "@/lib/policy-builder";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -46,9 +46,7 @@ function formatConstraint(opCode: number, operandData: Hex, typeCode: number): s
   const operands = formatOperands(operandData, typeCode, opCode);
   const arity = lookupOp(opBase).operands;
 
-  if (arity === "variadic") return `${operator} [${operands.join(", ")}]`;
-  if (arity === "range") return `${operator} [${operands[0]}, ${operands[1]}]`;
-  return `${operator} ${operands[0]}`;
+  return `${operator} ${formatOperandList(arity, operands)}`;
 }
 
 ///////////////////////////////////////////////////////////////////////////
