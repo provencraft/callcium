@@ -16,6 +16,7 @@ import { PillToggle } from "@/components/ui/pill-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { lookup4byte, descriptorToTypes } from "@/lib/abi";
 import { parseAbiJson } from "@/lib/abi";
+import { formatError } from "@/lib/format-error";
 import { CONTEXT_PROPERTIES, CONTEXT_PROPERTY_COUNT, contextPropertyType, formatPath } from "@/lib/format-path";
 import { formatOperandList } from "@/lib/format-value";
 import {
@@ -310,7 +311,7 @@ export function Builder() {
 
             {abiInput.trim() && (
               <>
-                {abiFunctions instanceof Error && <ErrorBox>Invalid ABI: {abiFunctions.message}</ErrorBox>}
+                {abiFunctions instanceof Error && <ErrorBox>Invalid ABI: {formatError(abiFunctions)}</ErrorBox>}
                 {Array.isArray(abiFunctions) && abiFunctions.length === 0 && (
                   <ErrorBox>No functions found in ABI.</ErrorBox>
                 )}
@@ -319,7 +320,7 @@ export function Builder() {
           </div>
         )}
 
-        {session?.error && <ErrorBox className="mt-1.5">{session.error}</ErrorBox>}
+        {session?.error && <ErrorBox className="mt-1.5">{humanizeError(session.error)}</ErrorBox>}
       </div>
 
       {/* Parameter tree + constraint management */}
@@ -394,7 +395,7 @@ export function Builder() {
             <div className="space-y-1">
               {session.errors.map((error, i) => (
                 // oxlint-disable-next-line react/no-array-index-key
-                <ErrorBox key={i}>{error}</ErrorBox>
+                <ErrorBox key={i}>{humanizeError(error)}</ErrorBox>
               ))}
             </div>
           )}

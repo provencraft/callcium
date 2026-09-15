@@ -316,7 +316,7 @@ function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; e
       ? PolicyBuilder.createRaw(session.signature)
       : PolicyBuilder.create(session.signature);
   } catch (e) {
-    return { hex: null, issues: [], errors: [e instanceof Error ? e.message : String(e)] };
+    return { hex: null, issues: [], errors: [formatError(e)] };
   }
 
   for (let gi = 0; gi < session.groups.length; gi++) {
@@ -324,7 +324,7 @@ function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; e
       try {
         builder.or();
       } catch (e) {
-        errors.push(e instanceof Error ? e.message : String(e));
+        errors.push(formatError(e));
         continue;
       }
     }
@@ -432,7 +432,7 @@ export function createSession(signature: string, options?: { selectorless?: bool
       hex: null,
       issues: [],
       errors: [],
-      error: e instanceof Error ? e.message : String(e),
+      error: formatError(e),
     };
   }
 }
