@@ -25,16 +25,8 @@ export const EXAMPLES = [
   },
   {
     name: "Cap transfer amount",
-    signature: "approve(address,uint256)",
+    signature: "transfer(address,uint256)",
     constraints: [
-      {
-        groupIndex: 0,
-        config: {
-          scope: "calldata",
-          path: [0],
-          rules: [{ operator: "eq", values: ["0x1111111254eeb25477b68fb85ed929f73a960582"] }],
-        },
-      },
       {
         groupIndex: 0,
         config: {
@@ -54,7 +46,12 @@ export const EXAMPLES = [
         config: {
           scope: "context",
           contextProperty: "msgSender",
-          rules: [{ operator: "eq", values: ["0xd8da6bf26964af9d7eed9e03e53415d37aa96045"] }],
+          rules: [
+            {
+              operator: "isIn",
+              values: ["0xd8da6bf26964af9d7eed9e03e53415d37aa96045", "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45"],
+            },
+          ],
         },
       },
       {
