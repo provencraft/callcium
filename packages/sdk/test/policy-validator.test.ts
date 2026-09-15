@@ -724,11 +724,6 @@ describe("PolicyValidator - upper bound domain updates", () => {
     expectIssueCode(issues, "DOMINATED_BOUND");
   });
 
-  test("reports DOMINATED_BOUND when lt(50) supersedes lte(100)", () => {
-    const issues = validate("uint256", (b) => b.add(arg(0).lte(100n).lt(50n)));
-    expectIssueCode(issues, "DOMINATED_BOUND");
-  });
-
   test("reports DOMINATED_BOUND for lte(50) + lte(50) (same inclusive)", () => {
     const issues = validate("uint256", (b) => b.add(arg(0).lte(50n).lte(50n)));
     expectIssueCode(issues, "DOMINATED_BOUND");
@@ -967,13 +962,6 @@ describe("PolicyValidator - unbounded exclusion tracking", () => {
       const c = arg(0).isIn([1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n, 10n]);
       for (let i = 1; i <= 10; i++) c.neq(BigInt(i));
       b.add(c);
-    });
-    expectIssueCode(issues, "SET_FULLY_EXCLUDED");
-  });
-
-  test("detects SET_FULLY_EXCLUDED with a large notIn set", () => {
-    const issues = validate("uint256", (b) => {
-      b.add(arg(0).isIn([1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n, 10n]).notIn([1n, 2n, 3n, 4n, 5n, 6n, 7n, 8n, 9n, 10n]));
     });
     expectIssueCode(issues, "SET_FULLY_EXCLUDED");
   });

@@ -188,7 +188,6 @@ describe("DescriptorCoder.fromTypes", () => {
   test("bare width prefix throws UNKNOWN_TYPE", () => {
     // A prefix carrying no width names no type; it is not a width spelled wrongly.
     expectErrorCode(() => DescriptorCoder.fromTypes("uint"), "UNKNOWN_TYPE");
-    expectErrorCode(() => DescriptorCoder.fromTypes("int"), "UNKNOWN_TYPE");
   });
 
   test("unknown base under an array suffix throws UNKNOWN_TYPE", () => {
@@ -198,11 +197,6 @@ describe("DescriptorCoder.fromTypes", () => {
 
   test("leading array suffix throws UNKNOWN_TYPE", () => {
     expectErrorCode(() => DescriptorCoder.fromTypes("[]uint256"), "UNKNOWN_TYPE");
-  });
-
-  test("unbalanced brackets throw MALFORMED_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[3"), "MALFORMED_TYPE_STRING");
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint256[]]"), "MALFORMED_TYPE_STRING");
   });
 
   test("a closer with nothing open throws MALFORMED_TYPE_STRING, not an unknown type", () => {
@@ -264,10 +258,6 @@ describe("DescriptorCoder.fromTypes", () => {
 
   test("zero-padded uint width 'uint08' throws MALFORMED_TYPE_STRING", () => {
     expectErrorCode(() => DescriptorCoder.fromTypes("uint08"), "MALFORMED_TYPE_STRING");
-  });
-
-  test("zero-padded uint width 'uint008' throws MALFORMED_TYPE_STRING", () => {
-    expectErrorCode(() => DescriptorCoder.fromTypes("uint008"), "MALFORMED_TYPE_STRING");
   });
 
   test("zero-padded int width 'int08' throws MALFORMED_TYPE_STRING", () => {

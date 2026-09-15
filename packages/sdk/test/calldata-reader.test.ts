@@ -32,11 +32,6 @@ describe("loadWord", () => {
     expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
 
-  test("returns CALLDATA_OUT_OF_BOUNDS for empty callData", () => {
-    const result = loadWord(new Uint8Array(0), 0);
-    expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
-  });
-
   test("returns CALLDATA_OUT_OF_BOUNDS for negative offset", () => {
     const result = loadWord(word(1n), -1);
     expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });

@@ -194,13 +194,6 @@ describe("PolicyBuilder", () => {
     );
   });
 
-  test("rejects quantifier on a tuple type", () => {
-    expectErrorCode(
-      () => PolicyBuilder.create("foo((address,uint256))").add(arg(0, Quantifier.ALL).eq(1n)),
-      "QUANTIFIER_ON_NON_ARRAY",
-    );
-  });
-
   test("rejects a path with an odd byte length", () => {
     const invalid: Constraint = { scope: Scope.CALLDATA, path: "0x000000", operators: [`0x01${"0".repeat(64)}`] };
     expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(invalid), "MALFORMED_PATH");

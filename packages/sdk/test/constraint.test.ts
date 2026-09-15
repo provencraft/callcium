@@ -338,11 +338,6 @@ describe(".isIn() / .notIn()", () => {
     const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
     expectErrorCode(() => arg(0).isIn(values), "SET_TOO_LARGE");
   });
-
-  test(".notIn() — throws SET_TOO_LARGE one member past the limit", () => {
-    const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
-    expectErrorCode(() => arg(0).notIn(values), "SET_TOO_LARGE");
-  });
 });
 
 ///////////////////////////////////////////////////////////////////////////

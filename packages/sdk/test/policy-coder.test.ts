@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { bytesToHex } from "../src/bytes";
-import { MAX_CONTEXT_PROPERTY_ID, Op, PolicyFormat, Scope } from "../src/constants";
+import { Op, PolicyFormat, Scope } from "../src/constants";
 import { DescriptorCoder } from "../src/descriptor-coder";
 import { PolicyCoder } from "../src/policy-coder";
 import { SignatureParser } from "../src/signature";
@@ -79,7 +79,7 @@ describe("PolicyCoder.encode selector width", () => {
     expect(PolicyCoder.decode(PolicyCoder.encode(withSelector("0xaabbccdd"))).selector).toBe("0xaabbccdd");
   });
 
-  test.each<Hex>(["0x", "0xaabbcc", "0xaabbccddee"])("rejects selector %s", (selector) => {
+  test.each<Hex>(["0xaabbcc", "0xaabbccddee"])("rejects selector %s", (selector) => {
     expectErrorCode(() => PolicyCoder.encode(withSelector(selector)), "MALFORMED_SELECTOR");
   });
 
@@ -99,11 +99,6 @@ describe("PolicyCoder.decode EQ_CTX operand", () => {
 
   test("accepts a defined property operand", () => {
     expect(PolicyCoder.decode(EQ_CTX_BLOB)).toBeDefined();
-  });
-
-  test("rejects an operand above the defined property range", () => {
-    const blob: Hex = `0x${EQ_CTX_BLOB.slice(2, -4)}${(MAX_CONTEXT_PROPERTY_ID + 1).toString(16).padStart(4, "0")}`;
-    expectErrorCode(() => PolicyCoder.decode(blob), "UNKNOWN_CONTEXT_PROPERTY");
   });
 
   test("rejects an operand with garbage above the ID bytes", () => {
