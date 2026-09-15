@@ -1,7 +1,7 @@
 import { defineConfig } from "oxfmt";
 
 export default defineConfig({
-  ignorePatterns: ["node_modules", ".next", ".source", "content/docs", "components/ui"],
+  ignorePatterns: ["node_modules", ".next", ".source", "content/docs"],
   printWidth: 120,
   sortImports: {
     newlinesBetween: false,

@@ -8,7 +8,6 @@ export default defineConfig({
     "content/docs/solidity/reference",
     "content/docs/sdk/reference",
     "content/docs/(protocol)/specifications",
-    "components/ui",
   ],
   options: {
     typeAware: true,

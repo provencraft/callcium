@@ -1,5 +1,5 @@
-import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
+import type { ComponentPropsWithoutRef } from "react";
 import { cn } from "@/lib/utils";
 
 /** Monospace textarea with standard tool styling. */

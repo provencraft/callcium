@@ -30,7 +30,9 @@ export function HexDump({
   };
 
   return (
-    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- hex dump uses event delegation for hover.
+    // Hover and tap are pointer gestures with no per-byte keyboard equivalent; consumers expose the
+    // same spans through focusable rows.
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
     <div
       className="flex flex-wrap gap-x-0.5 gap-y-0.5 font-mono text-xs leading-relaxed"
       onMouseMove={(e) => {

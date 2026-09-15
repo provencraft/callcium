@@ -26,9 +26,7 @@ export function PillToggle<T extends string>({
             disabled={disabled}
             className={cn(
               "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-              active
-                ? "bg-fd-primary text-fd-primary-foreground"
-                : "text-fd-muted-foreground hover:text-fd-foreground",
+              active ? "bg-fd-primary text-fd-primary-foreground" : "text-fd-muted-foreground hover:text-fd-foreground",
               disabled && "cursor-not-allowed opacity-50",
             )}
             onClick={() => onChange(option.value)}

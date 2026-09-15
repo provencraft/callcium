@@ -1,5 +1,5 @@
-import type { ComponentPropsWithoutRef } from "react";
 import { forwardRef } from "react";
+import type { ComponentPropsWithoutRef } from "react";
 import { cn } from "@/lib/utils";
 
 /** Monospace single-line input with standard tool styling. */
