@@ -2061,3 +2061,20 @@ contract EnforceHintDispatchTest is PolicyEnforcerTest {
         assertTrue(harness.check(policy, callData), "the target delta selects the field");
     }
 }
+
+/// @dev Tests for the policy blob precondition both entry points share.
+contract EnforcePolicyBlobTest is PolicyEnforcerTest {
+    function test_RevertWhen_EnforcedPolicyIsEmpty() public {
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
+
+        vm.expectRevert(Policy.MalformedHeader.selector);
+        harness.enforce("", callData);
+    }
+
+    function test_RevertWhen_CheckedPolicyIsEmpty() public {
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
+
+        vm.expectRevert(Policy.MalformedHeader.selector);
+        harness.check("", callData);
+    }
+}

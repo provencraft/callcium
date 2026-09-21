@@ -43,6 +43,12 @@ contract LoadWordTest is BaseTest {
         harness.loadWord(hex"00112233", 0);
     }
 
+    function test_RevertWhen_OffsetWraps() public {
+        bytes memory callData = abi.encode(uint256(0), uint256(0));
+        vm.expectRevert(CalldataReader.CalldataOutOfBounds.selector);
+        harness.loadWord(callData, type(uint256).max - 31);
+    }
+
     function testFuzz_ReadsAnyInBoundsWord(uint256 value, uint256 seed) public view {
         bytes memory callData = abi.encode(uint256(0), value, uint256(0));
         uint256 offset = bound(seed, 0, callData.length - 32);

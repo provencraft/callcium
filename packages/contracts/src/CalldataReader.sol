@@ -23,15 +23,18 @@ library CalldataReader {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Loads the 32-byte word at `offset` in calldata.
-    /// @dev Every offset reaching this bound is derived from a buffer length and wire fields whose
-    /// widths keep it far below the top of the range, so the sum cannot wrap.
+    /// @dev Subtracting a word from the length keeps the bound clear of a sum that wraps. Folding
+    /// both comparisons into one condition leaves a single branch on the load path.
     /// @param callData The calldata buffer.
     /// @param offset Byte offset of the word.
     /// @return The 32-byte word.
     function loadWord(bytes calldata callData, uint256 offset) internal pure returns (bytes32) {
-        unchecked {
-            require(offset + 32 <= callData.length, CalldataOutOfBounds());
+        uint256 length = callData.length;
+        bool inBounds;
+        assembly ("memory-safe") {
+            inBounds := iszero(or(lt(length, 32), gt(offset, sub(length, 32))))
         }
+        require(inBounds, CalldataOutOfBounds());
         return LibBytes.loadCalldata(callData, offset);
     }
 }

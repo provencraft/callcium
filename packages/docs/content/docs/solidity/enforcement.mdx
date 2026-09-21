@@ -9,7 +9,9 @@ description: Enforce policies against calldata at runtime.
 
 Two functions expose the enforcer. `enforce(policy, callData)` reverts with `PolicyViolation` when the data fails. `check(policy, callData)` returns `true` when the data is valid against the policy and `false` otherwise.
 
-Both revert on a malformed policy, and both revert on a violation that aborts evaluation. Only `enforce` reverts on a violation that merely fails its group.
+Both revert with `MalformedHeader` on a blob too short to hold a policy header, and both revert on a violation that aborts evaluation. Only `enforce` reverts on a violation that merely fails its group.
+
+Past that length check, enforcement assumes a validated blob. An unbound `(target, selector)` pair resolves to empty bytes, which is too short to hold a header, so decide explicitly whether an absent policy should revert or skip enforcement — see [Integration examples](#integration-examples).
 
 ```solidity
 import { PolicyEnforcer } from "callcium/PolicyEnforcer.sol";

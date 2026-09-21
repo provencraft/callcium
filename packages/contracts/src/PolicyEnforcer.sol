@@ -5,6 +5,7 @@ import { Be16 } from "./Be16.sol";
 
 import { CalldataReader } from "./CalldataReader.sol";
 import { OpCode } from "./OpCode.sol";
+import { Policy } from "./Policy.sol";
 import { PolicyFormat as PF } from "./PolicyFormat.sol";
 import { TypeCode } from "./TypeCode.sol";
 import { TypeRule } from "./TypeRule.sol";
@@ -80,6 +81,9 @@ library PolicyEnforcer {
         returns (bool ok, uint32 failingGroup, uint32 failingRule)
     {
         unchecked {
+            // Every field read below indexes the buffer unchecked, so the header must be present.
+            require(policy.length >= PF.POLICY_HEADER_PREFIX, Policy.MalformedHeader());
+
             // Parse the policy header once; every later field read reuses these offsets.
             uint8 policyHeader = _byteAt(policy, PF.POLICY_HEADER_OFFSET);
 
