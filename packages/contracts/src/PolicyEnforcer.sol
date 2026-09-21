@@ -19,7 +19,7 @@ library PolicyEnforcer {
                                         ERRORS
     ////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Thrown when policy validation fails.
+    /// @notice Thrown when calldata violates the policy.
     error PolicyViolation(uint32 groupIndex, uint32 ruleIndex);
 
     /// @notice Thrown when the function selector does not match the policy header.
@@ -108,7 +108,6 @@ library PolicyEnforcer {
             uint256 descLength = Be16.readUnchecked(policy, PF.POLICY_DESC_LENGTH_OFFSET);
             uint256 groupCountOffset = PF.POLICY_HEADER_PREFIX + descLength;
             uint8 groups = _byteAt(policy, groupCountOffset);
-            if (groups == 0) return (false, 0, 0);
 
             // Evaluate groups with OR semantics: first passing group succeeds.
             uint256 groupOffset = groupCountOffset + PF.POLICY_GROUP_COUNT_SIZE;
@@ -296,13 +295,15 @@ library PolicyEnforcer {
 
             bool hasLength = TypeRule.hasCalldataLength(typeCode);
             uint256 payloadStride = 0;
-            uint8 canonMode = 0;
-            uint256 canonBits = 0;
+            uint8 canonicalMode = 0;
+            uint256 canonicalBits = 0;
             if (hasLength) {
                 payloadStride = _payloadStride(typeCode, targetBlock);
             } else {
                 // Every element shares the target's declared type, so its encoding resolves once.
-                (canonMode, canonBits) = TypeRule.canonicalSpec(typeCode);
+                // The spec pairs an alignment mode (right, left, or sign-extended) with the width it
+                // measures: the payload width for the aligned modes, the sign byte index for signed.
+                (canonicalMode, canonicalBits) = TypeRule.canonicalSpec(typeCode);
             }
 
             uint256 elemStride = (frame & PF.HINT_META_STRIDE_MASK) * 32;
@@ -321,7 +322,9 @@ library PolicyEnforcer {
                     _requireExtent(callData, target, length, payloadStride);
                     elemResult = _applyOperator(opCode, bytes32(0), length, typeCode, policy, dataOffset, dataLength);
                 } else {
-                    require(TypeRule.checkCanonical(canonMode, canonBits, word), NonCanonicalValue(typeCode, word));
+                    require(
+                        TypeRule.checkCanonical(canonicalMode, canonicalBits, word), NonCanonicalValue(typeCode, word)
+                    );
                     elemResult = _applyOperator(opCode, word, 32, typeCode, policy, dataOffset, dataLength);
                 }
 
@@ -334,9 +337,10 @@ library PolicyEnforcer {
     }
 
     /// @dev Follows `hopCount` hop entries from `base` and returns the calldata offset they reach.
-    /// @dev Offsets stay clear of wrapping throughout: a resolved base never exceeds the calldata
-    /// length, and every field added to one is bounded by its wire width, so only the sums that add
-    /// a calldata-supplied word can reach the top of the range and each of those is guarded first.
+    /// @dev Offsets stay clear of wrapping throughout: every field added to a base is bounded by its
+    /// wire width, so only the sums that add a calldata-supplied word can reach the top of the range
+    /// and each of those is guarded first. A returned base may lie past the calldata length; the load
+    /// that reads at or past it is what rejects that.
     function _chain(
         bytes memory policy,
         bytes calldata callData,
@@ -478,15 +482,13 @@ library PolicyEnforcer {
             }
 
             if (TypeRule.isSigned(typeCode)) {
-                int256 val = int256(uint256(value));
                 int256 lower = int256(uint256(lowerRaw));
                 int256 upper = int256(uint256(upperRaw));
-                result = val >= lower && val <= upper;
+                result = int256(uint256(value)) >= lower && int256(uint256(value)) <= upper;
             } else {
-                uint256 val = uint256(value);
                 uint256 lower = uint256(lowerRaw);
                 uint256 upper = uint256(upperRaw);
-                result = val >= lower && val <= upper;
+                result = uint256(value) >= lower && uint256(value) <= upper;
             }
 
         } else if (base == OpCode.IN) {
@@ -604,6 +606,7 @@ library PolicyEnforcer {
 
     /// @dev Reads context property by ID.
     function _readContext(uint16 contextPropertyId) private view returns (bytes32 v) {
+        bytes4 unknownSelector = UnknownContextProperty.selector;
         assembly ("memory-safe") {
             switch contextPropertyId
             // CTX_MSG_SENDER
@@ -623,9 +626,7 @@ library PolicyEnforcer {
             // CTX_GAS_PRICE
             case 0x0007 { v := gasprice() }
             default {
-                // Revert with UnknownContextProperty(contextPropertyId).
-                // forge-lint: disable-next-line(too-many-digits) left-padded error selector, not a number.
-                mstore(0, 0x33abc51300000000000000000000000000000000000000000000000000000000)
+                mstore(0, unknownSelector)
                 mstore(4, contextPropertyId)
                 revert(0, 36)
             }
