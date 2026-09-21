@@ -38,9 +38,12 @@ describe("loadWord", () => {
   });
 
   test("succeeds at exact boundary (offset + 32 == length)", () => {
-    const callData = word(7n);
-    const result = loadWord(callData, 0);
+    const callData = words(0n, 0n, 7n);
+    const result = loadWord(callData, callData.length - 32);
     expect(result).toBeInstanceOf(Uint8Array);
+    if (result instanceof Uint8Array) {
+      expect(result[31]).toBe(7);
+    }
   });
 });
 

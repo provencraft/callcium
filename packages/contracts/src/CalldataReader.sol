@@ -4,18 +4,13 @@ pragma solidity ^0.8.28;
 import { LibBytes } from "solady/utils/LibBytes.sol";
 
 /// @title CalldataReader
-/// @notice Bounds-checked word reads over an ABI-encoded calldata buffer.
+/// @notice Reader for 32-byte words in a calldata buffer.
 library CalldataReader {
     /*/////////////////////////////////////////////////////////////////////////
                                        ERRORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Thrown when the array index is out of bounds.
-    /// @param elementIndex The provided array element index.
-    /// @param length The array length.
-    error ArrayIndexOutOfBounds(uint256 elementIndex, uint256 length);
-
-    /// @notice Thrown on generic bounds failures.
+    /// @notice Thrown when the requested word lies outside the calldata buffer.
     error CalldataOutOfBounds();
 
     /*/////////////////////////////////////////////////////////////////////////

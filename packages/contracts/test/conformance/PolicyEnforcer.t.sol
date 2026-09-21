@@ -29,7 +29,7 @@ contract PolicyEnforcerConformanceTest is ConformanceTest {
     function _errorSelector(string memory code) private pure returns (bytes4) {
         bytes32 h = keccak256(bytes(code));
         if (h == keccak256("CALLDATA_OUT_OF_BOUNDS")) return CalldataReader.CalldataOutOfBounds.selector;
-        if (h == keccak256("ARRAY_INDEX_OUT_OF_BOUNDS")) return CalldataReader.ArrayIndexOutOfBounds.selector;
+        if (h == keccak256("ARRAY_INDEX_OUT_OF_BOUNDS")) return PolicyEnforcer.ArrayIndexOutOfBounds.selector;
         if (h == keccak256("NON_CANONICAL_VALUE")) return PolicyEnforcer.NonCanonicalValue.selector;
         if (h == keccak256("QUANTIFIER_LIMIT_EXCEEDED")) return PolicyEnforcer.QuantifierLimitExceeded.selector;
         if (h == keccak256("SELECTOR_MISMATCH")) return PolicyEnforcer.SelectorMismatch.selector;

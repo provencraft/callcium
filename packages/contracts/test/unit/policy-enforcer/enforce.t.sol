@@ -1004,7 +1004,7 @@ contract EnforcePathTest is PolicyEnforcerTest {
             .add(arg(0, 5).eq(uint256(6)))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256[])", arr);
-        vm.expectRevert(abi.encodeWithSelector(CalldataReader.ArrayIndexOutOfBounds.selector, 5, 2));
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.ArrayIndexOutOfBounds.selector, 5, 2));
         harness.enforce(policy, callData);
     }
 

@@ -222,6 +222,9 @@ function readTargetBlock(hint: Uint8Array, targetOffset: number): TargetBlock {
 function follow(callData: Uint8Array, from: number, at: number): ReadResult<number> {
   const word = readPointer(callData, at);
   if (typeof word !== "number") return word;
+  if (from > callData.length || word > callData.length - from) {
+    return { code: "CALLDATA_OUT_OF_BOUNDS" };
+  }
   return from + word;
 }
 

@@ -34,6 +34,11 @@ library PolicyEnforcer {
     /// @notice Thrown when calldata is too short to contain a selector.
     error MissingSelector();
 
+    /// @notice Thrown when the array index is out of bounds.
+    /// @param elementIndex The provided array element index.
+    /// @param length The array length.
+    error ArrayIndexOutOfBounds(uint256 elementIndex, uint256 length);
+
     /// @notice Thrown when array exceeds max length for quantified iteration.
     error QuantifierLimitExceeded(uint256 length, uint256 maxLength);
 
@@ -358,7 +363,7 @@ library PolicyEnforcer {
                 uint256 elems = base;
                 if (hop & PF.HINT_META_DYNAMIC_ARRAY != 0) {
                     uint256 length = uint256(CalldataReader.loadWord(callData, elems));
-                    require(index < length, CalldataReader.ArrayIndexOutOfBounds(index, length));
+                    require(index < length, ArrayIndexOutOfBounds(index, length));
                     elems += 32;
                 }
 

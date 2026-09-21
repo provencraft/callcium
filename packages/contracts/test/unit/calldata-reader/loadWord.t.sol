@@ -28,7 +28,7 @@ contract LoadWordTest is BaseTest {
     }
 
     function test_ReadsAtExactUpperBound() public view {
-        bytes memory callData = abi.encode(uint256(7));
+        bytes memory callData = abi.encode(uint256(0), uint256(0), uint256(7));
         assertEq(uint256(harness.loadWord(callData, callData.length - 32)), 7);
     }
 
