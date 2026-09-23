@@ -1,17 +1,10 @@
+import { bytesToHex as encodeHex, hexToBytes as decodeHex } from "@noble/hashes/utils.js";
+
 import { CallciumError } from "./errors";
 
 import type { Address, Hex } from "./types";
 
-/** Regex that matches a string of hex digits. */
 const hexBodyPattern = /^[0-9a-fA-F]*$/;
-
-// Nibble value per ASCII code, -1 for every character that is not a hex digit.
-const HEX_DIGITS = "0123456789abcdef";
-const nibble = new Int8Array(128).fill(-1);
-for (let value = 0; value < 16; value++) {
-  nibble[HEX_DIGITS.charCodeAt(value)] = value;
-  nibble[HEX_DIGITS.toUpperCase().charCodeAt(value)] = value;
-}
 
 /** Convert a hex string to a byte array, stripping the 0x prefix if present. */
 export function hexToBytes(hex: string): Uint8Array {
@@ -19,26 +12,16 @@ export function hexToBytes(hex: string): Uint8Array {
   if (clean.length % 2 !== 0) {
     throw new CallciumError("INVALID_HEX", "Odd-length hex string");
   }
-  const bytes = new Uint8Array(clean.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    const high = nibble[clean.charCodeAt(i * 2)] ?? -1;
-    const low = nibble[clean.charCodeAt(i * 2 + 1)] ?? -1;
-    if (high < 0 || low < 0) {
-      throw new CallciumError("INVALID_HEX", "Invalid hex characters");
-    }
-    bytes[i] = (high << 4) | low;
+  try {
+    return decodeHex(clean);
+  } catch {
+    throw new CallciumError("INVALID_HEX", "Invalid hex characters");
   }
-  return bytes;
 }
-
-// Pre-computed hex lookup avoids per-byte toString + padStart in the hot path.
-const hexPairs = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
 
 /** Convert a byte array to a 0x-prefixed lowercase hex string. */
 export function bytesToHex(bytes: Uint8Array): Hex {
-  let body = "";
-  for (let i = 0; i < bytes.length; i++) body += hexPairs[bytes[i]!];
-  return `0x${body}`;
+  return `0x${encodeHex(bytes)}`;
 }
 
 /** Extract a subarray and return it as a 0x-prefixed hex string. */

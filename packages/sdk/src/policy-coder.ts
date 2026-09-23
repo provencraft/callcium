@@ -1,4 +1,5 @@
 import { keccak_256 } from "@noble/hashes/sha3.js";
+import { concatBytes } from "@noble/hashes/utils.js";
 
 import { bytesToHex, hexToBytes, toHex, readU16, readU32, writeBE16, writeBE32 } from "./bytes";
 import {
@@ -535,15 +536,7 @@ function encodeRule(rule: Rule): Uint8Array {
 
 /** Serialize all rules in a group to a single byte array. */
 function encodeGroupRules(rules: Rule[]): Uint8Array {
-  const parts = rules.map(encodeRule);
-  const totalSize = parts.reduce((sum, p) => sum + p.length, 0);
-  const buf = new Uint8Array(totalSize);
-  let offset = 0;
-  for (const part of parts) {
-    buf.set(part, offset);
-    offset += part.length;
-  }
-  return buf;
+  return concatBytes(...rules.map(encodeRule));
 }
 
 ///////////////////////////////////////////////////////////////////////////

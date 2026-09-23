@@ -1,3 +1,5 @@
+import { concatBytes } from "@noble/hashes/utils.js";
+
 import { readU16 } from "./bytes";
 import { DescriptorFormat as DF, TypeCode } from "./constants";
 import { Descriptor, readNode } from "./descriptor";
@@ -220,15 +222,7 @@ function fromTypes(typesCsv: string): Uint8Array {
   if (paramDescs.length > DF.MAX_PARAMS) {
     throw new CallciumError("TOO_MANY_PARAMS", `Parameter count ${paramDescs.length} exceeds maximum ${DF.MAX_PARAMS}`);
   }
-  const totalBytes = paramDescs.reduce((sum, d) => sum + d.length, 0);
-  const result = new Uint8Array(DF.HEADER_SIZE + totalBytes);
-  result[0] = DF.VERSION;
-  result[1] = paramDescs.length;
-  let offset = DF.HEADER_SIZE;
-  for (const desc of paramDescs) {
-    result.set(desc, offset);
-    offset += desc.length;
-  }
+  const result = concatBytes(Uint8Array.of(DF.VERSION, paramDescs.length), ...paramDescs);
   // Nesting depth is a property of the assembled descriptor, not of any single node.
   decodeDescriptor(result);
   return result;
