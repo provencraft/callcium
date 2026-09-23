@@ -23,8 +23,8 @@ interface PageSpec {
 }
 
 /**
- * Every export name here must be a top-level export from the SDK barrel
- * (packages/sdk/src/index.ts). The barrel is the canonical public API surface.
+ * Every export name here must be a top-level export from the SDK barrel (packages/sdk/src/index.ts). The barrel is the
+ * canonical public API surface.
  */
 export const ASSEMBLY_MAP: Record<string, PageSpec> = {
   "policy-builder": {
@@ -285,8 +285,8 @@ function escapeForMdx(text: string): string {
 }
 
 /**
- * Wrap a rendered type as inline code. A template-literal type carries backticks of its own,
- * so the delimiter widens past the longest run inside and pads to keep them literal.
+ * Wrap a rendered type as inline code. A template-literal type carries backticks of its own, so the delimiter widens
+ * past the longest run inside and pads to keep them literal.
  */
 function inlineCode(text: string): string {
   const longest = Math.max(0, ...[...text.matchAll(/`+/g)].map((run) => run[0].length));
@@ -479,8 +479,8 @@ function renderNamespaceVariable(ref: TypeDocReflection): string {
   parts.push("");
   for (const property of methods) {
     const sigs = property.type!.declaration!.signatures!;
-    // Rename anonymous signatures (e.g. "__type") to the owning property name
-    // so both the heading and the `function X(...)` line agree.
+    // Rename anonymous signatures (e.g. "__type") to the owning property name so both the heading and the
+    // `function X(...)` line agree.
     const namedSigs = sigs.map((signature) => ({ ...signature, name: property.name }));
     const pseudoFunc: TypeDocReflection = {
       id: property.id,

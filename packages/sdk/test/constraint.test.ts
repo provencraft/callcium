@@ -94,8 +94,8 @@ describe("context factories", () => {
   });
 
   test("a calldata target keeps the wide operand union", () => {
-    // The descriptor fixes a calldata target's type, and add() is where it is read, so the
-    // operand stays as wide as the union until then.
+    // The descriptor fixes a calldata target's type, and add() is where it is read, so the operand stays as wide as the
+    // union until then.
     expectTypeOf(arg(0)).toEqualTypeOf<ConstraintBuilder>();
 
     expect(arg(0).eq(1n).operators).toHaveLength(1);

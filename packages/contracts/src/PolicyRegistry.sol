@@ -66,10 +66,9 @@ library PolicyRegistry {
     }
 
     /// @notice Binds a stored policy to a target under the policy's own selector.
-    /// @dev The bind key is derived from the stored policy — its embedded selector, or the
-    /// zero selector for selectorless policies — so a policy can only be bound under the
-    /// selector it declares. This extends an already-stored policy to more targets without
-    /// re-uploading the blob; the derivation reads only the policy header prefix.
+    /// @dev The bind key is derived from the stored policy — its embedded selector, or the zero selector for
+    /// selectorless policies — so a policy binds only under the selector it declares. This extends an already-stored
+    /// policy to more targets without re-uploading the blob; the derivation reads only the header prefix.
     /// @param self The policy store.
     /// @param target The contract address to bind the policy to.
     /// @param policyHash The policy hash (must already be stored).

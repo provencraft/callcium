@@ -9,10 +9,8 @@ import { CallciumError } from "./errors";
 /**
  * Extract the staticWords count from a descriptor node.
  *
- * For elementary types (typeCode < STATIC_ARRAY), returns 1 unless the type is
- * BYTES or STRING, which are ABI-dynamic and return 0. For composite types,
- * reads the 24-bit meta field at offset 1 and shifts right by
- * META_STATIC_WORDS_SHIFT.
+ * For elementary types (typeCode < STATIC_ARRAY), returns 1 unless the type is BYTES or STRING, which are ABI-dynamic
+ * and return 0. For composite types, returns the 24-bit meta at offset 1 right-shifted by META_STATIC_WORDS_SHIFT.
  */
 function extractStaticWords(desc: Uint8Array): number {
   const typeCode = desc[0]!;

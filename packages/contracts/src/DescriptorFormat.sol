@@ -69,26 +69,21 @@ library DescriptorFormat {
                                      LIMITS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Upper bound of the `staticWords` meta field (12 bits).
-    /// Represents the maximum static footprint in 32-byte words (~128KB).
+    /// @dev Upper bound of the 12-bit `staticWords` meta field: the maximum static footprint in 32-byte words (~128KB).
     uint256 internal constant MAX_STATIC_WORDS = 4095;
 
-    /// @dev Upper bound of the `nodeLength` meta field (12 bits).
-    /// Represents the total encoded size of a node in bytes.
+    /// @dev Upper bound of the `nodeLength` meta field (12 bits). Represents the total encoded size of a node in bytes.
     uint256 internal constant MAX_NODE_LENGTH = 4095;
 
-    /// @dev Early cap on tuple field count.
-    /// The node length check still applies afterward.
+    /// @dev Early cap on tuple field count. The node length check still applies afterward.
     uint256 internal constant MAX_TUPLE_FIELDS = MAX_NODE_LENGTH - TUPLE_HEADER_SIZE;
 
-    /// @dev Cap for the static array length suffix.
-    /// The suffix is `uint16` but restricted to 12 bits for uniformity with `MAX_NODE_LENGTH`
-    /// and to bound arrays of dynamic elements.
+    /// @dev Cap for the static array length suffix. The suffix is `uint16` but restricted to 12 bits for uniformity
+    /// with `MAX_NODE_LENGTH` and to bound arrays of dynamic elements.
     uint256 internal constant MAX_STATIC_ARRAY_LENGTH = 4095;
 
-    /// @dev Cap on composite nesting depth.
-    /// Operational bound on recursive validation, set well below the depth at which the EVM
-    /// stack exhausts.
+    /// @dev Cap on composite nesting depth. Operational bound on recursive validation, set well below the depth at
+    /// which the EVM stack exhausts.
     uint256 internal constant MAX_NESTING_DEPTH = 64;
 
     /// @dev Upper bound of the `paramCount` header field (1 byte).

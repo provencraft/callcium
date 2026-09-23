@@ -7,10 +7,9 @@ import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
 import { PolicyEnforcerBench } from "../PolicyEnforcer.bench.t.sol";
 
-/// @dev End-to-end cost of policies over signatures with the argument shapes real ABIs produce,
-///      as opposed to the single-constraint scenarios that isolate one cost each. Every policy
-///      here is accepted by the strict builder, so the corpus also records which argument shapes
-///      resolve through a hint and which fall back to descriptor traversal.
+/// @dev End-to-end cost of policies over signatures with the argument shapes real ABIs produce, as opposed to the
+/// single-constraint scenarios that isolate one cost each. Every policy here is accepted by the strict builder, so the
+/// corpus also records which argument shapes resolve through a hint and which fall back to descriptor traversal.
 contract RealisticBench is PolicyEnforcerBench {
     Fixture internal tokenApproval;
     Fixture internal swapStaticParams;
@@ -29,8 +28,8 @@ contract RealisticBench is PolicyEnforcerBench {
                                     BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Spender allowlist and an amount ceiling on a token approval. Elementary arguments,
-    /// so every calldata rule resolves through a hint.
+    /// @dev Spender allowlist and an amount ceiling on a token approval. Elementary arguments, so every calldata rule
+    /// resolves through a hint.
     function _buildTokenApproval() private {
         string memory sig = "approve(address,uint256)";
         address[] memory spenders = new address[](2);
@@ -47,8 +46,8 @@ contract RealisticBench is PolicyEnforcerBench {
         tokenApproval = _fixture(policy, abi.encodeWithSignature(sig, spenders[0], uint256(1000e18)));
     }
 
-    /// @dev Token pair, recipient and amount ceiling on a swap whose parameters are one static
-    /// struct. A static struct places its fields at fixed offsets, so the rules stay hinted.
+    /// @dev Token pair, recipient and amount ceiling on a swap whose parameters are one static struct. A static struct
+    /// places its fields at fixed offsets, so the rules stay hinted.
     function _buildSwapStaticParams() private {
         string memory sig = "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))";
 
@@ -60,8 +59,8 @@ contract RealisticBench is PolicyEnforcerBench {
             .add(arg(0, 4).lte(uint256(1000e18)))
             .build();
 
-        // A static struct encodes as its fields laid out inline, which is what passing them
-        // flat produces. A dynamic struct would additionally need its head offset.
+        // A static struct encodes as its fields laid out inline, which is what passing them flat produces. A dynamic
+        // struct would additionally need its head offset.
         bytes memory callData = abi.encodeWithSignature(
             sig, address(1), address(2), uint24(3000), address(this), uint256(500e18), uint256(0), uint160(0)
         );
@@ -69,8 +68,8 @@ contract RealisticBench is PolicyEnforcerBench {
         swapStaticParams = _fixture(policy, callData);
     }
 
-    /// @dev The same intent over a swap that carries an encoded route. The `bytes` member makes
-    /// the whole struct dynamic, so none of these rules compiles to a hint.
+    /// @dev The same intent over a swap that carries an encoded route. The `bytes` member makes the whole struct
+    /// dynamic, so none of these rules compiles to a hint.
     function _buildSwapWithPath() private {
         string memory sig = "exactInput((bytes,address,uint256,uint256))";
 
@@ -88,8 +87,8 @@ contract RealisticBench is PolicyEnforcerBench {
         swapWithPath = _fixture(policy, callData);
     }
 
-    /// @dev Recipient, batch size and a ceiling on every token id. The quantified array holds
-    /// static elements and sits behind static arguments, so it addresses through a hint.
+    /// @dev Recipient, batch size and a ceiling on every token id. The quantified array holds static elements and sits
+    /// behind static arguments, so it addresses through a hint.
     function _buildBatchTransfer() private {
         string memory sig = "safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)";
 

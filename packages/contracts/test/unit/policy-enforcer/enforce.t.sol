@@ -175,9 +175,9 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
-    /// @dev A value equal to the 32-byte policy word immediately preceding the operand
-    /// payload, and strictly below the set minimum, is not a member of the set and must be
-    /// rejected. The set has 8 elements so membership resolves via the binary-search path.
+    /// @dev A value equal to the 32-byte policy word immediately preceding the operand payload, and strictly below the
+    /// set minimum, is not a member of the set and must be rejected. The set has 8 elements so membership resolves via
+    /// the binary-search path.
     function test_In_HeaderWordBelowMinIsNotMember() public view {
         // The 8 largest possible values, so the small header word is trivially below the set.
         uint256 setMin = type(uint256).max - 7;
@@ -190,10 +190,9 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
             .add(arg(0).isIn(set))
             .buildUnsafe();
 
-        // At mid == 0 the search reads the word just before the operand payload, not a set
-        // element. Operands begin at dataOffset, so that word is the one ending at dataOffset.
-        // `dataOffset - 32` underflows when dataOffset < 32, but the wrap cancels in load's
-        // pointer addition (mod 2^256), so it still resolves to that word.
+        // At mid == 0 the search reads the word just before the operand payload, not a set element. Operands begin at
+        // dataOffset, so that word is the one ending at dataOffset. `dataOffset - 32` underflows when dataOffset < 32,
+        // but the wrap cancels in load's pointer addition (mod 2^256), so it still resolves to that word.
         uint256 ruleOffset = Policy.ruleAt(policy, Policy.groupAt(policy, 0), 0);
         (uint256 dataOffset,) = Policy.dataView(policy, ruleOffset);
         uint256 headerWord;
@@ -313,8 +312,8 @@ contract EnforceOperatorTest is PolicyEnforcerTest {
         bytes memory policy = PolicyBuilder.create("foo(uint256[])")
             .add(arg(0).lengthGte(10))
             .buildUnsafe();
-        // Length word claims 10 elements while only 2 element words follow; the inflated
-        // count must revert instead of satisfying the length constraint.
+        // Length word claims 10 elements while only 2 element words follow; the inflated count must revert instead of
+        // satisfying the length constraint.
         bytes memory callData = abi.encodePacked(
             bytes4(keccak256("foo(uint256[])")), uint256(0x20), uint256(10), uint256(1), uint256(2)
         );
@@ -997,8 +996,8 @@ contract EnforcePathTest is PolicyEnforcerTest {
     }
 
     function test_Depth2_StaticArrayOfDynamicElements() public view {
-        // A static-count array whose elements are dynamic is itself head-indirected in ABI
-        // encoding, so indexing into it hops through `_chain` without the dynamic-array flag.
+        // A static-count array whose elements are dynamic is itself head-indirected in ABI encoding, so indexing into
+        // it hops through `_chain` without the dynamic-array flag.
         bytes[3] memory arr = [bytes("aa"), bytes("bbbb"), bytes("c")];
         bytes memory policy = PolicyBuilder.create("foo(bytes[3])")
             .add(arg(0, 1).lengthEq(4))
@@ -1045,16 +1044,15 @@ contract EnforcePathTest is PolicyEnforcerTest {
     }
 
     function test_RevertWhen_ArrayElementOffsetWraps_PastValidData() public {
-        // An offset that wraps (mod 2^256) to land on a small, validly-loadable address must
-        // still revert. The check is on the pre-wrap sum, not on whether the wrapped address
-        // happens to look valid — a downstream read from a coincidentally in-bounds wrapped
-        // address would otherwise silently succeed against unrelated calldata.
+        // An offset that wraps (mod 2^256) to land on a small, validly-loadable address must still revert. The check is
+        // on the pre-wrap sum, not on whether the wrapped address happens to look valid — a downstream read from a
+        // coincidentally in-bounds wrapped address would otherwise silently succeed against unrelated calldata.
         bytes memory policy = PolicyBuilder.create("foo(bytes[])")
             .add(arg(0, 0).lengthEq(1))
             .buildUnsafe();
-        // One element; its offset word is chosen so `elems + offset` wraps to byte 36, the
-        // array's own length word (value 1) — a real 32-byte length that would satisfy
-        // `lengthEq(1)` and pass every downstream check if the wrap were allowed to stand.
+        // One element; its offset word is chosen so `elems + offset` wraps to byte 36, the array's own length word
+        // (value 1) — a real 32-byte length that would satisfy `lengthEq(1)` and pass every downstream check if the
+        // wrap were allowed to stand.
         bytes memory callData =
             abi.encodePacked(bytes4(keccak256("foo(bytes[])")), uint256(0x20), uint256(1), type(uint256).max - 31);
 
@@ -1585,8 +1583,8 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
     }
 
     function test_RevertWhen_AnyElementReadOutOfBounds() public {
-        // A read the enforcer cannot perform aborts under every quantifier, so the second group
-        // never runs even though it would pass.
+        // A read the enforcer cannot perform aborts under every quantifier, so the second group never runs even though
+        // it would pass.
         bytes memory policy = PolicyBuilder.createRaw("uint256[],uint256")
             .add(arg(0, Path.ANY).eq(uint256(7)))
             .or()
@@ -1760,8 +1758,8 @@ contract EnforceQuantifierTest is PolicyEnforcerTest {
     }
 
     function test_RevertWhen_All_LengthEq_OverrunsCalldata() public {
-        // A quantified element's declared byte length must be backed by calldata before the
-        // length operator sees it, same as the unquantified case but through `_evalQuantified`.
+        // A quantified element's declared byte length must be backed by calldata before the length operator sees it,
+        // same as the unquantified case but through `_evalQuantified`.
         bytes[] memory arr = new bytes[](1);
         arr[0] = new bytes(64);
         bytes memory policy = PolicyBuilder.create("foo(bytes[])")
@@ -1973,9 +1971,9 @@ contract EnforceSelectorlessTest is PolicyEnforcerTest {
                             VALUE CANONICALIZATION
     /////////////////////////////////////////////////////////////////////////*/
 
-    // A resolved scalar must already carry the canonical encoding of its declared type. A word
-    // with bits outside that encoding is rejected rather than masked, so the operator always
-    // applies to the same bytes a consumer decoding the same type would read.
+    // A resolved scalar must already carry the canonical encoding of its declared type. A word with bits outside that
+    // encoding is rejected rather than masked, so the operator always applies to the same bytes a consumer decoding the
+    // same type would read.
 
     /// @dev uint64: bit set above the declared width.
     function test_RevertWhen_UintCarriesBitsAboveWidth() public {
@@ -2013,9 +2011,8 @@ contract EnforceSelectorlessTest is PolicyEnforcerTest {
     }
 }
 
-/// @dev Tests for hint-driven target resolution.
-/// A calldata rule resolves its target through its compiled hint alone, so rewriting a stored hint
-/// changes what the rule reads while its path stays as it was.
+/// @dev Tests for hint-driven target resolution. A calldata rule resolves its target through its compiled hint alone,
+/// so rewriting a stored hint changes what the rule reads while its path stays as it was.
 contract EnforceHintDispatchTest is PolicyEnforcerTest {
     /// @dev Returns the offset of the target delta of the first rule's hop-free hint block.
     function _firstTargetDeltaOffset(bytes memory policy) private pure returns (uint256) {

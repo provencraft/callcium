@@ -7,8 +7,8 @@ import { arg, msgSender } from "src/Constraint.sol";
 import { Path } from "src/Path.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
-/// @dev Tests for the code examples displayed on the docs homepage (docs/components/home/hero.tsx).
-/// Each test corresponds to a tab in the hero code showcase. Keep in sync.
+/// @dev Tests for the code examples displayed on the docs homepage (docs/components/home/hero.tsx). Each test
+/// corresponds to a tab in the hero code showcase. Keep in sync.
 contract UsageExamplesTest is Test {
     address constant OPERATOR = address(1);
 

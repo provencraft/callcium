@@ -12,8 +12,8 @@ contract IsCanonicalTest is TypeRuleTest {
                               AGREEMENT WITH CANONICALIZE
     /////////////////////////////////////////////////////////////////////////*/
 
-    // The predicate is exactly the fixed-point test of the encoding table: a word is canonical
-    // where normalizing it changes nothing. Pinning the equivalence keeps the two from drifting.
+    // The predicate is exactly the fixed-point test of the encoding table: a word is canonical where normalizing it
+    // changes nothing. Pinning the equivalence keeps the two from drifting.
 
     function testFuzz_MatchesCanonicalizeFixedPoint(uint256 codeSeed, bytes32 value) public pure {
         uint8 code = uint8(bound(codeSeed, 0, type(uint8).max));

@@ -790,8 +790,8 @@ function AddConstraintForm({
     arrayMode === "quantified" ||
     (validIndex && (staticArrayLength === null || Number(arrayIndex) < staticArrayLength));
 
-  // Steps down to and including the array access. The quantifier or index step sits
-  // immediately after the array node it addresses — where `selectedField` lands.
+  // Steps down to and including the array access. The quantifier or index step sits immediately after the array node it
+  // addresses — where `selectedField` lands.
   const arrayAccessPath = useMemo(() => {
     if (selectedParam === null) return [];
     const base = [selectedParam, ...selectedField];
@@ -1024,8 +1024,8 @@ function AddConstraintForm({
               <Select
                 value={operator}
                 onValueChange={(op) => {
-                  // A property ID and a literal value are both plain numbers, so a carried-over
-                  // input would parse as the wrong operand.
+                  // A property ID and a literal value are both plain numbers, so a carried-over input would parse as
+                  // the wrong operand.
                   if (isContextOperator(op) !== isContextOperator(operator)) setValueInput("");
                   setOperator(op);
                 }}

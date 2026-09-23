@@ -25,9 +25,8 @@ import type { Constraint, Hex, Issue, PolicyData } from "../src/types";
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Build a raw PolicyData with a single constraint. Used only for tests
- * that the builder would reject (empty groups, unsorted sets, unknown
- * opcodes, LENGTH on static types, context-scope with raw paths).
+ * Build a raw PolicyData with a single constraint. Used only for tests that the builder would reject (empty groups,
+ * unsorted sets, unknown opcodes, LENGTH on static types, context-scope with raw paths).
  */
 function rawPolicy(typesCsv: string, scope: number, path: Hex, operators: Hex[]): PolicyData {
   return {
@@ -410,8 +409,7 @@ describe("PolicyValidator - length domain", () => {
 describe("PolicyValidator - negated operators", () => {
   test("converts !gt(v) to lte(v)", () => {
     const max256 = (1n << 256n) - 1n;
-    // !gt(max) should become lte(max) which is vacuous. Builder doesn't have a negated gt,
-    // so we use raw op hex.
+    // !gt(max) should become lte(max) which is vacuous. Builder doesn't have a negated gt, so we use raw op hex.
     const issues = PolicyValidator.validate(
       rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(Op.GT | Op.NOT, max256)]),
     );
@@ -443,8 +441,8 @@ describe("PolicyValidator - between", () => {
   });
 
   test("negated between(5, 10) is satisfiable, no IMPOSSIBLE_RANGE", () => {
-    // !between(5, 10) is (x < 5 OR x > 10), satisfiable at e.g. 3 or 11. The negation
-    // must not distribute over the decomposed bounds as (x < 5 AND x > 10).
+    // !between(5, 10) is (x < 5 OR x > 10), satisfiable at e.g. 3 or 11. The negation must not distribute over the
+    // decomposed bounds as (x < 5 AND x > 10).
     const issues = PolicyValidator.validate(
       rawPolicy("uint256", Scope.CALLDATA, "0x0000", [rangeOp(Op.BETWEEN | Op.NOT, 5n, 10n)]),
     );

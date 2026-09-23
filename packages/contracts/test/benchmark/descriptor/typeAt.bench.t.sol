@@ -11,8 +11,8 @@ import { TypeDesc } from "src/TypeDesc.sol";
 import { DescriptorHarness } from "test/harnesses/DescriptorHarness.sol";
 import { BaseTest } from "test/unit/BaseTest.sol";
 
-/// @dev Benchmarks for Descriptor.typeAt path traversal. Descriptors only — traversal never reads
-///      calldata, so this suite builds no calldata corpus.
+/// @dev Benchmarks for Descriptor.typeAt path traversal. Descriptors only — traversal never reads calldata, so this
+/// suite builds no calldata corpus.
 contract TypeAtBench is BaseTest {
     DescriptorHarness internal harness;
 

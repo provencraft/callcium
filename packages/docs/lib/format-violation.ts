@@ -83,10 +83,9 @@ function renderValueMismatch(v: ValueMismatchViolation, params?: ParamNode[]): s
 /**
  * Render a structured violation as a one-line human-readable string.
  *
- * Path, constraint, and value formatting all live here — the SDK exposes raw
- * semantic data only. Pass `params` (decoded descriptor parameter trees) to
- * enable positional path labels (`arg(0).field(1)`); without them the formatter
- * still renders generic placeholders.
+ * Path, constraint, and value formatting all live here — the SDK exposes raw semantic data only. Pass `params` (decoded
+ * descriptor parameter trees) to enable positional path labels (`arg(0).field(1)`); without them the formatter still
+ * renders generic placeholders.
  */
 export function formatViolation(v: Violation, params?: ParamNode[]): string {
   switch (v.code) {

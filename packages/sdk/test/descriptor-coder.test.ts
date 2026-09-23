@@ -200,8 +200,8 @@ describe("DescriptorCoder.fromTypes", () => {
   });
 
   test("a closer with nothing open throws MALFORMED_TYPE_STRING, not an unknown type", () => {
-    // The segment scan carries the balance invariant; without it the stray closer is swallowed into
-    // a segment and reported as the type it is not.
+    // The segment scan carries the balance invariant; without it the stray closer is swallowed into a segment and
+    // reported as the type it is not.
     expectErrorCode(() => DescriptorCoder.fromTypes("uint256[],]uint8"), "MALFORMED_TYPE_STRING");
     expectErrorCode(() => DescriptorCoder.fromTypes("uint256[],(uint8"), "MALFORMED_TYPE_STRING");
   });

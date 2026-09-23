@@ -79,9 +79,8 @@ function isTitleBlock(node: RootContent): boolean {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Remove the `#` title heading, every `[Git Source](...)` and `**Title:**` paragraph, and the
- * description paragraph. The description is the first paragraph after the title; a heading reached
- * first means there is none.
+ * Remove the `#` title heading, every `[Git Source](...)` and `**Title:**` paragraph, and the description paragraph.
+ * The description is the first paragraph after the title; a heading reached first means there is none.
  */
 export function takeMetadata(tree: Root): void {
   let pastTitle = false;
@@ -104,8 +103,8 @@ export function takeMetadata(tree: Root): void {
 }
 
 /**
- * Remove every depth-3 section the predicate accepts, from its heading up to the
- * next heading of depth ≤ 3. The predicate sees the heading text and the section body.
+ * Remove every depth-3 section the predicate accepts, from its heading up to the next heading of depth ≤ 3. The
+ * predicate sees the heading text and the section body.
  */
 function removeSections(tree: Root, matches: (heading: string, body: RootContent[]) => boolean): void {
   const children = tree.children;
@@ -149,8 +148,8 @@ function removeEmptySections(tree: Root, titles: string[]): void {
 const markupNoise = /^(?:<a id="[^"]*"><\/a>|<\/?i>)$/;
 
 /**
- * Drop forge doc's markup scaffolding, which MDX would otherwise render as JSX. Neither `a` nor `i`
- * is a block-level tag, so each arrives wrapped in a paragraph of its own, not as a bare html node.
+ * Drop forge doc's markup scaffolding, which MDX would otherwise render as JSX. Neither `a` nor `i` is a block-level
+ * tag, so each arrives wrapped in a paragraph of its own, not as a bare html node.
  */
 function stripMarkup(tree: Root): void {
   tree.children = tree.children.filter((node) => {
@@ -166,8 +165,8 @@ function stripMarkup(tree: Root): void {
 }
 
 /**
- * Drop a parameter or return table whose description column is empty, along with the label above
- * it. Such a table repeats the declaration beside it and states nothing more.
+ * Drop a parameter or return table whose description column is empty, along with the label above it. Such a table
+ * repeats the declaration beside it and states nothing more.
  */
 export function stripEmptyTables(tree: Root): void {
   for (let i = tree.children.length - 1; i >= 0; i--) {
@@ -191,8 +190,8 @@ function decodeCodeEntities(tree: Root): void {
 }
 
 /**
- * Strip the nesting indentation a member's declaration carries into its code block. forge doc
- * dedents the opening line only, leaving every continuation one level in.
+ * Strip the nesting indentation a member's declaration carries into its code block. forge doc dedents the opening line
+ * only, leaving every continuation one level in.
  */
 export function dedentMemberCode(tree: Root): void {
   for (const node of tree.children) {
@@ -239,15 +238,15 @@ export function signatureTypes(code: string): string {
 }
 
 /**
- * A free-function file carries one declaration per heading. A lone declaration reads from its code
- * block alone, so its heading goes; overloads keep theirs, told apart by parameter types.
+ * A free-function file carries one declaration per heading. A lone declaration reads from its code block alone, so its
+ * heading goes; overloads keep theirs, told apart by parameter types.
  */
 function reconcileFreeFunctionHeadings(tree: Root): void {
   const headings = tree.children.filter((node) => node.type === "heading" && node.depth === 3);
   if (headings.length === 0) return;
   if (headings.length === 1) {
-    // The heading and the description under it repeat the file's own, which the metadata pass
-    // already took, so the code block carries the declaration alone.
+    // The heading and the description under it repeat the file's own, which the metadata pass already took, so the code
+    // block carries the declaration alone.
     const start = tree.children.indexOf(headings[0]);
     let end = start + 1;
     while (end < tree.children.length && tree.children[end].type === "paragraph") end++;
@@ -295,9 +294,9 @@ function gitSourceParagraph(contractDir: string, line: number): Paragraph {
 }
 
 /**
- * Walk a file's tree and insert `[Git Source]` paragraphs under each symbol heading,
- * consuming one line from the matching SymbolMap queue per heading. Handles the
- * bare-code-block case (e.g. `struct.Foo.md`) by prepending the link before the code.
+ * Walk a file's tree and insert `[Git Source]` paragraphs under each symbol heading, consuming one line from the
+ * matching SymbolMap queue per heading. Handles the bare-code-block case (e.g. `struct.Foo.md`) by prepending the link
+ * before the code.
  */
 function injectSourceLinks(filename: string, tree: Root, contractDir: string, symbolMap: SymbolMap): void {
   const auxMatch = filename.match(/^(function|struct)\.(.+)\.mdx$/);
@@ -364,9 +363,8 @@ function warnUnconsumed(contractDir: string, symbolMap: SymbolMap): void {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Drop remark-stringify's backslash escaping of characters that are safe here
- * (`POLICY\_STORE\_SLOT` → `POLICY_STORE_SLOT`), then escape bare `<` so MDX
- * doesn't read it as JSX. Fenced blocks and inline code spans keep their `<`.
+ * Drop remark-stringify's backslash escaping of safe characters (`POLICY\_STORE\_SLOT` → `POLICY_STORE_SLOT`), then
+ * escape bare `<` so MDX doesn't read it as JSX. Fenced blocks and inline code spans keep their `<`.
  */
 function normalizeProse(md: string): string {
   let inCodeBlock = false;
@@ -416,8 +414,8 @@ interface ProcessedFile {
 }
 
 /**
- * Read a forge doc page and lift its title and description out of the tree, or null when forge doc
- * published no page for the symbol. Its own frontmatter goes; the assembled page carries ours.
+ * Read a forge doc page and lift its title and description out of the tree, or null when forge doc published no page
+ * for the symbol. Its own frontmatter goes; the assembled page carries ours.
  */
 async function readForgeDoc(dir: string, filename: string): Promise<ProcessedFile | null> {
   let content: string;
@@ -488,8 +486,8 @@ function isMainFile(filename: string): boolean {
 async function renderContractPage(contractDir: string): Promise<string | null> {
   const symbolMap = await buildSymbolMap(CONTRACTS_ROOT, contractDir);
 
-  // Internal structs are excluded from two places: their own page files, and the main file's
-  // sections. Dropping them from the symbol map keeps their source lines out of the link queues.
+  // Internal structs are excluded from two places: their own page files, and the main file's sections. Dropping them
+  // from the symbol map keeps their source lines out of the link queues.
   const internalStructs = new Set(INTERNAL_STRUCTS[contractDir] ?? []);
   for (const name of internalStructs) delete symbolMap.struct[name];
 
@@ -515,9 +513,8 @@ async function renderContractPage(contractDir: string): Promise<string | null> {
 
   warnUnconsumed(contractDir, symbolMap);
 
-  // Assemble the final AST by concatenating all processed trees. The contract-level
-  // Git Source link sits at the top so it renders directly under the frontmatter
-  // description, matching the SDK layout.
+  // Assemble the final AST by concatenating all processed trees. The contract-level Git Source link sits at the top so
+  // it renders directly under the frontmatter description, matching the SDK layout.
   const assembledChildren: RootContent[] = [];
   if (symbolMap.contract !== undefined) {
     assembledChildren.push(gitSourceParagraph(contractDir, symbolMap.contract));
@@ -549,8 +546,8 @@ async function renderContractPage(contractDir: string): Promise<string | null> {
 ///////////////////////////////////////////////////////////////////////////
 
 async function main() {
-  // Every page is rendered before the output is touched, so a run that cannot read forge doc
-  // leaves the published pages standing instead of emptying the directory.
+  // Every page is rendered before the output is touched, so a run that cannot read forge doc leaves the published pages
+  // standing instead of emptying the directory.
   const pages = new Map<string, string>();
   for (const contractDir of INCLUDED_CONTRACTS) {
     const mdx = await renderContractPage(contractDir);

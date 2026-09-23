@@ -9,9 +9,8 @@ contract EncodeBench is PolicyCoderBench {
                               SINGLE GROUP SCALING
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev One group, one rule, one 32-byte operand — the floor the path-depth and data-size
-    /// series read against. Both once opened with their own copy of this policy, which encoded to
-    /// the same blob shape and could not diverge from this row.
+    /// @dev One group, one rule, one 32-byte operand — the floor the path-depth and data-size series read against. Both
+    /// once opened with their own copy of this policy, which encoded to the same blob and could not diverge from it.
     function test_SingleGroup1Rule() public {
         _benchEncode(harness.encode(singleGroup1Rule, SELECTOR, descriptorBlob), "single_group_1rule");
     }

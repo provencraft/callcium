@@ -11,9 +11,8 @@ const LANG_OPTIONS = [
 ] as const;
 
 /**
- * Renders both language variants into the DOM and shows the active one via CSS,
- * so the inactive variant stays crawlable. The toggle is synced site-wide
- * through the shared language store, never per-block state.
+ * Renders both language variants into the DOM and shows the active one via CSS, so the inactive variant stays
+ * crawlable. The toggle is synced site-wide through the shared language store, never per-block state.
  */
 export function CodeSwitch({
   solidity,

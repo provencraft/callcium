@@ -60,8 +60,8 @@ export type ConstraintConfig = {
   id: string;
   scope: "calldata" | "context";
   /**
-   * Path steps for calldata scope: arg index, then field/array indices. A quantifier
-   * sentinel is its own step, immediately after the array it quantifies.
+   * Path steps for calldata scope: arg index, then field/array indices. A quantifier sentinel is its own step,
+   * immediately after the array it quantifies.
    */
   path?: number[];
   /** Context property name for context scope. */
@@ -362,8 +362,8 @@ function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; e
   try {
     const issues = builder.validate();
     const hasErrors = issues.some((i) => i.severity === "error");
-    // Strict build() rejects any issue; the exploratory builder still previews the
-    // encoding for warning/info-level policies via the explicit escape hatch.
+    // Strict build() rejects any issue; the exploratory builder still previews the encoding for warning/info-level
+    // policies via the explicit escape hatch.
     const hex = hasErrors ? null : issues.length > 0 ? builder.buildUnsafe() : builder.build();
     return { hex, issues, errors: [] };
   } catch (e) {
@@ -376,9 +376,8 @@ function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; e
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Parse a raw signature (with or without top-level names) via viem.
- * Returns the canonical types-only signature and the extracted top-level names.
- * For selectorless, the input is wrapped with a dummy function name and stripped afterwards.
+ * Parse a raw signature (with or without top-level names) via viem. Returns the canonical types-only signature and the
+ * extracted top-level names. For selectorless, the input is wrapped with a dummy function name and stripped afterwards.
  */
 /** Recursively extract a name tree from a viem ABI parameter. */
 export function toNameTree(param: {

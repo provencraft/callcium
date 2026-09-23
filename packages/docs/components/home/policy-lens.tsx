@@ -15,9 +15,8 @@ function shortenAddresses(value: string): string {
 }
 
 /**
- * Hero policy lens: the canonical blob beside the rules it decodes to. Hovering a
- * field (or its bytes) traces the link in both directions; tap pins it for touch.
- * Mirrors the Policy Inspector's color language so the two surfaces read as one.
+ * Hero policy lens: the canonical blob beside the rules it decodes to. Hovering a field or its bytes traces the link
+ * both ways; tap pins it for touch. Mirrors the Policy Inspector's color language so both surfaces read as one.
  */
 export function PolicyLens({ data }: { data: LensData }) {
   const [hovered, setHovered] = useState<Span | null>(null);

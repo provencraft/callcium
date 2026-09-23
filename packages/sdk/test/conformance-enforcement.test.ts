@@ -29,8 +29,8 @@ type Vector = {
   /** Violation code for malformed-calldata vectors (the onchain enforcer reverts). */
   expectedError?: string;
   /**
-   * Expected violation codes, one per failed group. Reporting detail is non-normative (spec 9.3):
-   * only implementations that expose a violation list consume this field.
+   * Expected violation codes, one per failed group. Reporting detail is non-normative (spec 9.3): only implementations
+   * that expose a violation list consume this field.
    */
   violations?: string[];
 };

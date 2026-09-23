@@ -262,8 +262,7 @@ describe("Op.IN", () => {
 
   // IN is always unsigned: MAX_UINT256 is a large positive number, not -1.
   test("IN comparison is always unsigned regardless of typeCode", () => {
-    // MAX_UINT256 is greater than 0 in unsigned comparison, so sorted set
-    // [0, MAX_UINT256] should find MAX_UINT256.
+    // MAX_UINT256 is greater than 0 in unsigned comparison, so sorted set [0, MAX_UINT256] should find MAX_UINT256.
     expect(applyOperator(Op.IN, MAX_UINT256, 0n, words(0n, MAX_UINT256), INT256)).toBe(true);
   });
 });
@@ -445,8 +444,7 @@ describe("Op.NOT flag", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("canonicalize", () => {
-  // A value with mixed bits across all byte positions, used to exercise both
-  // sign directions and padding boundaries per width.
+  // A value with mixed bits across all byte positions, exercising both sign directions and each width's padding edge.
   const SAMPLE = 0x0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0n;
 
   // Clean, canonically-encoded values must pass through unchanged.

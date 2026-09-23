@@ -103,8 +103,8 @@ library PolicyBuilder {
 
         // Validate path navigates correctly for the given scope.
         uint256 depth = Path.validate(constraint.path);
-        // The target type is read only to check a recorded operand against, and reaching it costs a
-        // descriptor walk that a single-step path otherwise skips.
+        // The target type is read only to check a recorded operand against, and reaching it costs a descriptor walk
+        // that a single-step path otherwise skips.
         bool hasOperand = constraint.leastNegativeOperand < 0 || constraint.greatestOperand != 0;
         uint8 targetType;
         if (constraint.scope == PF.SCOPE_CALLDATA) {
@@ -129,10 +129,9 @@ library PolicyBuilder {
             );
         }
 
-        // The group is allocated at its constraint count rounded up to a power of two. A
-        // power-of-two count is therefore exactly full, and the slack of a shorter one is memory no
-        // other allocation can claim, so appending is a length bump and doubling amortizes to a
-        // constant.
+        // The group is allocated at its constraint count rounded up to a power of two. A power-of-two count is
+        // therefore exactly full, and the slack of a shorter one is memory no other allocation can claim, so appending
+        // is a length bump and doubling amortizes to a constant.
         if (count == 0 || (count & (count - 1)) == 0) {
             Constraint[] memory grownGroup = new Constraint[](count == 0 ? 1 : count * 2);
             for (uint256 i = 0; i < count; ++i) {
@@ -226,8 +225,8 @@ library PolicyBuilder {
         return TypeRule.contextPropertyType(contextPropertyId);
     }
 
-    /// @dev Validates that `path` can be navigated within calldata described by `desc`. Returns the
-    /// type code it reaches, or zero when `resolveType` is false and `path` only selects an argument.
+    /// @dev Validates that `path` can be navigated within calldata described by `desc`. Returns the type code it
+    /// reaches, or zero when `resolveType` is false and `path` only selects an argument.
     function _validateCalldataPath(
         bytes memory desc,
         bytes memory path,
@@ -242,8 +241,7 @@ library PolicyBuilder {
         uint16 argIndex = Path.atUnchecked(path, 0);
         require(argIndex < paramCount, Descriptor.ParamIndexOutOfBounds(argIndex, paramCount));
 
-        // Single-step paths need no composite descent, so the argument's node is read only when the
-        // type is wanted.
+        // Single-step paths need no composite descent, so the argument's node is read only when the type is wanted.
         if (depth == 1 && !resolveType) return 0;
 
         uint256 offset = Descriptor.atUnchecked(desc, argIndex);
@@ -255,20 +253,19 @@ library PolicyBuilder {
         }
     }
 
-    /// @dev Reverts when an operand of `constraint` folds onto a value `typeCode` admits. A folded
-    /// operand and that value encode to one word, so the operands as written are the only place
-    /// the two stay distinct. Only the extremes can reach across the range's edge.
+    /// @dev Reverts when an operand of `constraint` folds onto a value `typeCode` admits. A folded operand and that
+    /// value encode to one word, so the operands as written are the only place the two stay distinct. Only the extremes
+    /// can reach across the range's edge.
     function _checkOperandDomain(Constraint memory constraint, uint8 typeCode) private pure {
-        // A negative operand occupies the word its unsigned alias does, which only the target
-        // holding the whole word can hold too.
+        // A negative operand encodes as its unsigned alias's word, which only a whole-word target can hold too.
         if (constraint.leastNegativeOperand < 0 && typeCode == TypeCode.UINT256) {
             // forge-lint: disable-next-line(unsafe-typecast) intentional int256->uint256 reinterpret.
             revert OutOfPhysicalBounds(bytes32(uint256(constraint.leastNegativeOperand)), typeCode);
         }
 
         if (typeCode < TypeCode.INT8 || typeCode > TypeCode.INT256) return;
-        // An operand at or above the signed minimum's own word denotes that negative, and every
-        // such operand already exceeds the signed maximum.
+        // An operand at or above the signed minimum's own word denotes that negative, and every such operand already
+        // exceeds the signed maximum.
         (uint256 min,) = TypeRule.getDomainLimits(typeCode);
         if (constraint.greatestOperand >= min) {
             revert OutOfPhysicalBounds(bytes32(constraint.greatestOperand), typeCode);

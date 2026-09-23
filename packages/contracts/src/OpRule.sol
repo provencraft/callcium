@@ -156,12 +156,11 @@ library OpRule {
 
             if (isBitmaskOp(opBase) && !isBitmaskCompatible(typeCode)) return (false, IssueCode.BITMASK_ON_INVALID);
 
-            // IN on bool is degenerate: the two-value domain reduces every set to an equality,
-            // a tautology, or dead members.
+            // IN on bool is degenerate: two values reduce every set to an equality, a tautology, or dead members.
             if (opBase == OpCode.IN && typeCode == TypeCode.BOOL) return (false, IssueCode.IN_ON_BOOL);
 
-            // Context properties are addresses or uint256, so only those target classes can match, and
-            // an address is an identity rather than a magnitude, so it pairs under equality only.
+            // Context properties are addresses or uint256, so only those target classes can match, and an address is an
+            // identity rather than a magnitude, so it pairs under equality only.
             // forgefmt: disable-next-item
             if (
                 isContextOp(opBase)

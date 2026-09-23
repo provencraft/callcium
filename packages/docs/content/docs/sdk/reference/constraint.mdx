@@ -7,10 +7,9 @@ description: "Constraint helpers and builder types."
 
 ### arg
 
-Target a calldata argument by path.
-Each argument is a big-endian uint16 step; multiple steps navigate into nested types.
+Target a calldata argument by path. Each argument is a big-endian uint16 step; further steps navigate nested types.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L345)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L341)
 
 ```ts
 function arg(p0: number, ...rest: number[]): ConstraintBuilder;
@@ -31,7 +30,7 @@ function arg(p0: number, ...rest: number[]): ConstraintBuilder;
 
 Target the `msg.sender` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L351)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L347)
 
 ```ts
 function msgSender(): ConstraintBuilder<`0x${string}`>;
@@ -45,7 +44,7 @@ function msgSender(): ConstraintBuilder<`0x${string}`>;
 
 Target the `msg.value` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L356)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L352)
 
 ```ts
 function msgValue(): ConstraintBuilder<bigint>;
@@ -59,7 +58,7 @@ function msgValue(): ConstraintBuilder<bigint>;
 
 Target the `block.timestamp` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L361)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L357)
 
 ```ts
 function blockTimestamp(): ConstraintBuilder<bigint>;
@@ -73,7 +72,7 @@ function blockTimestamp(): ConstraintBuilder<bigint>;
 
 Target the `block.number` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L366)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L362)
 
 ```ts
 function blockNumber(): ConstraintBuilder<bigint>;
@@ -87,7 +86,7 @@ function blockNumber(): ConstraintBuilder<bigint>;
 
 Target the `block.chainid` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L371)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L367)
 
 ```ts
 function chainId(): ConstraintBuilder<bigint>;
@@ -101,7 +100,7 @@ function chainId(): ConstraintBuilder<bigint>;
 
 Target the `tx.origin` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L376)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L372)
 
 ```ts
 function txOrigin(): ConstraintBuilder<`0x${string}`>;
@@ -115,7 +114,7 @@ function txOrigin(): ConstraintBuilder<`0x${string}`>;
 
 Target the `block.basefee` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L381)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L377)
 
 ```ts
 function baseFee(): ConstraintBuilder<bigint>;
@@ -129,7 +128,7 @@ function baseFee(): ConstraintBuilder<bigint>;
 
 Target the `tx.gasprice` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L386)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L382)
 
 ```ts
 function gasPrice(): ConstraintBuilder<bigint>;
@@ -143,10 +142,10 @@ function gasPrice(): ConstraintBuilder<bigint>;
 
 ### ConstraintBuilder
 
-Mutable builder that accumulates operators targeting a single path.
-Implements the `Constraint` interface so it can be passed directly to policy builders.
+Mutable builder that accumulates operators targeting a single path. Implements the `Constraint` interface so it can
+be passed directly to policy builders.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L153)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L151)
 
 ### ScalarValue
 

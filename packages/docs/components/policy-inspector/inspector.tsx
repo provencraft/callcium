@@ -370,8 +370,7 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
     node("Group Count", String(decoded.groupCount.value), decoded.groupCount.span),
   ];
 
-  // Groups.
-  // Flatten explained constraints+rules for display alignment with decoded rules.
+  // Groups. Flatten explained constraints+rules for display alignment with decoded rules.
   for (let gi = 0; gi < decoded.groups.length; gi++) {
     const decodedGroup = decoded.groups[gi];
     const explainedGroup = explained.groups[gi];

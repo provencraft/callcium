@@ -46,11 +46,10 @@ type HintWalk = {
 type Node = { typeCode: number; staticWords: number; nodeLength: number };
 
 /**
- * Read the node at `offset`.
- * Elementary nodes occupy exactly one byte; composite nodes encode their static
- * word count and length in the 24-bit meta field that follows the type code.
- * @throws {CallciumError} When the node starts past the descriptor, carries an undefined type code,
- * or declares a length below its own header or beyond the descriptor.
+ * Read the node at `offset`. Elementary nodes occupy exactly one byte; composite nodes encode their static word count
+ * and length in the 24-bit meta field that follows the type code.
+ * @throws {CallciumError} When the node starts past the descriptor, carries an undefined type code, or declares a
+ * length below its own header or beyond the descriptor.
  */
 export function readNode(desc: Uint8Array, offset: number): Node {
   if (offset >= desc.length) {
@@ -90,8 +89,8 @@ function nodeLength(desc: Uint8Array, offset: number): number {
 }
 
 /**
- * Return the byte offset of the `fieldIndex`-th field inside a tuple node.
- * Starts at the first field and skips `fieldIndex` nodes using `nodeLength`.
+ * Return the byte offset of the `fieldIndex`-th field inside a tuple node. Starts at the first field and skips
+ * `fieldIndex` nodes using `nodeLength`.
  */
 function tupleFieldOffset(desc: Uint8Array, tupleOffset: number, fieldIndex: number): number {
   let cursor = tupleOffset + DF.TUPLE_HEADER_SIZE;
@@ -144,9 +143,8 @@ function inspect(desc: Uint8Array, offset: number): TypeInfo {
 /**
  * Resolve the type at a calldata path (array of step indices).
  *
- * The first step selects a top-level param. Each subsequent step descends
- * into the current node: for tuples it selects a field, for arrays it
- * advances to the element descriptor.
+ * The first step selects a top-level param. Each subsequent step descends into the current node: for tuples it selects
+ * a field, for arrays it advances to the element descriptor.
  *
  * @param desc - Raw descriptor bytes.
  * @param steps - Path steps, length >= 1.
@@ -158,9 +156,8 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
 }
 
 /**
- * Resolve the type at the path and the declared length of the static array a
- * quantifier step descends into (zero when the path holds no quantifier step
- * over a static array).
+ * Resolve the type at the path and the declared length of the static array a quantifier step descends into (zero when
+ * the path holds no quantifier step over a static array).
  * @param desc - Raw descriptor bytes.
  * @param steps - Path steps, length >= 1.
  * @returns TypeInfo at the resolved path and the quantified static array length.
@@ -188,8 +185,8 @@ function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quan
       }
       cursor = tupleFieldOffset(desc, cursor, step);
     } else if (typeCode === TypeCode.STATIC_ARRAY || typeCode === TypeCode.DYNAMIC_ARRAY) {
-      // Quantifier sentinels descend into the element type; only concrete
-      // indices are bounds-checked against the declared array length.
+      // Quantifier sentinels descend into the element type; only concrete indices are bounds-checked against the
+      // declared array length.
       if (typeCode === TypeCode.STATIC_ARRAY) {
         if (isQuantifier(step)) {
           quantifiedStaticLength = staticArrayLength(desc, cursor);
@@ -377,8 +374,8 @@ function encodeHint(walk: HintWalk, targetMeta: number, typeCode: number, depth:
  * @param desc - Raw descriptor bytes.
  * @param steps - Path steps, length >= 1.
  * @returns The hint block bytes.
- * @throws {CallciumError} When a step leaves the structure the descriptor declares, quantifies over
- * a non-array node, or repeats a quantifier.
+ * @throws {CallciumError} When a step leaves the structure the descriptor declares, quantifies over a non-array node,
+ * or repeats a quantifier.
  */
 function compileHint(desc: Uint8Array, steps: number[]): Uint8Array {
   if (steps.length === 0) {

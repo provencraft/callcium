@@ -90,9 +90,8 @@ function contextOperand(contextPropertyId: number): bigint {
 
 /** Convert values to bigint, sort ascending (unsigned), deduplicate, and pack as set payload. */
 function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
-  // PWF-21 orders members by their 32-byte encodings, so a negative operand and its unsigned
-  // alias are one member at one position. Normalising after the domain check keeps an
-  // out-of-range value an error rather than folding it into the word.
+  // PWF-21 orders members by their 32-byte encodings, so a negative operand and its unsigned alias are one member at
+  // one position. Normalising after the domain check keeps an out-of-range value an error rather than a word.
   const words = values.map((value) => {
     if (typeof value === "bigint") return BigInt.asUintN(256, checkOperandRange(value));
     if (typeof value === "boolean") return value ? 1n : 0n;
@@ -122,8 +121,8 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Extremes of the numeric operands a builder's value operators received, as written. Encoding folds
- * a negative operand onto its unsigned alias, so the sign survives nowhere else.
+ * Extremes of the numeric operands a builder's value operators received, as written. Encoding folds a negative operand
+ * onto its unsigned alias, so the sign survives nowhere else.
  */
 export type OperandExtremes = {
   /** Most negative operand written, or zero when none was negative. */
@@ -133,10 +132,9 @@ export type OperandExtremes = {
 };
 
 /**
- * Extremes of the numeric operands the value operators of `constraint` received, as written.
- * They outlive edits to `operators`: removing an operator does not remove what was written to
- * produce it, and a fresh builder starts at zero. Undefined for a plain `Constraint`, whose
- * operators arrive already encoded.
+ * Extremes of the numeric operands the value operators of `constraint` received, as written. They outlive edits to
+ * `operators`: removing an operator does not remove what was written to produce it, and a fresh builder starts at zero.
+ * Undefined for a plain `Constraint`, whose operators arrive already encoded.
  */
 export function readOperandExtremes(constraint: Constraint | ConstraintBuilder): OperandExtremes | undefined {
   return "operandExtremes" in constraint ? constraint.operandExtremes : undefined;
@@ -147,17 +145,17 @@ export function readOperandExtremes(constraint: Constraint | ConstraintBuilder):
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Mutable builder that accumulates operators targeting a single path.
- * Implements the `Constraint` interface so it can be passed directly to policy builders.
+ * Mutable builder that accumulates operators targeting a single path. Implements the `Constraint` interface so it can
+ * be passed directly to policy builders.
  */
 export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implements Constraint {
   readonly scope: number;
   readonly path: Hex;
   readonly operators: Hex[];
   /**
-   * Extremes of the numeric operands the value operators received, as written. Only the extremes
-   * can offend: an operand folds into a target's range from below it or from above it, and
-   * whichever reaches furthest arrives first. Read it through {@link readOperandExtremes}.
+   * Extremes of the numeric operands the value operators received, as written. Only the extremes can offend: an operand
+   * folds into a target's range from below it or from above it, and whichever reaches furthest arrives first. Read it
+   * through {@link readOperandExtremes}.
    * @internal
    */
   readonly operandExtremes: OperandExtremes;
@@ -171,8 +169,8 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
   }
 
   /**
-   * Push a pre-encoded operator hex string and return this for chaining.
-   * `values` are the operands as written; the numeric ones join the record.
+   * Push a pre-encoded operator hex string and return this for chaining. `values` are the operands as written; the
+   * numeric ones join the record.
    */
   private push(opHex: Hex, values: readonly ScalarValue[] = []): this {
     for (const value of values) {
@@ -261,8 +259,7 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
   ///////////////////////////////////////////////////////////////////////////
 
   /**
-   * Assert the value is a member of the set.
-   * Values are sorted and deduplicated before encoding.
+   * Assert the value is a member of the set. Values are sorted and deduplicated before encoding.
    * @throws {CallciumError} If the set is empty after deduplication.
    */
   isIn(values: readonly Operand[]): this {
@@ -339,8 +336,7 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Target a calldata argument by path.
- * Each argument is a big-endian uint16 step; multiple steps navigate into nested types.
+ * Target a calldata argument by path. Each argument is a big-endian uint16 step; further steps navigate nested types.
  */
 export function arg(p0: number, ...rest: number[]): ConstraintBuilder;
 export function arg(...steps: number[]): ConstraintBuilder {

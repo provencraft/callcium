@@ -684,8 +684,8 @@ library Operator {
         return bytes32(uint256(value));
     }
 
-    /// @dev Packs a uint256 array into sorted, deduplicated 32-byte words. Each 32-byte-wide value
-    /// type reinterprets its array to this core, since all four sort by unsigned byte order.
+    /// @dev Packs a uint256 array into sorted, deduplicated 32-byte words. Each 32-byte-wide value type reinterprets
+    /// its array to this core, since all four sort by unsigned byte order.
     function _packSet(uint256[] memory values) private pure returns (bytes memory out) {
         require(values.length != 0, EmptySet());
         LibSort.sort(values);
@@ -719,8 +719,8 @@ library Operator {
         return _packSet(words);
     }
 
-    /// @dev Packs an int256 array into sorted, deduplicated 32-byte words.
-    /// Sorts by unsigned byte representation (lexicographic), not signed value.
+    /// @dev Packs an int256 array into sorted, deduplicated 32-byte words. Sorts by unsigned byte representation
+    /// (lexicographic), not signed value.
     function _packSet(int256[] memory values) private pure returns (bytes memory) {
         uint256[] memory words;
         assembly ("memory-safe") {

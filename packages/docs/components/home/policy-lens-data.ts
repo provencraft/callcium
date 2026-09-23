@@ -39,9 +39,8 @@ const APPROVE_ABI = [
 ] as const satisfies Abi;
 
 /**
- * Build the canonical APPROVE policy and decode it into the hero lens model: the
- * byte blob plus curated meaning rows, each tagged with the span it occupies so
- * the lens can trace bytes to rules in both directions.
+ * Build the canonical APPROVE policy and decode it into the hero lens model: the byte blob plus curated meaning rows,
+ * each tagged with the span it occupies so the lens can trace bytes to rules in both directions.
  */
 export function buildApproveLens(): LensData {
   const hex = PolicyBuilder.create("approve(address,uint256)")

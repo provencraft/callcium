@@ -18,8 +18,8 @@ library CalldataReader {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Loads the 32-byte word at `offset` in calldata.
-    /// @dev Subtracting a word from the length keeps the bound clear of a sum that wraps. Folding
-    /// both comparisons into one condition leaves a single branch on the load path.
+    /// @dev Subtracting a word from the length keeps the bound clear of a sum that wraps. Folding both comparisons into
+    /// one condition leaves a single branch on the load path.
     /// @param callData The calldata buffer.
     /// @param offset Byte offset of the word.
     /// @return The 32-byte word.

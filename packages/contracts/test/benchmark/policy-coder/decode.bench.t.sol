@@ -3,8 +3,8 @@ pragma solidity ^0.8.28;
 
 import { PolicyCoderBench } from "../PolicyCoder.bench.t.sol";
 
-/// @dev Benchmarks for PolicyCoder.decode(). Each case asserts the round trip returns as many
-///      groups as its source fixture encoded, so a blob that stops decoding fails the benchmark.
+/// @dev Benchmarks for PolicyCoder.decode(). Each case asserts the round trip returns as many groups as its source
+/// fixture encoded, so a blob that stops decoding fails the benchmark.
 contract DecodeBench is PolicyCoderBench {
     /*/////////////////////////////////////////////////////////////////////////
                               SINGLE GROUP SCALING

@@ -34,7 +34,7 @@ contract PolicyValidatorConformanceTest is ConformanceTest {
         // "policy" key in JSON sorts after "issues" and is parsed separately (nested dynamic arrays).
     }
 
-    /// @dev Loads and parses all fixtures from the validation vector file, also returning the raw JSON for path lookups.
+    /// @dev Loads and parses all fixtures from the validation vector file, and returns the raw JSON for path lookups.
     function _fixtures() private view returns (string memory json, ValidationFixture[] memory fixtures) {
         json = vm.readFile("../../spec/vectors/validation.json");
         uint256 count = _vectorCount(json);

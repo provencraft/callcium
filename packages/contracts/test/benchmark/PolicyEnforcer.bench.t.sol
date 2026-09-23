@@ -25,13 +25,12 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                                  SHARED FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev One elementary argument under one equality — the cheapest policy the format expresses.
-    /// Several series anchor on this scenario, and one build keeps those anchor rows exactly equal
-    /// rather than equal up to code layout.
+    /// @dev One elementary argument under one equality — the cheapest policy the format expresses. Several series
+    /// anchor on this scenario, and one build keeps those rows exactly equal rather than equal up to layout.
     Fixture internal elementaryEq;
 
-    /// @dev An element read out of a dynamic array, which no hint can resolve. Anchors both the
-    /// unhinted end of the path-depth series and the array row of the value-type series.
+    /// @dev An element read out of a dynamic array, which no hint can resolve. Anchors both the unhinted end of the
+    /// path-depth series and the array row of the value-type series.
     Fixture internal arrayElem;
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -194,10 +193,9 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         groups16PassLast = _buildGroupsN(16, false);
     }
 
-    /// @dev Builds a policy of `count` single-rule groups, with calldata satisfying either the
-    /// first or the last group in evaluation order. Groups are sorted by hash (ADR-0003), so
-    /// that order is unrelated to insertion order and the passing value is read back from the
-    /// built policy rather than assumed.
+    /// @dev Builds a policy of `count` single-rule groups, with calldata satisfying either the first or the last group
+    /// in evaluation order. Groups are sorted by hash (ADR-0003), so that order is unrelated to insertion order and the
+    /// passing value is read back from the built policy rather than assumed.
     function _buildGroupsN(uint256 count, bool passFirst) internal pure returns (Fixture memory) {
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)");
         for (uint256 i = 0; i < count; ++i) {
@@ -309,9 +307,9 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               PATH DEPTH BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev A static-tuple path compiles to a hint, so its cost does not vary with depth. The
-    /// series therefore records the two ends — `elementaryEq` and `depth8VeryDeep` — and spends its
-    /// remaining rows on array paths, which no hint can resolve and which do scale.
+    /// @dev A static-tuple path compiles to a hint, so its cost does not vary with depth. The series therefore records
+    /// the two ends — `elementaryEq` and `depth8VeryDeep` — and spends its remaining rows on array paths, which no hint
+    /// can resolve and which do scale.
     function _buildPathDepthFixtures() internal {
         depth8VeryDeep = _buildDeepNested(8);
         depth3ArrayStructField = _buildArrayStruct();
@@ -328,8 +326,8 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         hops8 = _buildHopChain(8);
     }
 
-    /// @dev Builds a fixture whose target sits behind `hopCount` payload entries. Each nesting level
-    /// is a tuple the innermost bytes member makes dynamic, so reaching it costs one hop per level.
+    /// @dev Builds a fixture whose target sits behind `hopCount` payload entries. Each nesting level is a tuple the
+    /// innermost bytes member makes dynamic, so reaching it costs one hop per level.
     function _buildHopChain(uint256 hopCount) internal pure returns (Fixture memory) {
         bytes memory types = bytes("bytes,uint256");
         for (uint256 i = 1; i < hopCount; ++i) {
@@ -645,8 +643,8 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     /////////////////////////////////////////////////////////////////////////*/
 
     function _buildDynTupleRuleFixtures() internal {
-        // A bytes member makes the whole argument dynamic, so every rule on it enters the tuple
-        // payload through one hop before reaching its own field.
+        // A bytes member makes the whole argument dynamic, so every rule on it enters the tuple payload through one hop
+        // before reaching its own field.
         string memory sig = "foo((address,uint256,uint256,bytes))";
         bytes memory callData = _encodeDynTupleArg(sig, abi.encode(address(1), uint256(2), uint256(3), hex"0102"));
 
@@ -729,8 +727,8 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         return Fixture({ policy: policy, callData: callData });
     }
 
-    /// @dev Snapshots a compliant scenario. Asserting the verdict makes a fixture that stops
-    /// exercising its scenario fail, rather than record a gas number for a different path.
+    /// @dev Snapshots a compliant scenario. Asserting the verdict makes a fixture that stops exercising its scenario
+    /// fail, rather than record a gas number for a different path.
     function _benchCheckPasses(Fixture memory fixture, string memory name) internal {
         bool ok = harness.check(fixture.policy, fixture.callData);
         vm.snapshotGasLastCall("PolicyEnforcer.check", name);
@@ -744,8 +742,8 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         assertFalse(ok);
     }
 
-    /// @dev Snapshots a compliant scenario through the reverting entry point. Returning at all is
-    /// the verdict assertion, since `enforce` reverts on a violation.
+    /// @dev Snapshots a compliant scenario through the reverting entry point. Returning at all is the verdict
+    /// assertion, since `enforce` reverts on a violation.
     function _benchEnforce(Fixture memory fixture, string memory name) internal {
         harness.enforce(fixture.policy, fixture.callData);
         vm.snapshotGasLastCall("PolicyEnforcer.enforce", name);

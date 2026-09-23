@@ -57,8 +57,8 @@ abstract contract PolicyManager {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Stores a policy blob via SSTORE2.
-    /// @dev Stored policies are trusted at enforcement time without semantic validation.
-    /// Access to this function is the primary security boundary for enforcement integrity.
+    /// @dev Stored policies are trusted at enforcement time without semantic validation. Access to this function is the
+    /// primary security boundary for enforcement integrity.
     /// @param policy The encoded policy blob.
     /// @return policyHash The keccak256 hash of the policy.
     /// @return pointer The SSTORE2 pointer address.
@@ -68,9 +68,8 @@ abstract contract PolicyManager {
     }
 
     /// @notice Binds a stored policy to a target under the policy's own selector.
-    /// @dev Binding a policy activates it for enforcement on the given target. The selector
-    /// is derived from the stored policy, so a policy binds only under the selector it
-    /// declares. Restrict access as tightly as policy storage itself.
+    /// @dev Binding a policy activates it for enforcement on the given target. The selector derives from the stored
+    /// policy, so a policy binds only under its declared selector. Restrict access as tightly as policy storage itself.
     /// @param target The contract address to bind the policy to.
     /// @param policyHash The policy hash (must already be stored).
     function _bindPolicy(address target, bytes32 policyHash) internal {
@@ -79,8 +78,8 @@ abstract contract PolicyManager {
     }
 
     /// @notice Unbinds a policy from a (target, selector) pair.
-    /// @dev Unbinding deactivates enforcement for the pair, reopening the guarded selector.
-    /// Reverts when the pair has no binding. Restrict access as tightly as policy storage itself.
+    /// @dev Unbinding deactivates enforcement for the pair, reopening the guarded selector. Reverts when the pair has
+    /// no binding. Restrict access as tightly as policy storage itself.
     /// @param target The contract address.
     /// @param selector The function selector.
     function _unbindPolicy(address target, bytes4 selector) internal {
@@ -89,8 +88,8 @@ abstract contract PolicyManager {
     }
 
     /// @notice Stores a policy and binds it to targets in one call.
-    /// @dev Stored policies are trusted at enforcement time without semantic validation,
-    /// and binding activates them immediately. Access to this function is the primary security boundary.
+    /// @dev Stored policies are trusted at enforcement time without semantic validation, and binding activates them
+    /// immediately. Access to this function is the primary security boundary.
     /// @param targets Target addresses to bind to. Use `address(0)` for default.
     /// @param policy The encoded policy blob.
     /// @return policyHash The policy hash.
@@ -111,8 +110,8 @@ abstract contract PolicyManager {
     }
 
     /// @notice Stores a policy and binds it to a single target.
-    /// @dev Stored policies are trusted at enforcement time without semantic validation,
-    /// and binding activates them immediately. Access to this function is the primary security boundary.
+    /// @dev Stored policies are trusted at enforcement time without semantic validation, and binding activates them
+    /// immediately. Access to this function is the primary security boundary.
     /// @param target The target address. Use `address(0)` for default.
     /// @param policy The encoded policy blob.
     /// @return policyHash The policy hash.

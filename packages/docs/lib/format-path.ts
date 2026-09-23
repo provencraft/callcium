@@ -47,8 +47,8 @@ export function formatOpLabel(opCode: number, negated: boolean): string {
 /**
  * Format a calldata constraint path in dot-bracket notation.
  *
- * `path` carries every step, quantifier sentinels included (detected via
- * `isQuantifier`). Uses `ParamNode` tree for named resolution when available.
+ * `path` carries every step, quantifier sentinels included (detected via `isQuantifier`). Uses `ParamNode` tree for
+ * named resolution when available.
  *
  * Examples:
  *   - `transfers[all].amount` (named)
@@ -99,8 +99,7 @@ export function formatCalldataPath(steps: number[], params?: ParamNode[]): strin
 }
 
 /**
- * Format a context property path.
- * Accepts either an internal property name (builder) or a numeric ID (inspector).
+ * Format a context property path. Accepts either an internal property name (builder) or a numeric ID (inspector).
  */
 export function formatContextPath(contextProperty: string | number): string {
   if (typeof contextProperty === "number") {
@@ -123,8 +122,7 @@ export function formatContextPath(contextProperty: string | number): string {
 }
 
 /**
- * Format a constraint path in standardized dot-bracket notation.
- * Single entry point for all tools.
+ * Format a constraint path in standardized dot-bracket notation. Single entry point for all tools.
  */
 export function formatPath(options: {
   scope: "calldata" | "context";

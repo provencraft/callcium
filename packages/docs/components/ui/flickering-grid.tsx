@@ -72,9 +72,9 @@ export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
       const x = Math.floor(index / rows) * pitch;
       const y = (index % rows) * pitch;
 
-      // clearRect antialiases a fractional edge, so it leaves the previous fill's fringe behind and
-      // repeated repaints ratchet the square to opaque. Clearing on integer bounds that contain the
-      // fringe keeps the fill's own fractional geometry; the gap holds the box off its neighbours.
+      // clearRect antialiases a fractional edge, so it leaves the previous fill's fringe behind and repeated repaints
+      // ratchet the square to opaque. Clearing on integer bounds that contain the fringe keeps the fill's own
+      // fractional geometry; the gap holds the box off its neighbours.
       const left = Math.floor(x);
       const top = Math.floor(y);
       ctx.clearRect(left, top, Math.ceil(x + size) - left, Math.ceil(y + size) - top);
@@ -94,8 +94,8 @@ export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
   );
 
   /**
-   * Reroll the squares the frame's delta selects and repaint those in place. A frame rerolls a
-   * fraction of a percent of the grid, so the canvas carries the rest over from the frame before.
+   * Reroll the squares the frame's delta selects and repaint those in place. A frame rerolls a fraction of a percent of
+   * the grid, so the canvas carries the rest over from the frame before.
    */
   const updateSquares = useCallback(
     (ctx: CanvasRenderingContext2D, squares: Float32Array, rows: number, dpr: number, deltaTime: number) => {

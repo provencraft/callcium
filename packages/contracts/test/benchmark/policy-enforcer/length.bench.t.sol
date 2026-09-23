@@ -6,8 +6,8 @@ import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
 import { PolicyEnforcerBench } from "../PolicyEnforcer.bench.t.sol";
 
-/// @dev Length-operator cost through the reverting entry point, over both targets that carry a
-///      declared length: a dynamic array and a `bytes` payload.
+/// @dev Length-operator cost through the reverting entry point, over both targets that carry a declared length: a
+/// dynamic array and a `bytes` payload.
 contract LengthBench is PolicyEnforcerBench {
     Fixture internal lengthArray;
     Fixture internal lengthBytes;

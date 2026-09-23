@@ -7,8 +7,8 @@ import { TypeCode } from "./TypeCode.sol";
 /// @title TypeRule
 /// @notice Single source of truth for ABI type properties and validation rules.
 library TypeRule {
-    /// @dev Bitmap with bit `code` set for every elementary type code.
-    /// Type codes fit in a uint8, so one word indexes the whole code space.
+    /// @dev Bitmap with bit `code` set for every elementary type code. Type codes fit in a uint8, so one word indexes
+    /// the whole code space.
     // forge-lint: disable-next-item(incorrect-shift) bit-index masks over the type code space
     uint256 private constant ELEMENTARY_MASK = ((1 << (uint256(TypeCode.FUNCTION) + 1)) - (1 << TypeCode.UINT8))
         | ((1 << (uint256(TypeCode.STRING) + 1)) - (1 << TypeCode.BYTES1));
@@ -80,8 +80,8 @@ library TypeRule {
         return code >= TypeCode.INT8 && code <= TypeCode.INT256;
     }
 
-    /// @notice Returns true if `code` is a left-aligned type (fixed bytes or function),
-    /// whose value occupies the high bytes of the word with zero padding below.
+    /// @notice Returns true if `code` is a left-aligned type (fixed bytes or function), whose value occupies the high
+    /// bytes of the word with zero padding below.
     /// @param code The code to test.
     /// @return True if the code is a left-aligned type.
     function isLeftAligned(uint8 code) internal pure returns (bool) {
@@ -90,10 +90,9 @@ library TypeRule {
     }
 
     /// @notice Canonicalizes a raw 32-byte calldata word to its ABI value for the given type.
-    /// @dev A scalar loaded from untrusted calldata may carry dirty bits outside the declared
-    /// type width. Masking unsigned/address/bool to width, clearing the trailing padding of
-    /// left-aligned function/bytesN values, and sign-extending signed integers makes the
-    /// comparison use the canonical ABI value, not the raw bytes.
+    /// @dev A scalar loaded from untrusted calldata may carry dirty bits outside the declared type width. Masking
+    /// unsigned/address/bool to width, clearing the trailing padding of left-aligned function/bytesN values, and
+    /// sign-extending signed integers makes the comparison use the canonical ABI value, not the raw bytes.
     /// @param value The raw 32-byte word loaded from calldata.
     /// @param typeCode The type code of the value.
     /// @return The canonicalized value.
@@ -116,9 +115,8 @@ library TypeRule {
     }
 
     /// @notice Returns the canonicity predicate parameters for a type.
-    /// @dev The (mode, bits) pair fully determines canonicity of any word of the type. A shift
-    /// of 256 yields zero, so width-256 types and unrecognized codes resolve to a spec that
-    /// accepts every word.
+    /// @dev The (mode, bits) pair fully determines canonicity of any word of the type. A shift of 256 yields zero, so
+    /// width-256 types and unrecognized codes resolve to a spec that accepts every word.
     /// @param typeCode The type code to resolve.
     /// @return mode The predicate mode (CANON_RIGHT, CANON_LEFT, or CANON_SIGNED).
     /// @return bits The shift width, or the sign byte index for CANON_SIGNED.

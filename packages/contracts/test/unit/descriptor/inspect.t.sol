@@ -15,8 +15,7 @@ contract InspectTest is DescriptorTest {
     }
 
     function test_ReturnsCorrectNextOffset_DynamicArray() public pure {
-        // Dynamic array of address: [code:81][meta:000005][elem:41].
-        // meta: staticWords=0 (dynamic), nodeLength=5 (1+3+1).
+        // Dynamic array of address: [code:81][meta:000005][elem:41]; staticWords=0 (dynamic), nodeLength=5 (1+3+1).
         bytes memory desc = hex"02018100000541";
         (uint8 code,,, uint256 next) = Descriptor.inspect(desc, DF.HEADER_SIZE);
         assertEq(code, TypeCode.DYNAMIC_ARRAY);
@@ -27,8 +26,7 @@ contract InspectTest is DescriptorTest {
     }
 
     function test_ReturnsCorrectNextOffset_StaticArray() public pure {
-        // Static array of address[3]: [code:80][meta:003007][elem:41][length:0003].
-        // meta: staticWords=3, nodeLength=7 (1+3+1+2).
+        // Static address[3]: [code:80][meta:003007][elem:41][length:0003]; staticWords=3, nodeLength=7 (1+3+1+2).
         bytes memory desc = hex"020180003007410003";
         (uint8 code,,, uint256 next) = Descriptor.inspect(desc, DF.HEADER_SIZE);
         assertEq(code, TypeCode.STATIC_ARRAY);
@@ -36,8 +34,8 @@ contract InspectTest is DescriptorTest {
     }
 
     function test_ReturnsCorrectNextOffset_Tuple() public pure {
-        // Tuple of (address, uint8): [code:90][meta:002008][fieldCount:0002][addr:41][uint8:01].
-        // meta: staticWords=2, nodeLength=8 (1+3+2+1+1).
+        // Tuple of (address, uint8): [code:90][meta:002008][fieldCount:0002][addr:41][uint8:01]. Its meta packs
+        // staticWords=2 and nodeLength=8 (1+3+2+1+1).
         bytes memory desc = hex"02019000200800024101";
         (uint8 code,,, uint256 next) = Descriptor.inspect(desc, DF.HEADER_SIZE);
         assertEq(code, TypeCode.TUPLE);
@@ -45,8 +43,7 @@ contract InspectTest is DescriptorTest {
     }
 
     function test_ReturnsCorrectNextOffset_NestedTuple() public pure {
-        // Nested tuple: tuple(tuple(address)).
-        // Inner: [90][001007][0001][41] = 7 bytes, staticWords=1, nodeLength=7.
+        // Nested tuple: tuple(tuple(address)). Inner: [90][001007][0001][41] = 7 bytes, staticWords=1, nodeLength=7.
         // Outer: [90][00100d][0001][inner] = 13 bytes, staticWords=1, nodeLength=13.
         bytes memory desc = hex"02019000100d000190001007000141";
         (uint8 code,,, uint256 next) = Descriptor.inspect(desc, DF.HEADER_SIZE);

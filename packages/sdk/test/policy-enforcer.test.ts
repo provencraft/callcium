@@ -128,9 +128,8 @@ function encodeTupleArray(tuples: Array<{ amount: bigint; address: bigint }>): H
 }
 
 /**
- * Build a selectorless policy blob from scratch, bypassing PolicyCoder.encode validation.
- * Used only for the path-depth test where the structural change (33 path steps)
- * cascades into rule and group size fields that can't be patched post-hoc.
+ * Build a selectorless policy blob from scratch, bypassing PolicyCoder.encode validation. Used only for the path-depth
+ * test, where the structural change (33 path steps) cascades into rule and group size fields that can't be patched.
  */
 function craftPolicy(options: {
   descriptor: string;
@@ -415,8 +414,8 @@ describe("applyOperator - unknown opcode", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("enforce - LENGTH_* on static type", () => {
-  // A static target resolves to a scalar word, which carries no declared length, so PWF-24 makes
-  // the pairing malformed. Decoding rejects it before evaluation, whatever the operand.
+  // A static target resolves to a scalar word, which carries no declared length, so PWF-24 makes the pairing malformed.
+  // Decoding rejects it before evaluation, whatever the operand.
   test("LENGTH_EQ on uint256 is rejected as a malformed policy", () => {
     const data: PolicyData = {
       isSelectorless: true,
@@ -477,17 +476,15 @@ describe("enforce - quantifier edge cases", () => {
   });
 
   test("NOT under ALL binds per element, not to the aggregate", () => {
-    // ALL neq(1) over [1, 2]: element 1 fails 1 != 1, so ALL rejects.
-    // Aggregate binding would compute !(ALL eq 1) and wrongly accept.
+    // ALL neq(1) over [1, 2]: element 1 fails 1 != 1, so ALL rejects. Binding the aggregate, !(ALL eq 1), would accept.
     const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).neq(1n)).build();
     const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n]));
     expectFirstViolation(result, "VALUE_MISMATCH");
   });
 
   test("NOT under ANY binds per element, not to the aggregate", () => {
-    // ANY neq(1) over [1, 2]: element 2 satisfies 2 != 1, so ANY accepts.
-    // Aggregate binding would compute !(ANY eq 1) and wrongly reject.
-    // buildUnsafe: strict build rejects any().neq() as an authoring anti-pattern.
+    // ANY neq(1) over [1, 2]: element 2 satisfies 2 != 1, so ANY accepts. Aggregate binding would compute !(ANY eq 1)
+    // and wrongly reject. buildUnsafe: strict build rejects any().neq() as an authoring anti-pattern.
     const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ANY).neq(1n)).buildUnsafe();
     const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n]));
     assertPassed(result);
@@ -751,8 +748,8 @@ describe("enforce - navigation failure", () => {
 
 describe("enforce - static array of dynamic elements", () => {
   test("indexing into a fixed-count array of dynamic elements resolves the correct element", () => {
-    // bytes[3] is a static-count array, so its hop carries no HINT_META_DYNAMIC_ARRAY flag,
-    // unlike a bytes[] hop. This distinguishes chainResolve's two hop branches.
+    // bytes[3] is a static-count array, so its hop carries no HINT_META_DYNAMIC_ARRAY flag, unlike a bytes[] hop. This
+    // distinguishes chainResolve's two hop branches.
     const policy = PolicyBuilder.createRaw("bytes[3]").add(arg(0, 1).lengthEq(2n)).build();
     const callData = encodeStaticBytesArray3(["aa", "bbbb", "cc"]);
     const result = PolicyEnforcer.check(policy, callData);
@@ -776,7 +773,8 @@ describe("enforce - quantifier element resolution failures", () => {
   });
 
   test("an abort under ANY rejects the policy instead of falling through to a later group", () => {
-    // CALLDATA_OUT_OF_BOUNDS aborts evaluation, so the passing second group is never consulted. The Solidity enforcer reverts on the same input.
+    // CALLDATA_OUT_OF_BOUNDS aborts evaluation, so the passing second group is never consulted. The Solidity enforcer
+    // reverts on the same input.
     const policy = PolicyBuilder.createRaw("uint256[],uint256")
       .add(arg(0, Quantifier.ANY).eq(7n))
       .or()
@@ -1013,8 +1011,8 @@ describe("enforce - context numeric properties", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("PolicyEnforcer - value operator on non-scalar target", () => {
-  // A dynamic target resolves to a declared length, which only a LENGTH_* operator reads, so
-  // PWF-24 makes the pairing malformed and decoding rejects it before evaluation.
+  // A dynamic target resolves to a declared length, which only a LENGTH_* operator reads, so PWF-24 makes the pairing
+  // malformed and decoding rejects it before evaluation.
   test("rejects a value op on a dynamic target", () => {
     // buildUnsafe: strict build rejects value operators on dynamic targets.
     const policy = PolicyBuilder.createRaw("bytes").add(arg(0).eq(0n)).buildUnsafe();
@@ -1033,8 +1031,8 @@ describe("PolicyEnforcer - value operator on non-scalar target", () => {
 // Hint dispatch
 ///////////////////////////////////////////////////////////////////////////
 
-// A calldata rule resolves its target through its compiled hint; path bytes are not consulted at
-// evaluation time. Rewriting a stored hint therefore changes what the rule reads.
+// A calldata rule resolves its target through its compiled hint; path bytes are not consulted at evaluation time.
+// Rewriting a stored hint therefore changes what the rule reads.
 
 describe("enforce - hint dispatch", () => {
   test("a concrete hint addresses the target", () => {

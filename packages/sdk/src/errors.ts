@@ -1,11 +1,10 @@
 /**
  * Machine-readable error code for structural decoding and validation failures.
  *
- * Each code names one invariant. Where Solidity detects the same invariant, the code is its error
- * name transliterated from `PascalCase` to `SCREAMING_SNAKE_CASE`. The codes under "Inputs and
- * validation" have no counterpart: they name input a Solidity signature cannot express.
- * `OUT_OF_PHYSICAL_BOUNDS` names an invariant Solidity carries twice, as the error
- * `PolicyBuilder.OutOfPhysicalBounds` and as an issue code, so the name is shared with `IssueCode`.
+ * Each code names one invariant. Where Solidity detects the same invariant, the code is its error name transliterated
+ * from `PascalCase` to `SCREAMING_SNAKE_CASE`. The codes under "Inputs and validation" have no counterpart: they name
+ * input a Solidity signature cannot express. `OUT_OF_PHYSICAL_BOUNDS` names an invariant Solidity carries twice, as the
+ * error `PolicyBuilder.OutOfPhysicalBounds` and as an issue code, so the name is shared with `IssueCode`.
  */
 export type CallciumErrorCode =
   // Policy and descriptor framing.
@@ -83,8 +82,8 @@ export type CallciumErrorCode =
   | "VALIDATION_ERROR";
 
 /**
- * Thrown when a policy or descriptor blob is structurally malformed.
- * The optional `offset` indicates the byte position in the source blob where the error was detected.
+ * Thrown when a policy or descriptor blob is structurally malformed. The optional `offset` indicates the byte position
+ * in the source blob where the error was detected.
  */
 export class CallciumError extends Error {
   public readonly code: CallciumErrorCode;
@@ -104,9 +103,8 @@ export class CallciumError extends Error {
 /**
  * Thrown by `PolicyBuilder.build` when validation reports any issue.
  *
- * Carries every issue the validator found. The `Error.message` is the first issue's
- * message — a diagnostic summary, not a presentation contract. Consumers rendering
- * issues to users should iterate `issues` directly.
+ * Carries every issue the validator found. The `Error.message` is the first issue's message — a diagnostic summary, not
+ * a presentation contract. Consumers rendering issues to users should iterate `issues` directly.
  */
 export class ValidationError extends CallciumError {
   public readonly issues: import("./types").Issue[];
@@ -119,12 +117,11 @@ export class ValidationError extends CallciumError {
 }
 
 /**
- * Thrown by `PolicyEnforcer.enforce` when calldata fails policy enforcement.
- * Distinct from `ValidationError`, which signals static issues in the policy itself.
+ * Thrown by `PolicyEnforcer.enforce` when calldata fails policy enforcement. Distinct from `ValidationError`, which
+ * signals static issues in the policy itself.
  *
- * Carries the full list of structured violations (one per failed group). The
- * `Error.message` is a minimal non-lossy diagnostic summary built from the
- * first violation's structured fields — not a presentation contract. Consumers
+ * Carries the full list of structured violations (one per failed group). The `Error.message` is a minimal non-lossy
+ * diagnostic summary built from the first violation's structured fields — not a presentation contract. Consumers
  * rendering violations to users should iterate `violations` directly.
  */
 export class PolicyViolationError extends Error {

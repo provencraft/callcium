@@ -7,7 +7,7 @@ description: "ABI descriptor model and coder."
 
 Inspect and navigate raw descriptor bytes.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L416)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor.ts#L413)
 
 ### Methods
 
@@ -71,9 +71,8 @@ function inspect(desc: Uint8Array, offset: number): TypeInfo;
 
 Resolve the type at a calldata path (array of step indices).
 
-The first step selects a top-level param. Each subsequent step descends
-into the current node: for tuples it selects a field, for arrays it
-advances to the element descriptor.
+The first step selects a top-level param. Each subsequent step descends into the current node: for tuples it selects
+a field, for arrays it advances to the element descriptor.
 
 ```ts
 function typeAt(desc: Uint8Array, steps: number[]): TypeInfo;
@@ -92,8 +91,8 @@ function typeAt(desc: Uint8Array, steps: number[]): TypeInfo;
 
 ### tupleFieldOffset
 
-Return the byte offset of the `fieldIndex`-th field inside a tuple node.
-Starts at the first field and skips `fieldIndex` nodes using `nodeLength`.
+Return the byte offset of the `fieldIndex`-th field inside a tuple node. Starts at the first field and skips
+`fieldIndex` nodes using `nodeLength`.
 
 ```ts
 function tupleFieldOffset(desc: Uint8Array, tupleOffset: number, fieldIndex: number): number;
@@ -188,9 +187,8 @@ function arrayElementOffset(offset: number): number;
 
 ### walkPath
 
-Resolve the type at the path and the declared length of the static array a
-quantifier step descends into (zero when the path holds no quantifier step
-over a static array).
+Resolve the type at the path and the declared length of the static array a quantifier step descends into (zero when
+the path holds no quantifier step over a static array).
 
 ```ts
 function walkPath(desc: Uint8Array, steps: number[]): object;
@@ -230,7 +228,7 @@ function compileHint(desc: Uint8Array, steps: number[]): Uint8Array;
 
 Encode and decode descriptors.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor-coder.ts#L430)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/descriptor-coder.ts#L427)
 
 ### Methods
 

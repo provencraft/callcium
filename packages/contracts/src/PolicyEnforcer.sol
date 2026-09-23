@@ -61,8 +61,8 @@ library PolicyEnforcer {
     }
 
     /// @notice Returns true if `callData` complies with `policy`.
-    /// @dev Requires a structurally validated policy blob; behavior on an unvalidated blob is undefined.
-    /// Reverts on abort violations and integrity errors; returns false for group-local violations.
+    /// @dev Requires a structurally validated policy blob; behavior on an unvalidated blob is undefined. Reverts on
+    /// abort violations and integrity errors; returns false for group-local violations.
     /// @param policy The policy blob with embedded descriptor.
     /// @param callData The calldata to validate.
     /// @return ok True if calldata complies with the policy.
@@ -75,8 +75,8 @@ library PolicyEnforcer {
     ////////////////////////////////////////////////////////////////////////*/
 
     /// @dev Evaluates the full policy against calldata. Returns pass/fail with the failing group/rule indices.
-    /// @dev Offsets are wire-bounded: a blob offset never exceeds the buffer length and every field
-    /// added to one is bounded by its own wire width, so no sum in this body can wrap.
+    /// @dev Offsets are wire-bounded: a blob offset never exceeds the buffer length and every field added to one is
+    /// bounded by its own wire width, so no sum in this body can wrap.
     function _evalPolicy(
         bytes memory policy,
         bytes calldata callData
@@ -126,8 +126,8 @@ library PolicyEnforcer {
         }
     }
 
-    /// @dev Evaluates the group at `groupOffset`. Returns the verdict, the failing rule index
-    /// (zero when the group passes), and the offset one past the group's last rule.
+    /// @dev Evaluates the group at `groupOffset`. Returns the verdict, the failing rule index (zero when the group
+    /// passes), and the offset one past the group's last rule.
     /// @dev Offsets are wire-bounded as in `_evalPolicy`, so no sum in this body can wrap.
     function _evalGroup(
         bytes memory policy,
@@ -215,8 +215,8 @@ library PolicyEnforcer {
             uint256 targetOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
             uint256 target = hopCount == 0 ? baseOffset : _chain(policy, callData, baseOffset, hopsOffset, hopCount);
 
-            // The block and the operator fields behind it are contiguous, so one load right-aligns
-            // targetDelta(32) | targetMeta(16) | typeCode(8) | opCode(8) | dataLength(16).
+            // The block and the operator fields behind it are contiguous, so one load right-aligns targetDelta(32) |
+            // targetMeta(16) | typeCode(8) | opCode(8) | dataLength(16).
             uint256 tail = uint256(LibBytes.load(policy, targetOffset)) >> (256 - 8 * PF.HINT_TARGET_OPERATOR_SIZE);
             uint256 targetBlock = tail >> (8 * (PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE));
             // forge-lint: disable-next-line(unsafe-typecast) the low byte of the block is the type code.
@@ -243,8 +243,8 @@ library PolicyEnforcer {
     }
 
     /// @dev Evaluates the rule whose frame iterates the elements of one array.
-    /// @dev Offsets are wire-bounded as in `_evalPolicy`, and the element count the frame yields is
-    /// capped, so no sum in this body can wrap.
+    /// @dev Offsets are wire-bounded as in `_evalPolicy`, and the element count the frame yields is capped, so no sum
+    /// in this body can wrap.
     function _evalQuantified(
         bytes memory policy,
         uint256 baseOffset,
@@ -282,8 +282,8 @@ library PolicyEnforcer {
             uint256 suffixHops = suffixHeaderOffset + PF.HINT_HEADER_SIZE;
             uint256 targetOffset = suffixHops + suffixHopCount * PF.HINT_HOP_SIZE;
 
-            // Every element shares one target type and one operator, so both resolve before iterating.
-            // The target block right-aligns to targetDelta(32) | targetMeta(16) | typeCode(8).
+            // Every element shares one target type and one operator, so both resolve before iterating. The target block
+            // right-aligns to targetDelta(32) | targetMeta(16) | typeCode(8).
             uint256 targetBlock = uint256(LibBytes.load(policy, targetOffset)) >> (256 - 8 * PF.HINT_TARGET_SIZE);
             // forge-lint: disable-next-line(unsafe-typecast) the low byte of the block is the type code.
             uint8 typeCode = uint8(targetBlock);
@@ -300,9 +300,9 @@ library PolicyEnforcer {
             if (hasLength) {
                 payloadStride = _payloadStride(typeCode, targetBlock);
             } else {
-                // Every element shares the target's declared type, so its encoding resolves once.
-                // The spec pairs an alignment mode (right, left, or sign-extended) with the width it
-                // measures: the payload width for the aligned modes, the sign byte index for signed.
+                // Every element shares the target's declared type, so its encoding resolves once. The spec pairs an
+                // alignment mode (right, left, or sign-extended) with the width it measures: the payload width for the
+                // aligned modes, the sign byte index for signed.
                 (canonicalMode, canonicalBits) = TypeRule.canonicalSpec(typeCode);
             }
 
@@ -337,10 +337,9 @@ library PolicyEnforcer {
     }
 
     /// @dev Follows `hopCount` hop entries from `base` and returns the calldata offset they reach.
-    /// @dev Offsets stay clear of wrapping throughout: every field added to a base is bounded by its
-    /// wire width, so only the sums that add a calldata-supplied word can reach the top of the range
-    /// and each of those is guarded first. A returned base may lie past the calldata length; the load
-    /// that reads at or past it is what rejects that.
+    /// @dev Offsets stay clear of wrapping throughout: every field added to a base is bounded by its wire width, so
+    /// only the sums that add a calldata-supplied word can reach the top of the range and each of those is guarded
+    /// first. A returned base may lie past the calldata length; the load that reads at or past it is what rejects that.
     function _chain(
         bytes memory policy,
         bytes calldata callData,
@@ -380,8 +379,8 @@ library PolicyEnforcer {
     }
 
     /// @dev Returns `from` advanced by the offset word at `at`.
-    /// @dev Requires `from <= at`, which makes the load's own bounds check cover `from` as well and
-    /// leaves the comparison below sufficient to rule out a wrapping sum.
+    /// @dev Requires `from <= at`, which makes the load's own bounds check cover `from` as well and leaves the
+    /// comparison below sufficient to rule out a wrapping sum.
     function _follow(bytes calldata callData, uint256 from, uint256 at) private pure returns (uint256) {
         uint256 offset = uint256(CalldataReader.loadWord(callData, at));
         require(offset <= callData.length - from, CalldataReader.CalldataOutOfBounds());
@@ -558,13 +557,11 @@ library PolicyEnforcer {
         return (opCode & OpCode.NOT) != 0 ? !result : result;
     }
 
-    /// @dev Checks if `value` is in the set of operands.
-    /// Operands are packed as consecutive sorted 32-byte values.
-    /// Uses linear scan for small sets (<=6 elements) and binary search for larger sets.
-    /// Binary search adapted from Solady LibSort._searchSorted: 1-indexed search over the
-    /// packed operands, where adjBase mimics the array length slot. Unsigned-only,
-    /// membership-only — the signed bias and index-return of the original are dropped.
-    /// Assumes dataLength > 0 and dataLength % 32 == 0.
+    /// @dev Checks if `value` is in the set of operands. Operands are packed as consecutive sorted 32-byte values. Uses
+    /// linear scan for small sets (<=6 elements) and binary search for larger sets. Binary search adapted from Solady
+    /// LibSort._searchSorted: 1-indexed search over the packed operands, where adjBase mimics the array length slot.
+    /// Unsigned-only, membership-only — the signed bias and index-return of the original are dropped. Assumes
+    /// dataLength > 0 and dataLength % 32 == 0.
     function _checkIn(
         bytes32 value,
         bytes memory policy,

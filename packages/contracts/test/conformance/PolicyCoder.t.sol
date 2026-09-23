@@ -108,9 +108,8 @@ contract PolicyCoderConformanceTest is BaseTest {
         bytes memory descriptor = vm.parseJsonBytes(json, string.concat(encodingInputPath, ".descriptor"));
 
         if (isSelectorless) {
-            // PolicyCoder.encode(PolicyData) is required for the selectorless flag.
-            // Convert the flat Rule[] into Constraint[][] (each rule becomes one Constraint
-            // since selectorless fixtures never share (scope, path) across rules).
+            // PolicyCoder.encode(PolicyData) is required for the selectorless flag. Convert the flat Rule[] into
+            // Constraint[][] (each rule becomes one Constraint since selectorless fixtures never share (scope, path)).
             Constraint[][] memory constraints = new Constraint[][](groupCount);
             for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
                 constraints[groupIndex] = new Constraint[](groups[groupIndex].rules.length);

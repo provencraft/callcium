@@ -58,12 +58,12 @@ contract PolicyEnforcerConformanceTest is ConformanceTest {
         vm.fee(baseFee);
         vm.txGasPrice(gasPrice);
 
-        // A view call observes the pinned fee fields. A value-bearing call cannot be view, and under
-        // the isolate profile it lands in a fresh block whose fee fields are recomputed, so the two
-        // context kinds cannot be pinned in the same vector.
+        // A view call observes the pinned fee fields. A value-bearing call cannot be view, and under the isolate
+        // profile it lands in a fresh block whose fee fields are recomputed, so the two context kinds cannot be pinned
+        // in the same vector.
         if (value == 0) {
-            // The txOrigin field appears only on vectors that pin it; the default origin is a
-            // nonzero sentinel, so those vectors always set it explicitly.
+            // The txOrigin field appears only on vectors that pin it; the default origin is a nonzero sentinel, so
+            // those vectors always set it explicitly.
             string memory originPath = string.concat(ctxPath, ".txOrigin");
             if (vm.keyExistsJson(json, originPath)) {
                 vm.prank(sender, vm.parseAddress(vm.parseJsonString(json, originPath)));

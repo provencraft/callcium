@@ -46,9 +46,8 @@ function field<T>(value: T, start: number, end: number): Field<T> {
 }
 
 /**
- * Wrap the hex rendering of `data[start, end)` with its span, rendering on first read.
- * Enforcement reads the span as bytes, so the string is built only for a caller that asks.
- * The field reads and assigns like the plain one it replaces.
+ * Wrap the hex rendering of `data[start, end)` with its span, rendering on first read. Enforcement reads the span as
+ * bytes, so the string is built only for a caller that asks. The field reads and assigns like a plain one.
  */
 function hexField(data: Uint8Array, start: number, end: number): Field<Hex> {
   let hex: Hex | undefined;
@@ -141,8 +140,8 @@ function validateHint(data: Uint8Array, hintStart: number, hintSize: number, rul
     targetTypeCode === TypeCode.DYNAMIC_ARRAY ? (targetMeta & PF.HINT_META_RESERVED_MASK) === 0 : targetMeta === 0;
   if (!targetMetaOk) malformedHint("Target meta carries reserved or unused state", ruleOffset);
 
-  // An operator reads either a scalar word or a declared length, so a target carrying neither —
-  // a tuple, a static array, or an undefined code — addresses nothing.
+  // An operator reads either a scalar word or a declared length, so a target carrying neither — a tuple, a static
+  // array, or an undefined code — addresses nothing.
   if (!isAddressableTarget(targetTypeCode)) malformedHint("Target type code addresses no value", ruleOffset);
 }
 
@@ -301,8 +300,8 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
         throw new CallciumError("UNKNOWN_OPERATOR", "Unrecognized or malformed operator", ruleOffset);
       }
 
-      // A length operator reads the declared length a dynamic target resolves to, and a value
-      // operator reads a scalar word, so the target type fixes which family the rule may carry.
+      // A length operator reads the declared length a dynamic target resolves to, and a value operator reads a scalar
+      // word, so the target type fixes which family the rule may carry.
       if (hintSize !== 0) {
         const targetTypeCode = hintTargetTypeCode(data, hintStart, hintSize);
         if (isLengthValidType(targetTypeCode) !== isLengthOp(opBase)) {
@@ -469,9 +468,8 @@ function readConstraintTarget(constraint: Constraint, desc: Uint8Array): Constra
 
 /** Flatten a Constraint into one Rule per operator, compiling its hint against the descriptor. */
 function flattenConstraint(constraint: Constraint, desc: Uint8Array): Rule[] {
-  // The rule is the unit these checks run over: each rule's operator is established before the
-  // path and hint it shares with its siblings. A constraint carrying no operator produces no rule,
-  // so its path is never read.
+  // The rule is the unit these checks run over: each rule's operator is established before the path and hint it shares
+  // with its siblings. A constraint carrying no operator produces no rule, so its path is never read.
   let target: ConstraintTarget | undefined;
 
   return constraint.operators.map((operatorHex) => {
@@ -510,8 +508,7 @@ function requireFieldFits(value: number, byteWidth: number, code: CallciumErrorC
 }
 
 /**
- * Serialize a single rule to its wire format bytes.
- * Path shape and operator framing are established by `flattenConstraint`.
+ * Serialize a single rule to its wire format bytes. `flattenConstraint` establishes path shape and operator framing.
  */
 function encodeRule(rule: Rule): Uint8Array {
   const depth = rule.path.length / 2;
@@ -573,8 +570,8 @@ function encode(data: PolicyData): Hex {
   }
   requireFieldFits(data.groups.length, PF.GROUP_COUNT_SIZE, "GROUP_COUNT_OVERFLOW", "Group count");
 
-  // Flatten constraints into rules and sort within each group. Hints are compiled first because
-  // they are part of the rule bytes the group hash covers.
+  // Flatten constraints into rules and sort within each group. Hints are compiled first because they are part of the
+  // rule bytes the group hash covers.
   const sortedGroups: Rule[][] = data.groups.map((group) => {
     const rules = group.flatMap((constraint) => flattenConstraint(constraint, descBytes));
     sortRules(rules);
@@ -591,8 +588,8 @@ function encode(data: PolicyData): Hex {
     return { wireBytes: encodeGroupRules(rules), ruleCount: rules.length };
   });
 
-  // Several groups are ordered by ascending keccak256 over their rule bytes; a lone group is
-  // already in canonical position, so it needs no hash.
+  // Several groups are ordered by ascending keccak256 over their rule bytes; a lone group is already in canonical
+  // position, so it needs no hash.
   if (encodedGroups.length > 1) {
     const hashes = new Map(encodedGroups.map((group) => [group, keccak_256(group.wireBytes)]));
     encodedGroups.sort((a, b) => compareBytes(hashes.get(a)!, hashes.get(b)!));

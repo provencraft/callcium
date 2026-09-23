@@ -13,9 +13,8 @@ export interface TopLevelSymbol {
 }
 
 /**
- * Source-line mapping for every public-ish symbol in a Solidity file.
- * Values are FIFO queues of 1-indexed line numbers in source order —
- * overload resolution consumes them left-to-right as forge-doc headings are walked.
+ * Source-line mapping for every public-ish symbol in a Solidity file. Values are FIFO queues of 1-indexed line numbers
+ * in source order — overload resolution consumes them left-to-right as forge-doc headings are walked.
  */
 export interface SymbolMap {
   contract?: number;
@@ -68,9 +67,8 @@ function topLevelKind(node: AstNode): TopLevelSymbol["kind"] | null {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Build a symbol→source-line map for one Solidity file by reading the compact AST
- * emitted by `forge build` (requires `ast = true` in foundry.toml).
- * Returns an empty map if no AST artifact is available — downstream injects nothing.
+ * Build a symbol→source-line map for one Solidity file by reading the compact AST emitted by `forge build` (requires
+ * `ast = true` in foundry.toml). Returns an empty map if no AST artifact is available — downstream injects nothing.
  */
 export async function buildSymbolMap(contractsRoot: string, contractDir: string): Promise<SymbolMap> {
   const sourcePath = join(contractsRoot, "src", contractDir);
@@ -194,8 +192,8 @@ function classify(
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Resolve a node's 1-indexed source line from its `src` byte offset.
- * Offsets are byte-based, so the newline scan runs over the buffer, not a decoded string.
+ * Resolve a node's 1-indexed source line from its `src` byte offset. Offsets are byte-based, so the newline scan runs
+ * over the buffer, not a decoded string.
  */
 function nodeLine(node: AstNode, source: Buffer, primaryFileIndex: number): number | null {
   const parts = node.src?.split(":");

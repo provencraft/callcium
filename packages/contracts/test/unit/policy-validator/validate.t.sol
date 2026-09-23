@@ -400,9 +400,7 @@ contract ImpossibleRangeTest is PolicyValidatorTest {
     function test_CrossConstraint_Contradiction_ReturnsError() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uintN_(256)).build();
 
-        // Constraint 0: arg(0).gt(100)
-        // Constraint 1: arg(0).lt(50)
-        // AND-ed -> contradiction
+        // Constraint 0: arg(0).gt(100) Constraint 1: arg(0).lt(50) AND-ed -> contradiction
         Constraint[] memory group = new Constraint[](2);
         group[0] = arg(0).gt(uint256(100));
         group[1] = arg(0).lt(uint256(50));
@@ -452,8 +450,8 @@ contract ImpossibleRangeTest is PolicyValidatorTest {
     function test_NegatedBetween_Satisfiable_NoImpossibleRange() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
 
-        // !between(5, 10) is (x < 5 OR x > 10), a disjunction satisfiable at e.g. 3 or 11.
-        // The negation must not be modeled as (x > 10 AND x < 5), a spurious contradiction.
+        // !between(5, 10) is (x < 5 OR x > 10), a disjunction satisfiable at e.g. 3 or 11. The negation must not be
+        // modeled as (x > 10 AND x < 5), a spurious contradiction.
         Constraint memory c = arg(0);
         c.operators = _appendOp(c.operators, OpCode.BETWEEN | OpCode.NOT, abi.encodePacked(uint256(5), uint256(10)));
 
@@ -1211,8 +1209,8 @@ contract SetContradictionTest is PolicyValidatorTest {
 
     function test_ManyReductions_NoOverflow() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
-        // A large isIn/notIn overlap emits one SET_REDUCTION per element — far more issues than the
-        // per-operator capacity estimate, so the issue buffer must grow rather than overflow.
+        // A large isIn/notIn overlap emits one SET_REDUCTION per element — far more issues than the per-operator
+        // capacity estimate, so the issue buffer must grow rather than overflow.
         uint256 count = 64;
         uint256[] memory set = new uint256[](count);
         for (uint256 i = 0; i < count; ++i) {
@@ -1304,8 +1302,8 @@ contract SetOrderingTest is PolicyValidatorTest {
     }
 
     function test_SetIntersection_PreservesOriginalOrdering() public view {
-        // We use unsorted sets in the harness to verify that PolicyValidator
-        // preserves the ordering of the original set (set1) during intersection.
+        // We use unsorted sets in the harness to verify that PolicyValidator preserves the ordering of the original set
+        // (set1) during intersection.
 
         // set1: [2, 1, 3]
         uint256[] memory set1 = new uint256[](3);
@@ -1805,8 +1803,8 @@ contract IssueProvenanceTest is PolicyValidatorTest {
         return PolicyValidator.validate(_createPolicyDataMulti("foo(int256,int256)", desc, constraints));
     }
 
-    // An equality sitting exactly on an exclusive bound is excluded; on an inclusive bound it is
-    // merely redundant. The pair pins the boundary direction of the signed-aware comparisons.
+    // An equality sitting exactly on an exclusive bound is excluded; on an inclusive bound it is merely redundant. The
+    // pair pins the boundary direction of the signed-aware comparisons.
 
     function test_EqOnExclusiveUpperIsExcluded() public pure {
         _assertAtIndexOne(_atIndexOne(arg(1).eq(uint256(10)).lt(uint256(10))), IssueCode.BOUNDS_EXCLUDE_EQUALITY);

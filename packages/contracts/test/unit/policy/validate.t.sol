@@ -31,8 +31,7 @@ contract ValidateTest is PolicyTest {
         return _calldataRuleBlob(hex"0000ffff", hint);
     }
 
-    /// @dev Wraps a single calldata rule with the given path and hint block into a policy blob
-    /// for `foo(uint256)`.
+    /// @dev Wraps a single calldata rule with the given path and hint block into a policy blob for `foo(uint256)`.
     function _calldataRuleBlob(bytes memory path, bytes memory hint) private pure returns (bytes memory) {
         return _calldataRuleBlob(path, hint, OpCode.EQ);
     }

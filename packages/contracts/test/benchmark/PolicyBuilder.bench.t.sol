@@ -22,8 +22,8 @@ abstract contract PolicyBuilderBench is Test {
         harness = new PolicyBuilderHarness();
     }
 
-    /// @dev Snapshots the harness call just made and rejects a blob that is not well-formed, so a
-    /// scenario that stops building what its name claims fails instead of recording a number.
+    /// @dev Snapshots the harness call just made and rejects a blob that is not well-formed, so a scenario that stops
+    /// building what its name claims fails instead of recording a number.
     function _bench(bytes memory policy, string memory name) private {
         vm.snapshotGasLastCall(_label(), name);
         Policy.validate(policy);
@@ -33,9 +33,9 @@ abstract contract PolicyBuilderBench is Test {
                               SIGNATURE COMPLEXITY
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev The cheapest pipeline, and the baseline every section below reads against. Each series
-    /// once carried its own copy of this scenario; those rows recorded the same number by
-    /// construction and could not diverge from this one, so this is the only row that runs it.
+    /// @dev The cheapest pipeline, and the baseline every section below reads against. Each series once carried its own
+    /// copy of this scenario; those rows recorded the same number by construction and could not diverge from this one,
+    /// so this is the only row that runs it.
     function test_SimpleElementary() public {
         _bench(harness.elementaryEq(_safe()), "simple_elementary");
     }

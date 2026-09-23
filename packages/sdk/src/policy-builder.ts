@@ -124,26 +124,24 @@ function reject(written: bigint, folded: bigint): never {
 }
 
 /**
- * Reject an operand that two's complement folds onto a value the target admits.
- * Such an operand and the value it folds onto encode to one word, so the operands as written are
- * the only place the two stay distinct. An operand spans no more than one word, which leaves two
- * ways across: a negative's alias clears every target narrower than the whole word, and a positive
- * reaches a signed range only at that type's own minimum word.
+ * Reject an operand that two's complement folds onto a value the target admits. Such an operand and the value it folds
+ * onto encode to one word, so the operands as written are the only place the two stay distinct. An operand spans no
+ * more than one word, which leaves two ways across: a negative's alias clears every target narrower than the whole
+ * word, and a positive reaches a signed range only at that type's own minimum word.
  */
 function checkOperandDomain(constraint: Constraint, typeCode: number): void {
   const bounds = targetBounds(typeCode);
   const extremes = readOperandExtremes(constraint);
   if (bounds === null || extremes === undefined) return;
 
-  // A negative operand occupies the word its unsigned alias does, which only the target holding
-  // the whole word can hold too.
+  // A negative operand encodes as its unsigned alias's word, which only a whole-word target can hold too.
   if (extremes.leastNegative < 0n && typeCode === TypeCode.UINT_MAX) {
     reject(extremes.leastNegative, extremes.leastNegative + WORD_VALUES);
   }
 
   if (!isSigned(typeCode)) return;
-  // An operand at or above the signed minimum's own word denotes that negative, and every such
-  // operand already exceeds the signed maximum.
+  // An operand at or above the signed minimum's own word denotes that negative, and every such operand already exceeds
+  // the signed maximum.
   if (extremes.greatest >= WORD_VALUES + bounds.min) {
     reject(extremes.greatest, extremes.greatest - WORD_VALUES);
   }
@@ -195,9 +193,9 @@ export class PolicyBuilder {
   /**
    * Add a constraint to the current group.
    * @param constraint - A `Constraint` object or a `ConstraintBuilder` instance.
-   * @throws {CallciumError} With code `OUT_OF_PHYSICAL_BOUNDS` when a numeric operand lies outside
-   * the target type's range and encodes as a value inside it. Operands are read as written, so a
-   * `Constraint` carrying encoded operator bytes is left to {@link validate}.
+   * @throws {CallciumError} With code `OUT_OF_PHYSICAL_BOUNDS` when a numeric operand lies outside the target type's
+   * range and encodes as a value inside it. Operands are read as written, so a `Constraint` carrying encoded operator
+   * bytes is left to {@link validate}.
    */
   add(constraint: Constraint): this {
     // A builder compiles no hint; one arrives only on a constraint that came already encoded.
@@ -251,14 +249,12 @@ export class PolicyBuilder {
   }
 
   /**
-   * Build the policy into an encoded binary blob with strict validation.
-   * Throws on any issue, regardless of severity. Use {@link validate} to
-   * inspect issues, or {@link buildUnsafe} to encode without validation.
+   * Build the policy into an encoded binary blob with strict validation. Throws on any issue, regardless of severity.
+   * Use {@link validate} to inspect issues, or {@link buildUnsafe} to encode without validation.
    * @returns The policy as a 0x-prefixed hex string.
    * @throws {CallciumError} If any group is empty.
    * @throws {ValidationError} If validation finds any issue.
-   * @throws {CallciumError} With code `RULE_SIZE_OVERFLOW` when a rule's encoded bytes exceed the
-   * width of the rule size field.
+   * @throws {CallciumError} With code `RULE_SIZE_OVERFLOW` when a rule's encoded bytes exceed the rule size field.
    */
   build(): Hex {
     this.checkGroups();
@@ -271,9 +267,8 @@ export class PolicyBuilder {
   }
 
   /**
-   * Build the policy into an encoded binary blob without validation.
-   * The resulting policy may be invalid. Prefer {@link build}; use this
-   * only to knowingly bypass a reported issue.
+   * Build the policy into an encoded binary blob without validation. The resulting policy may be invalid. Prefer {@link
+   * build}; use this only to knowingly bypass a reported issue.
    * @returns The policy as a 0x-prefixed hex string.
    * @throws {CallciumError} If any group is empty.
    */

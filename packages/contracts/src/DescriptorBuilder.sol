@@ -127,8 +127,8 @@ library DescriptorBuilder {
         uint256 baseEnd = end;
         uint256 arrayStart = end;
 
-        // Scan backwards to find where array suffixes begin, so the base type can be
-        // parsed first, then suffixes applied left-to-right (innermost array first).
+        // Scan backwards to find where array suffixes begin, so the base type can be parsed first, then suffixes
+        // applied left-to-right (innermost array first).
         if (input[end - 1] == "]") {
             uint256 i = end;
             while (i > start) {
@@ -276,8 +276,7 @@ library DescriptorBuilder {
             unchecked {
                 result = result * 10 + (uint8(char) - 48);
             }
-            // Rejecting above the uint16 bound each iteration keeps the unchecked accumulation
-            // wrap-free for any input length.
+            // Rejecting above the uint16 bound each iteration keeps the unchecked sum wrap-free for any input length.
             require(result <= type(uint16).max, MalformedTypeString());
         }
     }

@@ -9,8 +9,8 @@ import { BaseTest } from "test/unit/BaseTest.sol";
 
 /// @dev Base contract for Constraint unit tests.
 abstract contract ConstraintTest is BaseTest {
-    /// @dev Extracts the packed set as a bytes32 array from a constraint operator.
-    /// The operator format is: opCode (1 byte) || packedSet (n * 32 bytes).
+    /// @dev Extracts the packed set as a bytes32 array from a constraint operator. The operator format is: opCode (1
+    /// byte) || packedSet (n * 32 bytes).
     function _extractPackedSet(bytes memory operator) internal pure returns (bytes32[] memory) {
         require(operator.length > 1, "Operator too short");
 
@@ -91,8 +91,8 @@ abstract contract ConstraintTest is BaseTest {
                               LENGTH HELPERS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Constrains a fuzzed array's length into `[min, max]`. Filters via `vm.assume`
-    /// when shorter than `min`; truncates in-place when longer than `max`.
+    /// @dev Constrains a fuzzed array's length into `[min, max]`. Filters via `vm.assume` when shorter than `min`;
+    /// truncates in-place when longer than `max`.
     function _boundLength(uint256[] memory arr, uint256 min, uint256 max) internal pure {
         vm.assume(arr.length >= min);
         assembly ("memory-safe") {

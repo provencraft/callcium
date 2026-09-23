@@ -361,8 +361,8 @@ describe("group management", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("operator dispatch", () => {
-  // One target per operator family: address covers equality and set ops, uint256 adds
-  // ordering and bitmask, bytes adds the length ops.
+  // One target per operator family: address covers equality and set ops, uint256 adds ordering and bitmask, bytes adds
+  // the length ops.
   const session = createSession("f(address,uint256,bytes)");
 
   const cases = session.params.flatMap((param) =>

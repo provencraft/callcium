@@ -12,8 +12,7 @@ import type { DecodedParam, Hex } from "./types";
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Collect the positions of depth-0 commas in input[start..end).
- * Commas inside `()` or `[]` are skipped.
+ * Collect the positions of depth-0 commas in input[start..end). Commas inside `()` or `[]` are skipped.
  */
 function commaPositions(input: string, start: number, end: number): number[] {
   const positions: number[] = [];
@@ -47,8 +46,8 @@ const MAX_TYPE_STRING_NUMBER = 256 ** DF.ARRAY_LENGTH_SIZE - 1;
 /**
  * Parse a decimal integer from input[start..end).
  *
- * Rejects an empty span, a non-digit, a leading zero, and a value too wide for the fields a type
- * string feeds. Width and length validity are out of scope here.
+ * Rejects an empty span, a non-digit, a leading zero, and a value too wide for the fields a type string feeds. Width
+ * and length validity are out of scope here.
  */
 function parseUint(input: string, start: number, end: number): number {
   if (start >= end) {
@@ -77,8 +76,7 @@ function parseUint(input: string, start: number, end: number): number {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Parse a tuple literal `(field0,field1,...)` where the opening `(` is at
- * `start` and the substring to parse ends before `end`.
+ * Parse a tuple literal `(field0,field1,...)` whose opening `(` is at `start` and whose content ends before `end`.
  */
 function parseTuple(input: string, start: number, end: number): Uint8Array {
   if (input[start] !== "(") {
@@ -137,8 +135,8 @@ function parseBaseType(input: string, start: number, end: number): Uint8Array {
   if (segment === "string") return string_();
   if (segment.startsWith("(")) return parseTuple(input, start, end);
 
-  // A prefix with no width after it spells no type, so it falls through to the unknown-type report
-  // rather than being read as a width that is not there.
+  // A prefix with no width after it spells no type, so it falls through to the unknown-type report rather than being
+  // read as a width that is not there.
   if (segment.length > 4 && segment.startsWith("uint")) return uintN(parseUint(input, start + 4, end));
   if (segment.length > 3 && segment.startsWith("int")) return intN(parseUint(input, start + 3, end));
   if (segment.length > 5 && segment.startsWith("bytes")) return bytesN(parseUint(input, start + 5, end));
@@ -153,16 +151,16 @@ function parseBaseType(input: string, start: number, end: number): Uint8Array {
 /**
  * Parse a type segment from input[start..end).
  *
- * Scans backward from end to collect all `[...]` suffixes, identifies the
- * base type extent, parses the base, then applies suffixes left-to-right.
+ * Scans backward from end to collect all `[...]` suffixes, identifies the base type extent, parses the base, then
+ * applies suffixes left-to-right.
  */
 function parseType(input: string, start: number, end: number): Uint8Array {
   if (start >= end) {
     throw new CallciumError("MALFORMED_TYPE_STRING", "Empty type segment");
   }
 
-  // Locate array suffixes by scanning backward, reading no length yet: the base names the type, so
-  // an unrecognised one is reported before a suffix it carries is parsed.
+  // Locate array suffixes by scanning backward, reading no length yet: the base names the type, so an unrecognised one
+  // is reported before a suffix it carries is parsed.
   const spans: Array<[number, number]> = [];
   let baseEnd = end;
 
@@ -182,8 +180,7 @@ function parseType(input: string, start: number, end: number): Uint8Array {
 
   let desc = parseBaseType(input, start, baseEnd);
 
-  // Apply suffixes left-to-right: the leftmost suffix is the outermost array.
-  // A dynamic array spells no length at all.
+  // Apply suffixes left-to-right: the leftmost suffix is the outermost array. A dynamic array spells no length at all.
   for (const [innerStart, innerEnd] of spans) {
     desc = array(desc, innerStart === innerEnd ? undefined : parseUint(input, innerStart, innerEnd));
   }

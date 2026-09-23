@@ -13,8 +13,7 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
     /// @dev An address no benchmark binds, so a lookup against it takes the miss path.
     address internal constant UNBOUND_TARGET = address(0xffff);
 
-    /// @dev A selector no benchmark binds, so a lookup against it finds neither a target binding
-    /// nor a default one.
+    /// @dev A selector no benchmark binds, so a lookup against it finds neither a target binding nor a default one.
     bytes4 internal constant UNBOUND_SELECTOR = bytes4(0x12345678);
 
     /// @dev A hash no benchmark stores, so a lookup against it takes the miss path.
@@ -23,8 +22,8 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
     bytes internal policy;
     bytes32 internal policyHash;
 
-    /// @dev A policy setUp deliberately leaves unstored, so a benchmark that stores it pays for
-    /// validation and the SSTORE2 deploy instead of hitting the hash-keyed short circuit.
+    /// @dev A policy setUp deliberately leaves unstored, so a benchmark that stores it pays for validation and the
+    /// SSTORE2 deploy instead of hitting the hash-keyed short circuit.
     bytes internal unstoredPolicy;
 
     address internal target;
@@ -72,8 +71,8 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
         }
     }
 
-    /// @dev The series varies descriptor complexity, so each rule addresses a member of its
-    /// signature rather than the composite itself, which no operator can read.
+    /// @dev The series varies descriptor complexity, so each rule addresses a member of its signature rather than the
+    /// composite itself, which no operator can read.
     function _buildDescriptorComplexityFixtures() internal {
         // forgefmt: disable-next-item
         policyTuple = PolicyBuilder.create("baz((address,uint256,bool))")

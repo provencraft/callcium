@@ -4,9 +4,8 @@ import { cn } from "@/lib/utils";
 /**
  * Byte-by-byte hex renderer with span highlighting.
  *
- * Bytes belonging to the active span glow; bytes mapped to any span read at full
- * contrast; unmapped framing bytes recede. Hover resolves the owning span via an
- * event-delegated `data-index`; an optional `onSelect` pins a span on click (tap).
+ * Bytes in the active span glow; bytes mapped to any span read at full contrast; unmapped framing bytes recede. Hover
+ * resolves the owning span via an event-delegated `data-index`; an optional `onSelect` pins a span on click (tap).
  */
 export function HexDump({
   hex,
@@ -30,8 +29,7 @@ export function HexDump({
   };
 
   return (
-    // Hover and tap are pointer gestures with no per-byte keyboard equivalent; consumers expose the
-    // same spans through focusable rows.
+    // Hover and tap have no per-byte keyboard equivalent; consumers expose the same spans through focusable rows.
     // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
     <div
       className="flex flex-wrap gap-x-0.5 gap-y-0.5 font-mono text-xs leading-relaxed"

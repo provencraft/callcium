@@ -115,8 +115,7 @@ contract PolicyBuilderBuildTest is PolicyBuilderTest {
     }
 
     function test_RevertWhen_MiddleGroupEmpty() public {
-        // Build a draft with 3 groups where the middle one is empty.
-        // Group 0: has constraint. Group 1: empty. Group 2: has constraint.
+        // Build a draft with 3 groups where the middle one is empty: groups 0 and 2 each have a constraint.
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(1))).or();
 
         // Manually inject group 2 with a constraint while leaving group 1 empty.

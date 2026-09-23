@@ -16,9 +16,8 @@ export type Span = { start: number; end: number };
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Execution context for context-scoped rules.
- * Each property maps to a well-known EVM execution environment value.
- * Only the properties referenced by the policy need to be supplied.
+ * Execution context for context-scoped rules. Each property maps to a well-known EVM execution environment value. Only
+ * the properties referenced by the policy need to be supplied.
  */
 export type Context = {
   msgSender?: Address;
@@ -52,8 +51,8 @@ export type SelectorMismatchViolation = {
 };
 
 /**
- * A rule referenced a context property not supplied in the execution context — a context-scoped
- * subject, or a context reference operand on either scope.
+ * A rule referenced a context property not supplied in the execution context — a context-scoped subject, or a context
+ * reference operand on either scope.
  */
 export type MissingContextViolation = {
   code: "MISSING_CONTEXT";
@@ -78,8 +77,7 @@ export type MissingContextViolation = {
  * - `resolvedValue` absent, `elementIndex` absent — existential-aggregate failure (no element satisfied).
  * - `resolvedValue` absent, `elementIndex` present — per-element failure where the leaf could not be loaded.
  *
- * For length operations (`isLengthOp(opCode)`), `resolvedValue` is a hex-encoded count
- * rather than a 32-byte ABI word.
+ * For length operations (`isLengthOp(opCode)`), `resolvedValue` is a hex-encoded count rather than a 32-byte ABI word.
  */
 export type ValueMismatchViolation = {
   code: "VALUE_MISMATCH";
@@ -95,8 +93,8 @@ export type ValueMismatchViolation = {
   typeCode: number;
   resolvedValue?: Hex;
   /**
-   * Resolved runtime value of a reference operand as a 32-byte word; present when the
-   * operator's operand names a reference resolved at enforcement, not a literal.
+   * Resolved runtime value of a reference operand as a 32-byte word; present when the operator's operand names a
+   * reference resolved at enforcement, not a literal.
    */
   resolvedOperand?: Hex;
   elementIndex?: number;
@@ -121,8 +119,8 @@ type CalldataNavigationVariant<C extends NavigationViolationCode> = {
 /**
  * Calldata structure prevented the rule from being evaluated.
  *
- * The operator was never applied; `opCode`, `operandData`, `typeCode`, and `elementIndex`
- * are diagnostic context describing the failing site, not a constraint claim.
+ * The operator was never applied; `opCode`, `operandData`, `typeCode`, and `elementIndex` are diagnostic context
+ * describing the failing site, not a constraint claim.
  *
  * A union of per-code variants, narrowable with `Extract<Violation, { code: "..." }>`.
  */
@@ -173,8 +171,7 @@ export type QuantifierEmptyArrayViolation = {
 /**
  * Structured details of a single rule failure during enforcement.
  *
- * Carries semantic data only; no message strings.
- * Discriminate on `code` to narrow to the matching variant.
+ * Carries semantic data only; no message strings. Discriminate on `code` to narrow to the matching variant.
  */
 export type Violation =
   | MissingSelectorViolation
@@ -277,8 +274,7 @@ export type IssueCategory = "typeMismatch" | "contradiction" | "redundancy" | "v
 /**
  * Machine-readable code for a policy validation issue.
  *
- * Each code names one finding of the semantic validator and matches the constant of the same
- * name in the Solidity `IssueCode` library.
+ * Each code names one finding of the semantic validator, matching the same-named Solidity `IssueCode` constant.
  */
 export type IssueCode =
   // Type mismatch.

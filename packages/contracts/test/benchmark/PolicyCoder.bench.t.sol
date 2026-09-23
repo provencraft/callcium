@@ -16,9 +16,8 @@ import { PolicyCoderHarness } from "test/harnesses/PolicyCoderHarness.sol";
 
 /// @dev Base contract for PolicyCoder benchmarks with pre-built fixtures.
 abstract contract PolicyCoderBench is Test {
-    /// @dev Selector written into every encoded policy header. The fixtures pair it with a wide,
-    /// deeply nested descriptor rather than the signature it hashes, because encoding cost does not
-    /// depend on which selector the header carries.
+    /// @dev Selector written into every encoded policy header. The fixtures pair it with a wide, deeply nested
+    /// descriptor rather than the signature it hashes, since encoding cost is independent of the selector.
     bytes4 internal constant SELECTOR = bytes4(keccak256("foo(uint256)"));
 
     /// @dev Nesting depth of the first parameter, which every deep-path fixture descends.
@@ -27,8 +26,7 @@ abstract contract PolicyCoderBench is Test {
     /// @dev Field index that descends one nesting level; the other fields of a level terminate.
     uint16 internal constant DESCEND_FIELD = 1;
 
-    /// @dev Top-level parameter count: the nested first parameter, then one elementary parameter
-    /// per rule the widest fixture addresses.
+    /// @dev Top-level count: the nested first parameter, then one elementary parameter per rule in the widest fixture.
     uint256 internal constant PARAM_COUNT = 101;
 
     PolicyCoderHarness internal harness;
@@ -114,8 +112,8 @@ abstract contract PolicyCoderBench is Test {
                               SNAPSHOT HELPERS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Snapshots the harness call just made and rejects a blob that is not well-formed, so a
-    /// fixture that stops encoding what its name claims fails instead of recording a number.
+    /// @dev Snapshots the harness call just made and rejects a blob that is not well-formed, so a fixture that stops
+    /// encoding what its name claims fails instead of recording a number.
     function _benchEncode(bytes memory policy, string memory name) internal {
         vm.snapshotGasLastCall("PolicyCoder.encode", name);
         Policy.validate(policy);
@@ -131,8 +129,8 @@ abstract contract PolicyCoderBench is Test {
                                  DESCRIPTOR
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Builds the descriptor every fixture path navigates: a nested first parameter that
-    /// descends through one field of each level, followed by elementary parameters.
+    /// @dev Builds the descriptor every fixture path navigates: a nested first parameter that descends through one
+    /// field of each level, followed by elementary parameters.
     function _buildDescriptor() internal pure returns (bytes memory) {
         bytes memory nested =
             TypeDesc.tuple_(TypeDesc.uint256_(), TypeDesc.uint256_(), TypeDesc.uint256_(), TypeDesc.uint256_());
@@ -183,10 +181,9 @@ abstract contract PolicyCoderBench is Test {
                              GROUP CONSTRUCTION
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev Creates groups with the specified count, each with rulesPerGroup rules. Operands are
-    /// seeded from both indices, so the groups hash distinctly and the canonicalization sort runs
-    /// on the distinct keys a real policy presents rather than on an all-equal degenerate input.
-    /// `identicalGroups` covers the equal-key case deliberately.
+    /// @dev Creates groups with the specified count, each with rulesPerGroup rules. Operands are seeded from both
+    /// indices, so the groups hash distinctly and the canonicalization sort runs on the distinct keys a real policy
+    /// presents rather than on an all-equal degenerate input. `identicalGroups` covers the equal-key case deliberately.
     function _makeGroups(
         uint256 groupCount,
         uint256 rulesPerGroup
@@ -374,8 +371,8 @@ abstract contract PolicyCoderBench is Test {
         longCommonPrefix = _makeLongCommonPrefixGroup();
     }
 
-    /// @dev Creates a path of the specified depth descending the nested first parameter and
-    /// resting on an elementary field, which is what an operator can address.
+    /// @dev Creates a path of the specified depth descending the nested first parameter and resting on an elementary
+    /// field, which is what an operator can address.
     function _makeDeepPath(uint256 depth) internal pure returns (bytes memory) {
         uint16[] memory steps = new uint16[](depth);
         for (uint256 i = 1; i + 1 < depth; ++i) {
@@ -384,8 +381,8 @@ abstract contract PolicyCoderBench is Test {
         return Path.encode(steps);
     }
 
-    /// @dev Creates a path that descends every level of the nested first parameter, resting on the
-    /// innermost tuple. Every field of that tuple is elementary, so any step extends it.
+    /// @dev Creates a path that descends every level of the nested first parameter, resting on the innermost tuple.
+    /// Every field of that tuple is elementary, so any step extends it.
     function _makeDescentPath(uint256 depth) internal pure returns (bytes memory) {
         uint16[] memory steps = new uint16[](depth);
         for (uint256 i = 1; i < depth; ++i) {

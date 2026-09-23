@@ -106,9 +106,8 @@ library PolicyCoder {
     //////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Encodes `groups` into the canonical policy blob with embedded descriptor.
-    /// @dev Canonicalization ensures the same logical policy always produces identical bytes,
-    /// regardless of the order rules or groups are provided. This is critical for deterministic
-    /// policy hashing and onchain verification.
+    /// @dev Canonicalization ensures the same logical policy always produces identical bytes, regardless of the order
+    /// rules or groups are provided. This is critical for deterministic policy hashing and onchain verification.
     /// @param groups The groups to encode.
     /// @param selector The 4-byte function selector.
     /// @param desc The function descriptor to embed.
@@ -181,8 +180,8 @@ library PolicyCoder {
         // forge-lint: disable-next-line(unsafe-typecast)
         buffer = buffer.pUint8(uint8(groupCount));
 
-        // Canonicalization step 2: a lone group is already in canonical position, so its rules go
-        // straight into the output. Group header: ruleCount(2) | groupSize(4).
+        // Canonicalization step 2: a lone group is already in canonical position, so its rules go straight into the
+        // output. Group header: ruleCount(2) | groupSize(4).
         if (groupCount == 1) {
             Rule[] memory rules = groups[0].rules;
             // forge-lint: disable-next-line(unsafe-typecast) bounded by the overflow checks in _measureGroup.
@@ -190,8 +189,8 @@ library PolicyCoder {
             return _emitRules(buffer, rules).data;
         }
 
-        // Several groups are ordered by ascending hash over their rule bytes, so each is serialized
-        // first and its bytes copied out in that order.
+        // Several groups are ordered by ascending hash over their rule bytes, so each is serialized first and its bytes
+        // copied out in that order.
         bytes[] memory groupRules = new bytes[](groupCount);
         for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
             Rule[] memory rules = groups[groupIndex].rules;
@@ -210,9 +209,8 @@ library PolicyCoder {
         return buffer.data;
     }
 
-    /// @dev Returns the total wire size of a group's rules, checking that the group's counts and
-    /// each rule's fields fit their encoded field widths.
-    /// The total is implied to fit uint32: ruleCount and each ruleSize both fit uint16.
+    /// @dev Returns the total wire size of a group's rules, checking that the group's counts and each rule's fields fit
+    /// their encoded field widths. The total is implied to fit uint32: ruleCount and each ruleSize both fit uint16.
     function _measureGroup(Rule[] memory rules, uint256 groupIndex) private pure returns (uint256 groupSize) {
         uint256 ruleCount = rules.length;
         require(ruleCount != 0, EmptyGroup(groupIndex));
@@ -248,9 +246,9 @@ library PolicyCoder {
         return buffer;
     }
 
-    /// @dev Compiles every calldata rule's hint, then sorts each group's rules in place.
-    /// Rules sort by (scope, pathDepth, pathBytes, op) so equivalent rule sets always serialize
-    /// identically. Hints compile first because they are part of the rule bytes the group hash covers.
+    /// @dev Compiles every calldata rule's hint, then sorts each group's rules in place. Rules sort by (scope,
+    /// pathDepth, pathBytes, op) so equivalent rule sets always serialize identically. Hints compile first because they
+    /// are part of the rule bytes the group hash covers.
     function _compileAndSortRules(Group[] memory groups, bytes memory desc) private pure {
         uint256 groupCount = groups.length;
         for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
@@ -289,8 +287,7 @@ library PolicyCoder {
         }
     }
 
-    /// @dev Returns true if `left` should come before `right`
-    /// per sort key: (scope, pathDepth, pathBytes, opCode, opData).
+    /// @dev Returns true if `left` sorts before `right` by (scope, pathDepth, pathBytes, opCode, opData).
     function _less(Rule memory left, Rule memory right) private pure returns (bool) {
         if (left.scope != right.scope) return left.scope < right.scope;
 
@@ -337,8 +334,8 @@ library PolicyCoder {
         return PF.RULE_FIXED_OVERHEAD + pathLength + hintLength + dataLength;
     }
 
-    /// @dev Appends one rule's wire encoding to `buffer`:
-    /// size(2) | scope(1) | depth(1) | path | hint | opCode(1) | dataLength(2) | data.
+    /// @dev Appends one rule's wire encoding to `buffer`: size(2) | scope(1) | depth(1) | path | hint | opCode(1) |
+    /// dataLength(2) | data.
     function _emitRule(
         DynamicBufferLib.DynamicBuffer memory buffer,
         Rule memory rule
@@ -406,8 +403,8 @@ library PolicyCoder {
             abi.encodePacked(policy[opCodeOffset], LibBytes.slice(policy, dataOffset, dataOffset + dataLength));
     }
 
-    /// @dev Groups rules by (scope, path, hint) into Constraints. The hint joins the key so that
-    /// rules whose stored hints diverge stay separate constraints instead of collapsing into one.
+    /// @dev Groups rules by (scope, path, hint) into Constraints. The hint joins the key so that rules whose stored
+    /// hints diverge stay separate constraints instead of collapsing into one.
     function _groupRulesIntoConstraints(Rule[] memory rules) private pure returns (Constraint[] memory) {
         uint256 ruleCount = rules.length;
         if (ruleCount == 0) return new Constraint[](0);
@@ -429,8 +426,8 @@ library PolicyCoder {
             }
 
             if (matchIndex == type(uint256).max) {
-                // Allocate operators at worst-case size so later appends can grow in-place
-                // via assembly without reallocation, then trim to actual count of 1.
+                // Allocate operators at worst-case size so later appends can grow in-place via assembly without
+                // reallocation, then trim to actual count of 1.
                 bytes[] memory operators = new bytes[](ruleCount);
                 operators[0] = rules[i].operator;
                 assembly ("memory-safe") {
@@ -447,8 +444,8 @@ library PolicyCoder {
                 keys[uniqueCount] = key;
                 ++uniqueCount;
             } else {
-                // Append into the pre-allocated slack. The array carries its logical length, so
-                // the length word grows before the write.
+                // Append into the pre-allocated slack. The array carries its logical length, so the length word grows
+                // before the write.
                 bytes[] memory operators = constraints[matchIndex].operators;
                 uint256 operatorCount = operators.length;
                 assembly ("memory-safe") {

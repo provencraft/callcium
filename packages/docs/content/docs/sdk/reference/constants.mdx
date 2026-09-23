@@ -89,7 +89,7 @@ function findContextProperty(code: number): ContextPropertyInfo | undefined;
 
 Map a raw type code byte to its ABI type label, structural category, and dynamism.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L372)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L369)
 
 ```ts
 function lookupTypeCode(code: number): TypeCodeInfo;
@@ -109,7 +109,7 @@ function lookupTypeCode(code: number): TypeCodeInfo;
 
 Return true when the operator code (with or without NOT flag) is a LENGTH_* variant.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L76)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L75)
 
 ```ts
 function isLengthOp(opCode: number): boolean;
@@ -129,7 +129,7 @@ function isLengthOp(opCode: number): boolean;
 
 Return true when the operator code (with or without NOT flag) is a *_CTX variant.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L82)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L81)
 
 ```ts
 function isContextOp(opCode: number): boolean;
@@ -211,16 +211,16 @@ Display metadata for a context property code.
 
 Display metadata for a descriptor type code.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L282)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L280)
 
 ### TypeClassInfo
 
 Structural classification without label.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L279)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L277)
 
 ### TypeClass
 
 Structural category for a descriptor type code.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L276)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L274)

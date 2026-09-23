@@ -22,9 +22,8 @@ function toWord64(hex: Hex): string {
 /**
  * Decode a single 32-byte ABI word into a human-readable string per type code.
  *
- * Renders integers as decimal, addresses as EIP-55 checksummed hex, bools as
- * `true`/`false`, fixed bytes as the left-aligned hex slice. Unknown types fall
- * back to a `0x`-prefixed hex word.
+ * Renders integers as decimal, addresses as EIP-55 checksummed hex, bools as `true`/`false`, fixed bytes as the
+ * left-aligned hex slice. Unknown types fall back to a `0x`-prefixed hex word.
  */
 function decodeOperand(hex32: string, typeCode: number): string {
   const raw = BigInt(`0x${hex32}`);
@@ -57,8 +56,8 @@ function decodeOperand(hex32: string, typeCode: number): string {
 /**
  * Split an operand payload into 32-byte hex chunks per operator arity.
  *
- * Variadic operators yield one chunk per 32-byte word, range operators yield
- * two, and the remainder yield one. Returned chunks are bare hex (no `0x`).
+ * Variadic operators yield one chunk per 32-byte word, range operators yield two, and the remainder yield one. Returned
+ * chunks are bare hex (no `0x`).
  */
 function operandChunks(dataHex: Hex, opBase: number): string[] {
   const hex = dataHex.slice(2);
@@ -76,8 +75,7 @@ function operandChunks(dataHex: Hex, opBase: number): string[] {
 /**
  * Decode an operator's operand payload into one human-readable string per operand.
  *
- * Operand arity is resolved from the operator code via `operandChunks`. Each
- * chunk is decoded against the supplied type code.
+ * Operand arity comes from the operator code via `operandChunks`; each chunk decodes against the supplied type code.
  */
 export function decodeOperandsFromData(dataHex: Hex, typeCode: number, opBase: number): string[] {
   // A context reference operand names a context property, not a value of the target's type.
@@ -93,11 +91,9 @@ export function decodeOperandsFromData(dataHex: Hex, typeCode: number, opBase: n
 /**
  * Decode a single hex value into a human-readable string per type code.
  *
- * Defensively normalizes inputs to a 32-byte word — callers passing a full ABI
- * word receive lossless decoding (essential for left-aligned `bytesN`); callers
- * passing compact bigint hex receive correct decoding for right-aligned types
- * (integers, addresses, bools) at the cost of zeroed high bytes for fixed-bytes
- * types.
+ * Defensively normalizes inputs to a 32-byte word — callers passing a full ABI word receive lossless decoding
+ * (essential for left-aligned `bytesN`); callers passing compact bigint hex receive correct decoding for right-aligned
+ * types (integers, addresses, bools) at the cost of zeroed high bytes for fixed-bytes types.
  */
 export function decodeValue(hex: Hex, typeCode: number): string {
   return decodeOperand(toWord64(hex), typeCode);
@@ -110,9 +106,8 @@ export function decodeValue(hex: Hex, typeCode: number): string {
 /**
  * Join rendered operands into one display string, bracketed by operator arity.
  *
- * A set is braced (`{a, b}`) and a range is bracketed (`[lo, hi]`), matching the
- * notation the policy spec uses for `OP_IN` and `OP_BETWEEN`. A single operand
- * carries no brackets.
+ * A set is braced (`{a, b}`) and a range is bracketed (`[lo, hi]`), matching the notation the policy spec uses for
+ * `OP_IN` and `OP_BETWEEN`. A single operand carries no brackets.
  */
 export function formatOperandList(arity: Operands, operands: readonly string[]): string {
   if (arity === "variadic") return `{${operands.join(", ")}}`;

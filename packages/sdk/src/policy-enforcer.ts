@@ -55,8 +55,8 @@ function contextValueToWord(value: bigint | Address): bigint {
  * @param callData - ABI-encoded call data as 0x-prefixed hex string.
  * @param context - Optional execution context for context-scoped rules.
  * @returns Pass with matched group index, or fail with one violation per evaluated failing group.
- * @throws {CallciumError} If the policy blob is structurally malformed, or a context value a rule
- * reads is not an address or an integer a 32-byte word represents.
+ * @throws {CallciumError} If the policy blob is structurally malformed, or a context value a rule reads is not an
+ * address or an integer a 32-byte word represents.
  */
 function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
   const { policy: decoded, data: policyBytes } = decodePolicy(policy);
@@ -123,8 +123,8 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
  * @param callData - ABI-encoded call data as 0x-prefixed hex string.
  * @param context - Optional execution context for context-scoped rules.
  * @throws {PolicyViolationError} If the policy rejects the call data.
- * @throws {CallciumError} If the policy blob is structurally malformed, or a context value a rule
- * reads is not an address or an integer a 32-byte word represents.
+ * @throws {CallciumError} If the policy blob is structurally malformed, or a context value a rule reads is not an
+ * address or an integer a 32-byte word represents.
  */
 function enforce(policy: Hex, callData: Hex, context?: Context): void {
   const result = check(policy, callData, context);
@@ -182,8 +182,8 @@ function evaluateRule(
 type ReferenceOperand = bigint | { ctxTypeCode: number };
 
 /**
- * Resolve a context reference operand word to the referenced context property's value as a raw word.
- * Returns the missing property's type code when the context does not supply it.
+ * Resolve a context reference operand word to the referenced context property's value as a raw word. Returns the
+ * missing property's type code when the context does not supply it.
  */
 function resolveContextOperand(operandData: Uint8Array, context?: Context): ReferenceOperand {
   const propertyInfo = lookupContextProperty(Number(toBigInt(operandData, 0)));
@@ -281,9 +281,8 @@ type TargetResult =
 /**
  * Load the value at a resolved target offset and apply the operator.
  *
- * `value` is normalised at the decision point: length operators yield the byte/element
- * count; scalar operators preserve the full 32-byte ABI word, keeping left-aligned `bytesN`
- * decodable. A passing target allocates no string.
+ * `value` is normalised at the decision point: length operators yield the byte/element count; scalar operators preserve
+ * the full 32-byte ABI word, keeping left-aligned `bytesN` decodable. A passing target allocates no string.
  */
 function evalTarget(
   callData: Uint8Array,
@@ -539,8 +538,8 @@ function evaluateQuantified(
     let elem: number = slot;
     if (elemIsDynamic) {
       const followed = follow(callDataBytes, elems, slot);
-      // Navigation failures abort under every quantifier: calldata the enforcer cannot read is
-      // not an element that merely fails the operator.
+      // Navigation failures abort under every quantifier: calldata the enforcer cannot read is not an element that
+      // merely fails the operator.
       if (typeof followed !== "number") return navigationViolation(frame, followed.code, elemIndex);
       elem = followed;
     }
@@ -554,9 +553,8 @@ function evaluateQuantified(
 
     const applied = evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData, reference);
     if ("error" in applied) {
-      // Error results end the rule whatever the quantifier: a later element cannot rescue
-      // calldata the enforcer cannot read (an abort effect), and a missing context
-      // property is missing for every element alike (group-local).
+      // Error results end the rule whatever the quantifier: a later element cannot rescue calldata the enforcer cannot
+      // read (an abort effect), and a missing context property is missing for every element alike (group-local).
       return targetViolation(frame, applied, elemIndex);
     }
 

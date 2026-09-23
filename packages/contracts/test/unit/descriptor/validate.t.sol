@@ -29,9 +29,9 @@ contract ValidateTest is DescriptorTest {
     }
 
     function test_StaticArrayAddressMaxLength() public pure {
-        // Static array of address[65535]: [code:80][meta:fff007][elem:41][length:ffff].
-        // Note: staticWords = 0xfff (max 12-bit value), but actual count is limited.
-        // For maxLength test, staticWords would overflow. Using 4095 words max.
+        // Static array of address[65535]: [code:80][meta:fff007][elem:41][length:ffff]. Note: staticWords = 0xfff (max
+        // 12-bit value), but actual count is limited. For maxLength test, staticWords would overflow. Using 4095 words
+        // max.
         Descriptor.validate(hex"020180fff007410fff");
     }
 
@@ -41,9 +41,8 @@ contract ValidateTest is DescriptorTest {
     }
 
     function test_TupleOfArrayAddress() public pure {
-        // Tuple of (address[]): [code:90][meta:00000b][fieldCount:0001][dynArray].
-        // Inner dynArray: [81][000005][41] = 5 bytes.
-        // Outer tuple: nodeLength = 1+3+2+5 = 11 = 0x00b, staticWords = 0 (dynamic).
+        // Tuple of (address[]): [code:90][meta:00000b][fieldCount:0001][dynArray]. Inner dynArray: [81][000005][41] = 5
+        // bytes. Outer tuple: nodeLength = 1+3+2+5 = 11 = 0x00b, staticWords = 0 (dynamic).
         Descriptor.validate(hex"02019000000b00018100000541");
     }
 
@@ -89,19 +88,16 @@ contract ValidateTest is DescriptorTest {
     }
 
     function test_RevertWhen_NestedInvalidComposite() public {
-        // Tuple containing a static array with length=0.
-        // Outer tuple: [code:90][meta][fieldCount:0001][inner array].
-        // Inner static array: [code:80][meta:000007][elem:41][length:0000].
-        // Inner nodeLength=7 = 4+1+2. Outer nodeLength = TUPLE_HEADER_SIZE(6) + 7 = 13 = 0x0d.
-        // Inner staticWords=0 (length=0 → 0 words). Outer staticWords=0.
+        // Tuple containing a static array with length=0. Outer tuple: [code:90][meta][fieldCount:0001][inner array].
+        // Inner static array: [code:80][meta:000007][elem:41][length:0000]. Inner nodeLength=7 = 4+1+2. Outer
+        // nodeLength = TUPLE_HEADER_SIZE(6) + 7 = 13 = 0x0d. Inner and outer staticWords=0 (length=0 → 0 words).
         vm.expectRevert(abi.encodeWithSelector(Descriptor.InvalidArrayLength.selector, 8, 0));
         Descriptor.validate(hex"02019000000d000180000007410000");
     }
 
     function test_NestedValidComposite() public pure {
-        // Tuple containing a valid static array: address[2].
-        // Inner static array: [code:80][meta:002007][elem:41][length:0002].
-        // nodeLength=7, staticWords=2. Outer nodeLength=6+7=13=0x0d, staticWords=2.
+        // Tuple containing a valid static array address[2], encoded [code:80][meta:002007][elem:41][length:0002]. Inner
+        // nodeLength=7 and staticWords=2; outer nodeLength=6+7=13=0x0d and staticWords=2.
         Descriptor.validate(hex"02019000200d0001800020074100" hex"02");
     }
 

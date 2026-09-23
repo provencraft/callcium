@@ -21,8 +21,8 @@ export function isSigned(typeCode: number): boolean {
 }
 
 /**
- * Return true when the type code represents a left-aligned type (fixed bytes or function),
- * whose value occupies the high bytes of the word with zero padding below.
+ * Return true when the type code represents a left-aligned type (fixed bytes or function), whose value occupies the
+ * high bytes of the word with zero padding below.
  */
 export function isLeftAligned(typeCode: number): boolean {
   return (
@@ -31,10 +31,9 @@ export function isLeftAligned(typeCode: number): boolean {
 }
 
 /**
- * Canonicalize a raw 256-bit calldata word to its ABI value for the declared type.
- * A scalar loaded from untrusted calldata may carry bits outside the declared width; masking
- * unsigned/address/bool/function/bytesN to width and sign-extending signed integers makes the
- * comparison use the canonical ABI value rather than the raw bytes.
+ * Canonicalize a raw 256-bit calldata word to its ABI value for the declared type. A scalar loaded from untrusted
+ * calldata may carry bits outside the declared width; masking unsigned/address/bool/function/bytesN to width and
+ * sign-extending signed integers makes the comparison use the canonical ABI value rather than the raw bytes.
  * @param value - The raw 256-bit word loaded from calldata.
  * @param typeCode - The declared type code of the value.
  * @returns The canonicalized 256-bit value.
@@ -115,13 +114,12 @@ function isIn(value: bigint, data: Uint8Array): boolean {
 }
 
 /**
- * Apply a single operator against a value and operand data.
- * Handles the NOT flag internally by inverting the base operator result.
+ * Apply a single operator against a value and operand data. Handles the NOT flag by inverting the base result.
  * @param opCode - Operator code, potentially OR'd with the NOT flag.
  * @param value - The 256-bit value to test (ignored for LENGTH_* operators).
  * @param valueLength - Runtime byte or element count, only meaningful for LENGTH_* operators.
- * @param operandData - Raw operand bytes (32 per operand, 64 for range operators); for a context
- *   reference operator, the referenced property's value as one word.
+ * @param operandData - Raw operand bytes (32 per operand, 64 for range operators); for a context reference operator,
+ *   the referenced property's value as one word.
  * @param typeCode - ABI type code, used to select signed vs. unsigned comparison.
  * @returns Whether the value satisfies the operator.
  */
@@ -294,8 +292,7 @@ const DYNAMIC_ARR = { typeClass: "dynamicArray", isDynamic: true } as const;
 const TUPLE = { typeClass: "tuple", isDynamic: false } as const;
 
 /**
- * Classify a type code into its structural category and dynamism.
- * Lightweight variant of `lookupTypeCode` that skips label computation.
+ * Classify a type code into its structural category and dynamism. A `lookupTypeCode` variant without labels.
  * @param code - A single-byte descriptor type code.
  * @returns Type class and whether the type is ABI-dynamic.
  * @throws {CallciumError} If the code is not a recognised type code.
@@ -330,8 +327,8 @@ export function isElementary(code: number): boolean {
 }
 
 /**
- * Determine whether a type code names a value an operator can read: a scalar word or a declared
- * length. Tuples, static arrays, and undefined codes address nothing.
+ * Determine whether a type code names a value an operator can read: a scalar word or a declared length. Tuples, static
+ * arrays, and undefined codes address nothing.
  * @param code - A single-byte descriptor type code.
  * @returns True when an operator can be applied to a target of this type.
  */

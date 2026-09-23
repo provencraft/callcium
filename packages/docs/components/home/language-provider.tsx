@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 
 export type Lang = "solidity" | "typescript";
 
-// Shared with Fumadocs Tabs `groupId`: a docs code group using this id and
-// `persist` picks up the visitor's landing choice from localStorage.
+// Shared with Fumadocs Tabs `groupId`: a docs code group using this id and `persist` picks up the visitor's landing
+// choice from localStorage.
 const STORAGE_KEY = "callcium-lang";
 
 type LanguageContextValue = { lang: Lang; setLang: (lang: Lang) => void };
@@ -18,8 +18,8 @@ function isLang(value: string | null): value is Lang {
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  // Default to Solidity for a deterministic SSR render; the stored choice is
-  // applied after mount (a brief Solidity-first paint is acceptable).
+  // Default to Solidity for a deterministic SSR render; the stored choice is applied after mount (a brief
+  // Solidity-first paint is acceptable).
   const [lang, setLangState] = useState<Lang>("solidity");
 
   useEffect(() => {

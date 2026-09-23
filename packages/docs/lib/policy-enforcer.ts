@@ -35,16 +35,14 @@ export type EnforceOutput = {
 
 /** Check a policy against calldata and classify the result. */
 export function checkPolicy(policy: Hex, callData: Hex, context?: Context): EnforceOutput {
-  // Decode once to surface descriptor params for downstream rendering. Re-uses
-  // the same decoder PolicyEnforcer.check runs internally; the duplicate cost
-  // is negligible at UI scale and keeps the engine surface clean.
+  // Decode once to surface descriptor params for downstream rendering. Re-uses the same decoder PolicyEnforcer.check
+  // runs internally; the duplicate cost is negligible at UI scale and keeps the engine surface clean.
   let params: ParamNode[] | undefined;
   try {
     const decoded = PolicyCoder.decode(policy);
     params = parseDescriptor(hexToBytes(decoded.descriptor));
   } catch {
-    // Defer error reporting to PolicyEnforcer.check below — its diagnostics
-    // are richer than a bare descriptor decode.
+    // Defer error reporting to PolicyEnforcer.check below — its diagnostics are richer than a bare descriptor decode.
   }
 
   let result: EnforceResult;

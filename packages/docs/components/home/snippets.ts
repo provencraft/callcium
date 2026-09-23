@@ -1,9 +1,8 @@
 /// Snippet source of truth
-// Parallel Solidity/TypeScript pairs for the homepage. Each pair shares line
-// count and 4-space indentation so the language switch swaps in place. Leading
-// comments follow the docs style: a struct definition (when the signature has
-// one) then the function signature using the struct name; trailing comments are
-// column-aligned. The TypeScript API mirrors the Solidity builder; both consume
+// Parallel Solidity/TypeScript pairs for the homepage. Each pair shares line count and 4-space indentation so the
+// language switch swaps in place. Leading comments follow the docs style: a struct definition (when the signature has
+// one) then the function signature using the struct name; trailing comments are column-aligned. The TypeScript API
+// mirrors the Solidity builder; both consume
 // @callcium/sdk / the Solidity library as written (illustrative, imports omitted).
 ///
 
@@ -35,8 +34,8 @@ PolicyEnforcer.enforce(policy, calldata);`,
 
 export type Feature = { id: string; label: string; blurb: string } & CodePair;
 
-// Each entry demonstrates one capability of the engine with neutral names.
-// The reader maps it to their own problem space, not use-case framing.
+// Each entry demonstrates one capability of the engine with neutral names. The reader maps it to their own problem
+// space, not use-case framing.
 export const FEATURES = [
   {
     id: "arguments",

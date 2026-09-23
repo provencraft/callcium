@@ -12,8 +12,8 @@ contract CanonicalizeTest is TypeRuleTest {
                               CLEAN INPUT IS A NO-OP
     /////////////////////////////////////////////////////////////////////////*/
 
-    // Honest, canonically-encoded values must pass through unchanged so normal
-    // enforcement behaviour is identical before and after canonicalization.
+    // Honest, canonically-encoded values must pass through unchanged so normal enforcement behaviour is identical
+    // before and after canonicalization.
 
     function testFuzz_CleanUintIsNoOp(uint256 widthIndex, uint256 value) public pure {
         uint8 code = uint8(bound(widthIndex, 0, 31)) + 1; // UINT8..UINT256
@@ -113,8 +113,8 @@ contract CanonicalizeTest is TypeRuleTest {
     }
 
     function test_FunctionClearsLowPaddingBytes() public pure {
-        // function is encoded identical to bytes24: the 24-byte value (20-byte address +
-        // 4-byte selector) is left-aligned in the high 24 bytes; the low 8 bytes are padding.
+        // function is encoded identical to bytes24: the 24-byte value (20-byte address + 4-byte selector) is
+        // left-aligned in the high 24 bytes; the low 8 bytes are padding.
         uint256 word = uint256(0x0102030405060708090a0b0c0d0e0f101112131415161718) << 64;
         bytes32 dirty = bytes32(word | uint256(0x0123456789abcdef));
         bytes32 got = TypeRule.canonicalize(dirty, TypeCode.FUNCTION);

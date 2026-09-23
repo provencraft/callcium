@@ -138,9 +138,8 @@ describe("array (dynamic)", () => {
     const result = array(elem);
     // [0x81][meta:3][elemDesc]
     expect(result[0]).toBe(TypeCode.DYNAMIC_ARRAY);
-    // nodeLength = ARRAY_HEADER_SIZE + elemDesc.length = 4 + 1 = 5
-    // staticWords = 0 (always dynamic)
-    // meta = (0 << 12) | 5 = 0x000005 encoded as 3 bytes big-endian
+    // nodeLength = ARRAY_HEADER_SIZE + elemDesc.length = 4 + 1 = 5 staticWords = 0 (always dynamic) meta = (0 << 12) |
+    // 5 = 0x000005 encoded as 3 bytes big-endian
     expect(result[1]).toBe(0x00);
     expect(result[2]).toBe(0x00);
     expect(result[3]).toBe(0x05);
@@ -178,10 +177,8 @@ describe("array (static)", () => {
     const result = array(elem, 4);
     // [0x80][meta:3][elemDesc][length:be16]
     expect(result[0]).toBe(TypeCode.STATIC_ARRAY);
-    // nodeLength = ARRAY_HEADER_SIZE + elemDesc.length + ARRAY_LENGTH_SIZE = 4 + 1 + 2 = 7
-    // elemStaticWords = 1 (uint256 is elementary static)
-    // staticWords = 4 * 1 = 4
-    // meta = (4 << 12) | 7 = 0x004007
+    // nodeLength = ARRAY_HEADER_SIZE + elemDesc.length + ARRAY_LENGTH_SIZE = 4 + 1 + 2 = 7 elemStaticWords = 1 (uint256
+    // is elementary static) staticWords = 4 * 1 = 4 meta = (4 << 12) | 7 = 0x004007
     expect(result[1]).toBe(0x00);
     expect(result[2]).toBe(0x40);
     expect(result[3]).toBe(0x07);
@@ -221,9 +218,7 @@ describe("tuple", () => {
     const result = tuple(fields);
     // [0x90][meta:3][fieldCount:be16][field0]
     expect(result[0]).toBe(TypeCode.TUPLE);
-    // nodeLength = TUPLE_HEADER_SIZE + 1 = 6 + 1 = 7
-    // staticWords = 1
-    // meta = (1 << 12) | 7 = 0x001007
+    // nodeLength = TUPLE_HEADER_SIZE + 1 = 6 + 1 = 7 staticWords = 1 meta = (1 << 12) | 7 = 0x001007
     expect(result[1]).toBe(0x00);
     expect(result[2]).toBe(0x10);
     expect(result[3]).toBe(0x07);
@@ -305,25 +300,23 @@ describe("static words overflow", () => {
 
 describe("node length overflow", () => {
   test("dynamic array rejects nodeLength > MAX_NODE_LENGTH", () => {
-    // A tuple with MAX_TUPLE_FIELDS elementary fields produces a descriptor of
-    // TUPLE_HEADER_SIZE + MAX_TUPLE_FIELDS = 6 + 4089 = 4095 bytes.
-    // Wrapping it in a dynamic array gives nodeLength = ARRAY_HEADER_SIZE + 4095 = 4099.
+    // A tuple with MAX_TUPLE_FIELDS elementary fields produces a descriptor of TUPLE_HEADER_SIZE + MAX_TUPLE_FIELDS = 6
+    // + 4089 = 4095 bytes. Wrapping it in a dynamic array gives nodeLength = ARRAY_HEADER_SIZE + 4095 = 4099.
     const bigTuple = tuple(Array.from({ length: DF.MAX_TUPLE_FIELDS }, () => uintN(256)));
     expect(bigTuple.length).toBe(DF.MAX_NODE_LENGTH);
     expectErrorCode(() => array(bigTuple), "NODE_LENGTH_TOO_LARGE");
   });
 
   test("static array rejects nodeLength > MAX_NODE_LENGTH", () => {
-    // Same big tuple as element, but in a static array: nodeLength =
-    // ARRAY_HEADER_SIZE + 4095 + ARRAY_LENGTH_SIZE = 4 + 4095 + 2 = 4101.
-    // The length=1 passes the MAX_STATIC_ARRAY_LENGTH check but nodeLength overflows.
+    // Same big tuple as element, but in a static array: nodeLength = ARRAY_HEADER_SIZE + 4095 + ARRAY_LENGTH_SIZE = 4 +
+    // 4095 + 2 = 4101. The length=1 passes the MAX_STATIC_ARRAY_LENGTH check but nodeLength overflows.
     const bigTuple = tuple(Array.from({ length: DF.MAX_TUPLE_FIELDS }, () => uintN(256)));
     expectErrorCode(() => array(bigTuple, 1), "NODE_LENGTH_TOO_LARGE");
   });
 
   test("tuple rejects nodeLength > MAX_NODE_LENGTH via large fields", () => {
-    // Two tuples of ~2045 elementary fields each produce ~2051-byte descriptors.
-    // Outer tuple totalFieldBytes = 2 * 2051 = 4102, nodeLength = 6 + 4102 = 4108.
+    // Two tuples of ~2045 elementary fields each produce ~2051-byte descriptors. Outer tuple totalFieldBytes = 2 * 2051
+    // = 4102, nodeLength = 6 + 4102 = 4108.
     const halfTuple = tuple(Array.from({ length: 2045 }, () => uintN(256)));
     expect(halfTuple.length).toBe(DF.TUPLE_HEADER_SIZE + 2045);
     expectErrorCode(() => tuple([halfTuple, halfTuple]), "NODE_LENGTH_TOO_LARGE");

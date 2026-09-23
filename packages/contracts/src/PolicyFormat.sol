@@ -107,8 +107,8 @@ library PolicyFormat {
     /// @dev Size of the `dataLength` field in bytes.
     uint256 internal constant RULE_DATALENGTH_SIZE = 2;
 
-    /// @dev Fixed byte overhead of a rule header, excluding `pathLength` and `dataLength`.
-    /// Breakdown: size(2) + scope(1) + depth(1) + opCode(1) + dataLength(2) = 7.
+    /// @dev Fixed byte overhead of a rule header, excluding `pathLength` and `dataLength`. Breakdown: size(2) +
+    /// scope(1) + depth(1) + opCode(1) + dataLength(2) = 7.
     // forgefmt: disable-next-item
     uint256 internal constant RULE_FIXED_OVERHEAD =
         RULE_SIZE_SIZE + RULE_SCOPE_SIZE + RULE_DEPTH_SIZE + RULE_OPCODE_SIZE + RULE_DATALENGTH_SIZE;

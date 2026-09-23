@@ -397,8 +397,8 @@ library Policy {
     }
 
     /// @notice Compiles a calldata rule path into its wire hint block.
-    /// @dev Reverts when a step leaves the structure the descriptor declares, quantifies over a
-    /// non-array node, or repeats a quantifier.
+    /// @dev Reverts when a step leaves the structure the descriptor declares, quantifies over a non-array node, or
+    /// repeats a quantifier.
     /// @param desc The descriptor bytes.
     /// @param path Path encoded as big-endian uint16 steps.
     /// @return The hint block bytes.
@@ -676,8 +676,8 @@ library Policy {
             MalformedHint(ruleOffset)
         );
 
-        // An operator reads either a scalar word or a declared length, so a target carrying
-        // neither — a tuple, a static array, or an undefined code — addresses nothing.
+        // An operator reads either a scalar word or a declared length, so a target carrying neither — a tuple, a static
+        // array, or an undefined code — addresses nothing.
         // forgefmt: disable-next-item
         require(
             TypeRule.isElementary(typeCode) || TypeRule.hasCalldataLength(typeCode),
@@ -697,8 +697,8 @@ library Policy {
         pure
     {
         uint256 typeCodeOffset = hintOffset + hintSize - PF.HINT_TARGET_SIZE + PF.HINT_TARGET_TYPECODE_OFFSET;
-        // A length operator reads the declared length a dynamic target resolves to, and a value
-        // operator reads a scalar word, so the target type fixes which family the rule may carry.
+        // A length operator reads the declared length a dynamic target resolves to, and a value operator reads a scalar
+        // word, so the target type fixes which family the rule may carry.
         // forgefmt: disable-next-item
         require(
             TypeRule.hasCalldataLength(uint8(self[typeCodeOffset])) == OpRule.isLengthOp(opBase),

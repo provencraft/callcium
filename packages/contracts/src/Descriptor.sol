@@ -125,8 +125,8 @@ library Descriptor {
     }
 
     /// @notice Reads the type code and composite meta at `offset` without bounds checks.
-    /// @dev Caller must ensure `offset` starts a node within a validated descriptor. The meta
-    /// fields are meaningful only for composite codes; elementary codes carry none.
+    /// @dev Caller must ensure `offset` starts a node within a validated descriptor. The meta fields are meaningful
+    /// only for composite codes; elementary codes carry none.
     /// @param self The descriptor bytes.
     /// @param offset Start offset of a type descriptor within `self`.
     /// @return code The type code byte.
@@ -283,8 +283,7 @@ library Descriptor {
         return typeInfo;
     }
 
-    /// @notice Resolves the type at path and the declared length of the static array a
-    /// quantifier step descends into.
+    /// @notice Resolves the type at path and the declared length of the static array a quantifier step descends into.
     /// @dev The length is zero when the path holds no quantifier step over a static array.
     /// @param self The descriptor bytes.
     /// @param path Path encoded as big-endian uint16 steps.
@@ -312,8 +311,8 @@ library Descriptor {
     }
 
     /// @notice Resolves the type at path, reporting navigability faults through the return value.
-    /// @dev Reverts on structural faults (unsupported version, malformed nodes); navigability
-    /// faults are reported through the fault return.
+    /// @dev Reverts on structural faults (unsupported version, malformed nodes); navigability faults are reported
+    /// through the fault return.
     /// @param self The descriptor bytes.
     /// @param path Path encoded as big-endian uint16 steps.
     /// @return fault The navigability fault, or none on success.
@@ -357,8 +356,8 @@ library Descriptor {
                 // forge-lint: disable-next-line(unsafe-typecast)
                 descOffset = tupleFieldOffset(self, descOffset, uint16(childIndex));
             } else if (code == TypeCode.STATIC_ARRAY) {
-                // Quantifier sentinels descend into the element type; only concrete
-                // indices are bounds-checked against the declared array length.
+                // Quantifier sentinels descend into the element type; only concrete indices are bounds-checked against
+                // the declared array length.
                 if (childIndex < Path.ANY) {
                     uint256 arrayLength = staticArrayLength(self, descOffset);
                     if (childIndex >= arrayLength) {

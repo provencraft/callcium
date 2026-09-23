@@ -179,12 +179,12 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: IssueCode; mes
     if (isBitmaskOp(opBase) && !isBitmaskCompatible(typeCode)) {
       return { code: "BITMASK_ON_INVALID", message: "Bitmask operator used on incompatible type" };
     }
-    // IN on bool is degenerate: the two-value domain reduces every set to an equality, a tautology, or dead members.
+    // IN on bool is degenerate: two values reduce every set to an equality, a tautology, or dead members.
     if (opBase === Op.IN && typeCode === TypeCode.BOOL) {
       return { code: "IN_ON_BOOL", message: "IN operator used on boolean type" };
     }
-    // Context properties are addresses or uint256, so only those target classes can match, and
-    // an address is an identity rather than a magnitude, so it pairs under equality only.
+    // Context properties are addresses or uint256, so only those target classes can match, and an address is an
+    // identity rather than a magnitude, so it pairs under equality only.
     if (
       isContextOp(opBase) &&
       !(typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) &&
@@ -204,8 +204,7 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: IssueCode; mes
 }
 
 /**
- * True if operator `opCode` is allowed on a target with the given type info.
- * Tolerates the NOT flag on `opCode`.
+ * True if operator `opCode` is allowed on a target with the given type info. Tolerates the NOT flag on `opCode`.
  */
 export function isOpAllowed(opCode: number, typeInfo: TypeInfo): boolean {
   return getIncompat(opCode & ~Op.NOT, typeInfo) === null;
@@ -692,7 +691,7 @@ function updateSet(
   constraintIndex: number,
   issues: Issue[],
 ): void {
-  // Physical bounds: a member outside the type's domain never occurs, so it neither matches nor excludes anything.
+  // Physical bounds: a member outside the type's domain never occurs, so it matches and excludes nothing.
   for (const value of values) {
     if (isOutsideDomain(ctx.numeric, value)) {
       issues.push(ValidationIssue.outOfPhysicalBounds(false, groupIndex, constraintIndex, bigintToHex(value)));
@@ -783,9 +782,9 @@ function checkDuplicates(issues: Issue[], operators: Hex[], groupIndex: number, 
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Report a lone unnegated gte/lte pair (value or length domain) as fusible into the
- * corresponding single range operator. Fires only for a satisfiable pair on a compatible
- * type; contradictions and dominated bounds are already reported by the domain checks.
+ * Report a lone unnegated gte/lte pair (value or length domain) as fusible into the corresponding single range
+ * operator. Fires only for a satisfiable pair on a compatible type; contradictions and dominated bounds are already
+ * reported by the domain checks.
  */
 function checkFusibleRange(
   ctx: ConstraintContext,
@@ -924,8 +923,8 @@ function validateConstraint(
           ),
         );
       } else {
-        // Compatibility has already narrowed the target to an address or unsigned type,
-        // so the pairing reduces to whether both sides are addresses.
+        // Compatibility has already narrowed the target to an address or unsigned type, so the pairing reduces to
+        // whether both sides are addresses.
         const propertyIsAddress = property.typeCode === TypeCode.ADDRESS;
         const targetIsAddress = ctx.typeInfo.typeCode === TypeCode.ADDRESS;
         if (propertyIsAddress !== targetIsAddress) {
@@ -940,10 +939,9 @@ function validateConstraint(
         }
       }
     } else if (isValueOp(base)) {
-      // A non-canonical operand can never equal a canonicalized runtime value (PC-1), so the
-      // rule is unsatisfiable or vacuous; skip analyzing the garbage word. Scoped to the
-      // left-aligned types: numeric, address, and bool operands are already covered by the
-      // physical domain limits.
+      // A non-canonical operand can never equal a canonicalized runtime value (PC-1), so the rule is unsatisfiable or
+      // vacuous; skip analyzing the garbage word. Scoped to the left-aligned types: numeric, address, and bool operands
+      // are already covered by the physical domain limits.
       const typeCode = ctx.typeInfo.typeCode;
       if (isLeftAligned(typeCode)) {
         const nonCanonical = findNonCanonicalWord(opHex, typeCode);
@@ -962,10 +960,9 @@ function validateConstraint(
 
       if (base >= Op.EQ && base <= Op.BETWEEN) {
         if (base === Op.BETWEEN) {
-          // A negated range is a disjunction (value < low OR value > high); distributing the
-          // negation over the decomposed bounds would conjoin the complement halves into a
-          // spurious contradiction. Leave it un-analyzed, like a neq hole. Inverted bounds
-          // still surface: negating an empty range excludes nothing.
+          // A negated range is a disjunction (value < low OR value > high); distributing the negation over the
+          // decomposed bounds would conjoin the complement halves into a spurious contradiction. Leave it un-analyzed,
+          // like a neq hole. Inverted bounds still surface: negating an empty range excludes nothing.
           const { low, high } = readPair(opHex);
           if (!isNegated) {
             updateBound(ctx.numeric, Op.GTE, false, low, false, groupIndex, constraintIndex, issues);
@@ -1091,8 +1088,8 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
         const ctxId = steps[0]!;
         const property = findContextProperty(ctxId);
         if (!property) {
-          // An unassigned ID declares no type, so the analysis proceeds over the widest
-          // unsigned domain and the warning carries the ID.
+          // An unassigned ID declares no type, so the analysis proceeds over the widest unsigned domain and the warning
+          // carries the ID.
           issues.push(
             ValidationIssue.unknownContextProperty(
               groupIndex,
@@ -1108,10 +1105,9 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
       contexts.push(ctx);
     }
 
-    // A carried hint must equal the compilation of its own path; constraints without an encoding
-    // carry none, an empty one carries nothing to compare, and the encoder compiles theirs from
-    // the same descriptor. Reaching here means the path navigates the descriptor and quantifies at
-    // most once, so only the depth PWF-17 admits remains to be established.
+    // A carried hint must equal the compilation of its own path; constraints without an encoding carry none, an empty
+    // one carries nothing to compare, and the encoder compiles theirs from the same descriptor. Reaching here means the
+    // path navigates the descriptor and quantifies at most once, so only the PWF-17 depth check remains.
     if (
       constraint.scope === Scope.CALLDATA &&
       constraint.hint !== undefined &&
@@ -1138,11 +1134,10 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
  * Validate a policy for type mismatches, contradictions, redundancies, and vacuities.
  * @param data - The canonical policy data to validate.
  * @returns All validation issues found, ordered by group and constraint index.
- * @throws {CallciumError} If the descriptor is not well-formed; semantic validation is
- * defined only over a well-formed descriptor.
- * @throws {CallciumError} With code `EMPTY_PATH` when a constraint carries no path step, and
- * `INVALID_HEX` or `INVALID_OPERATOR_BYTES` when an operator is not a readable encoding. Analysis
- * is defined over canonical data, so these reject the input rather than report an issue on it.
+ * @throws {CallciumError} If the descriptor is malformed; semantic validation is defined only over a well-formed one.
+ * @throws {CallciumError} With code `EMPTY_PATH` when a constraint carries no path step, and `INVALID_HEX` or
+ * `INVALID_OPERATOR_BYTES` when an operator is not a readable encoding. Analysis is defined over canonical data, so
+ * these reject the input rather than report an issue on it.
  */
 function validate(data: PolicyData): Issue[] {
   const descBytes = hexToBytes(data.descriptor);

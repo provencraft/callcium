@@ -103,8 +103,7 @@ library PolicyValidator {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Validates policy data for semantic issues.
-    /// @dev Reverts when the descriptor is not well-formed; semantic validation is defined
-    /// only over a well-formed descriptor.
+    /// @dev Reverts on a malformed descriptor; semantic validation is defined only over a well-formed one.
     /// @param data The policy data to validate.
     /// @return All validation issues found.
     function validate(PolicyData memory data) internal pure returns (Issue[] memory) {
@@ -138,12 +137,11 @@ library PolicyValidator {
         Constraint[] memory constraints = data.groups[groupIndex];
         uint256 constraintCount = constraints.length;
 
-        // Rules within a group are AND-ed, so constraints on the same path interact.
-        // A ConstraintContext accumulates bound/set/bitmask state across all constraints
-        // sharing a (scope, path) pair, enabling cross-constraint contradiction detection.
-        // Every element is replaced before it is read, so the array is allocated as the word per
-        // element it physically is; typing the allocation would fill it with contexts that are all
-        // discarded. Its length grows with each context written, so it never reads past them.
+        // Rules within a group are AND-ed, so constraints on the same path interact. A ConstraintContext accumulates
+        // bound/set/bitmask state across all constraints sharing a (scope, path) pair, enabling cross-constraint
+        // contradiction detection. Every element is replaced before it is read, so the array is allocated as the word
+        // per element it physically is; typing the allocation would fill it with contexts that are all discarded. Its
+        // length grows with each context written, so it never reads past them.
         uint256[] memory slots = new uint256[](constraintCount);
         ConstraintContext[] memory contexts;
         assembly ("memory-safe") {
@@ -215,10 +213,9 @@ library PolicyValidator {
                 ctx = contexts[ctxIndex];
             }
 
-            // A carried hint must equal the compilation of its own path; constraints without an
-            // encoding carry none, and the encoder compiles theirs from the same descriptor. Reaching
-            // here means the path navigates the descriptor and quantifies at most once, so only the
-            // depth PWF-17 bounds remains to be established.
+            // A carried hint must equal the compilation of its own path; constraints without an encoding carry none,
+            // and the encoder compiles theirs from the same descriptor. Reaching here means the path navigates the
+            // descriptor and quantifies at most once, so only the depth PWF-17 bounds remains to be established.
             // forgefmt: disable-next-item
             if (
                 constraint.scope == PF.SCOPE_CALLDATA && constraint.hint.length != 0
@@ -308,8 +305,8 @@ library PolicyValidator {
                         ValidationIssue.unknownContextProperty(groupIndex, constraintIndex, ctxOperand, PF.CTX_MAX)
                     );
                 } else {
-                    // Compatibility has already narrowed the target to an address or unsigned type,
-                    // so the pairing reduces to whether both sides are addresses.
+                    // Compatibility has already narrowed the target to an address or unsigned type, so the pairing
+                    // reduces to whether both sides are addresses.
                     // forge-lint: disable-next-line(unsafe-typecast) bounded by the check above.
                     bool propertyIsAddress = TypeRule.contextPropertyType(uint16(ctxOperand)) == TypeCode.ADDRESS;
                     bool targetIsAddress = ctx.typeInfo.code == TypeCode.ADDRESS;
@@ -322,10 +319,9 @@ library PolicyValidator {
                     }
                 }
             } else if (OpRule.isValueOp(base)) {
-                // A non-canonical operand can never equal a canonicalized runtime value (PC-1),
-                // so the rule is unsatisfiable or vacuous; skip analyzing the garbage word.
-                // Scoped to the left-aligned types: numeric, address, and bool operands
-                // are already covered by the physical domain limits.
+                // A non-canonical operand can never equal a canonicalized runtime value (PC-1), so the rule is
+                // unsatisfiable or vacuous; skip analyzing the garbage word. Scoped to the left-aligned types: numeric,
+                // address, and bool operands are already covered by the physical domain limits.
                 uint8 typeCode = ctx.typeInfo.code;
                 if (TypeRule.isLeftAligned(typeCode)) {
                     (bool nonCanonical, bytes32 word, bytes32 canonical) = _findNonCanonicalWord(op, typeCode);
@@ -337,12 +333,10 @@ library PolicyValidator {
 
                 if (base >= OpCode.EQ && base <= OpCode.BETWEEN) {
                     if (base == OpCode.BETWEEN) {
-                        // A negated range is a disjunction (value < low OR value > high); the
-                        // single-interval accumulator cannot represent it, so leave it un-analyzed
-                        // rather than mismodel it as two AND-ed bounds, which falsely reports a
-                        // contradiction. Inverted bounds still surface: negating an empty range
-                        // excludes nothing. Positive between decomposes into a lower and an upper
-                        // bound.
+                        // A negated range is a disjunction (value < low OR value > high); the single-interval
+                        // accumulator cannot represent it, so leave it un-analyzed rather than mismodel it as two
+                        // AND-ed bounds, which falsely reports a contradiction. Inverted bounds still surface: negating
+                        // an empty range excludes nothing. Positive between decomposes into a lower and an upper bound.
                         (uint256 low, uint256 high) = _readPair(op);
                         if (!isNegated) {
                             _updateBound(
@@ -405,9 +399,9 @@ library PolicyValidator {
         _checkDuplicates(issues, operators, groupIndex, constraintIndex);
     }
 
-    /// @dev Reports a lone unnegated gte/lte pair (value or length domain) as fusible into the
-    /// corresponding single range operator. Fires only for a satisfiable pair on a compatible
-    /// type; contradictions and dominated bounds are already reported by the domain checks.
+    /// @dev Reports a lone unnegated gte/lte pair (value or length domain) as fusible into the corresponding single
+    /// range operator. Fires only for a satisfiable pair on a compatible type; contradictions and dominated bounds are
+    /// already reported by the domain checks.
     function _checkFusibleRange(
         ConstraintContext memory ctx,
         bytes[] memory operators,
@@ -434,8 +428,7 @@ library PolicyValidator {
         }
     }
 
-    /// @dev Returns whether the operators contain exactly one of each unnegated bound opcode,
-    /// along with the two operand values.
+    /// @dev Returns whether the operators hold exactly one of each unnegated bound opcode, and the two operand values.
     function _findLonePair(
         bytes[] memory operators,
         uint8 lowerOp,
@@ -468,8 +461,8 @@ library PolicyValidator {
         hasPair = lowerCount == 1 && upperCount == 1;
     }
 
-    /// @dev Updates a bound domain with a new operator and detects contradictions/redundancies.
-    /// Handles both numeric and length domains via the `isLength` flag for issue dispatch.
+    /// @dev Updates a bound domain with a new operator and detects contradictions/redundancies. Handles both numeric
+    /// and length domains via the `isLength` flag for issue dispatch.
     // forge-lint: disable-next-item(cyclomatic-complexity) branch count matches the spec table this dispatches on.
     function _updateBound(
         BoundDomain memory domain,
@@ -484,8 +477,8 @@ library PolicyValidator {
         private
         pure
     {
-        // Negated comparisons are converted to their positive equivalents: !gt(v) -> lte(v), etc.
-        // Negated equality (neq) is handled separately as a hole.
+        // Negated comparisons are converted to their positive equivalents: !gt(v) -> lte(v), etc. Negated equality
+        // (neq) is handled separately as a hole.
         if (isNegated) {
             if (base == OpCode.EQ) {
                 // A hole outside the type's domain excludes nothing.
@@ -554,8 +547,8 @@ library PolicyValidator {
         else if (base == OpCode.GT || base == OpCode.GTE) {
             bool inclusive = (base == OpCode.GTE);
             if (domain.hasLower) {
-                // Determine if the new bound is redundant (weaker or equal) or strictly tighter.
-                // At the same value, gt beats gte (stricter); gte after gt is silently looser.
+                // Determine if the new bound is redundant (weaker or equal) or strictly tighter. At the same value, gt
+                // beats gte (stricter); gte after gt is silently looser.
                 bool redundant = false;
                 bool strictlyBetter = false;
 
@@ -630,9 +623,8 @@ library PolicyValidator {
             }
         }
 
-        // Cross-checks: equality vs bounds.
-        // When both eq and a bound exist, exactly one of two issues applies: either eq is
-        // excluded by the bound (contradiction), or the bound is redundant because eq pins the value.
+        // Cross-checks: equality vs bounds. When both eq and a bound exist, exactly one of two issues applies: either
+        // eq is excluded by the bound (contradiction), or the bound is redundant because eq pins the value.
         if (changedEq || changedLower) {
             if (domain.hasEq && domain.hasLower) {
                 bool contradiction = domain.lowerInclusive
@@ -701,8 +693,7 @@ library PolicyValidator {
         private
         pure
     {
-        // Physical bounds: a member outside the type's domain never occurs, so it neither matches nor excludes
-        // anything.
+        // Physical bounds: a member outside the type's domain never occurs, so it matches and excludes nothing.
         for (uint256 i = 0; i < values.length; ++i) {
             if (_isOutsideDomain(ctx.numeric, values[i])) {
                 issues.push(ValidationIssue.outOfPhysicalBounds(false, groupIndex, constraintIndex, values[i]));
@@ -746,8 +737,8 @@ library PolicyValidator {
             }
 
             if (ctx.set.hasIn) {
-                // Multiple isIn() on the same path narrow the allowed set to their intersection.
-                // Allocate worst-case, fill matching elements, then trim via assembly.
+                // Multiple isIn() on the same path narrow the allowed set to their intersection. Allocate worst-case,
+                // fill matching elements, then trim via assembly.
                 uint256[] memory intersection = new uint256[](ctx.set.inValues.length);
                 uint256 intersectionCount = 0;
                 for (uint256 j = 0; j < ctx.set.inValues.length; ++j) {
@@ -789,8 +780,8 @@ library PolicyValidator {
     {
         if (!ctx.set.hasIn) return;
 
-        // Count isIn members not excluded by neq (holes) or notIn values.
-        // Both sources exclude independently, so holes are checked first as a fast path.
+        // Count isIn members not excluded by neq (holes) or notIn values. Both sources exclude independently, so holes
+        // are checked first as a fast path.
         uint256 possibleCount = 0;
         uint256 inCount = ctx.set.inValues.length;
         for (uint256 i = 0; i < inCount; ++i) {
@@ -989,8 +980,8 @@ library PolicyValidator {
         }
     }
 
-    /// @dev Scans the operator's 32-byte payload words for one that deviates from the
-    /// canonical encoding of the declared type. Trailing partial words are not scanned.
+    /// @dev Scans the operator's 32-byte payload words for one that deviates from the canonical encoding of the
+    /// declared type. Trailing partial words are not scanned.
     function _findNonCanonicalWord(
         bytes memory op,
         uint8 typeCode

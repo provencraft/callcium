@@ -86,9 +86,8 @@ contract CheckBench is PolicyEnforcerBench {
                               PATH DEPTH
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev The cheapest policy, and the baseline the operator and value-type series read against
-    /// as well. Those sections once carried their own copies of it, which recorded this number by
-    /// construction and could not diverge from it.
+    /// @dev The cheapest policy, and the baseline the operator and value-type series read against as well. Those
+    /// sections once carried their own copies of it, which recorded this number by construction and never diverged.
     function test_Depth1Elementary() public {
         _benchCheckPasses(elementaryEq, "depth_1_elementary");
     }
@@ -97,8 +96,7 @@ contract CheckBench is PolicyEnforcerBench {
         _benchCheckPasses(depth8VeryDeep, "depth_8_very_deep");
     }
 
-    /// @dev Also the value-type series' array row: no hint resolves an array element, so this is
-    /// the unhinted baseline for both.
+    /// @dev Also the value-type array row: no hint resolves array elements, so this is the unhinted baseline for both.
     function test_Depth2ArrayElem() public {
         _benchCheckPasses(arrayElem, "depth_2_array_elem");
     }
