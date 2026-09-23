@@ -11,7 +11,7 @@ export type BuilderExample = {
 export const EXAMPLES = [
   {
     name: "Restrict spender",
-    signature: "approve(address,uint256)",
+    signature: "approve(address spender, uint256 amount)",
     constraints: [
       {
         groupIndex: 0,
@@ -25,7 +25,7 @@ export const EXAMPLES = [
   },
   {
     name: "Cap transfer amount",
-    signature: "transfer(address,uint256)",
+    signature: "transfer(address to, uint256 amount)",
     constraints: [
       {
         groupIndex: 0,
@@ -39,7 +39,7 @@ export const EXAMPLES = [
   },
   {
     name: "Sender allowlist + cap",
-    signature: "transfer(address,uint256)",
+    signature: "transfer(address to, uint256 amount)",
     constraints: [
       {
         groupIndex: 0,
@@ -66,7 +66,7 @@ export const EXAMPLES = [
   },
   {
     name: "Recipient is sender",
-    signature: "transfer(address,uint256)",
+    signature: "transfer(address to, uint256 amount)",
     constraints: [
       {
         groupIndex: 0,
@@ -80,7 +80,8 @@ export const EXAMPLES = [
   },
   {
     name: "Deadline not passed",
-    signature: "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+    signature:
+      "swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline)",
     constraints: [
       {
         groupIndex: 0,
@@ -94,7 +95,7 @@ export const EXAMPLES = [
   },
   {
     name: "Multi-path approval",
-    signature: "approve(address,uint256)",
+    signature: "approve(address spender, uint256 amount)",
     constraints: [
       {
         groupIndex: 0,
@@ -132,7 +133,7 @@ export const EXAMPLES = [
   },
   {
     name: "Capped approval",
-    signature: "approve(address,uint256)",
+    signature: "approve(address spender, uint256 amount)",
     constraints: [
       {
         groupIndex: 0,
