@@ -79,6 +79,20 @@ export const EXAMPLES = [
     ],
   },
   {
+    name: "Deadline not passed",
+    signature: "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
+    constraints: [
+      {
+        groupIndex: 0,
+        config: {
+          scope: "calldata",
+          path: [4],
+          rules: [{ operator: "gteCtx", values: [BigInt(ContextProperty.BLOCK_TIMESTAMP)] }],
+        },
+      },
+    ],
+  },
+  {
     name: "Multi-path approval",
     signature: "approve(address,uint256)",
     constraints: [
