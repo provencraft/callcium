@@ -15,6 +15,7 @@ import { Descriptor } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError, type CallciumErrorCode } from "./errors";
 import {
+  isContextOp,
   isLengthOp,
   isLengthValidType,
   toBigInt,
@@ -328,12 +329,12 @@ export function decodePolicy(blob: Hex): { policy: DecodedPolicy; data: Uint8Arr
         }
       }
 
-      // An EQ_CTX operand word must be a defined context property ID.
-      if (opBase === Op.EQ_CTX) {
+      // A context reference operand word must be a defined context property ID.
+      if (isContextOp(opBase)) {
         if (toBigInt(data, dataStart) > BigInt(MAX_CONTEXT_PROPERTY_ID)) {
           throw new CallciumError(
             "UNKNOWN_CONTEXT_PROPERTY",
-            "EQ_CTX operand references an undefined context property",
+            "Context reference operand references an undefined context property",
             ruleOffset,
           );
         }

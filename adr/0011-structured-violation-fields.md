@@ -14,7 +14,7 @@ ADR-0009 fixed the violation vocabulary but left the carrier shape implicit. The
 
 A vocabulary decision cannot serve multiple consumers without a shape that carries the semantic data each consumer renders independently.
 
-The `EQ_CTX` operator resolves its operand — a context property reference — at enforcement time. `operandData` carries the reference, so without a dedicated field the value the target was compared against appears nowhere in the violation.
+The context reference operators (`EQ_CTX`, `GT_CTX`, `LT_CTX`, `GTE_CTX`, `LTE_CTX`) resolve their operand — a context property reference — at enforcement time. `operandData` carries the reference, so without a dedicated field the value the target was compared against appears nowhere in the violation.
 
 ## Decision
 
@@ -33,7 +33,7 @@ type Violation = {
   operandData?: Hex;       // Full untruncated rule operand bytes.
   typeCode?: number;       // Type of the target value; length ops decode resolvedValue as a count.
   resolvedValue?: Hex;     // 32-byte ABI-style word for scalars; hex-encoded count for length ops and QUANTIFIER_LIMIT_EXCEEDED.
-  resolvedOperand?: Hex;   // Resolved runtime value of a reference operand (EQ_CTX).
+  resolvedOperand?: Hex;   // Resolved runtime value of a reference operand (*_CTX).
   expectedValue?: Hex;     // Expected value for applicable non-rule precheck failures (currently SELECTOR_MISMATCH).
   elementIndex?: number;   // Universal quantifier per-element failures.
 };
@@ -46,12 +46,12 @@ type Violation = {
 | Path-bearing | `VALUE_MISMATCH`, navigation/read failures, quantifier failures, `MISSING_CONTEXT` | `group`, `rule`, `scope`, `path` |
 | Single-value mismatch (additional) | `VALUE_MISMATCH` for leaf, context, and universal per-element | `opCode`, `operandData`, `typeCode`, `resolvedValue` |
 | Existential aggregate mismatch (additional) | `VALUE_MISMATCH` for `Quantifier.ANY` "violated by all elements" | `opCode`, `operandData`, `typeCode` when captured during iteration; no `resolvedValue` |
-| Reference-operand mismatch (additional) | `VALUE_MISMATCH` for `EQ_CTX`, including existential aggregates | `resolvedOperand` |
+| Reference-operand mismatch (additional) | `VALUE_MISMATCH` for the `*_CTX` operators, including existential aggregates | `resolvedOperand` |
 | Pre-rule selector codes | `MISSING_SELECTOR`, `SELECTOR_MISMATCH` | none of the path fields |
 
 For `SELECTOR_MISMATCH`, `expectedValue` is the policy selector and `resolvedValue` is the calldata selector. `scope` is required whenever `path` is present. `elementIndex` is absent on existential (`Quantifier.ANY`) failures, where no single element is to blame.
 
-`resolvedOperand` is operator-generic: any operator whose operand is a reference resolved at enforcement populates it, discriminated by `opCode`; `EQ_CTX` is the only such operator. A reference resolves identically for every element, so existential aggregates carry it despite omitting `resolvedValue`.
+`resolvedOperand` is operator-generic: any operator whose operand is a reference resolved at enforcement populates it, discriminated by `opCode`; the context reference operators are the only such operators. A reference resolves identically for every element, so existential aggregates carry it despite omitting `resolvedValue`.
 
 ### `PolicyViolationError.message`
 

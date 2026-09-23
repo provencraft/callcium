@@ -1119,10 +1119,102 @@ function eqCtx(Constraint memory c, uint16 contextPropertyId) internal pure retu
 
 Requires the value to not equal the context property `contextPropertyId`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L554)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L553)
 
 ```solidity
 function neqCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name                | Type         | Description               |
+| ------------------- | ------------ | ------------------------- |
+| `c`                 | `Constraint` | The constraint to extend. |
+| `contextPropertyId` | `uint16`     | The context property ID.  |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### gtCtx
+
+Requires the value to be strictly greater than the context property `contextPropertyId`.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L561)
+
+```solidity
+function gtCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name                | Type         | Description               |
+| ------------------- | ------------ | ------------------------- |
+| `c`                 | `Constraint` | The constraint to extend. |
+| `contextPropertyId` | `uint16`     | The context property ID.  |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### ltCtx
+
+Requires the value to be strictly less than the context property `contextPropertyId`.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L569)
+
+```solidity
+function ltCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name                | Type         | Description               |
+| ------------------- | ------------ | ------------------------- |
+| `c`                 | `Constraint` | The constraint to extend. |
+| `contextPropertyId` | `uint16`     | The context property ID.  |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### gteCtx
+
+Requires the value to be greater than or equal to the context property `contextPropertyId`.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L577)
+
+```solidity
+function gteCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory);
+```
+
+**Parameters**
+
+| Name                | Type         | Description               |
+| ------------------- | ------------ | ------------------------- |
+| `c`                 | `Constraint` | The constraint to extend. |
+| `contextPropertyId` | `uint16`     | The context property ID.  |
+
+**Returns**
+
+| Name     | Type         | Description             |
+| -------- | ------------ | ----------------------- |
+| `<none>` | `Constraint` | The updated constraint. |
+
+### lteCtx
+
+Requires the value to be less than or equal to the context property `contextPropertyId`.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L585)
+
+```solidity
+function lteCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory);
 ```
 
 **Parameters**
@@ -1142,7 +1234,7 @@ function neqCtx(Constraint memory c, uint16 contextPropertyId) internal pure ret
 
 Appends a raw operator with its data payload.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L564)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/Constraint.sol#L594)
 
 ```solidity
 function addOp(Constraint memory c, uint8 op, bytes memory data) internal pure returns (Constraint memory);

@@ -7,6 +7,7 @@ import {
   canonicalize,
   isLeftAligned,
   isSigned,
+  isContextOp,
   isLengthOp,
   isLengthValidType,
   isElementary,
@@ -143,7 +144,7 @@ function getDomainLimits(typeCode: number): { min: bigint; max: bigint } {
 // Operator classification
 ///////////////////////////////////////////////////////////////////////////
 
-/** True for EQ, GT, LT, GTE, LTE, BETWEEN, IN, EQ_CTX, BITMASK_*. */
+/** True for EQ, GT, LT, GTE, LTE, BETWEEN, IN, *_CTX, BITMASK_*. */
 function isValueOp(opBase: number): boolean {
   return opBase <= Op.BITMASK_NONE;
 }
@@ -182,11 +183,12 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: IssueCode; mes
     if (opBase === Op.IN && typeCode === TypeCode.BOOL) {
       return { code: "IN_ON_BOOL", message: "IN operator used on boolean type" };
     }
-    // Context properties are addresses or uint256, so only those target classes can match.
+    // Context properties are addresses or uint256, so only those target classes can match, and
+    // an address is an identity rather than a magnitude, so it pairs under equality only.
     if (
-      opBase === Op.EQ_CTX &&
-      typeCode !== TypeCode.ADDRESS &&
-      !(typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX)
+      isContextOp(opBase) &&
+      !(typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) &&
+      !(opBase === Op.EQ_CTX && typeCode === TypeCode.ADDRESS)
     ) {
       return { code: "CONTEXT_TYPE_MISMATCH", message: "Context reference operator used on incompatible type" };
     }
@@ -908,7 +910,7 @@ function validateConstraint(
       continue;
     }
 
-    if (base === Op.EQ_CTX) {
+    if (isContextOp(base)) {
       // The operand names a context property, not a value: nothing to fold into a domain.
       const ctxOperand = readValue(opHex);
       const property = findContextProperty(Number(ctxOperand));

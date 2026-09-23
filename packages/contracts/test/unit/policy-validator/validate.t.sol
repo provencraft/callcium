@@ -271,7 +271,7 @@ contract UnknownOperatorTest is PolicyValidatorTest {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
 
         // First opcode in the unassigned gap before the bitmask range.
-        Constraint memory c = arg(0).addOp(0x09, new bytes(32));
+        Constraint memory c = arg(0).addOp(OpCode.LTE_CTX + 1, new bytes(32));
 
         PolicyData memory data = _createPolicyData("foo(uint256)", desc, c);
         Issue[] memory issues = PolicyValidator.validate(data);

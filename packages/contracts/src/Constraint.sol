@@ -543,8 +543,7 @@ library Operator {
     /// @param contextPropertyId The context property ID.
     /// @return The updated constraint.
     function eqCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory) {
-        require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(contextPropertyId));
-        return _pushOp(c, OpCode.EQ_CTX, _u256(contextPropertyId));
+        return _pushContextOp(c, OpCode.EQ_CTX, contextPropertyId);
     }
 
     /// @notice Requires the value to not equal the context property `contextPropertyId`.
@@ -552,8 +551,39 @@ library Operator {
     /// @param contextPropertyId The context property ID.
     /// @return The updated constraint.
     function neqCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory) {
-        require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(contextPropertyId));
-        return _pushOp(c, OpCode.EQ_CTX | OpCode.NOT, _u256(contextPropertyId));
+        return _pushContextOp(c, OpCode.EQ_CTX | OpCode.NOT, contextPropertyId);
+    }
+
+    /// @notice Requires the value to be strictly greater than the context property `contextPropertyId`.
+    /// @param c The constraint to extend.
+    /// @param contextPropertyId The context property ID.
+    /// @return The updated constraint.
+    function gtCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory) {
+        return _pushContextOp(c, OpCode.GT_CTX, contextPropertyId);
+    }
+
+    /// @notice Requires the value to be strictly less than the context property `contextPropertyId`.
+    /// @param c The constraint to extend.
+    /// @param contextPropertyId The context property ID.
+    /// @return The updated constraint.
+    function ltCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory) {
+        return _pushContextOp(c, OpCode.LT_CTX, contextPropertyId);
+    }
+
+    /// @notice Requires the value to be greater than or equal to the context property `contextPropertyId`.
+    /// @param c The constraint to extend.
+    /// @param contextPropertyId The context property ID.
+    /// @return The updated constraint.
+    function gteCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory) {
+        return _pushContextOp(c, OpCode.GTE_CTX, contextPropertyId);
+    }
+
+    /// @notice Requires the value to be less than or equal to the context property `contextPropertyId`.
+    /// @param c The constraint to extend.
+    /// @param contextPropertyId The context property ID.
+    /// @return The updated constraint.
+    function lteCtx(Constraint memory c, uint16 contextPropertyId) internal pure returns (Constraint memory) {
+        return _pushContextOp(c, OpCode.LTE_CTX, contextPropertyId);
     }
 
     /// @notice Appends a raw operator with its data payload.
@@ -572,6 +602,20 @@ library Operator {
     /// @dev Appends an operator with 32-byte `data` to `c`.
     function _pushOp(Constraint memory c, uint8 op, bytes32 data) private pure returns (Constraint memory) {
         return _append(c, abi.encodePacked(op, data));
+    }
+
+    /// @dev Appends a context reference operator whose operand names `contextPropertyId`.
+    function _pushContextOp(
+        Constraint memory c,
+        uint8 op,
+        uint16 contextPropertyId
+    )
+        private
+        pure
+        returns (Constraint memory)
+    {
+        require(contextPropertyId <= PF.CTX_MAX, UnknownContextProperty(contextPropertyId));
+        return _pushOp(c, op, _u256(contextPropertyId));
     }
 
     /// @dev Appends an operator with variable-length `data` to `c`.

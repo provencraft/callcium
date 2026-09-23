@@ -27,6 +27,10 @@ library OpRule {
             || opBase == OpCode.GTE
             || opBase == OpCode.LTE
             || opBase == OpCode.EQ_CTX
+            || opBase == OpCode.GT_CTX
+            || opBase == OpCode.LT_CTX
+            || opBase == OpCode.GTE_CTX
+            || opBase == OpCode.LTE_CTX
             || opBase == OpCode.BITMASK_ALL
             || opBase == OpCode.BITMASK_ANY
             || opBase == OpCode.BITMASK_NONE
@@ -101,6 +105,13 @@ library OpRule {
         return opBase >= OpCode.BITMASK_ALL && opBase <= OpCode.BITMASK_NONE;
     }
 
+    /// @notice Checks if an operator is a context reference operator (EQ_CTX, GT_CTX, LT_CTX, GTE_CTX, LTE_CTX).
+    /// @param opBase The operator code without the NOT flag.
+    /// @return True if this is a context reference operator.
+    function isContextOp(uint8 opBase) internal pure returns (bool) {
+        return opBase >= OpCode.EQ_CTX && opBase <= OpCode.LTE_CTX;
+    }
+
     /// @notice Checks if a type code represents a numeric type (uint or int).
     /// @param typeCode The type code to check.
     /// @return True if the type is numeric.
@@ -149,12 +160,13 @@ library OpRule {
             // a tautology, or dead members.
             if (opBase == OpCode.IN && typeCode == TypeCode.BOOL) return (false, IssueCode.IN_ON_BOOL);
 
-            // Context properties are addresses or uint256, so only those target classes can match.
+            // Context properties are addresses or uint256, so only those target classes can match, and
+            // an address is an identity rather than a magnitude, so it pairs under equality only.
             // forgefmt: disable-next-item
             if (
-                opBase == OpCode.EQ_CTX
-                && typeCode != TypeCode.ADDRESS
+                isContextOp(opBase)
                 && !(typeCode >= TypeCode.UINT8 && typeCode <= TypeCode.UINT256)
+                && !(opBase == OpCode.EQ_CTX && typeCode == TypeCode.ADDRESS)
             ) return (false, IssueCode.CONTEXT_TYPE_MISMATCH);
 
             return (true, bytes32(0));

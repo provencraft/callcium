@@ -51,7 +51,7 @@ export {
   lookupScope,
   lookupContextProperty,
 } from "./constants";
-export { isLengthOp, lookupTypeCode } from "./operators";
+export { isContextOp, isLengthOp, lookupTypeCode } from "./operators";
 export type { TypeCodeInfo, TypeClassInfo, TypeClass } from "./operators";
 export type { Operands, OpInfo, ScopeInfo, ContextPropertyInfo } from "./constants";
 

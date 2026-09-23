@@ -536,14 +536,20 @@ library PolicyEnforcer {
             }
             result = valueLength >= lower && valueLength <= upper;
 
-        // Last in the chain so the branch costs nothing on the other operators.
         } else if (base == OpCode.EQ_CTX) {
-            uint256 operand = uint256(LibBytes.load(policy, dataOffset));
-            // The whole word is checked so a truncating cast cannot alias garbage to a defined ID.
-            // forge-lint: disable-next-line(unsafe-typecast) the revert argument is diagnostic only.
-            require(operand <= PF.CTX_MAX, UnknownContextProperty(uint16(operand)));
-            // forge-lint: disable-next-line(unsafe-typecast) bounded by the check above.
-            result = value == _readContext(uint16(operand));
+            result = uint256(value) == uint256(_readContext(uint256(LibBytes.load(policy, dataOffset))));
+
+        } else if (base == OpCode.GT_CTX) {
+            result = uint256(value) > uint256(_readContext(uint256(LibBytes.load(policy, dataOffset))));
+
+        } else if (base == OpCode.LT_CTX) {
+            result = uint256(value) < uint256(_readContext(uint256(LibBytes.load(policy, dataOffset))));
+
+        } else if (base == OpCode.GTE_CTX) {
+            result = uint256(value) >= uint256(_readContext(uint256(LibBytes.load(policy, dataOffset))));
+
+        } else if (base == OpCode.LTE_CTX) {
+            result = uint256(value) <= uint256(_readContext(uint256(LibBytes.load(policy, dataOffset))));
 
         } else {
             revert UnknownOperator(base);
@@ -604,9 +610,11 @@ library PolicyEnforcer {
         }
     }
 
-    /// @dev Reads context property by ID.
-    function _readContext(uint16 contextPropertyId) private view returns (bytes32 v) {
+    /// @dev Reads context property by ID. The whole word is matched, so garbage above the ID bytes never
+    /// aliases to a defined property; the revert reports the low ID bytes.
+    function _readContext(uint256 contextPropertyId) private view returns (bytes32 v) {
         bytes4 unknownSelector = UnknownContextProperty.selector;
+        uint256 idMask = type(uint16).max;
         assembly ("memory-safe") {
             switch contextPropertyId
             // CTX_MSG_SENDER
@@ -627,7 +635,7 @@ library PolicyEnforcer {
             case 0x0007 { v := gasprice() }
             default {
                 mstore(0, unknownSelector)
-                mstore(4, contextPropertyId)
+                mstore(4, and(contextPropertyId, idMask))
                 revert(0, 36)
             }
         }

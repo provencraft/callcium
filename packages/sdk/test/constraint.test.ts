@@ -136,9 +136,34 @@ describe(".eq() / .neq()", () => {
     expect(op.slice(2, 4)).toBe((Op.EQ_CTX | Op.NOT).toString(16).padStart(2, "0"));
   });
 
-  test(".eqCtx rejects an unknown property ID", () => {
-    expectErrorCode(() => arg(0).eqCtx(MAX_CONTEXT_PROPERTY_ID + 1), "UNKNOWN_CONTEXT_PROPERTY");
+  test(".gtCtx(MSG_VALUE) — GT_CTX opcode, property ID in the low bytes", () => {
+    const op = arg(0).gtCtx(ContextProperty.MSG_VALUE).operators[0];
+    expect(op).toHaveLength(2 + 2 + 64);
+    expect(op.slice(2, 4)).toBe(Op.GT_CTX.toString(16).padStart(2, "0"));
+    expect(op.slice(-4)).toBe(ContextProperty.MSG_VALUE.toString(16).padStart(4, "0"));
   });
+
+  test(".ltCtx(MSG_VALUE) — LT_CTX opcode", () => {
+    const op = arg(0).ltCtx(ContextProperty.MSG_VALUE).operators[0];
+    expect(op.slice(2, 4)).toBe(Op.LT_CTX.toString(16).padStart(2, "0"));
+  });
+
+  test(".gteCtx(MSG_VALUE) — GTE_CTX opcode", () => {
+    const op = arg(0).gteCtx(ContextProperty.MSG_VALUE).operators[0];
+    expect(op.slice(2, 4)).toBe(Op.GTE_CTX.toString(16).padStart(2, "0"));
+  });
+
+  test(".lteCtx(MSG_VALUE) — LTE_CTX opcode", () => {
+    const op = arg(0).lteCtx(ContextProperty.MSG_VALUE).operators[0];
+    expect(op.slice(2, 4)).toBe(Op.LTE_CTX.toString(16).padStart(2, "0"));
+  });
+
+  test.each(["eqCtx", "neqCtx", "gtCtx", "ltCtx", "gteCtx", "lteCtx"] as const)(
+    ".%s rejects an unknown property ID",
+    (method) => {
+      expectErrorCode(() => arg(0)[method](MAX_CONTEXT_PROPERTY_ID + 1), "UNKNOWN_CONTEXT_PROPERTY");
+    },
+  );
 
   test(".gt() — opCode=0x02", () => {
     const op = arg(0).gt(1n).operators[0];

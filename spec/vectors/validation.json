@@ -2525,7 +2525,7 @@
               "scope": 1,
               "path": "0x0000",
               "operators": [
-                "0x090000000000000000000000000000000000000000000000000000000000000000"
+                "0x0d0000000000000000000000000000000000000000000000000000000000000000"
               ]
             }
           ]
@@ -4431,6 +4431,147 @@
               "path": "0x0000",
               "operators": [
                 "0x080000000000000000000000000000000000000000000000000000000000000008"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "UNKNOWN_CONTEXT_PROPERTY",
+        "severity": "warning",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "gt-ctx-valid",
+    "description": "GT_CTX pairing a uint256 target with the msg.value property builds",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x090000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
+  },
+  {
+    "id": "lte-ctx-narrow-uint-valid",
+    "description": "LTE_CTX pairing a uint128 target with the msg.value property builds",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020110",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x0c0000000000000000000000000000000000000000000000000000000000000001"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "builds": true
+  },
+  {
+    "id": "gt-ctx-address-target-mismatch",
+    "description": "GT_CTX pairing an address target with the msg.sender property is rejected",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020141",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x090000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "CONTEXT_TYPE_MISMATCH",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "gte-ctx-address-property-mismatch",
+    "description": "GTE_CTX pairing a uint256 target with the msg.sender address property is rejected",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x0b0000000000000000000000000000000000000000000000000000000000000000"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [
+      {
+        "code": "CONTEXT_TYPE_MISMATCH",
+        "severity": "error",
+        "groupIndex": 0,
+        "constraintIndex": 0
+      }
+    ],
+    "builds": false
+  },
+  {
+    "id": "gt-ctx-unknown-property",
+    "description": "GT_CTX operand referencing an undefined context property is flagged",
+    "policy": {
+      "isSelectorless": true,
+      "selector": "0x00000000",
+      "descriptor": "0x020120",
+      "groups": [
+        {
+          "constraints": [
+            {
+              "scope": 1,
+              "path": "0x0000",
+              "operators": [
+                "0x090000000000000000000000000000000000000000000000000000000000000008"
               ]
             }
           ]

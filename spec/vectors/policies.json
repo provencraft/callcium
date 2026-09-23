@@ -1816,6 +1816,201 @@
     }
   },
   {
+    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200900200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "single GT_CTX rule on uint256 arg(0) referencing msg.value, calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-gt-ctx-uint256",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x020120",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x090000000000000000000000000000000000000000000000000000000000000001"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x020120",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x090000000000000000000000000000000000000000000000000000000000000001",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200a00200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "single LT_CTX rule on uint256 arg(0) referencing msg.value, calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-lt-ctx-uint256",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x020120",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x0a0000000000000000000000000000000000000000000000000000000000000001"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x020120",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x0a0000000000000000000000000000000000000000000000000000000000000001",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200b00200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "single GTE_CTX rule on uint256 arg(0) referencing msg.value, calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-gte-ctx-uint256",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x020120",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x0b0000000000000000000000000000000000000000000000000000000000000001"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x020120",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x0b0000000000000000000000000000000000000000000000000000000000000001",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200c00200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "single LTE_CTX rule on uint256 arg(0) referencing msg.value, calldata scope",
+    "error": "",
+    "errorArgs": [],
+    "id": "calldata-lte-ctx-uint256",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x020120",
+        "groups": [
+          {
+            "constraints": [
+              {
+                "operators": [
+                  "0x0c0000000000000000000000000000000000000000000000000000000000000001"
+                ],
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      },
+      "encodingInput": {
+        "descriptor": "0x020120",
+        "groups": [
+          {
+            "rules": [
+              {
+                "operator": "0x0c0000000000000000000000000000000000000000000000000000000000000001",
+                "path": "0x0000",
+                "scope": 1
+              }
+            ]
+          }
+        ],
+        "isSelectorless": false,
+        "selector": "0x2fbebd38"
+      }
+    }
+  },
+  {
+    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200c00200000000000000000000000000000000000000000000000000000000000000008",
+    "description": "MUST reject: LTE_CTX operand references an undefined context property",
+    "error": "UnknownContextProperty",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000011"
+    ],
+    "id": "lte-ctx-unknown-context-property",
+    "spec": {
+      "decoded": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      },
+      "encodingInput": {
+        "descriptor": "0x",
+        "groups": [],
+        "isSelectorless": false,
+        "selector": "0x00000000"
+      }
+    }
+  },
+  {
     "blob": "0x022fbebd380003020120010000000000ff0031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
     "description": "MUST reject: group overruns the blob and declares no rules; the overrun is reported first",
     "error": "GroupOverflow",

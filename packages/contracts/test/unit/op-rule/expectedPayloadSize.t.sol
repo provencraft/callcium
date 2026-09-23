@@ -13,6 +13,10 @@ contract ExpectedPayloadSizeTest is OpRuleTest {
         assertEq(OpRule.expectedPayloadSize(OpCode.GTE), 32);
         assertEq(OpRule.expectedPayloadSize(OpCode.LTE), 32);
         assertEq(OpRule.expectedPayloadSize(OpCode.EQ_CTX), 32);
+        assertEq(OpRule.expectedPayloadSize(OpCode.GT_CTX), 32);
+        assertEq(OpRule.expectedPayloadSize(OpCode.LT_CTX), 32);
+        assertEq(OpRule.expectedPayloadSize(OpCode.GTE_CTX), 32);
+        assertEq(OpRule.expectedPayloadSize(OpCode.LTE_CTX), 32);
         assertEq(OpRule.expectedPayloadSize(OpCode.BITMASK_ALL), 32);
         assertEq(OpRule.expectedPayloadSize(OpCode.BITMASK_ANY), 32);
         assertEq(OpRule.expectedPayloadSize(OpCode.BITMASK_NONE), 32);

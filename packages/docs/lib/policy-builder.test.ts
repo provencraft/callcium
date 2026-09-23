@@ -6,6 +6,7 @@ import {
   addConstraint,
   getOperatorLabel,
   getOperatorOptions,
+  isContextOperator,
   removeConstraint,
   addGroup,
   removeGroup,
@@ -21,7 +22,7 @@ const ADDRESS_B = "0x2222222222222222222222222222222222222222";
 
 /** Operands satisfying one operator against a target of the given Solidity type. */
 function operandsFor(method: string, targetType: string): ScalarValue[] {
-  if (method === "eqCtx" || method === "neqCtx") {
+  if (isContextOperator(method)) {
     return [BigInt(targetType === "address" ? ContextProperty.MSG_SENDER : ContextProperty.MSG_VALUE)];
   }
   if (method === "isIn" || method === "notIn") return targetType === "address" ? [ADDRESS_A, ADDRESS_B] : [1n, 2n];
@@ -373,7 +374,7 @@ describe("operator dispatch", () => {
   );
 
   it("reaches every operator the UI can offer", () => {
-    expect(new Set(cases.map((c) => c.method)).size).toBe(20);
+    expect(new Set(cases.map((c) => c.method)).size).toBe(24);
   });
 
   it.each(cases)("encodes $method on $targetType", ({ method, argIndex, targetType }) => {

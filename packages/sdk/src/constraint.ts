@@ -208,6 +208,26 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
     return this.push(singleOp(Op.EQ_CTX | Op.NOT, contextOperand(contextPropertyId)));
   }
 
+  /** Assert the value is greater than the context property `contextPropertyId`. */
+  gtCtx(contextPropertyId: number): this {
+    return this.push(singleOp(Op.GT_CTX, contextOperand(contextPropertyId)));
+  }
+
+  /** Assert the value is less than the context property `contextPropertyId`. */
+  ltCtx(contextPropertyId: number): this {
+    return this.push(singleOp(Op.LT_CTX, contextOperand(contextPropertyId)));
+  }
+
+  /** Assert the value is greater than or equal to the context property `contextPropertyId`. */
+  gteCtx(contextPropertyId: number): this {
+    return this.push(singleOp(Op.GTE_CTX, contextOperand(contextPropertyId)));
+  }
+
+  /** Assert the value is less than or equal to the context property `contextPropertyId`. */
+  lteCtx(contextPropertyId: number): this {
+    return this.push(singleOp(Op.LTE_CTX, contextOperand(contextPropertyId)));
+  }
+
   /** Assert the value is greater than `bound`. */
   gt(bound: bigint): this {
     return this.push(singleOp(Op.GT, bound), [bound]);

@@ -830,6 +830,15 @@ contract EnforceContextTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
+    function test_GteCtx_BlockNumber() public {
+        vm.roll(1000);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).gteCtx(PF.CTX_BLOCK_NUMBER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(1000));
+        harness.enforce(policy, callData);
+    }
+
     function test_EqCtx_AllElements() public view {
         address[] memory arr = new address[](2);
         arr[0] = address(this);

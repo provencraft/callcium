@@ -209,6 +209,8 @@ bytes memory policy = PolicyBuilder
 
 Address properties (`CTX_MSG_SENDER`, `CTX_TX_ORIGIN`) pair with `address` arguments; uint256 properties pair with unsigned integer arguments. Context targets accept the operator too: `msgSender().eqCtx(PolicyFormat.CTX_TX_ORIGIN)` constrains two properties against each other.
 
+`gtCtx`, `ltCtx`, `gteCtx`, and `lteCtx` order an unsigned integer argument against a uint256 property: `arg(1).lteCtx(PolicyFormat.CTX_MSG_VALUE)` caps `amount` at the attached value.
+
 ## Array quantifiers
 
 `Path.ALL` and `Path.ANY` apply a constraint across all elements of an array parameter:
@@ -286,7 +288,7 @@ bytes memory policy = PolicyBuilder
 | Operator family | Operators                                                                     | Valid argument types                                                     |
 | --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | Equality        | `eq`, `neq`                                                                   | All 32-byte static types (`address`, `uint*`, `int*`, `bytes32`, `bool`) |
-| Context reference | `eqCtx`, `neqCtx`                                                           | `address` for address properties; `uint*` for uint256 properties         |
+| Context reference | `eqCtx`, `neqCtx`, `gtCtx`, `ltCtx`, `gteCtx`, `lteCtx`                     | `address` for address properties (`eqCtx`, `neqCtx`); `uint*` for uint256 properties |
 | Comparison      | `gt`, `lt`, `gte`, `lte`, `between`                                           | `uint*`, `int*`                                                          |
 | Set membership  | `isIn`, `notIn`                                                               | `address`, `uint*`, `int*`, `bytes32` (use `Cast` for narrower types)    |
 | Bitmask         | `bitmaskAll`, `bitmaskAny`, `bitmaskNone`                                     | `uint*`, `bytes32`                                                       |

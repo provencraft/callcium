@@ -11,6 +11,7 @@ contract IsValidPayloadSizeTest is OpRuleTest {
         assertTrue(OpRule.isValidPayloadSize(OpCode.GT, 32));
         assertTrue(OpRule.isValidPayloadSize(OpCode.LT, 32));
         assertTrue(OpRule.isValidPayloadSize(OpCode.EQ_CTX, 32));
+        assertTrue(OpRule.isValidPayloadSize(OpCode.LTE_CTX, 32));
     }
 
     function test_SingleOperand_InvalidNon32() public pure {

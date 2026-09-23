@@ -16,6 +16,7 @@ import {
   blockTimestamp,
   chainId,
   gasPrice,
+  isContextOp,
   isOpAllowed,
   lookupOp,
   lookupTypeCode,
@@ -99,6 +100,10 @@ const OP_METHODS: readonly OpMethod[] = [
   { method: "neq", opCode: Op.EQ, negated: true, apply: (b, v) => b.neq(v[0]) },
   { method: "eqCtx", opCode: Op.EQ_CTX, apply: (b, v) => b.eqCtx(Number(v[0])) },
   { method: "neqCtx", opCode: Op.EQ_CTX, negated: true, apply: (b, v) => b.neqCtx(Number(v[0])) },
+  { method: "gtCtx", opCode: Op.GT_CTX, apply: (b, v) => b.gtCtx(Number(v[0])) },
+  { method: "ltCtx", opCode: Op.LT_CTX, apply: (b, v) => b.ltCtx(Number(v[0])) },
+  { method: "gteCtx", opCode: Op.GTE_CTX, apply: (b, v) => b.gteCtx(Number(v[0])) },
+  { method: "lteCtx", opCode: Op.LTE_CTX, apply: (b, v) => b.lteCtx(Number(v[0])) },
   { method: "gt", opCode: Op.GT, apply: (b, v) => b.gt(big(v[0])) },
   { method: "lt", opCode: Op.LT, apply: (b, v) => b.lt(big(v[0])) },
   { method: "gte", opCode: Op.GTE, apply: (b, v) => b.gte(big(v[0])) },
@@ -129,6 +134,12 @@ export function getOperatorLabel(method: string): string {
   const entry = OP_METHODS.find((op) => op.method === method);
   if (!entry) return method;
   return formatOpLabel(entry.opCode, entry.negated ?? false);
+}
+
+/** True for the operator methods whose operand names a context property instead of a value. */
+export function isContextOperator(method: string): boolean {
+  const entry = OP_METHODS.find((op) => op.method === method);
+  return entry !== undefined && isContextOp(entry.opCode);
 }
 
 /** Return the available operator options for a given type. */

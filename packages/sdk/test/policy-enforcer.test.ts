@@ -1190,3 +1190,25 @@ describe("enforce - EQ_CTX operator", () => {
     );
   });
 });
+
+///////////////////////////////////////////////////////////////////////////
+// Ordering context reference operators (GT_CTX, LT_CTX, GTE_CTX, LTE_CTX)
+///////////////////////////////////////////////////////////////////////////
+
+describe("enforce - ordering context reference operators", () => {
+  const POLICY_LTE_CTX_VALUE = PolicyBuilder.create("foo(uint256)")
+    .add(arg(0).lteCtx(ContextProperty.MSG_VALUE))
+    .build();
+
+  test("passes when the argument is at most msg.value", () => {
+    assertPassed(PolicyEnforcer.check(POLICY_LTE_CTX_VALUE, encodeUint256(SELECTOR, 42n), { msgValue: 42n }));
+  });
+
+  test("fails with VALUE_MISMATCH carrying the resolved operand when the argument exceeds msg.value", () => {
+    const result = PolicyEnforcer.check(POLICY_LTE_CTX_VALUE, encodeUint256(SELECTOR, 43n), { msgValue: 42n });
+    const violation = expectFirstViolation(result, "VALUE_MISMATCH");
+    expect(violation.opCode).toBe(Op.LTE_CTX);
+    expect(violation.resolvedValue).toBe(bigintToHex(43n));
+    expect(violation.resolvedOperand).toBe(bigintToHex(42n));
+  });
+});

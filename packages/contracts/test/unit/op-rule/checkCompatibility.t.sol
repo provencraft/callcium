@@ -112,6 +112,22 @@ contract CheckCompatibilityTest is OpRuleTest {
         assertEq(code, "VALUE_OP_ON_DYNAMIC");
     }
 
+    function test_OrderingCtxOnUnsigned_Compatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.GT_CTX, TypeCode.UINT256, false, 32);
+        assertTrue(ok);
+        assertEq(code, bytes32(0));
+
+        (ok, code) = OpRule.checkCompatibility(OpCode.LTE_CTX, TypeCode.UINT8, false, 32);
+        assertTrue(ok);
+        assertEq(code, bytes32(0));
+    }
+
+    function test_OrderingCtxOnAddress_NotCompatible() public pure {
+        (bool ok, bytes32 code) = OpRule.checkCompatibility(OpCode.GT_CTX, TypeCode.ADDRESS, false, 32);
+        assertFalse(ok);
+        assertEq(code, "CONTEXT_TYPE_MISMATCH");
+    }
+
     function test_UnknownOperator_NotCompatible() public pure {
         (bool ok, bytes32 code) = OpRule.checkCompatibility(0xFF, TypeCode.UINT256, false, 32);
         assertFalse(ok);

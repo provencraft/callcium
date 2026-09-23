@@ -100,6 +100,10 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     Fixture internal opNotEq;
     Fixture internal opNotIn4;
     Fixture internal opEqCtx;
+    Fixture internal opGtCtx;
+    Fixture internal opLtCtx;
+    Fixture internal opGteCtx;
+    Fixture internal opLteCtx;
 
     /*/////////////////////////////////////////////////////////////////////////
                               SCOPE FIXTURES
@@ -484,6 +488,34 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         opEqCtx = _buildFixture(
             PolicyBuilder.create("foo(uint256)")
                 .add(arg(0).eqCtx(PF.CTX_CHAIN_ID)),
+            abi.encodeWithSignature("foo(uint256)", block.chainid)
+        );
+
+        // forgefmt: disable-next-item
+        opGtCtx = _buildFixture(
+            PolicyBuilder.create("foo(uint256)")
+                .add(arg(0).gtCtx(PF.CTX_CHAIN_ID)),
+            abi.encodeWithSignature("foo(uint256)", block.chainid + 1)
+        );
+
+        // forgefmt: disable-next-item
+        opLtCtx = _buildFixture(
+            PolicyBuilder.create("foo(uint256)")
+                .add(arg(0).ltCtx(PF.CTX_CHAIN_ID)),
+            abi.encodeWithSignature("foo(uint256)", block.chainid - 1)
+        );
+
+        // forgefmt: disable-next-item
+        opGteCtx = _buildFixture(
+            PolicyBuilder.create("foo(uint256)")
+                .add(arg(0).gteCtx(PF.CTX_CHAIN_ID)),
+            abi.encodeWithSignature("foo(uint256)", block.chainid)
+        );
+
+        // forgefmt: disable-next-item
+        opLteCtx = _buildFixture(
+            PolicyBuilder.create("foo(uint256)")
+                .add(arg(0).lteCtx(PF.CTX_CHAIN_ID)),
             abi.encodeWithSignature("foo(uint256)", block.chainid)
         );
     }

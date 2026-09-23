@@ -1,4 +1,4 @@
-import { type Hex, lookupOp, findContextProperty, Op, type Operands, TypeCode } from "@callcium/sdk";
+import { type Hex, lookupOp, findContextProperty, isContextOp, type Operands, TypeCode } from "@callcium/sdk";
 import { getAddress } from "viem";
 
 const TWO_POW_256 = 2n ** 256n;
@@ -80,8 +80,8 @@ function operandChunks(dataHex: Hex, opBase: number): string[] {
  * chunk is decoded against the supplied type code.
  */
 export function decodeOperandsFromData(dataHex: Hex, typeCode: number, opBase: number): string[] {
-  // An EQ_CTX operand names a context property, not a value of the target's type.
-  if (opBase === Op.EQ_CTX) {
+  // A context reference operand names a context property, not a value of the target's type.
+  if (isContextOp(opBase)) {
     return operandChunks(dataHex, opBase).map((chunk) => {
       const id = Number.parseInt(chunk.slice(-4), 16);
       return findContextProperty(id)?.label ?? `0x${chunk}`;

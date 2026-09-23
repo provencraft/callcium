@@ -300,7 +300,7 @@ library PolicyValidator {
             }
 
             // Domain updates (contradiction, redundancy, and vacuity detection).
-            if (base == OpCode.EQ_CTX) {
+            if (OpRule.isContextOp(base)) {
                 // The operand names a context property, not a value: nothing to fold into a domain.
                 uint256 ctxOperand = _readValue(op);
                 if (ctxOperand > PF.CTX_MAX) {

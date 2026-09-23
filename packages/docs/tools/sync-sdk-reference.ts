@@ -97,6 +97,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
         "findContextProperty",
         "lookupTypeCode",
         "isLengthOp",
+        "isContextOp",
       ],
       types: [
         "Op",

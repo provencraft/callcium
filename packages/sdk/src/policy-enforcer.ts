@@ -1,8 +1,8 @@
 import { hexToBytes, bytesToHex, readU16, readU32, bigintToHex, toAddress } from "./bytes";
 import { loadWord, readLength, readPointer } from "./calldata-reader";
-import { PolicyFormat as PF, Scope, Op, TypeCode, lookupContextProperty } from "./constants";
+import { PolicyFormat as PF, Scope, TypeCode, lookupContextProperty } from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
-import { applyOperator, toBigInt, isLengthValidType, canonicalize } from "./operators";
+import { applyOperator, isContextOp, toBigInt, isLengthValidType, canonicalize } from "./operators";
 import { decodePolicy } from "./policy-coder";
 
 import type { ReadResult } from "./calldata-reader";
@@ -178,11 +178,11 @@ function evaluateRule(
   );
 }
 
-/** An `EQ_CTX` operand resolved to its word, or the missing property's type code. */
+/** A context reference operand resolved to its word, or the missing property's type code. */
 type ReferenceOperand = bigint | { ctxTypeCode: number };
 
 /**
- * Resolve an EQ_CTX operand word to the referenced context property's value as a raw word.
+ * Resolve a context reference operand word to the referenced context property's value as a raw word.
  * Returns the missing property's type code when the context does not supply it.
  */
 function resolveContextOperand(operandData: Uint8Array, context?: Context): ReferenceOperand {
@@ -192,9 +192,9 @@ function resolveContextOperand(operandData: Uint8Array, context?: Context): Refe
   return contextValueToWord(value);
 }
 
-/** Resolve the reference operand of an `EQ_CTX` rule; every other operator reads a literal. */
+/** Resolve the reference operand of a context reference rule; every other operator reads a literal. */
 function referenceOperand(opCode: number, operandData: Uint8Array, context?: Context): ReferenceOperand | undefined {
-  if ((opCode & ~Op.NOT) !== Op.EQ_CTX) return undefined;
+  if (!isContextOp(opCode)) return undefined;
   return resolveContextOperand(operandData, context);
 }
 
@@ -319,7 +319,7 @@ function evalTarget(
 
   if (ctxOperand !== undefined) {
     if (typeof ctxOperand !== "bigint") return { error: "MISSING_CONTEXT", ctxTypeCode: ctxOperand.ctxTypeCode };
-    const passed = (value === ctxOperand) !== ((opCode & Op.NOT) !== 0);
+    const passed = applyOperator(opCode, value, 32n, hexToBytes(bigintToHex(ctxOperand)), typeCode);
     return { passed, value, ctxOperand };
   }
 
@@ -604,7 +604,7 @@ function evaluateContextRule(
 
   let result: boolean;
   let ctxOperand: bigint | undefined;
-  if ((opCode & ~Op.NOT) === Op.EQ_CTX) {
+  if (isContextOp(opCode)) {
     const operand = resolveContextOperand(operandData, context);
     if (typeof operand !== "bigint") {
       return {
@@ -615,7 +615,7 @@ function evaluateContextRule(
         typeCode: operand.ctxTypeCode,
       };
     }
-    result = (value === operand) !== ((opCode & Op.NOT) !== 0);
+    result = applyOperator(opCode, value, 32n, hexToBytes(bigintToHex(operand)), propertyInfo.typeCode);
     ctxOperand = operand;
   } else {
     result = applyOperator(opCode, value, 32n, operandData, propertyInfo.typeCode);

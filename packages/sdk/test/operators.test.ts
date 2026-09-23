@@ -5,6 +5,7 @@ import {
   applyOperator,
   canonicalize,
   classifyTypeCode,
+  isContextOp,
   isSigned,
   isValidOperatorData,
   lookupTypeCode,
@@ -60,6 +61,26 @@ describe("isSigned", () => {
 
   test("address is unsigned", () => {
     expect(isSigned(TypeCode.ADDRESS)).toBe(false);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// isContextOp
+///////////////////////////////////////////////////////////////////////////
+
+describe("isContextOp", () => {
+  test("true across the context reference family", () => {
+    expect(isContextOp(Op.EQ_CTX)).toBe(true);
+    expect(isContextOp(Op.LTE_CTX)).toBe(true);
+  });
+
+  test("false for the neighbouring value operators", () => {
+    expect(isContextOp(Op.IN)).toBe(false);
+    expect(isContextOp(Op.BITMASK_ALL)).toBe(false);
+  });
+
+  test("ignores the NOT flag", () => {
+    expect(isContextOp(Op.GT_CTX | Op.NOT)).toBe(true);
   });
 });
 

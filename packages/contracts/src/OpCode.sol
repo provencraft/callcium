@@ -22,10 +22,14 @@ library OpCode {
     uint8 internal constant IN = 0x07;
 
     /*/////////////////////////////////////////////////////////////////////////
-                           CONTEXT REFERENCE OPERATOR
+                          CONTEXT REFERENCE OPERATORS
     /////////////////////////////////////////////////////////////////////////*/
 
     uint8 internal constant EQ_CTX = 0x08;
+    uint8 internal constant GT_CTX = 0x09;
+    uint8 internal constant LT_CTX = 0x0A;
+    uint8 internal constant GTE_CTX = 0x0B;
+    uint8 internal constant LTE_CTX = 0x0C;
 
     /*/////////////////////////////////////////////////////////////////////////
                                BITMASK OPERATORS

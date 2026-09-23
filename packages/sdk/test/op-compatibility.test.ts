@@ -45,6 +45,25 @@ describe("isOpAllowed - EQ_CTX", () => {
 });
 
 ///////////////////////////////////////////////////////////////////////////
+// Ordering context reference operators (GT_CTX, LT_CTX, GTE_CTX, LTE_CTX)
+///////////////////////////////////////////////////////////////////////////
+
+describe("isOpAllowed - ordering context reference operators", () => {
+  const ORDERING_CTX_OPS = [Op.GT_CTX, Op.LT_CTX, Op.GTE_CTX, Op.LTE_CTX] as const;
+
+  test("allowed on unsigned targets", () => {
+    for (const opCode of ORDERING_CTX_OPS) {
+      expect(isOpAllowed(opCode, uint256)).toBe(true);
+      expect(isOpAllowed(opCode, uint8)).toBe(true);
+    }
+  });
+
+  test("forbidden on address targets", () => {
+    for (const opCode of ORDERING_CTX_OPS) expect(isOpAllowed(opCode, address)).toBe(false);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
 // Value operators (EQ, GT, LT, GTE, LTE, BETWEEN, IN)
 ///////////////////////////////////////////////////////////////////////////
 

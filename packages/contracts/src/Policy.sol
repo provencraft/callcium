@@ -498,8 +498,8 @@ library Policy {
             _validateInAscending(self, dataLengthOffset + PF.RULE_DATALENGTH_SIZE, dataLength, ruleOffset);
         }
 
-        // An EQ_CTX operand word must be a defined context property ID.
-        if (opBase == OpCode.EQ_CTX) {
+        // A context reference operand word must be a defined context property ID.
+        if (OpRule.isContextOp(opBase)) {
             uint256 operand = uint256(LibBytes.load(self, dataLengthOffset + PF.RULE_DATALENGTH_SIZE));
             require(operand <= PF.CTX_MAX, UnknownContextProperty(ruleOffset));
         }

@@ -53,7 +53,7 @@ export type SelectorMismatchViolation = {
 
 /**
  * A rule referenced a context property not supplied in the execution context — a context-scoped
- * subject, or an `EQ_CTX` operand on either scope.
+ * subject, or a context reference operand on either scope.
  */
 export type MissingContextViolation = {
   code: "MISSING_CONTEXT";

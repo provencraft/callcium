@@ -28,6 +28,7 @@ import {
   getOperatorArity,
   getOperatorOptions,
   getOperatorLabel,
+  isContextOperator,
   type BuilderSession,
   type ConstraintConfig,
   type ConstraintInput,
@@ -592,14 +593,9 @@ function parseStaticArrayLength(type: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
-/** True for the operators whose operand names a context property instead of a value. */
-function isCtxOp(operator: string): boolean {
-  return operator === "eqCtx" || operator === "neqCtx";
-}
-
 /** Render a rule's operand list for display. */
 function formatRuleValues(operator: string, values: ScalarValue[]): string {
-  const operands = isCtxOp(operator)
+  const operands = isContextOperator(operator)
     ? values.map((v) => lookupContextProperty(Number(v)).label)
     : values.map((v) => String(v));
   return formatOperandList(getOperatorArity(operator), operands);
@@ -608,7 +604,7 @@ function formatRuleValues(operator: string, values: ScalarValue[]): string {
 function parseConstraintValues(operator: string, valueInput: string, typeInfo: TypeInfo | null): ScalarValue[] | null {
   try {
     // A context property ID, not a value of the target's type, so this precedes the type branches.
-    if (isCtxOp(operator)) {
+    if (isContextOperator(operator)) {
       const trimmed = valueInput.trim();
       return trimmed ? [BigInt(trimmed)] : null;
     }
@@ -1030,7 +1026,7 @@ function AddConstraintForm({
                 onValueChange={(op) => {
                   // A property ID and a literal value are both plain numbers, so a carried-over
                   // input would parse as the wrong operand.
-                  if (isCtxOp(op) !== isCtxOp(operator)) setValueInput("");
+                  if (isContextOperator(op) !== isContextOperator(operator)) setValueInput("");
                   setOperator(op);
                 }}
               >
@@ -1052,7 +1048,7 @@ function AddConstraintForm({
                   value
                 </label>
               )}
-              {isCtxOp(operator) ? (
+              {isContextOperator(operator) ? (
                 <Select value={valueInput} onValueChange={setValueInput}>
                   <SelectTrigger id="constraint-value" className="w-full">
                     <SelectValue />

@@ -78,14 +78,10 @@ export function isLengthOp(opCode: number): boolean {
   return base >= Op.LENGTH_EQ && base <= Op.LENGTH_BETWEEN;
 }
 
-/** Map a LENGTH_* opcode base to its core value-comparison twin. */
-function lengthToValueOp(base: number): number {
-  if (base === Op.LENGTH_EQ) return Op.EQ;
-  if (base === Op.LENGTH_GT) return Op.GT;
-  if (base === Op.LENGTH_LT) return Op.LT;
-  if (base === Op.LENGTH_GTE) return Op.GTE;
-  if (base === Op.LENGTH_LTE) return Op.LTE;
-  return Op.BETWEEN;
+/** Return true when the operator code (with or without NOT flag) is a *_CTX variant. */
+export function isContextOp(opCode: number): boolean {
+  const base = opCode & ~Op.NOT;
+  return base >= Op.EQ_CTX && base <= Op.LTE_CTX;
 }
 
 /** Return true when LENGTH_* operators are valid for the given type code (bytes, string, or dynamic array). */
@@ -124,7 +120,8 @@ function isIn(value: bigint, data: Uint8Array): boolean {
  * @param opCode - Operator code, potentially OR'd with the NOT flag.
  * @param value - The 256-bit value to test (ignored for LENGTH_* operators).
  * @param valueLength - Runtime byte or element count, only meaningful for LENGTH_* operators.
- * @param operandData - Raw operand bytes (32 per operand, 64 for range operators).
+ * @param operandData - Raw operand bytes (32 per operand, 64 for range operators); for a context
+ *   reference operator, the referenced property's value as one word.
  * @param typeCode - ABI type code, used to select signed vs. unsigned comparison.
  * @returns Whether the value satisfies the operator.
  */
@@ -135,17 +132,7 @@ export function applyOperator(
   operandData: Uint8Array,
   typeCode: number,
 ): boolean {
-  let base = opCode & ~Op.NOT;
-
-  // Length operators reuse the value-comparison core: the runtime count becomes the compared
-  // value and the opcode maps onto its EQ/GT/LT/GTE/LTE/BETWEEN twin. Counts are non-negative,
-  // so the comparison is always unsigned — force an unsigned type code regardless of the target.
-  if (isLengthOp(base)) {
-    value = valueLength;
-    typeCode = TypeCode.UINT_MAX;
-    base = lengthToValueOp(base);
-  }
-
+  const base = opCode & ~Op.NOT;
   let result: boolean;
 
   switch (base) {
@@ -197,6 +184,53 @@ export function applyOperator(
       result = (value & mask) === 0n;
       break;
     }
+
+    case Op.LENGTH_EQ:
+      result = valueLength === toBigInt(operandData, 0);
+      break;
+
+    case Op.LENGTH_GT:
+      result = valueLength > toBigInt(operandData, 0);
+      break;
+
+    case Op.LENGTH_LT:
+      result = valueLength < toBigInt(operandData, 0);
+      break;
+
+    case Op.LENGTH_GTE:
+      result = valueLength >= toBigInt(operandData, 0);
+      break;
+
+    case Op.LENGTH_LTE:
+      result = valueLength <= toBigInt(operandData, 0);
+      break;
+
+    case Op.LENGTH_BETWEEN: {
+      const lower = toBigInt(operandData, 0);
+      const upper = toBigInt(operandData, 32);
+      result = valueLength >= lower && valueLength <= upper;
+      break;
+    }
+
+    case Op.EQ_CTX:
+      result = value === toBigInt(operandData, 0);
+      break;
+
+    case Op.GT_CTX:
+      result = value > toBigInt(operandData, 0);
+      break;
+
+    case Op.LT_CTX:
+      result = value < toBigInt(operandData, 0);
+      break;
+
+    case Op.GTE_CTX:
+      result = value >= toBigInt(operandData, 0);
+      break;
+
+    case Op.LTE_CTX:
+      result = value <= toBigInt(operandData, 0);
+      break;
 
     default:
       throw new CallciumError("UNKNOWN_OPERATOR", `Unknown operator code ${formatCode(base, PF.RULE_OPCODE_SIZE)}`);

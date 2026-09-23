@@ -636,7 +636,7 @@ describe("PolicyValidator - unknown operator", () => {
 
   test("reports UNKNOWN_OPERATOR for unassigned gap opcode", () => {
     // First opcode in the unassigned gap before the bitmask range.
-    const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(0x09, 0n)]));
+    const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(Op.LTE_CTX + 1, 0n)]));
     expectIssueCode(issues, "UNKNOWN_OPERATOR");
   });
 
