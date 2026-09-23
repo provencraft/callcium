@@ -75,9 +75,8 @@ export type MissingContextViolation = {
  * - `resolvedValue` present, `elementIndex` absent — scalar leaf or context value that failed the operator.
  * - `resolvedValue` present, `elementIndex` present — universal-quantifier per-element failure.
  * - `resolvedValue` absent, `elementIndex` absent — existential-aggregate failure (no element satisfied).
- * - `resolvedValue` absent, `elementIndex` present — per-element failure where the leaf could not be loaded.
  *
- * For length operations (`isLengthOp(opCode)`), `resolvedValue` is a hex-encoded count rather than a 32-byte ABI word.
+ * For length operators, `resolvedValue` is the length as a 32-byte word.
  */
 export type ValueMismatchViolation = {
   code: "VALUE_MISMATCH";

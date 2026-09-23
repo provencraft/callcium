@@ -15,9 +15,8 @@ contract PolicyBuilderHarness {
                                  SHARED SCENARIO
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Builds one elementary argument under one equality — the cheapest pipeline the builder runs. Every
-    /// section anchors its series here, and sharing one function keeps those anchor rows exactly equal rather than
-    /// equal up to code layout.
+    /// @notice Builds one elementary argument under one equality — the cheapest pipeline the builder runs, and the
+    /// baseline every builder benchmark section reads against.
     function elementaryEq(bool safe) external pure returns (bytes memory policy) {
         // forgefmt: disable-next-item
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)")

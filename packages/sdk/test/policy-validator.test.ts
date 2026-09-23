@@ -25,8 +25,7 @@ import type { Constraint, Hex, Issue, PolicyData } from "../src/types";
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Build a raw PolicyData with a single constraint. Used only for tests that the builder would reject (empty groups,
- * unsorted sets, unknown opcodes, LENGTH on static types, context-scope with raw paths).
+ * Build a raw PolicyData with a single constraint, validated directly rather than through PolicyBuilder.
  */
 function rawPolicy(typesCsv: string, scope: number, path: Hex, operators: Hex[]): PolicyData {
   return {
@@ -63,7 +62,7 @@ function validate(typesCsv: string, build: (b: ReturnType<typeof PolicyBuilder.c
 
 describe("PolicyValidator - type compatibility", () => {
   test("reports VALUE_OP_ON_DYNAMIC for eq on bytes", () => {
-    // Builder rejects this at add() time, so use raw.
+    // Strict build rejects this, so validate the raw policy directly.
     const issues = PolicyValidator.validate(rawPolicy("bytes", Scope.CALLDATA, "0x0000", [op(Op.EQ, 42n)]));
     expectIssueCode(issues, "VALUE_OP_ON_DYNAMIC");
   });
@@ -90,7 +89,7 @@ describe("PolicyValidator - type compatibility", () => {
   });
 
   test("reports LENGTH_ON_STATIC for lengthEq on uint256", () => {
-    // Builder rejects LENGTH on static types, so use raw.
+    // Strict build rejects LENGTH on static types, so validate the raw policy directly.
     const issues = PolicyValidator.validate(rawPolicy("uint256", Scope.CALLDATA, "0x0000", [op(Op.LENGTH_EQ, 5n)]));
     expectIssueCode(issues, "LENGTH_ON_STATIC");
   });

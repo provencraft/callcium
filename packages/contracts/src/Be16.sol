@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 /// @title Be16
 /// @notice Helpers for reading and writing big-endian uint16 values.
 library Be16 {
-    /// @notice Thrown when attempting to read past the end of the buffer.
+    /// @notice Thrown when a read or write extends past the end of the buffer.
     error OutOfBounds();
 
     /*/////////////////////////////////////////////////////////////////////////

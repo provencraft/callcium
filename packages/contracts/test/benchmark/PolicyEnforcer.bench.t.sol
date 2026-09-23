@@ -25,12 +25,12 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                                  SHARED FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev One elementary argument under one equality — the cheapest policy the format expresses. Several series
-    /// anchor on this scenario, and one build keeps those rows exactly equal rather than equal up to layout.
+    /// @dev One elementary argument under one equality — the cheapest calldata-rule policy. Several series anchor on
+    /// this scenario, and one build keeps those rows exactly equal rather than equal up to layout.
     Fixture internal elementaryEq;
 
-    /// @dev An element read out of a dynamic array, which no hint can resolve. Anchors both the unhinted end of the
-    /// path-depth series and the array row of the value-type series.
+    /// @dev An element read out of a dynamic array, reached through a plain hop and an element hop. Anchors the array
+    /// end of the path-depth series and the array row of the value-type series.
     Fixture internal arrayElem;
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -307,9 +307,9 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               PATH DEPTH BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev A static-tuple path compiles to a hint, so its cost does not vary with depth. The series therefore records
-    /// the two ends — `elementaryEq` and `depth8VeryDeep` — and spends its remaining rows on array paths, which no hint
-    /// can resolve and which do scale.
+    /// @dev A static-tuple path compiles to a hint with no hops, so its cost does not vary with depth. The series
+    /// therefore records the two ends — `elementaryEq` and `depth8VeryDeep` — and spends its remaining rows on array
+    /// paths, whose hops do scale.
     function _buildPathDepthFixtures() internal {
         depth8VeryDeep = _buildDeepNested(8);
         depth3ArrayStructField = _buildArrayStruct();

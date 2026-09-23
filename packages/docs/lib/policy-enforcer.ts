@@ -15,7 +15,7 @@ import { type ParamNode, parseDescriptor } from "./policy-builder";
 ///////////////////////////////////////////////////////////////////////////
 
 export type EnforceOutput = {
-  /** Three-state result. */
+  /** Four-state result. */
   status: "pass" | "fail" | "inconclusive" | "error";
   /** Violations that caused failure (VALUE_MISMATCH etc.). */
   violations: Violation[];

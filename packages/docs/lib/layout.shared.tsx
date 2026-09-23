@@ -1,7 +1,7 @@
 import Image from "next/image";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
-// fill this with your actual GitHub info, for example:
+// GitHub repository the docs link to.
 export const gitConfig = {
   user: "provencraft",
   repo: "callcium",

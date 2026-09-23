@@ -177,7 +177,7 @@ function tamper(blob: Hex, byteOffset: number, replacement: string): Hex {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Conformance vectors
+// Basic enforcement
 ///////////////////////////////////////////////////////////////////////////
 
 describe("enforce", () => {
@@ -799,7 +799,7 @@ describe("enforce - quantifier element resolution failures", () => {
     const policy = PolicyBuilder.createRaw("(uint256[],uint256)[]")
       .add(arg(0, Quantifier.ALL, 0, 0).eq(42n))
       .build();
-    // Dynamic array with 1 element: element tuple has field0=uint256[] with a bogus offset pointer.
+    // One element whose field0 offset is 0, so the inner uint256[] reads a length of 0 and index 0 is out of bounds.
     const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(0n)}${wordHex(9999n)}${wordHex(42n)}`;
     const result = PolicyEnforcer.check(policy, callData);
     const violation = expectFirstViolation(result, "ARRAY_INDEX_OUT_OF_BOUNDS");

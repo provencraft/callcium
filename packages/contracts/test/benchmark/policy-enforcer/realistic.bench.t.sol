@@ -9,7 +9,7 @@ import { PolicyEnforcerBench } from "../PolicyEnforcer.bench.t.sol";
 
 /// @dev End-to-end cost of policies over signatures with the argument shapes real ABIs produce, as opposed to the
 /// single-constraint scenarios that isolate one cost each. Every policy here is accepted by the strict builder, so the
-/// corpus also records which argument shapes resolve through a hint and which fall back to descriptor traversal.
+/// corpus also shows how hop count adds to the cost.
 contract RealisticBench is PolicyEnforcerBench {
     Fixture internal tokenApproval;
     Fixture internal swapStaticParams;
@@ -29,7 +29,7 @@ contract RealisticBench is PolicyEnforcerBench {
     /////////////////////////////////////////////////////////////////////////*/
 
     /// @dev Spender allowlist and an amount ceiling on a token approval. Elementary arguments, so every calldata rule
-    /// resolves through a hint.
+    /// resolves with no hop.
     function _buildTokenApproval() private {
         string memory sig = "approve(address,uint256)";
         address[] memory spenders = new address[](2);
@@ -47,7 +47,7 @@ contract RealisticBench is PolicyEnforcerBench {
     }
 
     /// @dev Token pair, recipient and amount ceiling on a swap whose parameters are one static struct. A static struct
-    /// places its fields at fixed offsets, so the rules stay hinted.
+    /// places its fields at fixed offsets, so the rules resolve with no hop.
     function _buildSwapStaticParams() private {
         string memory sig = "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))";
 
@@ -69,7 +69,7 @@ contract RealisticBench is PolicyEnforcerBench {
     }
 
     /// @dev The same intent over a swap that carries an encoded route. The `bytes` member makes the whole struct
-    /// dynamic, so none of these rules compiles to a hint.
+    /// dynamic, so every rule enters the struct through a plain hop.
     function _buildSwapWithPath() private {
         string memory sig = "exactInput((bytes,address,uint256,uint256))";
 
@@ -88,7 +88,7 @@ contract RealisticBench is PolicyEnforcerBench {
     }
 
     /// @dev Recipient, batch size and a ceiling on every token id. The quantified array holds static elements and sits
-    /// behind static arguments, so it addresses through a hint.
+    /// behind static arguments, so it addresses them by stride after one plain hop into the array.
     function _buildBatchTransfer() private {
         string memory sig = "safeBatchTransferFrom(address,address,uint256[],uint256[],bytes)";
 

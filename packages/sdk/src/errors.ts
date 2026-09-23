@@ -82,8 +82,7 @@ export type CallciumErrorCode =
   | "VALIDATION_ERROR";
 
 /**
- * Thrown when a policy or descriptor blob is structurally malformed. The optional `offset` indicates the byte position
- * in the source blob where the error was detected.
+ * Thrown on malformed or inadmissible SDK input. `offset`, when set, is the error's byte position in the source blob.
  */
 export class CallciumError extends Error {
   public readonly code: CallciumErrorCode;

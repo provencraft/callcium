@@ -646,7 +646,7 @@ function encode(data: PolicyData): Hex {
 /**
  * Decode a binary policy blob into a PolicyData structure.
  * @param blob - Binary policy as 0x-prefixed hex string.
- * @returns The decoded policy data with constraints grouped by scope and path.
+ * @returns The decoded policy data with constraints grouped by scope, path, and hint.
  * @throws {CallciumError} If the blob is structurally malformed.
  */
 function decode(blob: Hex): PolicyData {

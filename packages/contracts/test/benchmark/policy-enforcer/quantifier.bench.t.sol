@@ -9,9 +9,8 @@ import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
 import { PolicyEnforcerBench } from "../PolicyEnforcer.bench.t.sol";
 
-/// @dev Pins gas linearity of quantified evaluation: the suffix descent allocates per element, so a broken
-/// free-memory-pointer rewind shows up as superlinear growth across these sizes. Both element shapes are covered — a
-/// static element addressed by stride alone, and a dynamic element the frame reaches through its own offset word.
+/// @dev Pins gas linearity of quantified evaluation across array sizes. Both element shapes are covered — a static
+/// element addressed by stride alone, and a dynamic element the frame reaches through its own offset word.
 contract QuantifierBench is PolicyEnforcerBench {
     Fixture internal suffix8;
     Fixture internal suffix64;

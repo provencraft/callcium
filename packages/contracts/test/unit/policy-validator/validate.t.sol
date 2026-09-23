@@ -1209,8 +1209,8 @@ contract SetContradictionTest is PolicyValidatorTest {
 
     function test_ManyReductions_NoOverflow() public pure {
         bytes memory desc = DescriptorBuilder.create().add(TypeDesc.uint256_()).build();
-        // A large isIn/notIn overlap emits one SET_REDUCTION per element — far more issues than the per-operator
-        // capacity estimate, so the issue buffer must grow rather than overflow.
+        // A large isIn/notIn overlap emits one SET_REDUCTION per element, so the issue buffer must grow repeatedly
+        // rather than overflow.
         uint256 count = 64;
         uint256[] memory set = new uint256[](count);
         for (uint256 i = 0; i < count; ++i) {
@@ -1302,8 +1302,7 @@ contract SetOrderingTest is PolicyValidatorTest {
     }
 
     function test_SetIntersection_PreservesOriginalOrdering() public view {
-        // We use unsorted sets in the harness to verify that PolicyValidator preserves the ordering of the original set
-        // (set1) during intersection.
+        // Unsorted sets check that the harness's copy of the `_updateSet` intersection keeps set1's order.
 
         // set1: [2, 1, 3]
         uint256[] memory set1 = new uint256[](3);
@@ -1624,7 +1623,7 @@ contract HintMismatchTest is PolicyValidatorTest {
 //////////////////////////////////////////////////////////////////////////*/
 
 contract IssueProvenanceTest is PolicyValidatorTest {
-    /// @dev Two uint256 parameters, so the reported constraint index differs from the group index.
+    /// @dev Two uint256 parameters, so the filler constraint and the constraint under test target separate paths.
     function _twoArgs() private pure returns (bytes memory) {
         return DescriptorBuilder.create().add(TypeDesc.uint256_()).add(TypeDesc.uint256_()).build();
     }

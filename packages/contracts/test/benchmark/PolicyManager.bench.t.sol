@@ -71,8 +71,8 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
         }
     }
 
-    /// @dev The series varies descriptor complexity, so each rule addresses a member of its signature rather than the
-    /// composite itself, which no operator can read.
+    /// @dev The series varies descriptor complexity, so each rule targets an elementary member or uses a length
+    /// operator on a dynamic array; value operators cannot read a composite.
     function _buildDescriptorComplexityFixtures() internal {
         // forgefmt: disable-next-item
         policyTuple = PolicyBuilder.create("baz((address,uint256,bool))")

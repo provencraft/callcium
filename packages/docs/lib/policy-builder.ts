@@ -162,7 +162,7 @@ export type BuilderSession = {
   groups: ConstraintGroup[];
   /** Encoded policy hex, or null if there are errors or no constraints. */
   hex: Hex | null;
-  /** Validation issues from PolicyValidator (warnings, info). */
+  /** Validation issues from PolicyValidator, of every severity. */
   issues: Issue[];
   /** Structural and semantic errors (strings). */
   errors: string[];
@@ -375,10 +375,6 @@ function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; e
 // Public API
 ///////////////////////////////////////////////////////////////////////////
 
-/**
- * Parse a raw signature (with or without top-level names) via viem. Returns the canonical types-only signature and the
- * extracted top-level names. For selectorless, the input is wrapped with a dummy function name and stripped afterwards.
- */
 /** Recursively extract a name tree from a viem ABI parameter. */
 export function toNameTree(param: {
   name?: string;
@@ -390,6 +386,10 @@ export function toNameTree(param: {
   };
 }
 
+/**
+ * Parse a raw signature, with or without parameter names, via viem. Returns the canonical signature (types only when
+ * selectorless) and one name tree per parameter.
+ */
 function parseRawSignature(raw: string, selectorless: boolean): { cleanSignature: string; nameTrees: NameTree[] } {
   const wrapped = selectorless ? `function __sl__(${raw})` : `function ${raw}`;
   const abiFunction = parseAbiItem(wrapped) as AbiFunction;

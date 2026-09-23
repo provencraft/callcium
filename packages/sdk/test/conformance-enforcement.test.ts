@@ -26,7 +26,7 @@ type Vector = {
   callData: string;
   context?: VectorContext;
   expected?: boolean;
-  /** Violation code for malformed-calldata vectors (the onchain enforcer reverts). */
+  /** Violation code for abort-violation vectors (the onchain enforcer reverts). */
   expectedError?: string;
   /**
    * Expected violation codes, one per failed group. Reporting detail is non-normative (spec 9.3): only implementations

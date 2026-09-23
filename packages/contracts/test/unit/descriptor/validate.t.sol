@@ -12,7 +12,7 @@ contract ValidateTest is DescriptorTest {
     function _nestedTuples(uint256 levels) private pure returns (bytes memory) {
         bytes memory node = hex"20";
         for (uint256 i = 0; i < levels; ++i) {
-            // staticWords = 1 | nodeLength = header(6) + inner node; fits 24 bits for any test depth.
+            // staticWords = 1 | nodeLength = header(6) + inner node, within its 12-bit field at any test depth.
             uint24 meta = uint24((1 << 12) | (node.length + 6));
             node = bytes.concat(hex"90", bytes3(meta), hex"0001", node);
         }
@@ -29,9 +29,8 @@ contract ValidateTest is DescriptorTest {
     }
 
     function test_StaticArrayAddressMaxLength() public pure {
-        // Static array of address[65535]: [code:80][meta:fff007][elem:41][length:ffff]. Note: staticWords = 0xfff (max
-        // 12-bit value), but actual count is limited. For maxLength test, staticWords would overflow. Using 4095 words
-        // max.
+        // Static array of address[4095]: [code:80][meta:fff007][elem:41][length:0fff]. Its staticWords fills the 12-bit
+        // field, so no longer static address array fits.
         Descriptor.validate(hex"020180fff007410fff");
     }
 
@@ -82,7 +81,7 @@ contract ValidateTest is DescriptorTest {
     }
 
     function test_RevertWhen_NodeLengthTooSmallForTuple() public {
-        // Tuple with nodeLength=5 (min is TUPLE_HEADER_SIZE=6): [code:90][meta:001005][fc:0001][field:41].
+        // Tuple with nodeLength=5 (min is TUPLE_HEADER_SIZE=6): [code:90][meta:001005][fc:0001][field:41][trailing:00].
         vm.expectRevert(abi.encodeWithSelector(Descriptor.NodeLengthTooSmall.selector, 2, uint16(5)));
         Descriptor.validate(hex"02019000100500014100");
     }

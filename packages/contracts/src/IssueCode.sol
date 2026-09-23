@@ -8,7 +8,7 @@ library IssueCode {
                                   TYPE MISMATCH
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// Value operator used on a dynamic type.
+    /// Value operator used on a dynamic type or one whose static head is not 32 bytes.
     bytes32 internal constant VALUE_OP_ON_DYNAMIC = "VALUE_OP_ON_DYNAMIC";
     /// Value operator used on a composite type (array or tuple), even when its static head is 32 bytes.
     bytes32 internal constant VALUE_OP_ON_COMPOSITE = "VALUE_OP_ON_COMPOSITE";

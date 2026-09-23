@@ -166,7 +166,7 @@ library PolicyValidator {
             if (ctxIndex == type(uint256).max) {
                 Descriptor.TypeInfo memory typeInfo;
                 if (constraint.scope == PF.SCOPE_CALLDATA) {
-                    // Compatibility warnings against the limits the spec fixes (PWF-17, PV-7).
+                    // Compatibility issues against the limits the spec fixes (PWF-17, PV-7).
                     uint256 depth = constraint.path.length / 2;
                     if (depth > PF.MAX_PATH_DEPTH) {
                         issues.push(
@@ -319,9 +319,9 @@ library PolicyValidator {
                     }
                 }
             } else if (OpRule.isValueOp(base)) {
-                // A non-canonical operand can never equal a canonicalized runtime value (PC-1), so the rule is
-                // unsatisfiable or vacuous; skip analyzing the garbage word. Scoped to the left-aligned types: numeric,
-                // address, and bool operands are already covered by the physical domain limits.
+                // An operand that breaks PC-1 never matches, since enforcement only admits canonical values, so the
+                // rule is unsatisfiable or vacuous; skip it. Numeric, address and bool operands are already covered by
+                // the domain limits.
                 uint8 typeCode = ctx.typeInfo.code;
                 if (TypeRule.isLeftAligned(typeCode)) {
                     (bool nonCanonical, bytes32 word, bytes32 canonical) = _findNonCanonicalWord(op, typeCode);

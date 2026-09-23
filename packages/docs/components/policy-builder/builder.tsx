@@ -38,7 +38,7 @@ import {
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
 
-// Both context properties are 32-byte elementary types despite address being 20 bytes on-chain.
+// Both context property types (address, uint256) use a 32-byte word.
 const CTX_ADDRESS: TypeInfo = { typeCode: TypeCode.ADDRESS, isDynamic: false, staticSize: 32 };
 const CTX_UINT256: TypeInfo = { typeCode: TypeCode.UINT_MAX, isDynamic: false, staticSize: 32 };
 
@@ -580,7 +580,7 @@ function ConstraintRow({
 
 /** Strip error codes and hex paths from structural error messages. */
 function humanizeError(error: string): string {
-  // "DUPLICATE_PATH: Duplicate path 0x0001 in the same group." → "Duplicate path in the same group."
+  // "DUPLICATE_PATH_IN_GROUP: Duplicate path 0x0001 in the same group" → "Duplicate path in the same group"
   const stripped = error.replace(/^[A-Z_]+:\s*/, "");
   return stripped
     .replace(/\s*0x[0-9a-fA-F]+\s*/g, " ")

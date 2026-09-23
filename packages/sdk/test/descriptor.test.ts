@@ -32,7 +32,7 @@ describe("Descriptor.paramCount", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("Descriptor.inspect", () => {
-  test("elementary address: typeCode=0x40, isDynamic=false, staticSize=32", () => {
+  test("elementary address: typeCode=0x41, isDynamic=false, staticSize=32", () => {
     const desc = DescriptorCoder.fromTypes("address");
     // offset 2 = first param node.
     const info = Descriptor.inspect(desc, 2);
@@ -84,7 +84,7 @@ describe("Descriptor.paramOffset", () => {
   });
 
   test("composite first param shifts second param offset", () => {
-    // (address,uint256) is a composite node; uint256 starts after it.
+    // (address,uint256) is a composite node; the bool parameter starts after it.
     const desc = DescriptorCoder.fromTypes("(address,uint256),bool");
     const tupleOffset = 2;
     const tupleInfo = Descriptor.inspect(desc, tupleOffset); // inspect to confirm it's a tuple

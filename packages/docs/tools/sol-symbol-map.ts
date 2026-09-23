@@ -161,7 +161,7 @@ function classify(
       return;
     case "FunctionDefinition": {
       const name = node.kind === "constructor" ? "constructor" : node.name;
-      // Mirror removePrivateFunctions: skip `_`-prefixed names for non-abstract sources.
+      // Mirror processMainFile in sync-reference.ts: skip `_`-prefixed names for non-abstract sources.
       if (!name || (!isAbstractSource && name.startsWith("_"))) return;
       (map.function_[name] ??= []).push(line);
       return;
@@ -179,7 +179,7 @@ function classify(
       if (node.name) (map.modifier[node.name] ??= []).push(line);
       return;
     case "VariableDeclaration":
-      // Mirror removePrivateConstants: only keep non-private constants.
+      // Mirror processMainFile in sync-reference.ts: only keep non-private constants.
       if (node.constant === true && node.visibility !== "private" && node.name) {
         (map.constant[node.name] ??= []).push(line);
       }

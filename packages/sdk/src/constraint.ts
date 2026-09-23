@@ -121,8 +121,8 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Extremes of the numeric operands a builder's value operators received, as written. Encoding folds a negative operand
- * onto its unsigned alias, so the sign survives nowhere else.
+ * Extremes of the numeric operands a builder's equality, comparison and set operators received, as written. Encoding
+ * folds a negative operand onto its unsigned alias, so the sign survives nowhere else.
  */
 export type OperandExtremes = {
   /** Most negative operand written, or zero when none was negative. */
@@ -260,7 +260,8 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
 
   /**
    * Assert the value is a member of the set. Values are sorted and deduplicated before encoding.
-   * @throws {CallciumError} If the set is empty after deduplication.
+   * @throws {CallciumError} If the set is empty, has more than MAX_SET_MEMBERS distinct values, or a value is not
+   * encodable as an operand word.
    */
   isIn(values: readonly Operand[]): this {
     return this.push(setOp(Op.IN, values), values);
@@ -268,7 +269,8 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
 
   /**
    * Assert the value is not a member of the set.
-   * @throws {CallciumError} If the set is empty after deduplication.
+   * @throws {CallciumError} If the set is empty, has more than MAX_SET_MEMBERS distinct values, or a value is not
+   * encodable as an operand word.
    */
   notIn(values: readonly Operand[]): this {
     return this.push(setOp(Op.IN | Op.NOT, values), values);

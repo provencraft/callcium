@@ -89,11 +89,10 @@ library TypeRule {
         return mode == CANON_LEFT;
     }
 
-    /// @notice Canonicalizes a raw 32-byte calldata word to its ABI value for the given type.
-    /// @dev A scalar loaded from untrusted calldata may carry dirty bits outside the declared type width. Masking
-    /// unsigned/address/bool to width, clearing the trailing padding of left-aligned function/bytesN values, and
-    /// sign-extending signed integers makes the comparison use the canonical ABI value, not the raw bytes.
-    /// @param value The raw 32-byte word loaded from calldata.
+    /// @notice Returns the canonical encoding of a 32-byte word for the given type.
+    /// @dev Masks unsigned/address/bool to width, clears bytesN/function padding, and sign-extends signed integers. A
+    /// word is canonical when this leaves it unchanged.
+    /// @param value The 32-byte word.
     /// @param typeCode The type code of the value.
     /// @return The canonicalized value.
     function canonicalize(bytes32 value, uint8 typeCode) internal pure returns (bytes32) {

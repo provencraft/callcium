@@ -35,7 +35,7 @@ library Policy {
                                      ERRORS
     ////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Thrown when the policy blob is too short to contain a valid header.
+    /// @notice Thrown when the policy header is truncated or has an invalid field.
     error MalformedHeader();
 
     /// @notice Thrown when the policy format version is not supported.
@@ -98,7 +98,7 @@ library Policy {
     error OperatorTargetMismatch(uint256 ruleOffset);
 
     /// @notice Thrown when a path does not address a target reachable by a hop chain.
-    /// @param stepIndex The index of the path step that does not resolve.
+    /// @param stepIndex The unresolved step index, or the path depth when a hop chain is too long.
     error UncompilablePath(uint256 stepIndex);
 
     /// @notice Thrown when a rule has an empty path.

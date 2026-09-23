@@ -97,7 +97,8 @@ export function bytesN(length: number): Uint8Array {
  *
  * @param elemDesc - Descriptor bytes for the element type.
  * @param length - Fixed array length. When omitted, produces a dynamic array.
- * @throws {CallciumError} If length is 0 or exceeds MAX_STATIC_ARRAY_LENGTH.
+ * @throws {CallciumError} If length is 0 or above MAX_STATIC_ARRAY_LENGTH.
+ * @throws {CallciumError} If the node exceeds MAX_NODE_LENGTH or MAX_STATIC_WORDS.
  */
 export function array(elemDesc: Uint8Array, length?: number): Uint8Array {
   if (length === undefined) {
@@ -154,7 +155,8 @@ export function array(elemDesc: Uint8Array, length?: number): Uint8Array {
  * Format: `[0x90][meta:3][fieldCount:be16][field0][field1]...`
  *
  * @param fieldDescs - Descriptor bytes for each field, in order.
- * @throws {CallciumError} If fieldDescs is empty, exceeds MAX_TUPLE_FIELDS, or nodeLength overflows MAX_NODE_LENGTH.
+ * @throws {CallciumError} If fieldDescs is empty or above MAX_TUPLE_FIELDS.
+ * @throws {CallciumError} If the node exceeds MAX_NODE_LENGTH or MAX_STATIC_WORDS.
  */
 export function tuple(fieldDescs: Uint8Array[]): Uint8Array {
   if (fieldDescs.length === 0 || fieldDescs.length > DF.MAX_TUPLE_FIELDS) {

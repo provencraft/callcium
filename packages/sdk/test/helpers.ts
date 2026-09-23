@@ -103,7 +103,7 @@ export function word(value: bigint): Uint8Array {
   return buf;
 }
 
-/** The same word as 64 hex characters with no prefix, for calldata concatenation. */
+/** A non-negative value as a 64-hex-character word with no prefix, for calldata concatenation. */
 export function wordHex(value: bigint): string {
   return bigintToHex(value).slice(2);
 }

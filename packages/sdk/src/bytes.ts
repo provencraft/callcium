@@ -2,7 +2,7 @@ import { CallciumError } from "./errors";
 
 import type { Address, Hex } from "./types";
 
-/** Regex that matches a valid hex body (even number of hex chars). */
+/** Regex that matches a string of hex digits. */
 const hexBodyPattern = /^[0-9a-fA-F]*$/;
 
 // Nibble value per ASCII code, -1 for every character that is not a hex digit.
@@ -87,7 +87,7 @@ export function bigintToHex(value: bigint): Hex {
   return `0x${value.toString(16).padStart(64, "0")}`;
 }
 
-/** Validate and brand a hex string as an address. Throws if the runtime length is not exactly 20 bytes. */
+/** Validate and brand a hex string as an address. Throws if the body is not exactly 40 hex characters. */
 export function toAddress(hex: string): Address {
   const body = hex.startsWith("0x") ? hex.slice(2) : hex;
   if (body.length !== 40) {

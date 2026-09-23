@@ -295,7 +295,7 @@ function gitSourceParagraph(contractDir: string, line: number): Paragraph {
 
 /**
  * Walk a file's tree and insert `[Git Source]` paragraphs under each symbol heading, consuming one line from the
- * matching SymbolMap queue per heading. Handles the bare-code-block case (e.g. `struct.Foo.md`) by prepending the link
+ * matching SymbolMap queue per heading. Handles the bare-code-block case (e.g. `struct.Foo.mdx`) by prepending the link
  * before the code.
  */
 function injectSourceLinks(filename: string, tree: Root, contractDir: string, symbolMap: SymbolMap): void {

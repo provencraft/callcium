@@ -31,8 +31,8 @@ function isAlphanum(char: number): boolean {
 /**
  * Parse an ABI function signature into its selector and types.
  *
- * Strict mode: no whitespace, name must match `[A-Za-z_][A-Za-z0-9_]*`, structure must be `name(types)` with the final
- * `)` as the last character.
+ * Strict mode: no space, tab, LF or CR; name must match `[A-Za-z_][A-Za-z0-9_]*`; structure must be `name(types)` with
+ * the final `)` as the last character.
  *
  * @param signature - A function signature string, e.g. `"transfer(address,uint256)"`.
  * @returns The 4-byte selector and the comma-separated types string.

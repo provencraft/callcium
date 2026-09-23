@@ -15,9 +15,9 @@ struct Constraint {
     bytes path;
     /// Encoded operators. Each item = opCode(1) || data.
     bytes[] operators;
-    /// Most negative operand written, or zero when none was negative.
+    /// Most negative operand of an equality, comparison or set operator; zero if none.
     int256 leastNegativeOperand;
-    /// Greatest operand written, or zero when none exceeded it.
+    /// Greatest operand of an equality, comparison or set operator; zero if none.
     uint256 greatestOperand;
     /// Compiled hint block as carried on the wire; empty when the constraint has no encoding.
     bytes hint;

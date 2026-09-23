@@ -29,7 +29,7 @@ library Path {
     /// @param depth The path depth.
     error IndexOutOfBounds(uint256 stepIndex, uint256 depth);
 
-    /// @notice Thrown when the be16-encoded path is malformed (empty or odd length).
+    /// @notice Thrown when the be16-encoded path has an odd byte length.
     error MalformedPath();
 
     /*/////////////////////////////////////////////////////////////////////////

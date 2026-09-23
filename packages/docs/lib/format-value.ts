@@ -106,8 +106,8 @@ export function decodeValue(hex: Hex, typeCode: number): string {
 /**
  * Join rendered operands into one display string, bracketed by operator arity.
  *
- * A set is braced (`{a, b}`) and a range is bracketed (`[lo, hi]`), matching the notation the policy spec uses for
- * `OP_IN` and `OP_BETWEEN`. A single operand carries no brackets.
+ * A set is braced (`{a, b}`), matching the spec's notation for `OP_IN`; an inclusive range is bracketed (`[lo, hi]`). A
+ * single operand carries no brackets.
  */
 export function formatOperandList(arity: Operands, operands: readonly string[]): string {
   if (arity === "variadic") return `{${operands.join(", ")}}`;

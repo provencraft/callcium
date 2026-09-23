@@ -180,7 +180,7 @@ function parseType(input: string, start: number, end: number): Uint8Array {
 
   let desc = parseBaseType(input, start, baseEnd);
 
-  // Apply suffixes left-to-right: the leftmost suffix is the outermost array. A dynamic array spells no length at all.
+  // Apply suffixes left-to-right: the leftmost suffix is the innermost array. A dynamic array spells no length at all.
   for (const [innerStart, innerEnd] of spans) {
     desc = array(desc, innerStart === innerEnd ? undefined : parseUint(input, innerStart, innerEnd));
   }

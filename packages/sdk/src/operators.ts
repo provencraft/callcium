@@ -31,10 +31,9 @@ export function isLeftAligned(typeCode: number): boolean {
 }
 
 /**
- * Canonicalize a raw 256-bit calldata word to its ABI value for the declared type. A scalar loaded from untrusted
- * calldata may carry bits outside the declared width; masking unsigned/address/bool/function/bytesN to width and
- * sign-extending signed integers makes the comparison use the canonical ABI value rather than the raw bytes.
- * @param value - The raw 256-bit word loaded from calldata.
+ * Return the canonical encoding of a 256-bit word for the declared type. Masks unsigned/address/bool to width, clears
+ * bytesN/function padding, and sign-extends signed integers. A word is canonical when this leaves it unchanged.
+ * @param value - The 256-bit word.
  * @param typeCode - The declared type code of the value.
  * @returns The canonicalized 256-bit value.
  */
@@ -294,7 +293,7 @@ const TUPLE = { typeClass: "tuple", isDynamic: false } as const;
 /**
  * Classify a type code into its structural category and dynamism. A `lookupTypeCode` variant without labels.
  * @param code - A single-byte descriptor type code.
- * @returns Type class and whether the type is ABI-dynamic.
+ * @returns Type class, and whether the code alone implies ABI dynamism (false for tuples and static arrays).
  * @throws {CallciumError} If the code is not a recognised type code.
  */
 export function classifyTypeCode(code: number): TypeClassInfo {
@@ -363,7 +362,7 @@ function typeCodeLabel(code: number): string {
 /**
  * Map a raw type code byte to its ABI type label, structural category, and dynamism.
  * @param code - A single-byte descriptor type code.
- * @returns Label, type class, and whether the type is ABI-dynamic.
+ * @returns Label, type class, and whether the code alone implies ABI dynamism (false for tuples and static arrays).
  * @throws {CallciumError} If the code is not a recognised type code.
  */
 export function lookupTypeCode(code: number): TypeCodeInfo {

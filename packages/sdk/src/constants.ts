@@ -34,7 +34,7 @@ const RULE_DATALENGTH_SIZE = 2;
 /** Byte width of one path step. */
 const PATH_STEP_SIZE = 2;
 
-/** Byte overhead of a rule header, excluding the path and the operator payload. */
+/** Byte overhead of a rule header, excluding the path, the hint block, and the operator payload. */
 const RULE_FIXED_OVERHEAD = 7;
 
 /** Highest value a big-endian field of `byteWidth` bytes holds. */

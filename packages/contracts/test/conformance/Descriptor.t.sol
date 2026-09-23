@@ -18,7 +18,7 @@ contract DescriptorConformanceTest is BaseTest {
         bool isDynamic;
         /// @dev Encoded path to the parameter.
         bytes path;
-        /// @dev Static word count for fixed-size types.
+        /// @dev ABI head size in bytes; zero for dynamic types.
         uint256 staticSize;
         /// @dev TypeDesc type code.
         uint256 typeCode;

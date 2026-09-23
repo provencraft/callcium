@@ -144,7 +144,7 @@ function getDomainLimits(typeCode: number): { min: bigint; max: bigint } {
 // Operator classification
 ///////////////////////////////////////////////////////////////////////////
 
-/** True for EQ, GT, LT, GTE, LTE, BETWEEN, IN, *_CTX, BITMASK_*. */
+/** True if an operator code is in the value-operator range (unassigned codes included). */
 function isValueOp(opBase: number): boolean {
   return opBase <= Op.BITMASK_NONE;
 }
@@ -939,9 +939,8 @@ function validateConstraint(
         }
       }
     } else if (isValueOp(base)) {
-      // A non-canonical operand can never equal a canonicalized runtime value (PC-1), so the rule is unsatisfiable or
-      // vacuous; skip analyzing the garbage word. Scoped to the left-aligned types: numeric, address, and bool operands
-      // are already covered by the physical domain limits.
+      // An operand that breaks PC-1 never matches, since enforcement only admits canonical values, so the rule is
+      // unsatisfiable or vacuous; skip it. Numeric, address and bool operands are already covered by the domain limits.
       const typeCode = ctx.typeInfo.typeCode;
       if (isLeftAligned(typeCode)) {
         const nonCanonical = findNonCanonicalWord(opHex, typeCode);
@@ -1046,7 +1045,7 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
       if (steps.length === 0) throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
       let typeInfo: TypeInfo;
       if (constraint.scope === Scope.CALLDATA) {
-        // Compatibility warnings against the limits the spec fixes (PWF-17, PV-7).
+        // Compatibility issues against the limits the spec fixes (PWF-17, PV-7).
         if (steps.length > PolicyFormat.MAX_PATH_DEPTH) {
           issues.push(
             ValidationIssue.pathDepthExceeded(
@@ -1135,9 +1134,9 @@ function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: numb
  * @param data - The canonical policy data to validate.
  * @returns All validation issues found, ordered by group and constraint index.
  * @throws {CallciumError} If the descriptor is malformed; semantic validation is defined only over a well-formed one.
- * @throws {CallciumError} With code `EMPTY_PATH` when a constraint carries no path step, and `INVALID_HEX` or
- * `INVALID_OPERATOR_BYTES` when an operator is not a readable encoding. Analysis is defined over canonical data, so
- * these reject the input rather than report an issue on it.
+ * @throws {CallciumError} With `EMPTY_PATH` or `MALFORMED_PATH` for a path that is empty or not whole steps, and
+ * `INVALID_HEX` or `INVALID_OPERATOR_BYTES` for an unreadable path or operator. Analysis is defined over canonical
+ * data, so these reject the input rather than report an issue.
  */
 function validate(data: PolicyData): Issue[] {
   const descBytes = hexToBytes(data.descriptor);

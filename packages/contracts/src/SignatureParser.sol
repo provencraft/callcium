@@ -6,7 +6,7 @@ import { LibBytes } from "solady/utils/LibBytes.sol";
 /// @title SignatureParser
 /// @notice Parses strict Solidity-style function signatures and computes the selector.
 /// @dev Strict mode compatible with abi.encodeWithSignature expectations:
-/// - No ASCII whitespace allowed anywhere in the signature.
+/// - No space, tab, LF or CR anywhere in the signature.
 /// - Structure must be name(types) with the final ')' as the last byte.
 /// - Function name must match [A-Za-z_][A-Za-z0-9_]*.
 /// - Types are not validated here.
@@ -15,7 +15,7 @@ library SignatureParser {
                                     ERRORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Thrown when the signature contains any ASCII whitespace chars.
+    /// @notice Thrown when the signature contains a space, tab, LF or CR.
     error SignatureContainsWhitespace();
 
     /// @notice Thrown when the signature does not follow the strict name(types) form.

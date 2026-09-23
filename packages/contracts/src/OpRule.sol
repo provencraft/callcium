@@ -77,7 +77,7 @@ library OpRule {
         return TypeRule.hasCalldataLength(typeCode);
     }
 
-    /// @notice Checks if an operator is a value operator (as opposed to a length operator).
+    /// @notice Checks if an operator code is in the value-operator range (unassigned codes included).
     /// @param opBase The operator code without the NOT flag.
     /// @return True if this is a value operator.
     function isValueOp(uint8 opBase) internal pure returns (bool) {

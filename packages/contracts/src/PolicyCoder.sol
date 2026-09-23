@@ -128,7 +128,7 @@ library PolicyCoder {
     }
 
     /// @notice Decodes a policy blob into policy data.
-    /// @dev Groups rules by (scope, path) to reconstruct constraints.
+    /// @dev Groups rules by (scope, path, hint) to reconstruct constraints.
     /// @param policy The encoded policy blob.
     /// @return data The decoded policy data.
     function decode(bytes memory policy) internal pure returns (PolicyData memory data) {
@@ -380,7 +380,7 @@ library PolicyCoder {
             ruleOffset += Policy.ruleSize(policy, ruleOffset);
         }
 
-        // Second pass: group rules by (scope, path) into Constraints.
+        // Second pass: group rules by (scope, path, hint) into Constraints.
         return _groupRulesIntoConstraints(rules);
     }
 

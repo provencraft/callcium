@@ -38,7 +38,7 @@ library PolicyFormat {
     /// @dev Size of the `descLength` field in bytes.
     uint256 internal constant POLICY_DESC_LENGTH_SIZE = 2;
 
-    /// @dev Byte offset of the embedded descriptor within the policy header.
+    /// @dev Byte offset of the embedded descriptor within the policy.
     uint256 internal constant POLICY_DESC_OFFSET = POLICY_DESC_LENGTH_OFFSET + POLICY_DESC_LENGTH_SIZE;
 
     /// @dev Fixed prefix size before the descriptor: header(1) + selector(4) + descLength(2).
@@ -107,8 +107,8 @@ library PolicyFormat {
     /// @dev Size of the `dataLength` field in bytes.
     uint256 internal constant RULE_DATALENGTH_SIZE = 2;
 
-    /// @dev Fixed byte overhead of a rule header, excluding `pathLength` and `dataLength`. Breakdown: size(2) +
-    /// scope(1) + depth(1) + opCode(1) + dataLength(2) = 7.
+    /// @dev Fixed byte overhead of a rule, excluding the path, hint and data bytes. Breakdown: size(2) + scope(1) +
+    /// depth(1) + opCode(1) + dataLength(2) = 7.
     // forgefmt: disable-next-item
     uint256 internal constant RULE_FIXED_OVERHEAD =
         RULE_SIZE_SIZE + RULE_SCOPE_SIZE + RULE_DEPTH_SIZE + RULE_OPCODE_SIZE + RULE_DATALENGTH_SIZE;

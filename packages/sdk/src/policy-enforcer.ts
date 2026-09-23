@@ -32,7 +32,7 @@ const abortViolationCodes: ReadonlySet<ViolationCode> = new Set<ViolationCode>([
 
 /**
  * Read a supplied context value as the 32-byte word that carries it.
- * @throws {CallciumError} When an integer lies outside the range a 32-byte word represents.
+ * @throws {CallciumError} When an address is not 20 bytes of hex or an integer does not fit a 32-byte word.
  */
 function contextValueToWord(value: bigint | Address): bigint {
   if (typeof value === "string") return BigInt(toAddress(value));
@@ -55,8 +55,8 @@ function contextValueToWord(value: bigint | Address): bigint {
  * @param callData - ABI-encoded call data as 0x-prefixed hex string.
  * @param context - Optional execution context for context-scoped rules.
  * @returns Pass with matched group index, or fail with one violation per evaluated failing group.
- * @throws {CallciumError} If the policy blob is structurally malformed, or a context value a rule reads is not an
- * address or an integer a 32-byte word represents.
+ * @throws {CallciumError} If the policy blob is structurally malformed, the call data is not valid hex, or a context
+ * value a rule reads is not an address or an integer a 32-byte word represents.
  */
 function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
   const { policy: decoded, data: policyBytes } = decodePolicy(policy);
@@ -123,8 +123,8 @@ function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
  * @param callData - ABI-encoded call data as 0x-prefixed hex string.
  * @param context - Optional execution context for context-scoped rules.
  * @throws {PolicyViolationError} If the policy rejects the call data.
- * @throws {CallciumError} If the policy blob is structurally malformed, or a context value a rule reads is not an
- * address or an integer a 32-byte word represents.
+ * @throws {CallciumError} If the policy blob is structurally malformed, the call data is not valid hex, or a context
+ * value a rule reads is not an address or an integer a 32-byte word represents.
  */
 function enforce(policy: Hex, callData: Hex, context?: Context): void {
   const result = check(policy, callData, context);
