@@ -762,7 +762,7 @@ describe("enforce - static array of dynamic elements", () => {
 ///////////////////////////////////////////////////////////////////////////
 
 describe("enforce - quantifier element resolution failures", () => {
-  test("ALL fails when arrayElementAt returns error (static array, truncated calldata)", () => {
+  test("ALL fails when an element read runs past truncated calldata (static array)", () => {
     const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ALL).gt(0n)).build();
     // Only 64 bytes — static array expects 96 bytes (3 * 32). Element 2 will fail.
     const callData: Hex = `0x${wordHex(1n)}${wordHex(2n)}`;
@@ -786,7 +786,7 @@ describe("enforce - quantifier element resolution failures", () => {
     expectFirstViolation(PolicyEnforcer.check(policy, callData), "CALLDATA_OUT_OF_BOUNDS");
   });
 
-  test("ANY aborts when arrayElementAt fails", () => {
+  test("ANY aborts when an element read runs past truncated calldata", () => {
     const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ANY).eq(999n)).build();
     // Only 64 bytes for 3-element static array.
     const callData: Hex = `0x${wordHex(1n)}${wordHex(2n)}`;
@@ -794,8 +794,8 @@ describe("enforce - quantifier element resolution failures", () => {
     expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
   });
 
-  test("ALL with suffix: descendPath failure on element causes violation", () => {
-    // (uint256[],uint256)[] — suffix navigates through a dynamic field whose pointer is bogus.
+  test("ALL with suffix: an out-of-bounds inner array index causes a violation", () => {
+    // (uint256[],uint256)[]: the suffix descends into each element's uint256[] field.
     const policy = PolicyBuilder.createRaw("(uint256[],uint256)[]")
       .add(arg(0, Quantifier.ALL, 0, 0).eq(42n))
       .build();
@@ -807,7 +807,7 @@ describe("enforce - quantifier element resolution failures", () => {
     expect(violation.typeCode).toBe(TypeCode.UINT_MAX);
   });
 
-  test("ANY with suffix: descendPath failure aborts", () => {
+  test("ANY with suffix: an out-of-bounds inner array index aborts", () => {
     const policy = PolicyBuilder.createRaw("(uint256[],uint256)[]")
       .add(arg(0, Quantifier.ANY, 0, 0).eq(42n))
       .build();
@@ -847,7 +847,7 @@ describe("enforce - quantifier deep error paths", () => {
     expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
   });
 
-  test("ALL with suffix path: descendPath failure causes violation", () => {
+  test("ALL with suffix path: an element's bytes offset past calldata causes a violation", () => {
     const policy = PolicyBuilder.createRaw("(uint256,bytes)[]")
       .add(arg(0, Quantifier.ALL, 1).lengthEq(5n))
       .build();
@@ -857,7 +857,7 @@ describe("enforce - quantifier deep error paths", () => {
     assertFailed(result);
   });
 
-  test("ANY with suffix path: descendPath failure aborts", () => {
+  test("ANY with suffix path: an element's bytes offset past calldata aborts", () => {
     const policy = PolicyBuilder.createRaw("(uint256,bytes)[]")
       .add(arg(0, Quantifier.ANY, 1).lengthEq(5n))
       .build();
@@ -895,7 +895,7 @@ describe("enforce - quantifier element failure paths", () => {
     assertFailed(result);
   });
 
-  test("ANY skips elements that fail to resolve and continues", () => {
+  test("ANY passes when a later element matches", () => {
     const policy = PolicyBuilder.createRaw("(uint256,uint256)[]")
       .add(arg(0, Quantifier.ANY, 1).eq(42n))
       .build();
@@ -940,7 +940,7 @@ describe("enforce - tampered policy blobs (attack surface testing)", () => {
     expect(error.message).toContain("ffff");
   });
 
-  test("locate() navigation failure from bad calldata pointer", () => {
+  test("a dynamic array offset past calldata fails navigation", () => {
     // Valid policy for uint256[] targeting index 1.
     const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, 1).eq(0n)).build();
     // Feed calldata where the dynamic array's base pointer is beyond bounds.

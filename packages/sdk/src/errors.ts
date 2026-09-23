@@ -72,14 +72,15 @@ export type CallciumErrorCode =
   | "RULE_COUNT_OVERFLOW"
   | "RULE_SIZE_OVERFLOW"
   | "DESC_LENGTH_OVERFLOW"
+  // Strict build.
+  | "VALIDATION_ERROR"
   // Inputs and validation.
   | "UNKNOWN_QUANTIFIER"
   | "INVALID_HEX"
   | "MALFORMED_SELECTOR"
   | "PATH_STEP_OVERFLOW"
   | "OPERAND_OVERFLOW"
-  | "CONTEXT_VALUE_OVERFLOW"
-  | "VALIDATION_ERROR";
+  | "CONTEXT_VALUE_OVERFLOW";
 
 /**
  * Thrown on malformed or inadmissible SDK input. `offset`, when set, is the error's byte position in the source blob.

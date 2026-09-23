@@ -198,6 +198,26 @@ contract PolicyBuilderBuildTest is PolicyBuilderTest {
         assertEq(keccak256(policyA), keccak256(policyB));
     }
 
+    function test_PolicyHash_Bytes32Set_PermutationInvariant() public pure {
+        bytes32[] memory a = new bytes32[](4);
+        a[0] = bytes32(uint256(0x0300));
+        a[1] = bytes32(uint256(0x0100));
+        a[2] = bytes32(uint256(0x0200));
+        a[3] = bytes32(uint256(0x0100));
+
+        bytes32[] memory b = new bytes32[](4);
+        b[0] = bytes32(uint256(0x0200));
+        b[1] = bytes32(uint256(0x0100));
+        b[2] = bytes32(uint256(0x0300));
+        b[3] = bytes32(uint256(0x0100));
+
+        bytes memory policyA = PolicyBuilder.create("foo(bytes32)").add(arg(0).isIn(a)).buildUnsafe();
+        bytes memory policyB = PolicyBuilder.create("foo(bytes32)").add(arg(0).isIn(b)).buildUnsafe();
+
+        assertEq(policyA, policyB);
+        assertEq(keccak256(policyA), keccak256(policyB));
+    }
+
     /*/////////////////////////////////////////////////////////////////////////
                                  SELECTORLESS (createRaw)
     /////////////////////////////////////////////////////////////////////////*/
@@ -244,25 +264,5 @@ contract PolicyBuilderBuildTest is PolicyBuilderTest {
             .buildUnsafe();
 
         assertTrue(Policy.isSelectorless(policy));
-    }
-
-    function test_PolicyHash_Bytes32Set_PermutationInvariant() public pure {
-        bytes32[] memory a = new bytes32[](4);
-        a[0] = bytes32(uint256(0x0300));
-        a[1] = bytes32(uint256(0x0100));
-        a[2] = bytes32(uint256(0x0200));
-        a[3] = bytes32(uint256(0x0100));
-
-        bytes32[] memory b = new bytes32[](4);
-        b[0] = bytes32(uint256(0x0200));
-        b[1] = bytes32(uint256(0x0100));
-        b[2] = bytes32(uint256(0x0300));
-        b[3] = bytes32(uint256(0x0100));
-
-        bytes memory policyA = PolicyBuilder.create("foo(bytes32)").add(arg(0).isIn(a)).buildUnsafe();
-        bytes memory policyB = PolicyBuilder.create("foo(bytes32)").add(arg(0).isIn(b)).buildUnsafe();
-
-        assertEq(policyA, policyB);
-        assertEq(keccak256(policyA), keccak256(policyB));
     }
 }
