@@ -173,7 +173,7 @@ function isBitmaskOp(opBase: number): boolean {
 ///////////////////////////////////////////////////////////////////////////
 
 /** Return the incompatibility reason, or null if the operator is allowed. */
-function getIncompat(opBase: number, typeInfo: TypeInfo): { code: IssueCode; message: string } | null {
+function checkCompatibility(opBase: number, typeInfo: TypeInfo): { code: IssueCode; message: string } | null {
   const { typeCode, isDynamic, staticSize } = typeInfo;
   if (isValueOp(opBase)) {
     if (isDynamic || staticSize !== 32) {
@@ -218,7 +218,7 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: IssueCode; mes
  */
 export function isOpAllowed(opCode: number, typeInfo: TypeInfo): boolean {
   const opBase = opCode & ~Op.NOT;
-  return operandsOf(opBase) !== undefined && getIncompat(opBase, typeInfo) === null;
+  return operandsOf(opBase) !== undefined && checkCompatibility(opBase, typeInfo) === null;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -807,7 +807,7 @@ function checkFusibleRange(
   const numericPair = findLonePair(operators, Op.GTE, Op.LTE);
   if (
     numericPair &&
-    getIncompat(Op.GTE, ctx.typeInfo) === null &&
+    checkCompatibility(Op.GTE, ctx.typeInfo) === null &&
     signedCompare(numericPair.low, numericPair.high, ctx.numeric.isSigned) <= 0n
   ) {
     issues.push(
@@ -822,7 +822,7 @@ function checkFusibleRange(
   }
 
   const lengthPair = findLonePair(operators, Op.LENGTH_GTE, Op.LENGTH_LTE);
-  if (lengthPair && getIncompat(Op.LENGTH_GTE, ctx.typeInfo) === null && lengthPair.low <= lengthPair.high) {
+  if (lengthPair && checkCompatibility(Op.LENGTH_GTE, ctx.typeInfo) === null && lengthPair.low <= lengthPair.high) {
     issues.push(
       ValidationIssue.fusibleRange(
         true,
@@ -906,12 +906,12 @@ function validateConstraint(
       issues.push(ValidationIssue.negationUnderAny(groupIndex, constraintIndex, bigintToHex(BigInt(opCode))));
     }
 
-    const incompat = getIncompat(base, ctx.typeInfo);
-    if (incompat) {
+    const incompatibility = checkCompatibility(base, ctx.typeInfo);
+    if (incompatibility) {
       issues.push(
         ValidationIssue.fromOpRule(
-          incompat.code,
-          incompat.message,
+          incompatibility.code,
+          incompatibility.message,
           groupIndex,
           constraintIndex,
           bigintToHex(BigInt(opCode)),
