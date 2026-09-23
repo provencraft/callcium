@@ -1,5 +1,14 @@
 import { bigintToHex, bytesToHex, hexToBytes } from "./bytes";
-import { fieldMax, findContextProperty, MAX_CONTEXT_PROPERTY_ID, Op, PolicyFormat, Scope, TypeCode } from "./constants";
+import {
+  fieldMax,
+  findContextProperty,
+  MAX_CONTEXT_PROPERTY_ID,
+  Op,
+  operandsOf,
+  PolicyFormat,
+  Scope,
+  TypeCode,
+} from "./constants";
 import { Descriptor, type TypeInfo } from "./descriptor";
 import { decodeDescriptor } from "./descriptor-coder";
 import { CallciumError, type CallciumErrorCode } from "./errors";
@@ -204,10 +213,12 @@ function getIncompat(opBase: number, typeInfo: TypeInfo): { code: IssueCode; mes
 }
 
 /**
- * True if operator `opCode` is allowed on a target with the given type info. Tolerates the NOT flag on `opCode`.
+ * True if operator `opCode` is a defined operator allowed on a target with the given type info. Tolerates the NOT flag
+ * on `opCode`.
  */
 export function isOpAllowed(opCode: number, typeInfo: TypeInfo): boolean {
-  return getIncompat(opCode & ~Op.NOT, typeInfo) === null;
+  const opBase = opCode & ~Op.NOT;
+  return operandsOf(opBase) !== undefined && getIncompat(opBase, typeInfo) === null;
 }
 
 ///////////////////////////////////////////////////////////////////////////

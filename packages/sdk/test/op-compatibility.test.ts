@@ -228,6 +228,10 @@ describe("isOpAllowed - unknown opcodes", () => {
     expect(isOpAllowed(0xff, uint256)).toBe(false);
     expect(isOpAllowed(0x30, address)).toBe(false);
   });
+
+  test("returns false for an unassigned code inside the value-operator range", () => {
+    expect(isOpAllowed(Op.LTE_CTX + 1, uint256)).toBe(false);
+  });
 });
 
 ///////////////////////////////////////////////////////////////////////////
