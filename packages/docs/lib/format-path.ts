@@ -49,7 +49,6 @@ export function formatOpLabel(opCode: number, negated: boolean): string {
  *
  * `steps` carries every step, quantifier sentinels included (detected via `isQuantifier`). Uses `ParamNode` tree for
  * named resolution when available.
- * named resolution when available.
  *
  * Examples:
  *   - `transfers[all].amount` (named)
