@@ -776,8 +776,7 @@ describe("enforce - quantifier element resolution failures", () => {
   });
 
   test("an abort under ANY rejects the policy instead of falling through to a later group", () => {
-    // Spec §9.3: CALLDATA_OUT_OF_BOUNDS aborts evaluation, so the passing second group is never
-    // consulted. The Solidity enforcer reverts on the same input.
+    // CALLDATA_OUT_OF_BOUNDS aborts evaluation, so the passing second group is never consulted. The Solidity enforcer reverts on the same input.
     const policy = PolicyBuilder.createRaw("uint256[],uint256")
       .add(arg(0, Quantifier.ANY).eq(7n))
       .or()

@@ -940,10 +940,10 @@ function validateConstraint(
         }
       }
     } else if (isValueOp(base)) {
-      // A non-canonical operand can never equal a canonicalized runtime value (PC-1, spec
-      // section 4.5), so the rule is unsatisfiable or vacuous; skip analyzing the garbage
-      // word. Scoped to the left-aligned types: numeric, address, and bool operands are
-      // already covered by the physical domain limits.
+      // A non-canonical operand can never equal a canonicalized runtime value (PC-1), so the
+      // rule is unsatisfiable or vacuous; skip analyzing the garbage word. Scoped to the
+      // left-aligned types: numeric, address, and bool operands are already covered by the
+      // physical domain limits.
       const typeCode = ctx.typeInfo.typeCode;
       if (isLeftAligned(typeCode)) {
         const nonCanonical = findNonCanonicalWord(opHex, typeCode);
