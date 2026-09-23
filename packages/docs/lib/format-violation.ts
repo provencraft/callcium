@@ -68,12 +68,9 @@ function renderValueMismatch(v: ValueMismatchViolation, params?: ParamNode[]): s
   const constraint = formatConstraint(v.opCode, v.operandData, v.typeCode) + operandNote;
   const actual = v.resolvedValue !== undefined ? formatLeafActual(v.resolvedValue, v.opCode, v.typeCode) : undefined;
 
-  if (v.elementIndex !== undefined) {
-    if (actual !== undefined) return `${path}: ${constraint} violated at element ${v.elementIndex} by ${actual}`;
-    return `${path}: ${constraint} violated at element ${v.elementIndex}`;
-  }
-  if (actual !== undefined) return `${path}: ${constraint} violated by ${actual}`;
-  return `${path}: ${constraint} violated by all elements`;
+  if (actual === undefined) return `${path}: ${constraint} violated by all elements`;
+  const elem = v.elementIndex !== undefined ? ` at element ${v.elementIndex}` : "";
+  return `${path}: ${constraint} violated${elem} by ${actual}`;
 }
 
 ///////////////////////////////////////////////////////////////////////////

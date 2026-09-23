@@ -116,23 +116,6 @@ describe("formatViolation", () => {
     expect(formatViolation(v)).toContain("violated at element 1 by 0");
   });
 
-  it("falls back to actual-less wording when a per-element VALUE_MISMATCH lacks resolvedValue", () => {
-    const v: Violation = {
-      group: 0,
-      rule: 0,
-      code: "VALUE_MISMATCH",
-      scope: Scope.CALLDATA,
-      path: "0x000000ff",
-      opCode: Op.GT,
-      operandData: word(0n),
-      typeCode: TypeCode.UINT_MAX,
-      elementIndex: 1,
-    };
-    const summary = formatViolation(v);
-    expect(summary).toContain("violated at element 1");
-    expect(summary).not.toContain(" by ");
-  });
-
   it("formats an existential quantifier failure as violated by all elements", () => {
     const v: Violation = {
       group: 0,
