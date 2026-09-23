@@ -899,7 +899,7 @@ contract EnforceContextTest is PolicyEnforcerTest {
     }
 
     function test_RevertWhen_EqCtx_OperandHighBytesSet() public {
-        // High-byte garbage must not alias to a defined ID through the truncating cast.
+        // High-byte garbage must not alias to a defined ID.
         bytes memory policy = PolicyBuilder.create("foo(address)")
             .add(arg(0).eqCtx(PF.CTX_MSG_SENDER))
             .buildUnsafe();
@@ -909,7 +909,7 @@ contract EnforceContextTest is PolicyEnforcerTest {
         uint256 operandOffset = _opCodeOffset(policy, ruleOffset) + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
         policy[operandOffset] = 0x01;
 
-        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.UnknownContextProperty.selector, 0));
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.UnknownContextProperty.selector, uint256(1) << 248));
         harness.enforce(policy, callData);
     }
 }

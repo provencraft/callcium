@@ -29,7 +29,7 @@ library PolicyEnforcer {
     error UnknownOperator(uint8 opCode);
 
     /// @notice Thrown when an unknown context property ID is requested.
-    error UnknownContextProperty(uint16 contextId);
+    error UnknownContextProperty(uint256 contextId);
 
     /// @notice Thrown when calldata is too short to contain a selector.
     error MissingSelector();
@@ -610,11 +610,9 @@ library PolicyEnforcer {
         }
     }
 
-    /// @dev Reads context property by ID. The whole word is matched, so garbage above the ID bytes never
-    /// aliases to a defined property; the revert reports the low ID bytes.
+    /// @dev Reads context property `contextPropertyId`. Matches the whole word, so no high bits alias a defined ID.
     function _readContext(uint256 contextPropertyId) private view returns (bytes32 v) {
         bytes4 unknownSelector = UnknownContextProperty.selector;
-        uint256 idMask = type(uint16).max;
         assembly ("memory-safe") {
             switch contextPropertyId
             // CTX_MSG_SENDER
@@ -635,7 +633,7 @@ library PolicyEnforcer {
             case 0x0007 { v := gasprice() }
             default {
                 mstore(0, unknownSelector)
-                mstore(4, and(contextPropertyId, idMask))
+                mstore(4, contextPropertyId)
                 revert(0, 36)
             }
         }
