@@ -5,26 +5,6 @@ description: "Byte and hex utilities."
 
 ## Functions
 
-### toAddress
-
-Validate and brand a hex string as an address. Throws if the body is not exactly 40 hex characters.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/bytes.ts#L74)
-
-```ts
-function toAddress(hex: string): `0x${string}`;
-```
-
-**Parameters**
-
-| Name | Type | Description |
-| --- | --- | --- |
-| `hex` | `string` | - |
-
-**Returns**
-
-`` `0x${string}` ``
-
 ### hexToBytes
 
 Convert a hex string to a byte array, stripping the 0x prefix if present.

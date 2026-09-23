@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
 
 import rawVectors from "../../../spec/vectors/enforcement.json";
-import { PolicyCoder, PolicyEnforcer, toAddress } from "../src";
+import { PolicyCoder, PolicyEnforcer } from "../src";
+import { toAddress } from "../src/bytes";
 import { hex, policyDataFromVector } from "./helpers";
 
 import type { Context } from "../src";

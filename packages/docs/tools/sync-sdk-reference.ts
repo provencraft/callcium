@@ -83,7 +83,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
   bytes: {
     title: "Bytes",
     description: "Byte and hex utilities.",
-    sections: { primary: [], helpers: ["toAddress", "hexToBytes", "bytesToHex"], types: [] },
+    sections: { primary: [], helpers: ["hexToBytes", "bytesToHex"], types: [] },
   },
   constants: {
     title: "Constants",
@@ -105,7 +105,6 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
         "PolicyFormat",
         "Scope",
         "ContextProperty",
-        "MAX_CONTEXT_PROPERTY_ID",
         "Operands",
         "OpInfo",
         "ScopeInfo",

@@ -30,7 +30,7 @@ export { PolicyEnforcer } from "./policy-enforcer";
 // Utilities
 ///////////////////////////////////////////////////////////////////////////
 
-export { toAddress, hexToBytes, bytesToHex } from "./bytes";
+export { hexToBytes, bytesToHex } from "./bytes";
 export { Descriptor } from "./descriptor";
 export { DescriptorCoder } from "./descriptor-coder";
 export type { TypeInfo } from "./descriptor";
@@ -45,7 +45,6 @@ export {
   PolicyFormat,
   Scope,
   ContextProperty,
-  MAX_CONTEXT_PROPERTY_ID,
   findContextProperty,
   lookupOp,
   lookupScope,
