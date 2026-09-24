@@ -829,12 +829,79 @@ contract EnforceContextTest is PolicyEnforcerTest {
         harness.enforce(policy, callData);
     }
 
-    function test_GteCtx_BlockNumber() public {
+    function test_GtCtx() public {
+        vm.roll(1000);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).gtCtx(PF.CTX_BLOCK_NUMBER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(1001));
+        harness.enforce(policy, callData);
+    }
+
+    function test_LtCtx() public {
+        vm.roll(1000);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).ltCtx(PF.CTX_BLOCK_NUMBER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(999));
+        harness.enforce(policy, callData);
+    }
+
+    function test_GteCtx_WhenGreater() public {
+        vm.roll(1000);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).gteCtx(PF.CTX_BLOCK_NUMBER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(1001));
+        harness.enforce(policy, callData);
+    }
+
+    function test_GteCtx_WhenEqual() public {
         vm.roll(1000);
         bytes memory policy = PolicyBuilder.create("foo(uint256)")
             .add(arg(0).gteCtx(PF.CTX_BLOCK_NUMBER))
             .buildUnsafe();
         bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(1000));
+        harness.enforce(policy, callData);
+    }
+
+    function test_LteCtx_WhenLesser() public {
+        vm.roll(1000);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).lteCtx(PF.CTX_BLOCK_NUMBER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(999));
+        harness.enforce(policy, callData);
+    }
+
+    function test_LteCtx_WhenEqual() public {
+        vm.roll(1000);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).lteCtx(PF.CTX_BLOCK_NUMBER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(1000));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_GtCtx_Equal() public {
+        vm.roll(1000);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).gtCtx(PF.CTX_BLOCK_NUMBER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(1000));
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
+        harness.enforce(policy, callData);
+    }
+
+    function test_RevertWhen_LtCtx_Equal() public {
+        vm.roll(1000);
+        bytes memory policy = PolicyBuilder.create("foo(uint256)")
+            .add(arg(0).ltCtx(PF.CTX_BLOCK_NUMBER))
+            .buildUnsafe();
+        bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(1000));
+
+        vm.expectRevert(abi.encodeWithSelector(PolicyEnforcer.PolicyViolation.selector, 0, 0));
         harness.enforce(policy, callData);
     }
 
