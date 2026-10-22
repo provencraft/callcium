@@ -26,6 +26,7 @@ no_match_path = "test/harnesses/*"
 
 [profile.default.symbolic]
 enabled = true
+timeout = 120
 
 # Compile-checks the library at the minimum supported compiler version.
 [profile.floor]
