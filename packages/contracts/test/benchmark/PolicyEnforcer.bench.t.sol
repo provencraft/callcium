@@ -1,36 +1,39 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-// forge-lint: disable-start(unused-return)
-
 import { arg, blockNumber, blockTimestamp, chainId, msgSender, msgValue } from "src/Constraint.sol";
 import { Path } from "src/Path.sol";
 import { Policy } from "src/Policy.sol";
 import { PolicyBuilder, PolicyDraft } from "src/PolicyBuilder.sol";
+import { PolicyCoder } from "src/PolicyCoder.sol";
 import { PolicyFormat as PF } from "src/PolicyFormat.sol";
 
-import { LibBytes } from "solady/utils/LibBytes.sol";
+import { LibBytes } from "src/vendor/solady/utils/LibBytes.sol";
 
 import { PolicyEnforcerTest } from "test/unit/PolicyEnforcer.t.sol";
 
-/// @dev Base contract for PolicyEnforcer benchmarks.
 abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     /// @dev Fixture for a single benchmark scenario.
     struct Fixture {
+        /// @dev The policy blob.
         bytes policy;
+        /// @dev The calldata the scenario checks against the policy.
         bytes callData;
+    }
+
+    /// @dev A tuple of a word and a dynamic payload, as an array element.
+    struct UintWithBytes {
+        /// @dev The word.
+        uint256 value;
+        /// @dev The dynamic payload.
+        bytes payload;
     }
 
     /*/////////////////////////////////////////////////////////////////////////
                                  SHARED FIXTURES
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev One elementary argument under one equality — the cheapest calldata-rule policy. Several series anchor on
-    /// this scenario, and one build keeps those rows exactly equal rather than equal up to layout.
     Fixture internal elementaryEq;
-
-    /// @dev An element read out of a dynamic array, reached through a plain hop and an element hop. Anchors the array
-    /// end of the path-depth series and the array row of the value-type series.
     Fixture internal arrayElem;
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -161,6 +164,8 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                                  SHARED BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Builds the fixtures several series anchor on in one place, so their rows stay exactly equal: one elementary
+    /// argument under one equality, the cheapest calldata-rule policy, and an element of a dynamic array.
     function _buildSharedFixtures() internal {
         // forgefmt: disable-next-item
         elementaryEq = _buildFixture(
@@ -181,6 +186,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               GROUP SCALING BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Builds policies of one to 16 groups, passing at the first or the last group.
     function _buildGroupScalingFixtures() internal {
         groups1Pass = _buildGroupsN(1, true);
         groups2PassFirst = _buildGroupsN(2, true);
@@ -194,7 +200,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     }
 
     /// @dev Builds a policy of `count` single-rule groups, with calldata satisfying either the first or the last group
-    /// in evaluation order. Groups are sorted by hash (ADR-0003), so that order is unrelated to insertion order and the
+    /// in evaluation order. Groups are encoded in canonical order, which is unrelated to insertion order, so the
     /// passing value is read back from the built policy rather than assumed.
     function _buildGroupsN(uint256 count, bool passFirst) internal pure returns (Fixture memory) {
         PolicyDraft memory draft = PolicyBuilder.create("foo(uint256)");
@@ -209,15 +215,15 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
     /// @dev Reads the operand of the first rule of the group at `groupIndex`.
     function _groupOperand(bytes memory policy, uint256 groupIndex) internal pure returns (uint256) {
-        uint256 groupOffset = Policy.groupAt(policy, groupIndex);
-        (uint256 dataOffset,) = Policy.dataView(policy, Policy.ruleAt(policy, groupOffset, 0));
-        return uint256(LibBytes.load(policy, dataOffset));
+        bytes memory operator = PolicyCoder.decode(policy).groups[groupIndex][0].operator;
+        return uint256(LibBytes.load(operator, 1));
     }
 
     /*/////////////////////////////////////////////////////////////////////////
                               RULE SCALING BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Builds one-group policies of one to 32 rules, all passing or failing at a chosen rule.
     function _buildRuleScalingFixtures() internal {
         rules1Pass = _buildRulesN(1);
         rules4AllPass = _buildRulesNWithCalldata(4, _u(1, 2, 3, 4));
@@ -229,21 +235,21 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         rules32AllPass = _buildRulesN(32);
     }
 
+    /// @dev Builds `count` equalities on the fields of one tuple, with calldata satisfying all of them.
     function _buildRulesN(uint256 count) internal pure returns (Fixture memory) {
         string memory sig = _tupleSignature(count);
         PolicyDraft memory draft = PolicyBuilder.create(sig);
         for (uint256 i = 0; i < count; ++i) {
-            // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
             draft = draft.add(arg(0, uint16(i)).eq(i + 1));
         }
         return _fixture(draft.buildUnsafe(), _encodeTupleCalldata(sig, count));
     }
 
+    /// @dev Builds the `_buildRulesN` policy with calldata carrying `values` as the tuple's fields.
     function _buildRulesNWithCalldata(uint256 count, uint256[] memory values) internal pure returns (Fixture memory) {
         string memory sig = _tupleSignature(count);
         PolicyDraft memory draft = PolicyBuilder.create(sig);
         for (uint256 i = 0; i < count; ++i) {
-            // forge-lint: disable-next-line(unsafe-typecast) loop bound is the rule count
             draft = draft.add(arg(0, uint16(i)).eq(i + 1));
         }
         bytes memory callData = abi.encodeWithSignature(sig);
@@ -253,6 +259,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         return _fixture(draft.buildUnsafe(), callData);
     }
 
+    /// @dev Returns the signature of a function taking one tuple of `count` uint256 fields.
     function _tupleSignature(uint256 count) internal pure returns (string memory) {
         bytes memory fields;
         for (uint256 i = 0; i < count; ++i) {
@@ -262,6 +269,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         return string(abi.encodePacked("foo((", fields, "))"));
     }
 
+    /// @dev Returns calldata for `sig` whose tuple fields hold one to `count`.
     function _encodeTupleCalldata(string memory sig, uint256 count) internal pure returns (bytes memory) {
         bytes memory data = abi.encodeWithSignature(sig);
         for (uint256 i = 0; i < count; ++i) {
@@ -270,6 +278,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         return data;
     }
 
+    /// @dev Returns the four values as an array.
     function _u(uint256 a, uint256 b, uint256 c, uint256 d) internal pure returns (uint256[] memory arr) {
         arr = new uint256[](4);
         arr[0] = a;
@@ -278,6 +287,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         arr[3] = d;
     }
 
+    /// @dev Returns the eight values as an array.
     function _u(
         uint256 a,
         uint256 b,
@@ -319,6 +329,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                                HOP CHAIN BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Builds fixtures whose target sits behind one, two, four and eight hops.
     function _buildHopChainFixtures() internal {
         hops1 = _buildHopChain(1);
         hops2 = _buildHopChain(2);
@@ -351,6 +362,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         return _fixture(draft.buildUnsafe(), abi.encodePacked(callData, uint256(0)));
     }
 
+    /// @dev Builds a fixture whose target is the last field of a tuple nested `depth` levels deep.
     function _buildDeepNested(uint256 depth) internal pure returns (Fixture memory) {
         bytes memory innerTypes = bytes("address,uint256");
         for (uint256 i = 2; i < depth; ++i) {
@@ -376,6 +388,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         return _fixture(draft.buildUnsafe(), callData);
     }
 
+    /// @dev Builds a fixture reading a field of the third tuple in a dynamic array of tuples.
     function _buildArrayStruct() internal pure returns (Fixture memory) {
         // forgefmt: disable-next-item
         bytes memory policy = PolicyBuilder.create("foo((uint256,address)[])")
@@ -387,7 +400,6 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         callData = abi.encodePacked(callData, bytes32(uint256(5)));
         for (uint256 i = 0; i < 5; ++i) {
             uint256 val = (i == 2) ? 42 : i * 10;
-            // forge-lint: disable-next-line(unsafe-typecast) loop bound is 5
             callData = abi.encodePacked(callData, bytes32(val), bytes32(uint256(uint160(address(uint160(i))))));
         }
 
@@ -398,6 +410,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               OPERATOR BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Builds one fixture per operator over a single uint256 argument.
     function _buildOperatorFixtures() internal {
         bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
 
@@ -518,6 +531,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
         );
     }
 
+    /// @dev Builds an `IN` fixture over a set of `count` members.
     function _buildIn(uint256 count) internal pure returns (Fixture memory) {
         // forgefmt: disable-next-item
         bytes memory policy = PolicyBuilder.create("foo(uint256)")
@@ -530,6 +544,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               SCOPE BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Builds fixtures that test calldata, context properties, or both.
     function _buildScopeFixtures() internal {
         bytes memory callData = abi.encodeWithSignature("foo(uint256)", uint256(42));
 
@@ -599,6 +614,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               VALUE TYPE BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Builds one equality fixture per value type.
     function _buildValueTypeFixtures() internal {
         // forgefmt: disable-next-item
         typeAddress = _buildFixture(
@@ -642,6 +658,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                              DYNAMIC TUPLE BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Builds policies of one and four rules on the fields of a tuple a bytes member makes dynamic.
     function _buildDynTupleRuleFixtures() internal {
         // A bytes member makes the whole argument dynamic, so every rule on it enters the tuple payload through one hop
         // before reaching its own field.
@@ -670,6 +687,7 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                               LENGTH OPERATOR BUILDERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Builds one fixture per length operator over a dynamic array or bytes.
     function _buildLengthOpFixtures() internal {
         uint256[] memory arr10 = new uint256[](10);
         for (uint256 i = 0; i < 10; ++i) {
@@ -695,7 +713,6 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
 
         bytes memory bytesData = new bytes(256);
         for (uint256 i = 0; i < 256; ++i) {
-            // forge-lint: disable-next-line(unsafe-typecast) loop bound is 256
             bytesData[i] = bytes1(uint8(i));
         }
         // forgefmt: disable-next-item
@@ -717,6 +734,27 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
                                     HELPERS
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// @dev Encodes a static struct (address, uint256) into calldata.
+    function _encodeStruct2(address addr, uint256 val) internal pure returns (bytes memory) {
+        bytes memory data = abi.encodeWithSignature("foo((address,uint256))");
+        return abi.encodePacked(data, bytes32(uint256(uint160(addr))), bytes32(val));
+    }
+
+    /// @dev Encodes a call whose sole argument is a dynamic tuple, given the tuple's inline encoding. A dynamic
+    /// argument occupies one head slot holding the offset of that encoding.
+    function _encodeDynTupleArg(string memory sig, bytes memory tupleBody) internal pure returns (bytes memory) {
+        return abi.encodePacked(abi.encodeWithSignature(sig), uint256(0x20), tupleBody);
+    }
+
+    /// @dev Creates an array of uint256 values [1, 2, ..., length].
+    function _uintArray(uint256 length) internal pure returns (uint256[] memory arr) {
+        arr = new uint256[](length);
+        for (uint256 i = 0; i < length; ++i) {
+            arr[i] = i + 1;
+        }
+    }
+
+    /// @dev Builds `draft` without validation and pairs it with `callData`.
     function _buildFixture(PolicyDraft memory draft, bytes memory callData) internal pure returns (Fixture memory) {
         return _fixture(draft.buildUnsafe(), callData);
     }
@@ -731,14 +769,14 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     /// fail, rather than record a gas number for a different path.
     function _benchCheckPasses(Fixture memory fixture, string memory name) internal {
         bool ok = harness.check(fixture.policy, fixture.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", name);
+        vm.snapshotGasLastFrame("PolicyEnforcer.check", name);
         assertTrue(ok);
     }
 
     /// @dev Snapshots a violating scenario, asserting the verdict as `_benchCheckPasses` does.
     function _benchCheckFails(Fixture memory fixture, string memory name) internal {
         bool ok = harness.check(fixture.policy, fixture.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.check", name);
+        vm.snapshotGasLastFrame("PolicyEnforcer.check", name);
         assertFalse(ok);
     }
 
@@ -746,6 +784,6 @@ abstract contract PolicyEnforcerBench is PolicyEnforcerTest {
     /// assertion, since `enforce` reverts on a violation.
     function _benchEnforce(Fixture memory fixture, string memory name) internal {
         harness.enforce(fixture.policy, fixture.callData);
-        vm.snapshotGasLastCall("PolicyEnforcer.enforce", name);
+        vm.snapshotGasLastFrame("PolicyEnforcer.enforce", name);
     }
 }

@@ -1,454 +1,248 @@
 import { describe, expect, test } from "vitest";
 
-import { Op, Scope } from "../src/constants";
-import { arg, msgSender, msgValue } from "../src/constraint";
-import { CallciumError, ValidationError } from "../src/errors";
-import { Quantifier } from "../src/path";
+import { hexToBytes } from "../src/bytes";
+import { ContextProperty, fieldMax, LoopQuantifier, Op, PolicyFormat as PF, Scope, Source } from "../src/constants";
+import { arg, ConstraintBuilder, msgValue } from "../src/constraint";
+import { ValidationError } from "../src/errors";
+import { encodePath, Quantifier } from "../src/path";
 import { PolicyBuilder } from "../src/policy-builder";
 import { PolicyCoder } from "../src/policy-coder";
-import { expectErrorCode, expectIssueCode, op } from "./helpers";
+import { expectErrorCode, op } from "./helpers";
 
 import type { Constraint } from "../src/types";
 
-describe("PolicyBuilder", () => {
-  ///////////////////////////////////////////////////////////////////////////
-  // Happy paths
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+// Helpers
+///////////////////////////////////////////////////////////////////////////
 
-  test("create + add + build produces a valid hex blob", () => {
-    const blob = PolicyBuilder.create("transfer(address,uint256)")
-      .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-      .build();
+/** A calldata constraint at `steps` carrying one equality, its path taken as given. */
+function constraintAt(steps: number[]): Constraint {
+  return new ConstraintBuilder(Scope.CALLDATA, encodePath(steps)).eq(1n);
+}
 
-    expect(blob).toMatch(/^0x[0-9a-f]+$/);
+/** A context constraint at `steps` carrying one equality, its path taken as given. */
+function contextAt(steps: number[]): Constraint {
+  return { scope: Scope.CONTEXT, path: encodePath(steps), operators: [op(Op.EQ, 1n)] };
+}
+
+/** `count` distinct ascending values. */
+function values(count: number): bigint[] {
+  return Array.from({ length: count }, (_, index) => BigInt(index));
+}
+
+/** The largest set of 32-byte members the rule's data length holds. */
+const WORD_SET_LIMIT = Math.floor(fieldMax(PF.RULE_DATALENGTH_SIZE) / 32);
+
+///////////////////////////////////////////////////////////////////////////
+// Path faults
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyBuilder.add path faults", () => {
+  test("rejects a parameter index past the parameter count", () => {
+    const builder = PolicyBuilder.create("bar(address,uint256)");
+    expectErrorCode(() => builder.add(arg(2).eq(1n)), "PARAM_INDEX_OUT_OF_BOUNDS");
   });
 
-  test("round-trips through PolicyCoder.decode", () => {
-    const blob = PolicyBuilder.create("transfer(address,uint256)")
-      .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-      .build();
-
-    const decoded = PolicyCoder.decode(blob);
-    expect(decoded.isSelectorless).toBe(false);
-    expect(decoded.groups.length).toBe(1);
-    expect(decoded.groups[0].length).toBe(1);
-    expect(decoded.groups[0][0].scope).toBe(Scope.CALLDATA);
+  test("rejects a static array index past the declared length", () => {
+    const builder = PolicyBuilder.create("foo(address[3])");
+    expectErrorCode(() => builder.add(arg(0, 3).eq(1n)), "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS");
   });
 
-  test("createRaw produces a selectorless policy", () => {
-    const blob = PolicyBuilder.createRaw("uint256").add(arg(0).eq(42n)).build();
-    const decoded = PolicyCoder.decode(blob);
-    expect(decoded.isSelectorless).toBe(true);
-    expect(decoded.selector).toBe("0x00000000");
+  test("rejects a step into an elementary type", () => {
+    const builder = PolicyBuilder.create("foo(uint256)");
+    expectErrorCode(() => builder.add(arg(0, 0).eq(1n)), "NOT_COMPOSITE");
   });
 
-  test("or() creates multiple groups", () => {
-    const blob = PolicyBuilder.create("transfer(address,uint256)")
-      .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-      .or()
-      .add(arg(0).eq("0x0000000000000000000000000000000000000002"))
-      .build();
-
-    const decoded = PolicyCoder.decode(blob);
-    expect(decoded.groups.length).toBe(2);
+  test("rejects a quantifier on a node that is not an array", () => {
+    const builder = PolicyBuilder.create("foo((address,uint256))");
+    expectErrorCode(() => builder.add(arg(0, Quantifier.ALL).eq(1n)), "QUANTIFIER_ON_NON_ARRAY");
   });
 
-  test("supports multiple constraints in the same group", () => {
-    const blob = PolicyBuilder.create("transfer(address,uint256)")
-      .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-      .add(arg(1).lte(1000n))
-      .build();
-
-    const decoded = PolicyCoder.decode(blob);
-    expect(decoded.groups[0].length).toBe(2);
+  test("names a body step by its index in the whole path", () => {
+    const builder = PolicyBuilder.create("foo((uint256,uint256)[])");
+    const error = expectErrorCode(() => builder.add(arg(0, Quantifier.ALL, 2).eq(1n)), "TUPLE_FIELD_OUT_OF_BOUNDS");
+    expect(error.message).toContain("Tuple field index 2");
   });
 
-  test("supports context constraints (msgSender)", () => {
-    const blob = PolicyBuilder.create("transfer(address,uint256)")
-      .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
-      .build();
-
-    const decoded = PolicyCoder.decode(blob);
-    expect(decoded.groups[0][0].scope).toBe(Scope.CONTEXT);
+  test("rejects a second quantifier step", () => {
+    const builder = PolicyBuilder.create("foo(uint256[][])");
+    expectErrorCode(() => builder.add(constraintAt([0, Quantifier.ALL, Quantifier.ANY])), "INVALID_NESTED_LOOP");
   });
 
-  test("validates without throwing and returns issues", () => {
-    const issues = PolicyBuilder.create("transfer(address,uint256)")
-      .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-      .validate();
-
-    expect(Array.isArray(issues)).toBe(true);
-  });
-
-  test("nested path validation: arg(0, 0) on tuple type works", () => {
-    const blob = PolicyBuilder.create("foo((address,uint256))")
-      .add(arg(0, 0).eq("0x0000000000000000000000000000000000000001"))
-      .build();
-    const decoded = PolicyCoder.decode(blob);
-    expect(decoded.groups[0].length).toBe(1);
-  });
-
-  test("quantifier path: arg(0, Quantifier.ALL) on array type works", () => {
-    const blob = PolicyBuilder.create("foo(uint256[])").add(arg(0, Quantifier.ALL).lte(100n)).build();
-    const decoded = PolicyCoder.decode(blob);
-    expect(decoded.groups[0].length).toBe(1);
-  });
-
-  ///////////////////////////////////////////////////////////////////////////
-  // Error cases
-  ///////////////////////////////////////////////////////////////////////////
-
-  test("rejects invalid arg index", () => {
-    expect(() => {
-      PolicyBuilder.create("transfer(address,uint256)").add(arg(5).eq(1n));
-    }).toThrow(CallciumError);
-  });
-
-  test("rejects duplicate path in same group", () => {
-    expect(() => {
-      PolicyBuilder.create("transfer(address,uint256)")
-        .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-        .add(arg(0).eq("0x0000000000000000000000000000000000000002"));
-    }).toThrow(CallciumError);
-  });
-
-  test("rejects empty constraint (no operators)", () => {
-    const empty: Constraint = { scope: Scope.CALLDATA, path: "0x0000", operators: [] };
-    expect(() => {
-      PolicyBuilder.create("transfer(address,uint256)").add(empty);
-    }).toThrow(CallciumError);
-  });
-
-  test("or() rejects empty current group", () => {
-    expect(() => {
-      PolicyBuilder.create("transfer(address,uint256)").or();
-    }).toThrow(CallciumError);
-  });
-
-  test("build() rejects if final group is empty", () => {
-    expect(() => {
-      PolicyBuilder.create("transfer(address,uint256)")
-        .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-        .or()
-        .build();
-    }).toThrow(CallciumError);
-  });
-
-  test("build() rejects if last group has no constraints (or then immediate build)", () => {
-    const builder = PolicyBuilder.create("transfer(address,uint256)")
-      .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-      .or();
-
-    expect(() => builder.build()).toThrow(CallciumError);
-  });
-
-  test("build() throws on validation errors (value op on dynamic type)", () => {
-    // string is a dynamic type; eq is a value operator → type mismatch error.
-    expect(() => {
-      PolicyBuilder.create("foo(string)").add(arg(0).eq(42n)).build();
-    }).toThrow(CallciumError);
-  });
-
-  test("build() carries every issue the validator reported", () => {
-    // Two independent defects: a vacuous bound on arg 0 and a value operator on a dynamic type.
-    let caught: unknown;
-    try {
-      PolicyBuilder.create("foo(uint256,string)").add(arg(0).gte(0n)).add(arg(1).eq(42n)).build();
-    } catch (error) {
-      caught = error;
-    }
-    expect(caught).toBeInstanceOf(ValidationError);
-    if (caught instanceof ValidationError) {
-      expect(caught.code).toBe("VALIDATION_ERROR");
-      expect(caught.issues.length).toBeGreaterThan(1);
-      expect(caught.message).toBe(caught.issues[0].message);
-      expectIssueCode(caught.issues, "VALUE_OP_ON_DYNAMIC");
-    }
-  });
-
-  test("build() throws on warning-severity issues (strict gate)", () => {
-    // gte(5) then weaker gte(3) → DOMINATED_BOUND warning; strict build() blocks any issue.
-    expect(() => {
-      PolicyBuilder.create("foo(uint256)").add(arg(0).gte(5n).gte(3n)).build();
-    }).toThrow(CallciumError);
-  });
-
-  test("build() throws on info-severity issues (strict gate)", () => {
-    // gte(0) on uint256 → VACUOUS_GTE info; strict build() blocks any issue.
-    expect(() => {
-      PolicyBuilder.create("foo(uint256)").add(arg(0).gte(0n)).build();
-    }).toThrow(CallciumError);
-  });
-
-  test("buildUnsafe() encodes despite validation issues", () => {
-    const builder = PolicyBuilder.create("foo(uint256)").add(arg(0).gte(5n).gte(3n));
-    expect(builder.validate().length).toBeGreaterThan(0);
-    const blob = builder.buildUnsafe();
-    expect(PolicyCoder.decode(blob).groups.length).toBe(1);
-  });
-
-  test("rejects quantifier on an elementary type", () => {
-    expectErrorCode(
-      () => PolicyBuilder.create("foo(uint256)").add(arg(0, Quantifier.ALL).eq(1n)),
-      "QUANTIFIER_ON_NON_ARRAY",
-    );
-  });
-
-  test("rejects a path with an odd byte length", () => {
-    const invalid: Constraint = { scope: Scope.CALLDATA, path: "0x000000", operators: [`0x01${"0".repeat(64)}`] };
-    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(invalid), "MALFORMED_PATH");
-  });
-
-  test("rejects nested quantifiers", () => {
-    expect(() => {
-      PolicyBuilder.create("foo(uint256[][])").add(arg(0, Quantifier.ALL, Quantifier.ALL).eq(1n));
-    }).toThrow(CallciumError);
-  });
-
-  test("rejects invalid scope value", () => {
-    const invalid: Constraint = {
-      scope: 0x05,
-      path: "0x0000",
-      operators: [`0x01${"0".repeat(64)}`],
-    };
-    expectErrorCode(() => PolicyBuilder.create("transfer(address,uint256)").add(invalid), "INVALID_SCOPE");
-  });
-
-  test("or() immediately after creation throws EMPTY_GROUP", () => {
-    expectErrorCode(() => PolicyBuilder.create("transfer(address,uint256)").or(), "EMPTY_GROUP");
-  });
-
-  test("build() throws EMPTY_GROUP when last group has no constraints", () => {
-    expectErrorCode(
-      () =>
-        PolicyBuilder.create("transfer(address,uint256)")
-          .add(arg(0).eq("0x0000000000000000000000000000000000000001"))
-          .or()
-          .build(),
-      "EMPTY_GROUP",
-    );
-  });
-
-  ///////////////////////////////////////////////////////////////////////////
-  // Context path validation
-  ///////////////////////////////////////////////////////////////////////////
-
-  test("rejects context path with more than one step", () => {
-    const invalid: Constraint = {
-      scope: Scope.CONTEXT,
-      path: "0x00000000", // Two steps; a context path carries exactly one.
-      operators: [`0x01${"0".repeat(64)}`],
-    };
-    expectErrorCode(() => PolicyBuilder.create("transfer(address,uint256)").add(invalid), "INVALID_CONTEXT_PATH");
-  });
-
-  test("rejects context path with unknown property ID", () => {
-    const invalid: Constraint = {
-      scope: Scope.CONTEXT,
-      path: "0xffff", // Way beyond MAX_CONTEXT_PROPERTY_ID.
-      operators: [`0x01${"0".repeat(64)}`],
-    };
-    expectErrorCode(() => PolicyBuilder.create("transfer(address,uint256)").add(invalid), "UNKNOWN_CONTEXT_PROPERTY");
-  });
-
-  ///////////////////////////////////////////////////////////////////////////
-  // Calldata path validation edge cases
-  ///////////////////////////////////////////////////////////////////////////
-
-  test("rejects quantifier step on a tuple node", () => {
-    expect(() => {
-      PolicyBuilder.create("foo((address,uint256))").add(arg(0, Quantifier.ALL).eq(1n));
-    }).toThrow(CallciumError);
-  });
-
-  test("rejects tuple field index out of range", () => {
-    expect(() => {
-      PolicyBuilder.create("foo((address,uint256))").add(arg(0, 5).eq(1n));
-    }).toThrow(CallciumError);
-  });
-
-  test("rejects static array index out of range", () => {
-    expect(() => {
-      PolicyBuilder.create("foo(uint256[3])").add(arg(0, 10).eq(1n));
-    }).toThrow(CallciumError);
-  });
-
-  test("allows valid static array index within range", () => {
-    const blob = PolicyBuilder.create("foo(uint256[3])").add(arg(0, 2).eq(1n)).build();
-    expect(blob).toMatch(/^0x[0-9a-f]+$/);
-  });
-
-  ///////////////////////////////////////////////////////////////////////////
-  // Operand domain
-  ///////////////////////////////////////////////////////////////////////////
-
-  test("rejects a negative operand on an unsigned target", () => {
-    expectErrorCode(
-      () => PolicyBuilder.create("transfer(address,uint256)").add(arg(1).lte(-5n)),
-      "OUT_OF_PHYSICAL_BOUNDS",
-    );
-  });
-
-  test("rejects an operand above a signed target's maximum", () => {
-    expectErrorCode(() => PolicyBuilder.createRaw("int256").add(arg(0).gt(1n << 255n)), "OUT_OF_PHYSICAL_BOUNDS");
-  });
-
-  test("rejects an out-of-domain endpoint of a range", () => {
-    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(arg(0).between(-1n, 5n)), "OUT_OF_PHYSICAL_BOUNDS");
-  });
-
-  test("rejects an operand that folds onto a value inside a set", () => {
-    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(arg(0).isIn([5n, -1n])), "OUT_OF_PHYSICAL_BOUNDS");
-  });
-
-  test("rejects a negative operand on an unsigned context property", () => {
-    expectErrorCode(
-      () => PolicyBuilder.create("transfer(address,uint256)").add(msgValue().lt(-1n)),
-      "OUT_OF_PHYSICAL_BOUNDS",
-    );
-  });
-
-  test("rejects an operand that folds onto a value the element type admits", () => {
-    expectErrorCode(
-      () => PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lte(-1n)),
-      "OUT_OF_PHYSICAL_BOUNDS",
-    );
-  });
-
-  test("accepts a negative operand on a signed target", () => {
-    const blob = PolicyBuilder.createRaw("int256").add(arg(0).between(-5n, 5n)).build();
-    expect(blob).toMatch(/^0x[0-9a-f]+$/);
-  });
-
-  test("accepts the near-maximum bound the unsigned alias would collide with", () => {
-    const blob = PolicyBuilder.createRaw("uint256")
-      .add(arg(0).lte((1n << 256n) - 5n))
-      .build();
-    expect(blob).toMatch(/^0x[0-9a-f]+$/);
-  });
-
-  test("reads one literal against the target rather than against the operand's own width", () => {
-    const unsigned = PolicyBuilder.createRaw("uint256")
-      .add(arg(0).gt(1n << 255n))
-      .build();
-    expect(unsigned).toMatch(/^0x[0-9a-f]+$/);
-    expectErrorCode(() => PolicyBuilder.createRaw("int256").add(arg(0).gt(1n << 255n)), "OUT_OF_PHYSICAL_BOUNDS");
-  });
-
-  test("rejects a high literal that reads as a small negative on a narrow signed target", () => {
-    expectErrorCode(() => PolicyBuilder.createRaw("int8").add(arg(0).eq((1n << 256n) - 1n)), "OUT_OF_PHYSICAL_BOUNDS");
-  });
-
-  test("rejects a folded operand under a negated operator", () => {
-    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(arg(0).neq(-1n)), "OUT_OF_PHYSICAL_BOUNDS");
-  });
-
-  test("checks every literal of a set whose members share one encoding", () => {
-    expectErrorCode(
-      () => PolicyBuilder.createRaw("uint256").add(arg(0).isIn([-1n, (1n << 256n) - 1n])),
-      "OUT_OF_PHYSICAL_BOUNDS",
-    );
-  });
-
-  test("weighs each constraint against its own operands", () => {
-    const folded = arg(0).lte(-5n);
-    const sound = arg(0).lte(10n);
-
-    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(folded), "OUT_OF_PHYSICAL_BOUNDS");
-    expect(PolicyBuilder.createRaw("uint256").add(sound).build()).toMatch(/^0x[0-9a-f]+$/);
-  });
-
-  test("remembers an operand after its operator is removed", () => {
-    const constraint = arg(0).lte(-5n);
-    constraint.operators.pop();
-    constraint.lte((1n << 256n) - 5n);
-    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(constraint), "OUT_OF_PHYSICAL_BOUNDS");
-  });
-
-  test("names the operand that reaches furthest past the range", () => {
-    expect(() => PolicyBuilder.createRaw("uint256").add(arg(0).gt(-1n).lte(-5n))).toThrow(/Operand -5 /);
-  });
-
-  test("leaves a bitmask operand to the validator, which reads a mask as a bit pattern", () => {
-    const negative = PolicyBuilder.createRaw("uint256").add(arg(0).bitmaskAll(-1n)).build();
-    const allOnes = PolicyBuilder.createRaw("uint256")
-      .add(arg(0).bitmaskAll((1n << 256n) - 1n))
-      .build();
-    expect(negative).toBe(allOnes);
-    const issues = PolicyBuilder.createRaw("int256")
-      .add(arg(0).bitmaskAll(1n << 255n))
-      .validate();
-    expectIssueCode(issues, "BITMASK_ON_INVALID");
-  });
-
-  test("leaves an operand whose encoding the target cannot hold to the validator", () => {
-    const issues = PolicyBuilder.createRaw("uint8").add(arg(0).eq(256n)).validate();
-    expectIssueCode(issues, "OUT_OF_PHYSICAL_BOUNDS");
-  });
-
-  test("checks a constraint rebuilt around a builder's own fields", () => {
-    const builder = arg(0).lte(-5n);
-    const rebuilt = {
-      scope: builder.scope,
-      path: builder.path,
-      operators: builder.operators,
-      operandExtremes: builder.operandExtremes,
-    };
-    expectErrorCode(() => PolicyBuilder.createRaw("uint256").add(rebuilt), "OUT_OF_PHYSICAL_BOUNDS");
-  });
-
-  test("leaves a plain Constraint to the validator, which has no operands as written", () => {
-    const encoded: Constraint = {
-      scope: Scope.CALLDATA,
-      path: "0x0000",
-      operators: [`0x05${((1n << 256n) - 5n).toString(16).padStart(64, "0")}`],
-    };
-    const issues = PolicyBuilder.createRaw("uint8").add(encoded).validate();
-    expectIssueCode(issues, "OUT_OF_PHYSICAL_BOUNDS");
+  test("rejects a reserved marker step other than a quantifier", () => {
+    const builder = PolicyBuilder.create("foo(uint256[])");
+    expectErrorCode(() => builder.add(constraintAt([0, PF.PATH_MARKER_BASE])), "UNKNOWN_PATH_STEP");
   });
 });
 
 ///////////////////////////////////////////////////////////////////////////
-// Hint block
+// Intake errors
 ///////////////////////////////////////////////////////////////////////////
 
-describe("hint block", () => {
-  test("decodes a concrete hint", () => {
-    const blob = PolicyBuilder.create("foo(address,uint256)").add(arg(1).eq(42n)).build();
-
-    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBe("0x0000000020000020");
+describe("PolicyBuilder.add intake errors", () => {
+  test("rejects an empty path", () => {
+    const constraint: Constraint = { scope: Scope.CALLDATA, path: "0x", operators: [op(Op.EQ, 1n)] };
+    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(constraint), "EMPTY_PATH");
   });
 
-  test("decodes a quantified hint", () => {
-    const blob = PolicyBuilder.create("foo(uint256[3])").add(arg(0, Quantifier.ALL).eq(42n)).build();
-
-    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBe("0x4000000000000300010000000000000020");
+  test("rejects a constraint without operators", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(arg(0)), "NO_CONSTRAINT_OPERATORS");
   });
 
-  test("context constraints carry no hint", () => {
-    const blob = PolicyBuilder.create("foo(uint256)")
-      .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
+  test("rejects a context path of two steps", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo()").add(contextAt([0, 0])), "INVALID_CONTEXT_PATH");
+  });
+
+  test("rejects a scope a constraint cannot take", () => {
+    const constraint = { scope: Scope.LOOP, path: encodePath([0]), operators: [op(Op.EQ, 42n)] };
+    // @ts-expect-error -- the scope lies outside the union a caller from JavaScript can still pass.
+    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(constraint), "UNKNOWN_SCOPE");
+  });
+
+  test("rejects a comparison that does not apply to its target", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(arg(0).lengthEq(1n)), "OPERATOR_TARGET_MISMATCH");
+  });
+
+  test("rejects a context comparison that does not apply to its target", () => {
+    const constraint = arg(0).gtCtx(ContextProperty.BLOCK_TIMESTAMP);
+    expectErrorCode(() => PolicyBuilder.create("foo(bytes)").add(constraint), "OPERATOR_TARGET_MISMATCH");
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Operand domain
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyBuilder.add operand domain", () => {
+  test("rejects an operand above a signed target's maximum", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo(int256)").add(arg(0).gt(2n ** 255n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects a range endpoint that folds into the domain", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(arg(0).between(-1n, 5n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects a set member that folds into the domain", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(arg(0).isIn([5n, -1n])), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects a negative operand on an unsigned context property", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo()").add(msgValue().lt(-1n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects an operand that folds into the element type under a quantifier", () => {
+    expectErrorCode(
+      () => PolicyBuilder.create("foo(uint256[])").add(arg(0, Quantifier.ALL).lte(-1n)),
+      "OUT_OF_PHYSICAL_BOUNDS",
+    );
+  });
+
+  test("rejects a folded operand under a negated operator", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").add(arg(0).neq(-1n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("names the furthest of two folding operands", () => {
+    const error = expectErrorCode(
+      () => PolicyBuilder.create("foo(uint256)").add(arg(0).lte(-5n).gt(-1n)),
+      "OUT_OF_PHYSICAL_BOUNDS",
+    );
+    expect(error.message).toContain("-5");
+  });
+
+  test("rejects an operand outside the target's width", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo(uint8)").add(arg(0).eq(256n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("rejects a mask wider than the target", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo(uint8)").add(arg(0).bitmaskAll(0x100n)), "OUT_OF_PHYSICAL_BOUNDS");
+  });
+
+  test("takes -1 as the all-ones mask of a narrow target", () => {
+    expect(() => PolicyBuilder.create("foo(uint8)").add(arg(0).bitmaskAll(-1n)).build()).not.toThrow();
+  });
+
+  test("leaves an operator of no whole words unread", () => {
+    const constraint: Constraint = { scope: Scope.CALLDATA, path: encodePath([0]), operators: ["0x1001"] };
+    const builder = PolicyBuilder.create("foo(uint8)").add(constraint);
+    expectErrorCode(() => builder.build(), "INVALID_OPERATOR_BYTES");
+  });
+
+  test("rejects a set past what the data length holds at the target's width", () => {
+    const builder = PolicyBuilder.create("foo(uint256)");
+    expectErrorCode(() => builder.add(arg(0).isIn(values(WORD_SET_LIMIT + 1))), "SET_TOO_LARGE");
+  });
+
+  test("weighs the set limit after deduplication and builds a full set", () => {
+    const members = values(WORD_SET_LIMIT + 1);
+    members[members.length - 1] = 0n;
+    expect(() => PolicyBuilder.create("foo(uint256)").add(arg(0).isIn(members)).build()).not.toThrow();
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Loops
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyBuilder.add loops", () => {
+  test("joins one quantifier's constraints over one array into one loop", () => {
+    const policy = PolicyBuilder.create("foo((address,uint256)[])")
+      .add(arg(0, Quantifier.ANY, 0).eq("0x0000000000000000000000000000000000000001"))
+      .add(arg(0, Quantifier.ANY, 1).gte(1000n))
+      .add(arg(0, Quantifier.ALL, 1).lte(5000n))
       .build();
 
-    expect(PolicyCoder.decode(blob).groups[0][0].hint).toBeUndefined();
+    const rules = PolicyCoder.decode(policy).groups[0];
+    expect(rules.map((rule) => (rule.scope === Scope.LOOP ? [rule.quantifier, rule.body.length] : []))).toEqual([
+      [LoopQuantifier.ALL, 1],
+      [LoopQuantifier.ANY, 2],
+    ]);
   });
+});
 
-  test("a supplied hint reaches validation", () => {
-    const carried: Constraint = {
+///////////////////////////////////////////////////////////////////////////
+// Or
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyBuilder.or", () => {
+  test("rejects starting a group after an empty one", () => {
+    expectErrorCode(() => PolicyBuilder.create("foo(uint256)").or(), "EMPTY_GROUP");
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Build
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyBuilder.build", () => {
+  test("validates the blob it encodes", () => {
+    const contextBetween = Op.BETWEEN | (Source.CONTEXT << Op.SOURCE_SHIFT);
+    const constraint: Constraint = {
       scope: Scope.CALLDATA,
-      path: "0x0000",
-      operators: [op(Op.EQ, 42n)],
-      hint: "0x0000000020000020",
+      path: encodePath([0]),
+      operators: [op(contextBetween, 1n)],
     };
-
-    expectIssueCode(PolicyBuilder.create("foo(uint256)").add(carried).validate(), "HINT_MISMATCH");
+    const builder = PolicyBuilder.create("foo(uint256)").add(constraint);
+    expect(() => builder.buildUnsafe()).not.toThrow();
+    expectErrorCode(() => builder.build(), "INVALID_CONTEXT_OPERAND");
   });
 
-  test("re-encoding a decoded policy reproduces the blob", () => {
-    const blob = PolicyBuilder.create("foo((address,uint256)[])")
-      .add(arg(0, Quantifier.ALL, 1).gte(1n))
-      .build();
+  test("throws every issue validation reports", () => {
+    const builder = PolicyBuilder.create("foo(address,bool)").add(arg(0).gt(1n)).add(arg(1).bitmaskAll(1n));
+    const issues = builder.validate();
+    expect(issues.map((issue) => issue.code)).toEqual(["NUMERIC_OP_ON_NON_NUMERIC", "BITMASK_ON_INVALID"]);
+    const error = expectErrorCode(() => builder.build(), "VALIDATION_ERROR");
+    expect(error instanceof ValidationError && error.issues).toEqual(issues);
+  });
 
-    expect(PolicyCoder.encode(PolicyCoder.decode(blob))).toBe(blob);
+  test("encodes operators on one path alike across adds", () => {
+    const separate = PolicyBuilder.create("foo(uint256)").add(arg(0).gt(1n)).add(arg(0).lt(9n)).build();
+    const joint = PolicyBuilder.create("foo(uint256)").add(arg(0).gt(1n).lt(9n)).build();
+    expect(separate).toBe(joint);
+  });
+
+  test("createRaw sets the selectorless flag with a zero selector slot", () => {
+    const blob = hexToBytes(PolicyBuilder.createRaw("uint256").add(arg(0).eq(1n)).build());
+    expect(blob[0] & PF.FLAG_NO_SELECTOR).toBe(PF.FLAG_NO_SELECTOR);
+    expect([...blob.subarray(PF.SELECTOR_OFFSET, PF.SELECTOR_OFFSET + PF.SELECTOR_SIZE)]).toEqual([0, 0, 0, 0]);
   });
 });

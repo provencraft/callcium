@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { LibBytes } from "solady/utils/LibBytes.sol";
+import { LibBytes } from "./vendor/solady/utils/LibBytes.sol";
 
 /// @title CalldataReader
 /// @notice Reader for 32-byte words in a calldata buffer.

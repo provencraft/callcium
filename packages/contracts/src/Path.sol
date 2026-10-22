@@ -9,12 +9,12 @@ import { Be16 } from "./Be16.sol";
 /// - path[0] is the top-level argument index.
 /// - path[1..n] are indices into nested composites (tuples, arrays).
 library Path {
-    /// @dev Universal quantifier for array paths (∀). Rule must pass for ALL elements.
-    /// @dev Only valid immediately after an array node. Empty arrays yield true (vacuous truth).
+    /// @dev Universal quantifier for array paths (∀). Rule must pass for every element.
+    /// @dev Only valid immediately after an array node. Empty arrays give true (vacuous truth).
     uint16 internal constant ALL = 0xFFFF;
 
-    /// @dev Existential quantifier for array paths (∃). Rule must pass for AT LEAST ONE element.
-    /// @dev Only valid immediately after an array node. Empty arrays yield false.
+    /// @dev Existential quantifier for array paths (∃). Rule must pass for some element.
+    /// @dev Only valid immediately after an array node. Empty arrays give false.
     uint16 internal constant ANY = 0xFFFE;
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -23,11 +23,6 @@ library Path {
 
     /// @notice Thrown when the path is empty.
     error EmptyPath();
-
-    /// @notice Thrown when accessing a step position beyond the path depth.
-    /// @param stepIndex The 0-based step index.
-    /// @param depth The path depth.
-    error IndexOutOfBounds(uint256 stepIndex, uint256 depth);
 
     /// @notice Thrown when the be16-encoded path has an odd byte length.
     error MalformedPath();
@@ -92,18 +87,6 @@ library Path {
         }
     }
 
-    /// @notice Decodes a be16-encoded path into a uint16 array.
-    /// @param self The encoded path bytes.
-    /// @return out The decoded path steps.
-    function decode(bytes memory self) internal pure returns (uint16[] memory out) {
-        uint256 pathDepth = self.length / 2;
-        require(pathDepth != 0, EmptyPath());
-        out = new uint16[](pathDepth);
-        for (uint256 i = 0; i < pathDepth; ++i) {
-            out[i] = Be16.readUnchecked(self, i * 2);
-        }
-    }
-
     /// @notice Returns the depth (number of steps) in a path.
     /// @param self The encoded path bytes.
     /// @return The number of steps in the path.
@@ -119,16 +102,6 @@ library Path {
         require(length != 0, EmptyPath());
         require(length % 2 == 0, MalformedPath());
         return length / 2;
-    }
-
-    /// @notice Returns the step at a given step index in the path.
-    /// @param self The encoded path bytes.
-    /// @param stepIndex The 0-based step index.
-    /// @return The uint16 step value at the given index.
-    function at(bytes memory self, uint256 stepIndex) internal pure returns (uint16) {
-        uint256 pathDepth = self.length / 2;
-        require(stepIndex < pathDepth, IndexOutOfBounds(stepIndex, pathDepth));
-        return Be16.readUnchecked(self, stepIndex * 2);
     }
 
     /// @notice Returns the step at a given step index without bounds checks. Caller must ensure `stepIndex < depth`.

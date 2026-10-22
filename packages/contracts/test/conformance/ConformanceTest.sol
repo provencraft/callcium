@@ -1,61 +1,103 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-// forge-lint: disable-start(unsafe-typecast)
-
 import { Test } from "forge-std/Test.sol";
 
-import { Constraint } from "src/Constraint.sol";
-import { PolicyData } from "src/PolicyCoder.sol";
+import { CalldataReader } from "src/CalldataReader.sol";
+import { Descriptor } from "src/Descriptor.sol";
+import { Hint } from "src/Hint.sol";
+import { Policy } from "src/Policy.sol";
+import { PolicyCoder } from "src/PolicyCoder.sol";
+import { PolicyEnforcer } from "src/PolicyEnforcer.sol";
+import { Issue, ValidationIssue } from "src/ValidationIssue.sol";
 
-/// @notice Shared parsing for vector files that carry a structured policy under a `policy` key.
+import { PolicyCoderHarness } from "test/harnesses/PolicyCoderHarness.sol";
+
+/// @notice Shared reading of the vector files, re-encoding through the encoder, and the spelling of aborts and issues.
 abstract contract ConformanceTest is Test {
-    /// @dev Counts the entries of the JSON array indexed as `prefix` + index + `]`.
-    function _count(string memory json, string memory prefix) internal view returns (uint256 count) {
-        while (vm.keyExistsJson(json, string.concat(prefix, vm.toString(count), "]"))) ++count;
-    }
+    error UnknownFixtureError(string name);
 
     /// @dev Counts the entries of the top-level array in `json`.
-    function _vectorCount(string memory json) internal view returns (uint256) {
-        return _count(json, ".[");
+    function _vectorCount(string memory json) internal view returns (uint256 count) {
+        while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
     }
 
-    /// @dev Builds a PolicyData from the `policy` object of the vector at `indexString`.
-    function _policyData(string memory json, string memory indexString) internal view returns (PolicyData memory data) {
-        string memory policyPath = string.concat(".[", indexString, "].policy");
+    /// @dev Encodes the policy `blob` states through the unchecked encoder; empty where re-encoding refuses a
+    /// descriptor whose composite node disagrees with its children, a path that does not compile, a comparison or a
+    /// constant. Any other revert fails the test.
+    function _reencode(PolicyCoderHarness coder, bytes memory blob) internal pure returns (bytes memory) {
+        try coder.reencode(blob) returns (bytes memory encoded) {
+            return encoded;
+        } catch (bytes memory reason) {
+            bytes4 selector = bytes4(reason);
+            assertTrue(
+                selector == Descriptor.NodeLengthMismatch.selector
+                    || selector == Descriptor.StaticWordsMismatch.selector
+                    || selector == Descriptor.ParamIndexOutOfBounds.selector
+                    || selector == Descriptor.TupleFieldOutOfBounds.selector
+                    || selector == Descriptor.StaticArrayIndexOutOfBounds.selector
+                    || selector == Descriptor.NotComposite.selector || selector == Hint.QuantifierOnNonArray.selector
+                    || selector == PolicyCoder.OutOfPhysicalBounds.selector
+                    || selector == PolicyCoder.OperatorTargetMismatch.selector,
+                "unexpected encoder revert"
+            );
+            return "";
+        }
+    }
 
-        data.isSelectorless = vm.parseJsonBool(json, string.concat(policyPath, ".isSelectorless"));
-        data.selector = bytes4(vm.parseJsonBytes(json, string.concat(policyPath, ".selector")));
-        data.descriptor = vm.parseJsonBytes(json, string.concat(policyPath, ".descriptor"));
+    /// @dev Returns the spelling of the abort `reason` encodes, or "integrity" for an error the enforcer raises at
+    /// entry. Any other revert fails the test.
+    function _abortCode(bytes memory reason) internal pure returns (string memory) {
+        // An abort is a custom error; a panic or a revert without data is a crash in the enforcer.
+        assertTrue(reason.length >= 4, "enforcer crashed");
+        bytes4 selector = bytes4(reason);
+        if (selector == CalldataReader.CalldataOutOfBounds.selector) return "CALLDATA_OUT_OF_BOUNDS";
+        if (selector == PolicyEnforcer.NonCanonicalValue.selector) return "NON_CANONICAL_VALUE";
+        if (selector == PolicyEnforcer.QuantifierLimitExceeded.selector) return "QUANTIFIER_LIMIT_EXCEEDED";
+        if (selector == PolicyEnforcer.MissingSelector.selector) return "MISSING_SELECTOR";
+        if (selector == PolicyEnforcer.SelectorMismatch.selector) return "SELECTOR_MISMATCH";
+        bool isIntegrity = selector == Policy.MalformedHeader.selector || selector == Policy.UnsupportedVersion.selector
+            || selector == PolicyEnforcer.UnsupportedMinor.selector;
+        assertTrue(isIntegrity, "enforcer crashed");
+        return "integrity";
+    }
 
-        uint256 groupCount = _count(json, string.concat(policyPath, ".groups["));
+    /// @dev Returns the keys of `issues`.
+    function _issueKeys(Issue[] memory issues) internal pure returns (string[] memory keys) {
+        keys = new string[](issues.length);
+        for (uint256 i = 0; i < issues.length; ++i) {
+            keys[i] = _issueKey(issues[i]);
+        }
+    }
 
-        data.groups = new Constraint[][](groupCount);
-        for (uint256 groupIndex = 0; groupIndex < groupCount; ++groupIndex) {
-            string memory groupPath = string.concat(policyPath, ".groups[", vm.toString(groupIndex), "].constraints");
-            uint256 constraintCount = _count(json, string.concat(groupPath, "["));
-            data.groups[groupIndex] = new Constraint[](constraintCount);
-            for (uint256 constraintIndex = 0; constraintIndex < constraintCount; ++constraintIndex) {
-                string memory constraintPath = string.concat(groupPath, "[", vm.toString(constraintIndex), "]");
-                uint256 operatorCount = _count(json, string.concat(constraintPath, ".operators["));
-                bytes[] memory operators = new bytes[](operatorCount);
-                for (uint256 operatorIndex = 0; operatorIndex < operatorCount; ++operatorIndex) {
-                    operators[operatorIndex] = vm.parseJsonBytes(
-                        json, string.concat(constraintPath, ".operators[", vm.toString(operatorIndex), "]")
-                    );
-                }
-                string memory hintPath = string.concat(constraintPath, ".hint");
-                bytes memory hint;
-                if (vm.keyExistsJson(json, hintPath)) hint = vm.parseJsonBytes(json, hintPath);
-                data.groups[groupIndex][constraintIndex] = Constraint({
-                    scope: uint8(vm.parseJsonUint(json, string.concat(constraintPath, ".scope"))),
-                    path: vm.parseJsonBytes(json, string.concat(constraintPath, ".path")),
-                    operators: operators,
-                    leastNegativeOperand: 0,
-                    greatestOperand: 0,
-                    hint: hint
-                });
-            }
+    /// @dev Asserts that `actual` and `expected` hold the same issue keys, in any order.
+    function _assertSameIssues(string[] memory actual, string[] memory expected, string memory label) internal pure {
+        assertEq(actual.length, expected.length, label);
+        for (uint256 i = 0; i < expected.length; ++i) {
+            assertEq(_occurrences(actual, expected[i]), _occurrences(expected, expected[i]), label);
+        }
+    }
+
+    /// @dev Returns an issue as the vectors and the validation corpus spell it: its code, then its rule's indices.
+    function _issueKey(Issue memory issue) private pure returns (string memory key) {
+        bytes memory code = abi.encodePacked(issue.code);
+        uint256 length = 0;
+        while (length < code.length && code[length] != 0) ++length;
+        assembly ("memory-safe") {
+            mstore(code, length)
+        }
+        key = string(code);
+        if (issue.groupIndex == ValidationIssue.NO_INDEX) return key;
+        key = string.concat(key, "@", vm.toString(issue.groupIndex), ".", vm.toString(issue.ruleIndex));
+        if (issue.bodyRuleIndex != ValidationIssue.NO_INDEX) {
+            key = string.concat(key, ".", vm.toString(issue.bodyRuleIndex));
+        }
+    }
+
+    /// @dev Returns how many entries of `keys` equal `key`.
+    function _occurrences(string[] memory keys, string memory key) private pure returns (uint256 count) {
+        for (uint256 i = 0; i < keys.length; ++i) {
+            if (keccak256(bytes(keys[i])) == keccak256(bytes(key))) ++count;
         }
     }
 }

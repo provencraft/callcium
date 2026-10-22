@@ -1,23 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-// forge-lint: disable-start(cyclomatic-complexity, uninitialized-local, unsafe-typecast)
-
 import { Descriptor } from "src/Descriptor.sol";
 
-import { BaseTest } from "test/unit/BaseTest.sol";
+import { ConformanceTest } from "test/conformance/ConformanceTest.sol";
 
-// forge-lint: disable-next-item(unsafe-cheatcode)
-contract DescriptorConformanceTest is BaseTest {
-    using Descriptor for bytes;
-
+contract DescriptorConformanceTest is ConformanceTest {
     struct DescriptorParam {
-        /// @dev Parameter index within the descriptor.
-        uint256 index;
         /// @dev Whether the parameter type is dynamically sized.
         bool isDynamic;
-        /// @dev Encoded path to the parameter.
-        bytes path;
         /// @dev ABI head size in bytes; zero for dynamic types.
         uint256 staticSize;
         /// @dev TypeDesc type code.
@@ -25,15 +16,15 @@ contract DescriptorConformanceTest is BaseTest {
     }
 
     struct DescriptorFixture {
-        /// @dev ABI-encoded descriptor blob.
+        /// @dev Descriptor blob.
         bytes blob;
-        /// @dev Human-readable description of the test case.
+        /// @dev What the vector exercises.
         string description;
         /// @dev Expected error name, or empty string for valid cases.
         string error;
-        /// @dev ABI-encoded 32-byte arguments for the expected error, or empty.
+        /// @dev Arguments of the expected error, one word each; empty for valid cases.
         bytes32[] errorArgs;
-        /// @dev Unique fixture identifier.
+        /// @dev Vector identifier.
         string id;
         /// @dev Parameter type metadata for valid descriptors.
         DescriptorParam[] params;
@@ -41,86 +32,62 @@ contract DescriptorConformanceTest is BaseTest {
         uint256 version;
     }
 
-    error UnknownFixtureError(string name);
+    /// @dev External so `vm.expectRevert` intercepts each call in the vector loop.
+    function validate(bytes memory blob) external pure {
+        Descriptor.validate(blob);
+    }
 
     /// @dev Loads and parses all fixtures from the descriptor vector file.
     function _fixtures() private view returns (DescriptorFixture[] memory fixtures) {
         string memory json = vm.readFile("../../spec/vectors/descriptors.json");
-        uint256 count;
-        while (vm.keyExistsJson(json, string.concat(".[", vm.toString(count), "]"))) ++count;
+        uint256 count = _vectorCount(json);
+        assertGt(count, 0, "no vectors");
         fixtures = new DescriptorFixture[](count);
         for (uint256 i = 0; i < count; ++i) {
             fixtures[i] = abi.decode(vm.parseJson(json, string.concat(".[", vm.toString(i), "]")), (DescriptorFixture));
         }
     }
 
-    /// @dev External wrapper so `vm.expectRevert` can intercept reverts from validate.
-    function validate(bytes memory blob) external pure {
-        Descriptor.validate(blob);
-    }
-
     /// @dev Maps a fixture error name to its error selector.
     function _errorSelector(string memory name) private pure returns (bytes4) {
-        bytes32 h = keccak256(bytes(name));
-        if (h == keccak256("InvalidArrayLength")) return Descriptor.InvalidArrayLength.selector;
-        if (h == keccak256("InvalidTupleFieldCount")) return Descriptor.InvalidTupleFieldCount.selector;
-        if (h == keccak256("MalformedHeader")) return Descriptor.MalformedHeader.selector;
-        if (h == keccak256("NestingTooDeep")) return Descriptor.NestingTooDeep.selector;
-        if (h == keccak256("NodeLengthTooSmall")) return Descriptor.NodeLengthTooSmall.selector;
-        if (h == keccak256("NodeOverflow")) return Descriptor.NodeOverflow.selector;
-        if (h == keccak256("ParamCountMismatch")) return Descriptor.ParamCountMismatch.selector;
-        if (h == keccak256("TooManyParams")) return Descriptor.TooManyParams.selector;
-        if (h == keccak256("UnexpectedEnd")) return Descriptor.UnexpectedEnd.selector;
-        if (h == keccak256("UnknownTypeCode")) return Descriptor.UnknownTypeCode.selector;
-        if (h == keccak256("UnsupportedVersion")) return Descriptor.UnsupportedVersion.selector;
+        bytes32 nameHash = keccak256(bytes(name));
+        if (nameHash == keccak256("InvalidArrayLength")) return Descriptor.InvalidArrayLength.selector;
+        if (nameHash == keccak256("InvalidTupleFieldCount")) return Descriptor.InvalidTupleFieldCount.selector;
+        if (nameHash == keccak256("MalformedHeader")) return Descriptor.MalformedHeader.selector;
+        if (nameHash == keccak256("NestingTooDeep")) return Descriptor.NestingTooDeep.selector;
+        if (nameHash == keccak256("NodeLengthTooSmall")) return Descriptor.NodeLengthTooSmall.selector;
+        if (nameHash == keccak256("NodeOverflow")) return Descriptor.NodeOverflow.selector;
+        if (nameHash == keccak256("ParamCountMismatch")) return Descriptor.ParamCountMismatch.selector;
+        if (nameHash == keccak256("TooManyParams")) return Descriptor.TooManyParams.selector;
+        if (nameHash == keccak256("UnexpectedEnd")) return Descriptor.UnexpectedEnd.selector;
+        if (nameHash == keccak256("UnknownTypeCode")) return Descriptor.UnknownTypeCode.selector;
+        if (nameHash == keccak256("UnsupportedVersion")) return Descriptor.UnsupportedVersion.selector;
         revert UnknownFixtureError(name);
     }
-
-    /*/////////////////////////////////////////////////////////////////////////
-                                SPECIFICATION TESTS
-    /////////////////////////////////////////////////////////////////////////*/
 
     function test_ValidatesConformWithSpecification() public {
         DescriptorFixture[] memory fixtures = _fixtures();
         for (uint256 i = 0; i < fixtures.length; ++i) {
-            DescriptorFixture memory f = fixtures[i];
-            if (bytes(f.error).length > 0) {
-                bytes4 sel = _errorSelector(f.error);
-                bytes memory revertData = abi.encodePacked(sel);
-                for (uint256 j = 0; j < f.errorArgs.length; ++j) {
-                    revertData = bytes.concat(revertData, f.errorArgs[j]);
+            DescriptorFixture memory fixture = fixtures[i];
+            if (bytes(fixture.error).length > 0) {
+                bytes memory revertData = abi.encodePacked(_errorSelector(fixture.error));
+                for (uint256 j = 0; j < fixture.errorArgs.length; ++j) {
+                    revertData = bytes.concat(revertData, fixture.errorArgs[j]);
                 }
                 vm.expectRevert(revertData);
-                this.validate(f.blob);
+                this.validate(fixture.blob);
                 continue;
             }
-            Descriptor.validate(f.blob);
+            Descriptor.validate(fixture.blob);
         }
     }
 
     function test_ParamCountConformsWithSpecification() public view {
         DescriptorFixture[] memory fixtures = _fixtures();
         for (uint256 i = 0; i < fixtures.length; ++i) {
-            DescriptorFixture memory f = fixtures[i];
-            if (bytes(f.error).length > 0) continue;
-            assertEq(Descriptor.paramCount(f.blob), f.params.length, f.id);
-        }
-    }
-
-    function test_TypeAtConformsWithSpecification() public view {
-        DescriptorFixture[] memory fixtures = _fixtures();
-        for (uint256 i = 0; i < fixtures.length; ++i) {
-            DescriptorFixture memory f = fixtures[i];
-            if (bytes(f.error).length > 0) continue;
-            if (f.params.length == 0) continue;
-            for (uint256 j = 0; j < f.params.length; ++j) {
-                DescriptorParam memory param = f.params[j];
-                // forge-lint: disable-next-line(unsafe-typecast)
-                Descriptor.TypeInfo memory t = f.blob.typeAt(_path(uint16(j)));
-                assertEq(t.code, uint8(param.typeCode), string.concat(f.id, ":code"));
-                assertEq(t.isDynamic, param.isDynamic, string.concat(f.id, ":isDynamic"));
-                assertEq(t.staticSize, uint32(param.staticSize), string.concat(f.id, ":staticSize"));
-            }
+            DescriptorFixture memory fixture = fixtures[i];
+            if (bytes(fixture.error).length > 0) continue;
+            assertEq(Descriptor.paramCount(fixture.blob), fixture.params.length, fixture.id);
         }
     }
 }

@@ -1,613 +1,128 @@
 import { describe, expect, test } from "vitest";
 
-import { Op, TypeCode } from "../src/constants";
+import { DescriptorFormat as DF, fieldMax, TypeCode } from "../src/constants";
 import {
-  applyOperator,
   canonicalize,
-  classifyTypeCode,
-  isContextOp,
+  hasCalldataLength,
+  isLeftAligned,
   isSigned,
-  isValidOperatorData,
   lookupTypeCode,
-  toBigInt,
+  operandWidth,
 } from "../src/operators";
-import { word, words } from "./helpers";
-
-// Shorthand for the unsigned uint256 type code.
-const UINT256 = TypeCode.UINT_MAX; // 0x20
-// Shorthand for the signed int256 type code.
-const INT256 = TypeCode.INT_MAX; // 0x40
-
-const MAX_UINT256 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn;
+import { expectErrorCode } from "./helpers";
 
 ///////////////////////////////////////////////////////////////////////////
-// toBigInt
+// Helpers
 ///////////////////////////////////////////////////////////////////////////
 
-describe("toBigInt", () => {
-  test("zero", () => {
-    expect(toBigInt(word(0n))).toBe(0n);
-  });
-
-  test("42", () => {
-    expect(toBigInt(word(42n))).toBe(42n);
-  });
-
-  test("max uint256", () => {
-    expect(toBigInt(word(MAX_UINT256))).toBe(MAX_UINT256);
-  });
-
-  test("with offset into concatenated words", () => {
-    const data = words(1n, 42n);
-    expect(toBigInt(data, 0)).toBe(1n);
-    expect(toBigInt(data, 32)).toBe(42n);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// isSigned
-///////////////////////////////////////////////////////////////////////////
-
-describe("isSigned", () => {
-  test("uint types are unsigned", () => {
-    expect(isSigned(TypeCode.UINT_MIN)).toBe(false);
-    expect(isSigned(TypeCode.UINT_MAX)).toBe(false);
-  });
-
-  test("int types are signed", () => {
-    expect(isSigned(TypeCode.INT_MIN)).toBe(true);
-    expect(isSigned(TypeCode.INT_MAX)).toBe(true);
-  });
-
-  test("address is unsigned", () => {
-    expect(isSigned(TypeCode.ADDRESS)).toBe(false);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// isContextOp
-///////////////////////////////////////////////////////////////////////////
-
-describe("isContextOp", () => {
-  test("true across the context reference family", () => {
-    expect(isContextOp(Op.EQ_CTX)).toBe(true);
-    expect(isContextOp(Op.LTE_CTX)).toBe(true);
-  });
-
-  test("false for the neighbouring value operators", () => {
-    expect(isContextOp(Op.IN)).toBe(false);
-    expect(isContextOp(Op.BITMASK_ALL)).toBe(false);
-  });
-
-  test("ignores the NOT flag", () => {
-    expect(isContextOp(Op.GT_CTX | Op.NOT)).toBe(true);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Op.EQ
-///////////////////////////////////////////////////////////////////////////
-
-describe("Op.EQ", () => {
-  test("equal values", () => {
-    expect(applyOperator(Op.EQ, 7n, 0n, word(7n), UINT256)).toBe(true);
-  });
-
-  test("unequal values", () => {
-    expect(applyOperator(Op.EQ, 7n, 0n, word(8n), UINT256)).toBe(false);
-  });
-
-  test("NOT flag inverts EQ result (true → false)", () => {
-    expect(applyOperator(Op.EQ | Op.NOT, 7n, 0n, word(7n), UINT256)).toBe(false);
-  });
-
-  test("NOT flag inverts EQ result (false → true)", () => {
-    expect(applyOperator(Op.EQ | Op.NOT, 7n, 0n, word(8n), UINT256)).toBe(true);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Op.GT / Op.LT — unsigned
-///////////////////////////////////////////////////////////////////////////
-
-describe("Op.GT unsigned", () => {
-  test("greater value", () => {
-    expect(applyOperator(Op.GT, 10n, 0n, word(5n), UINT256)).toBe(true);
-  });
-
-  test("equal value", () => {
-    expect(applyOperator(Op.GT, 5n, 0n, word(5n), UINT256)).toBe(false);
-  });
-
-  test("smaller value", () => {
-    expect(applyOperator(Op.GT, 3n, 0n, word(5n), UINT256)).toBe(false);
-  });
-
-  // 0xFF..FF is max uint256 which is > 0 in unsigned interpretation.
-  test("0xFF..FF > 0 is true for uint256", () => {
-    expect(applyOperator(Op.GT, MAX_UINT256, 0n, word(0n), UINT256)).toBe(true);
-  });
-});
-
-describe("Op.GT signed", () => {
-  // 0xFF..FF is -1 in two's complement, so it is NOT > 0.
-  test("0xFF..FF > 0 is false for int256 (it is -1)", () => {
-    expect(applyOperator(Op.GT, MAX_UINT256, 0n, word(0n), INT256)).toBe(false);
-  });
-
-  test("1 > -1 is true", () => {
-    expect(applyOperator(Op.GT, 1n, 0n, word(MAX_UINT256), INT256)).toBe(true);
-  });
-});
-
-describe("Op.LT unsigned", () => {
-  test("smaller value", () => {
-    expect(applyOperator(Op.LT, 3n, 0n, word(5n), UINT256)).toBe(true);
-  });
-
-  test("equal value", () => {
-    expect(applyOperator(Op.LT, 5n, 0n, word(5n), UINT256)).toBe(false);
-  });
-});
-
-describe("Op.LT signed", () => {
-  // -1 represented as MAX_UINT256 should be < 0.
-  test("-1 < 0 is true", () => {
-    expect(applyOperator(Op.LT, MAX_UINT256, 0n, word(0n), INT256)).toBe(true);
-  });
-
-  test("0 < -1 is false", () => {
-    expect(applyOperator(Op.LT, 0n, 0n, word(MAX_UINT256), INT256)).toBe(false);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Op.GTE / Op.LTE
-///////////////////////////////////////////////////////////////////////////
-
-describe("Op.GTE", () => {
-  test("greater value", () => {
-    expect(applyOperator(Op.GTE, 10n, 0n, word(5n), UINT256)).toBe(true);
-  });
-
-  test("equal value", () => {
-    expect(applyOperator(Op.GTE, 5n, 0n, word(5n), UINT256)).toBe(true);
-  });
-
-  test("smaller value", () => {
-    expect(applyOperator(Op.GTE, 4n, 0n, word(5n), UINT256)).toBe(false);
-  });
-});
-
-describe("Op.LTE", () => {
-  test("smaller value", () => {
-    expect(applyOperator(Op.LTE, 3n, 0n, word(5n), UINT256)).toBe(true);
-  });
-
-  test("equal value", () => {
-    expect(applyOperator(Op.LTE, 5n, 0n, word(5n), UINT256)).toBe(true);
-  });
-
-  test("greater value", () => {
-    expect(applyOperator(Op.LTE, 6n, 0n, word(5n), UINT256)).toBe(false);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Op.BETWEEN
-///////////////////////////////////////////////////////////////////////////
-
-describe("Op.BETWEEN", () => {
-  test("value at lower boundary (inclusive)", () => {
-    expect(applyOperator(Op.BETWEEN, 5n, 0n, words(5n, 10n), UINT256)).toBe(true);
-  });
-
-  test("value at upper boundary (inclusive)", () => {
-    expect(applyOperator(Op.BETWEEN, 10n, 0n, words(5n, 10n), UINT256)).toBe(true);
-  });
-
-  test("value in middle of range", () => {
-    expect(applyOperator(Op.BETWEEN, 7n, 0n, words(5n, 10n), UINT256)).toBe(true);
-  });
-
-  test("value below range", () => {
-    expect(applyOperator(Op.BETWEEN, 4n, 0n, words(5n, 10n), UINT256)).toBe(false);
-  });
-
-  test("value above range", () => {
-    expect(applyOperator(Op.BETWEEN, 11n, 0n, words(5n, 10n), UINT256)).toBe(false);
-  });
-
-  test("signed: -2 between -5 and 0 is true", () => {
-    // -2, -5, 0 in two's complement 256-bit
-    const neg2 = MAX_UINT256 - 1n;
-    const neg5 = MAX_UINT256 - 4n;
-    expect(applyOperator(Op.BETWEEN, neg2, 0n, words(neg5, 0n), INT256)).toBe(true);
-  });
-
-  test("signed: 1 between -5 and 0 is false", () => {
-    const neg5 = MAX_UINT256 - 4n;
-    expect(applyOperator(Op.BETWEEN, 1n, 0n, words(neg5, 0n), INT256)).toBe(false);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Op.IN
-///////////////////////////////////////////////////////////////////////////
-
-describe("Op.IN", () => {
-  test("value found in single-element set", () => {
-    expect(applyOperator(Op.IN, 42n, 0n, words(42n), UINT256)).toBe(true);
-  });
-
-  test("value not found in single-element set", () => {
-    expect(applyOperator(Op.IN, 7n, 0n, words(42n), UINT256)).toBe(false);
-  });
-
-  test("value found in multi-element sorted set", () => {
-    expect(applyOperator(Op.IN, 30n, 0n, words(10n, 20n, 30n, 40n, 50n), UINT256)).toBe(true);
-  });
-
-  test("value not found in multi-element sorted set", () => {
-    expect(applyOperator(Op.IN, 25n, 0n, words(10n, 20n, 30n, 40n, 50n), UINT256)).toBe(false);
-  });
-
-  test("finds first element", () => {
-    expect(applyOperator(Op.IN, 10n, 0n, words(10n, 20n, 30n), UINT256)).toBe(true);
-  });
-
-  test("finds last element", () => {
-    expect(applyOperator(Op.IN, 30n, 0n, words(10n, 20n, 30n), UINT256)).toBe(true);
-  });
-
-  // IN is always unsigned: MAX_UINT256 is a large positive number, not -1.
-  test("IN comparison is always unsigned regardless of typeCode", () => {
-    // MAX_UINT256 is greater than 0 in unsigned comparison, so sorted set [0, MAX_UINT256] should find MAX_UINT256.
-    expect(applyOperator(Op.IN, MAX_UINT256, 0n, words(0n, MAX_UINT256), INT256)).toBe(true);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Op.BITMASK_ALL / Any / None
-///////////////////////////////////////////////////////////////////////////
-
-describe("Op.BITMASK_ALL", () => {
-  // value=0b1111, mask=0b1010 → (0b1111 & 0b1010) = 0b1010 === 0b1010 → true.
-  test("value has all mask bits set", () => {
-    expect(applyOperator(Op.BITMASK_ALL, 0b1111n, 0n, word(0b1010n), UINT256)).toBe(true);
-  });
-
-  // value=0b1010, mask=0b1010 → exact match.
-  test("value matches mask exactly", () => {
-    expect(applyOperator(Op.BITMASK_ALL, 0b1010n, 0n, word(0b1010n), UINT256)).toBe(true);
-  });
-
-  // value=0b0110, mask=0b1001 → (0b0110 & 0b1001) = 0 ≠ 0b1001 → false.
-  test("value is missing required mask bits", () => {
-    expect(applyOperator(Op.BITMASK_ALL, 0b0110n, 0n, word(0b1001n), UINT256)).toBe(false);
-  });
-});
-
-describe("Op.BITMASK_ANY", () => {
-  test("at least one bit matches", () => {
-    expect(applyOperator(Op.BITMASK_ANY, 0b1010n, 0n, word(0b1000n), UINT256)).toBe(true);
-  });
-
-  test("no bits match", () => {
-    expect(applyOperator(Op.BITMASK_ANY, 0b0101n, 0n, word(0b1010n), UINT256)).toBe(false);
-  });
-
-  test("zero value never matches any mask", () => {
-    expect(applyOperator(Op.BITMASK_ANY, 0n, 0n, word(0b1111n), UINT256)).toBe(false);
-  });
-});
-
-describe("Op.BITMASK_NONE", () => {
-  test("no bits match", () => {
-    expect(applyOperator(Op.BITMASK_NONE, 0b0101n, 0n, word(0b1010n), UINT256)).toBe(true);
-  });
-
-  test("some bits match", () => {
-    expect(applyOperator(Op.BITMASK_NONE, 0b1010n, 0n, word(0b1000n), UINT256)).toBe(false);
-  });
-
-  test("all bits match", () => {
-    expect(applyOperator(Op.BITMASK_NONE, 0b1111n, 0n, word(0b1111n), UINT256)).toBe(false);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// LENGTH_* operators
-///////////////////////////////////////////////////////////////////////////
-
-describe("LENGTH_EQ", () => {
-  test("length matches operand", () => {
-    expect(applyOperator(Op.LENGTH_EQ, 0n, 32n, word(32n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length does not match operand", () => {
-    expect(applyOperator(Op.LENGTH_EQ, 0n, 16n, word(32n), TypeCode.BYTES)).toBe(false);
-  });
-
-  test("valid for TypeCode.STRING", () => {
-    expect(applyOperator(Op.LENGTH_EQ, 0n, 5n, word(5n), TypeCode.STRING)).toBe(true);
-  });
-
-  test("valid for TypeCode.DYNAMIC_ARRAY", () => {
-    expect(applyOperator(Op.LENGTH_EQ, 0n, 3n, word(3n), TypeCode.DYNAMIC_ARRAY)).toBe(true);
-  });
-
-  test("passes for static type when valueLength matches", () => {
-    expect(applyOperator(Op.LENGTH_EQ, 0n, 20n, word(20n), TypeCode.ADDRESS)).toBe(true);
-  });
-
-  test("passes for uint256 when valueLength matches", () => {
-    expect(applyOperator(Op.LENGTH_EQ, 0n, 32n, word(32n), UINT256)).toBe(true);
-  });
-});
-
-describe("LENGTH_GT", () => {
-  test("length greater than operand", () => {
-    expect(applyOperator(Op.LENGTH_GT, 0n, 10n, word(5n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length equal to operand", () => {
-    expect(applyOperator(Op.LENGTH_GT, 0n, 5n, word(5n), TypeCode.BYTES)).toBe(false);
-  });
-
-  test("passes for static type when valueLength satisfies", () => {
-    expect(applyOperator(Op.LENGTH_GT, 0n, 10n, word(5n), TypeCode.ADDRESS)).toBe(true);
-  });
-});
-
-describe("LENGTH_LT", () => {
-  test("length less than operand", () => {
-    expect(applyOperator(Op.LENGTH_LT, 0n, 3n, word(5n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length equal to operand", () => {
-    expect(applyOperator(Op.LENGTH_LT, 0n, 5n, word(5n), TypeCode.BYTES)).toBe(false);
-  });
-});
-
-describe("LENGTH_GTE", () => {
-  test("length greater than operand", () => {
-    expect(applyOperator(Op.LENGTH_GTE, 0n, 6n, word(5n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length equal to operand", () => {
-    expect(applyOperator(Op.LENGTH_GTE, 0n, 5n, word(5n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length less than operand", () => {
-    expect(applyOperator(Op.LENGTH_GTE, 0n, 4n, word(5n), TypeCode.BYTES)).toBe(false);
-  });
-});
-
-describe("LENGTH_LTE", () => {
-  test("length less than operand", () => {
-    expect(applyOperator(Op.LENGTH_LTE, 0n, 4n, word(5n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length equal to operand", () => {
-    expect(applyOperator(Op.LENGTH_LTE, 0n, 5n, word(5n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length greater than operand", () => {
-    expect(applyOperator(Op.LENGTH_LTE, 0n, 6n, word(5n), TypeCode.BYTES)).toBe(false);
-  });
-});
-
-describe("LENGTH_BETWEEN", () => {
-  test("length at lower boundary (inclusive)", () => {
-    expect(applyOperator(Op.LENGTH_BETWEEN, 0n, 5n, words(5n, 10n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length at upper boundary (inclusive)", () => {
-    expect(applyOperator(Op.LENGTH_BETWEEN, 0n, 10n, words(5n, 10n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length in middle of range", () => {
-    expect(applyOperator(Op.LENGTH_BETWEEN, 0n, 7n, words(5n, 10n), TypeCode.BYTES)).toBe(true);
-  });
-
-  test("length below range", () => {
-    expect(applyOperator(Op.LENGTH_BETWEEN, 0n, 4n, words(5n, 10n), TypeCode.BYTES)).toBe(false);
-  });
-
-  test("length above range", () => {
-    expect(applyOperator(Op.LENGTH_BETWEEN, 0n, 11n, words(5n, 10n), TypeCode.BYTES)).toBe(false);
-  });
-
-  test("passes for static type when valueLength in range", () => {
-    expect(applyOperator(Op.LENGTH_BETWEEN, 0n, 7n, words(5n, 10n), TypeCode.ADDRESS)).toBe(true);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// NOT flag with non-EQ operators
-///////////////////////////////////////////////////////////////////////////
-
-describe("Op.NOT flag", () => {
-  test("NOT GT inverts result", () => {
-    // 10 > 5 is true, so NOT GT should be false.
-    expect(applyOperator(Op.GT | Op.NOT, 10n, 0n, word(5n), UINT256)).toBe(false);
-  });
-
-  test("NOT IN inverts result", () => {
-    expect(applyOperator(Op.IN | Op.NOT, 99n, 0n, words(10n, 20n, 30n), UINT256)).toBe(true);
-  });
-});
+/** The type codes from `first` to `last`. */
+function codeRange(first: number, last: number): number[] {
+  return Array.from({ length: last - first + 1 }, (_, index) => first + index);
+}
+
+const elementaryCodes = [
+  ...codeRange(TypeCode.UINT_MIN, TypeCode.UINT_MAX),
+  ...codeRange(TypeCode.INT_MIN, TypeCode.INT_MAX),
+  TypeCode.ADDRESS,
+  TypeCode.BOOL,
+  TypeCode.FUNCTION,
+  ...codeRange(TypeCode.FIXED_BYTES_MIN, TypeCode.FIXED_BYTES_MAX),
+];
+
+const definedCodes = [
+  ...elementaryCodes,
+  TypeCode.BYTES,
+  TypeCode.STRING,
+  TypeCode.STATIC_ARRAY,
+  TypeCode.DYNAMIC_ARRAY,
+  TypeCode.TUPLE,
+];
+
+/** Byte widths of the static elementary types whose label carries no size. */
+const unsizedWidths: Record<string, number> = { address: 20, bool: 1, function: 24 };
+
+/** The byte width a static elementary type's label states. */
+function labelWidth(label: string): number | undefined {
+  const integer = /^u?int(\d+)$/.exec(label);
+  if (integer) return Number(integer[1]) / 8;
+  const fixedBytes = /^bytes(\d+)$/.exec(label);
+  if (fixedBytes) return Number(fixedBytes[1]);
+  return unsizedWidths[label];
+}
+
+/** Whether `word` encodes a value of the type, stated as a value range. */
+function isEncoding(word: bigint, typeCode: number): boolean {
+  if (typeCode <= TypeCode.UINT_MAX) return word < 1n << BigInt(8 * (typeCode - TypeCode.UINT_MIN + 1));
+  if (typeCode <= TypeCode.INT_MAX) {
+    const bits = BigInt(8 * (typeCode - TypeCode.INT_MIN + 1));
+    const signed = BigInt.asIntN(256, word);
+    return signed >= -(1n << (bits - 1n)) && signed < 1n << (bits - 1n);
+  }
+  if (typeCode === TypeCode.ADDRESS) return word < 1n << 160n;
+  if (typeCode === TypeCode.BOOL) return word <= 1n;
+  const width = typeCode === TypeCode.FUNCTION ? 24 : typeCode - TypeCode.FIXED_BYTES_MIN + 1;
+  return word % (1n << BigInt(256 - 8 * width)) === 0n;
+}
+
+// The lowest and highest bit of every byte, so each width's top and sign bits, plus 2 and every bit set.
+const edgeWords = [
+  0n,
+  2n,
+  (1n << 256n) - 1n,
+  ...codeRange(0, 31).flatMap((byte) => [1n << BigInt(8 * byte), 1n << BigInt(8 * byte + 7)]),
+];
 
 ///////////////////////////////////////////////////////////////////////////
 // canonicalize
 ///////////////////////////////////////////////////////////////////////////
 
 describe("canonicalize", () => {
-  // A value with mixed bits across all byte positions, exercising both sign directions and each width's padding edge.
-  const SAMPLE = 0x0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0n;
-
-  // Clean, canonically-encoded values must pass through unchanged.
-  test("clean uintN is a no-op across all widths", () => {
-    for (let code = TypeCode.UINT_MIN; code <= TypeCode.UINT_MAX; code++) {
-      const bits = BigInt(code * 8);
-      const clean = bits === 256n ? SAMPLE : SAMPLE & ((1n << bits) - 1n);
-      expect(canonicalize(clean, code)).toBe(clean);
+  test("leaves exactly the encodings of every elementary type unchanged", () => {
+    for (const typeCode of elementaryCodes) {
+      for (const word of edgeWords) {
+        expect(canonicalize(word, typeCode) === word, `type ${typeCode}, word ${word}`).toBe(
+          isEncoding(word, typeCode),
+        );
+      }
     }
-  });
-
-  test("full-width types are identity", () => {
-    expect(canonicalize(MAX_UINT256, TypeCode.UINT_MAX)).toBe(MAX_UINT256);
-    expect(canonicalize(MAX_UINT256, TypeCode.INT_MAX)).toBe(MAX_UINT256);
-    expect(canonicalize(MAX_UINT256, TypeCode.FIXED_BYTES_MAX)).toBe(MAX_UINT256);
-  });
-
-  // Unsigned masking.
-  test("dirty uintN is masked to width", () => {
-    for (let code = TypeCode.UINT_MIN; code < TypeCode.UINT_MAX; code++) {
-      const bits = BigInt(code * 8);
-      const got = canonicalize(MAX_UINT256, code);
-      expect(got).toBe((1n << bits) - 1n);
-      expect(got >> bits).toBe(0n);
-    }
-  });
-
-  test("uint64 dirty high bit collapses to the low 64 bits", () => {
-    const uint64 = TypeCode.UINT_MIN + 7;
-    expect(canonicalize((1n << 64n) | 5n, uint64)).toBe(5n);
-  });
-
-  // Signed extension.
-  test("int8 sign-extends", () => {
-    const int8 = TypeCode.INT_MIN;
-    expect(BigInt.asIntN(256, canonicalize(0xffn, int8))).toBe(-1n);
-    expect(BigInt.asIntN(256, canonicalize(0x80n, int8))).toBe(-128n);
-    expect(BigInt.asIntN(256, canonicalize(0x7fn, int8))).toBe(127n);
-  });
-
-  test("int64 sign-extends a non-extended word to -1", () => {
-    const int64 = TypeCode.INT_MIN + 7;
-    expect(BigInt.asIntN(256, canonicalize((1n << 64n) - 1n, int64))).toBe(-1n);
-  });
-
-  test("signed matches asIntN across widths", () => {
-    for (let code = TypeCode.INT_MIN; code < TypeCode.INT_MAX; code++) {
-      const bits = (code - TypeCode.INT_MIN + 1) * 8;
-      expect(canonicalize(SAMPLE, code)).toBe(BigInt.asUintN(256, BigInt.asIntN(bits, SAMPLE)));
-    }
-  });
-
-  // Fixed bytes / address / bool / function.
-  test("bytesN clears the low padding bytes across all widths", () => {
-    for (let n = 1; n < 32; n++) {
-      const code = TypeCode.FIXED_BYTES_MIN + n - 1;
-      const padBits = BigInt((32 - n) * 8);
-      const got = canonicalize(MAX_UINT256, code);
-      expect(got >> padBits).toBe(MAX_UINT256 >> padBits);
-      expect(got & ((1n << padBits) - 1n)).toBe(0n);
-    }
-  });
-
-  test("address masks the high bits", () => {
-    const addressValue = 0x00112233445566778899aabbccddeeff01234567n;
-    const dirty = (0x89abn << 160n) | addressValue;
-    const got = canonicalize(dirty, TypeCode.ADDRESS);
-    expect(got).toBe(addressValue);
-    expect(got >> 160n).toBe(0n);
-  });
-
-  test("bool collapses to the low bit", () => {
-    expect(canonicalize(1n, TypeCode.BOOL)).toBe(1n);
-    expect(canonicalize(0n, TypeCode.BOOL)).toBe(0n);
-    // Dirty word with the low bit set is true.
-    expect(canonicalize((1n << 200n) | 1n, TypeCode.BOOL)).toBe(1n);
-    // Word equal to 2 masks to false (matches & 1, not an x != 0 test).
-    expect(canonicalize(2n, TypeCode.BOOL)).toBe(0n);
-  });
-
-  test("function is bytes24-aligned: clears the low 8 padding bytes", () => {
-    const value = 0x0102030405060708090a0b0c0d0e0f101112131415161718n << 64n;
-    const dirty = value | 0x0123456789abcdefn;
-    const got = canonicalize(dirty, TypeCode.FUNCTION);
-    expect(got).toBe(value);
-    expect(got & ((1n << 64n) - 1n)).toBe(0n);
   });
 });
 
-describe("classifyTypeCode", () => {
-  test("throws for reserved zero type code", () => {
-    expect(() => classifyTypeCode(0x00)).toThrow();
-  });
-
-  test("throws for reserved range 0x82-0x8f", () => {
-    expect(() => classifyTypeCode(0x83)).toThrow();
-  });
-
-  test("returns tuple for TypeCode.TUPLE", () => {
-    expect(classifyTypeCode(TypeCode.TUPLE).typeClass).toBe("tuple");
-  });
-
-  test("throws for unrecognized code beyond all ranges", () => {
-    expect(() => classifyTypeCode(0xff)).toThrow();
-  });
-});
-
-describe("isValidOperatorData", () => {
-  test("returns false for unknown opcode", () => {
-    expect(isValidOperatorData(0xff, 32)).toBe(false);
-  });
-});
+///////////////////////////////////////////////////////////////////////////
+// lookupTypeCode
+///////////////////////////////////////////////////////////////////////////
 
 describe("lookupTypeCode", () => {
-  test("returns label and class for uint256", () => {
-    const info = lookupTypeCode(TypeCode.UINT_MAX);
-    expect(info.label).toBe("uint256");
-    expect(info.typeClass).toBe("elementary");
+  test.each([
+    [TypeCode.UINT_MIN, "uint8", "elementary", false],
+    [TypeCode.UINT_MAX, "uint256", "elementary", false],
+    [TypeCode.INT_MIN, "int8", "elementary", false],
+    [TypeCode.INT_MAX, "int256", "elementary", false],
+    [TypeCode.ADDRESS, "address", "elementary", false],
+    [TypeCode.BOOL, "bool", "elementary", false],
+    [TypeCode.FUNCTION, "function", "elementary", false],
+    [TypeCode.FIXED_BYTES_MIN, "bytes1", "elementary", false],
+    [TypeCode.FIXED_BYTES_MAX, "bytes32", "elementary", false],
+    [TypeCode.BYTES, "bytes", "elementary", true],
+    [TypeCode.STRING, "string", "elementary", true],
+    [TypeCode.STATIC_ARRAY, "T[k]", "staticArray", false],
+    [TypeCode.DYNAMIC_ARRAY, "T[]", "dynamicArray", true],
+    [TypeCode.TUPLE, "tuple", "tuple", false],
+  ])("labels type code %d as %s", (code, label, typeClass, isDynamic) => {
+    expect(lookupTypeCode(code)).toEqual({ label, typeClass, isDynamic });
   });
 
-  test("returns label and class for int8", () => {
-    const info = lookupTypeCode(TypeCode.INT_MIN);
-    expect(info.label).toBe("int8");
-    expect(info.typeClass).toBe("elementary");
-  });
-
-  test("returns label for address", () => {
-    expect(lookupTypeCode(TypeCode.ADDRESS).label).toBe("address");
-  });
-
-  test("returns label for bool", () => {
-    expect(lookupTypeCode(TypeCode.BOOL).label).toBe("bool");
-  });
-
-  test("returns label for bytes32", () => {
-    expect(lookupTypeCode(TypeCode.FIXED_BYTES_MIN + 31).label).toBe("bytes32");
-  });
-
-  test("returns label for bytes (dynamic)", () => {
-    expect(lookupTypeCode(TypeCode.BYTES).label).toBe("bytes");
-  });
-
-  test("returns label for string (dynamic)", () => {
-    expect(lookupTypeCode(TypeCode.STRING).label).toBe("string");
-  });
-
-  test("returns label for tuple", () => {
-    expect(lookupTypeCode(TypeCode.TUPLE).label).toBe("tuple");
-  });
-
-  test("returns label for static array", () => {
-    expect(lookupTypeCode(TypeCode.STATIC_ARRAY).label).toBe("T[k]");
-  });
-
-  test("returns label for dynamic array", () => {
-    expect(lookupTypeCode(TypeCode.DYNAMIC_ARRAY).label).toBe("T[]");
-  });
-
-  test("returns label for function", () => {
-    expect(lookupTypeCode(TypeCode.FUNCTION).label).toBe("function");
-  });
-
-  test("throws for unknown type code", () => {
-    expect(() => lookupTypeCode(0xff)).toThrow();
+  test("every type code function agrees with the defined codes on every byte", () => {
+    for (const code of codeRange(0, fieldMax(DF.TYPECODE_SIZE))) {
+      const isDefined = definedCodes.includes(code);
+      if (!isDefined) expectErrorCode(() => lookupTypeCode(code), "UNKNOWN_TYPE_CODE");
+      const info = isDefined ? lookupTypeCode(code) : undefined;
+      const label = info?.label ?? "";
+      const isStaticElementary = info?.typeClass === "elementary" && !info.isDynamic;
+      expect(operandWidth(code), `type ${code}`).toBe(isStaticElementary ? labelWidth(label) : undefined);
+      expect(isSigned(code), `type ${code}`).toBe(/^int\d+$/.test(label));
+      expect(isLeftAligned(code), `type ${code}`).toBe(label === "function" || /^bytes\d+$/.test(label));
+      expect(hasCalldataLength(code), `type ${code}`).toBe(info?.isDynamic === true);
+    }
   });
 });

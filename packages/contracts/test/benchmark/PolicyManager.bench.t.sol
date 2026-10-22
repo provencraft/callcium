@@ -1,29 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-// forge-lint: disable-start(unused-return)
-
 import { arg } from "src/Constraint.sol";
 import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
 import { PolicyManagerTest } from "test/unit/PolicyManager.t.sol";
 
-/// @dev Base contract for PolicyManager benchmarks with pre-built fixtures.
 abstract contract PolicyManagerBench is PolicyManagerTest {
-    /// @dev An address no benchmark binds, so a lookup against it takes the miss path.
     address internal constant UNBOUND_TARGET = address(0xffff);
 
-    /// @dev A selector no benchmark binds, so a lookup against it finds neither a target binding nor a default one.
     bytes4 internal constant UNBOUND_SELECTOR = bytes4(0x12345678);
-
-    /// @dev A hash no benchmark stores, so a lookup against it takes the miss path.
-    bytes32 internal constant UNKNOWN_HASH = bytes32(uint256(1));
 
     bytes internal policy;
     bytes32 internal policyHash;
 
-    /// @dev A policy setUp deliberately leaves unstored, so a benchmark that stores it pays for validation and the
-    /// SSTORE2 deploy instead of hitting the hash-keyed short circuit.
     bytes internal unstoredPolicy;
 
     address internal target;
@@ -45,6 +35,8 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
         _buildLargeSetFixtures();
     }
 
+    /// @dev Stores `policy` and leaves `unstoredPolicy` unstored, so a benchmark that stores it pays for validation and
+    /// the SSTORE2 deploy instead of hitting the hash-keyed short circuit.
     function _buildPolicyFixtures() internal {
         // forgefmt: disable-next-item
         policy = PolicyBuilder.create("foo(uint256)")
@@ -58,6 +50,7 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
             .buildUnsafe();
     }
 
+    /// @dev Builds the target lists of one and ten addresses.
     function _buildTargetFixtures() internal {
         target = address(1);
 
@@ -66,7 +59,6 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
 
         targets10 = new address[](10);
         for (uint256 i = 0; i < 10; ++i) {
-            // forge-lint: disable-next-line(unsafe-typecast) loop bound is 10
             targets10[i] = address(uint160(i + 1));
         }
     }
@@ -95,6 +87,7 @@ abstract contract PolicyManagerBench is PolicyManagerTest {
             .buildUnsafe();
     }
 
+    /// @dev Builds a policy with an `IN` set of 256 members.
     function _buildLargeSetFixtures() internal {
         uint256[] memory largeSet = new uint256[](256);
         for (uint256 i = 0; i < 256; ++i) {

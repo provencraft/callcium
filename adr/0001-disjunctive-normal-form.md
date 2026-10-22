@@ -1,4 +1,4 @@
-# ADR-0001: Disjunctive Normal Form (DNF)
+# ADR-0001: Disjunctive Normal Form
 
 ## Status
 
@@ -6,28 +6,31 @@ Accepted.
 
 ## Context
 
-The policy format must represent compound permission rules combining AND and OR logic. Two standard normal forms are candidates: DNF (OR of AND-groups) and CNF (AND of OR-clauses).
+A policy combines conditions with AND and OR. Two normal forms are candidates: DNF, an OR of AND-groups, and CNF, an AND
+of OR-clauses.
 
-The dominant runtime cost is locating values in calldata via descriptor traversal, not the operator evaluation itself. The layout choice must minimize traversal cost for common patterns (admin bypass, simple allowlists).
+Common policies pair a cheap condition on the call with conditions on calldata. For example, an administrator can call
+freely, and anyone else must stay within limits. A context test reads one value of the call. A calldata test reads one
+word of calldata. Each dynamic offset that its path follows adds a read and a bounds check.
+
+Separate alternatives for a disjunction inside one field, such as `recipient == A OR recipient == B`, repeat every other
+condition of the original alternative.
 
 ## Decision
 
-The policy format uses DNF: groups have OR semantics, rules within groups have AND semantics.
+**A policy is a disjunction of groups, and a group is a conjunction of rules** (`Formula.holds`).
 
-**Early success without heavy traversal.** Common pattern: `admin_override OR (value constraints on calldata)`. In DNF, the admin group (call-level, cheap) can pass and validation stops immediately.
-
-**Group-major layout enables O(1) short-circuit.** The blob structure `[groups...]` with `[ruleCount][groupSize]` lets DNF return true on the first passing group. On group failure, skip to the next group in O(1) using groupSize.
-
-**Contiguous evaluation blocks.** Within a DNF group, rules are ordered scope-first, so a group evaluates as one cheap call-level block followed by one calldata block.
-
-**Compact OR expressions via operators.** Many CNF-shaped intents map to a single operator in DNF. For example, `recipient == A OR recipient == B` becomes one `OP_IN(recipient, {A, B})` rule. This keeps AND-groups small and contiguous.
+- **Early success.** A group of call-level conditions reads no calldata. If the enforcer evaluates this group first and
+  the group holds, evaluation ends.
+- **Disjunction inside a condition stays in the operator.** `recipient == A OR recipient == B` is one `IN` rule.
 
 ## Alternatives Considered
 
-- **CNF (Conjunctive Normal Form):** AND of OR-clauses. Rejected because CNF's success path must touch every clause — even with optimal literal ordering, all clause paths must be visited to return true. This eliminates early-exit on common patterns like admin bypass. Additionally, CNF interleaves disjuncts from different clauses, forcing per-literal scope branching instead of contiguous evaluation blocks.
+- **CNF**: rejected. A passing policy must evaluate every clause, so no condition ends evaluation early on success.
+  Distribution of the OR copies the administrator's condition into every clause. The blob contains that condition once
+  per clause, and the administrator's call evaluates it once per clause.
 
 ## Consequences
 
-- Gas-optimal for common permission patterns (admin overrides, tiered allowlists).
-- Users lose control over group evaluation order — OR semantics make ordering immaterial to which groups can pass, and the canonical sort fixes a single, portable evaluation order.
-- OR expressions within a group must be expressed via set operators (`OP_IN`) or split into separate groups.
+- A disjunction across fields at the root needs separate groups. Each group repeats the rules that the alternatives
+  share.

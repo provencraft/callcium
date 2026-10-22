@@ -1,0 +1,3 @@
+/.lake/
+/corpus/*
+!/corpus/.gitkeep

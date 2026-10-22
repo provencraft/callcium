@@ -31,14 +31,14 @@ function isAlphanum(char: number): boolean {
 /**
  * Parse an ABI function signature into its selector and types.
  *
- * Strict mode: no space, tab, LF or CR; name must match `[A-Za-z_][A-Za-z0-9_]*`; structure must be `name(types)` with
- * the final `)` as the last character.
+ * Strict mode: no space, tab, LF or CR. The name must match `[A-Za-z_][A-Za-z0-9_]*`. The structure must be
+ * `name(types)` with the final `)` as the last character.
  *
- * @param signature - A function signature string, e.g. `"transfer(address,uint256)"`.
+ * @param signature - A function signature string, for example `"transfer(address,uint256)"`.
  * @returns The 4-byte selector and the comma-separated types string.
  * @throws {CallciumError} with code `"MALFORMED_SIGNATURE"`, `"SIGNATURE_CONTAINS_WHITESPACE"`, or
- * `"INVALID_FUNCTION_NAME"` if the signature is malformed. The types between the parentheses are returned unread;
- * whether they name types is for the type parser to say.
+ * `"INVALID_FUNCTION_NAME"` if the signature is malformed. The types between the parentheses are returned unread.
+ * The type parser determines whether the types string names types.
  */
 function parse(signature: string): ParsedSignature {
   if (signature.length < 3) {
@@ -68,12 +68,8 @@ function parse(signature: string): ParsedSignature {
     throw new CallciumError("MALFORMED_SIGNATURE", `Invalid signature: must end with ")", got "${signature}"`);
   }
 
-  if (openParen === 0) {
-    throw new CallciumError("INVALID_FUNCTION_NAME", "Function name must not be empty");
-  }
-
-  // Validate function name: [A-Za-z_][A-Za-z0-9_]*. Every character outside ASCII carries a code unit above the
-  // alphanumeric ranges, so the same test rejects it.
+  // Validate function name: [A-Za-z_][A-Za-z0-9_]*. An empty name leaves `(` first, which fails the first-character
+  // test; every character outside ASCII carries a code unit above the alphanumeric ranges and fails the same tests.
   const firstChar = signature.charCodeAt(0);
   if (!isAlpha(firstChar) && firstChar !== 0x5f) {
     throw new CallciumError("INVALID_FUNCTION_NAME", "Function name must start with a letter or underscore");

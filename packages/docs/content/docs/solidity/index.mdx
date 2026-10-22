@@ -7,6 +7,8 @@ description: Install Callcium and write your first policy in Solidity.
 
 Callcium requires Solidity `^0.8.28` with `via_ir = true` and compiles for the Cancun EVM version — the target chain must support Cancun opcodes (`push0`, `mcopy`).
 
+Every inline `assembly` block in a contract that uses Callcium must be annotated `memory-safe`. The enforcer compiles only when the compiler can move stack variables to memory, and one unannotated block disables that for the whole contract: compilation fails with "too deep in the stack".
+
 ```bash
 forge soldeer install callcium~<version>
 ```

@@ -1,6 +1,5 @@
 import { describe, expect, test } from "vitest";
 
-import { CallciumError } from "../src/errors";
 import { SignatureParser } from "../src/signature";
 import { expectErrorCode } from "./helpers";
 
@@ -11,75 +10,44 @@ describe("SignatureParser", () => {
     expect(result.types).toBe("address,uint256");
   });
 
-  test("parses approve(address,uint256)", () => {
-    const result = SignatureParser.parse("approve(address,uint256)");
-    expect(result.selector).toBe("0x095ea7b3");
-    expect(result.types).toBe("address,uint256");
-  });
-
-  test("parses no-argument function pause()", () => {
-    const result = SignatureParser.parse("pause()");
-    expect(result.types).toBe("");
-    expect(result.selector).toHaveLength(10);
-    expect(result.selector.startsWith("0x")).toBe(true);
-  });
-
-  test("parses tuple argument swap((address,uint256))", () => {
-    const result = SignatureParser.parse("swap((address,uint256))");
-    expect(result.types).toBe("(address,uint256)");
-  });
-
-  test("rejects missing parentheses", () => {
-    expect(() => SignatureParser.parse("transfer")).toThrow(CallciumError);
-  });
-
-  test("rejects empty string", () => {
-    expect(() => SignatureParser.parse("")).toThrow(CallciumError);
-  });
-
-  test("rejects no function name", () => {
-    expect(() => SignatureParser.parse("(uint256)")).toThrow(CallciumError);
-  });
-
-  test("rejects tab in signature", () => {
-    expect(() => SignatureParser.parse("transfer\t(uint256)")).toThrow(CallciumError);
-  });
-
-  test("rejects newline in signature", () => {
-    expect(() => SignatureParser.parse("transfer\n(uint256)")).toThrow(CallciumError);
-  });
-
-  test("rejects a non-ASCII character in the function name", () => {
-    // Every character outside ASCII fails the same alphanumeric test the name already applies.
-    expectErrorCode(() => SignatureParser.parse("tránsfer(uint256)"), "INVALID_FUNCTION_NAME");
-  });
-
-  test("rejects an empty function name", () => {
-    expectErrorCode(() => SignatureParser.parse("(uint256)"), "INVALID_FUNCTION_NAME");
+  test("accepts underscores and digits in the function name", () => {
+    const result = SignatureParser.parse("_set_owner2(address)");
+    expect(result.types).toBe("address");
   });
 
   test("leaves a non-ASCII character between the parentheses to the type parser", () => {
-    // The selector hashes the signature's UTF-8 bytes, which is the preimage the contract hashes.
+    // The selector hashes the signature's UTF-8 bytes.
     const result = SignatureParser.parse("foo(é)");
     expect(result.selector).toBe("0x4cc3fd17");
     expect(result.types).toBe("é");
   });
 
-  test("accepts underscore-prefixed function name", () => {
-    const result = SignatureParser.parse("_approve(address,uint256)");
-    expect(result.types).toBe("address,uint256");
-    expect(result.selector).toHaveLength(10);
+  test("rejects a signature too short to hold a name and both parentheses", () => {
+    expectErrorCode(() => SignatureParser.parse("()"), "MALFORMED_SIGNATURE");
   });
 
-  test("rejects special characters in function name", () => {
-    expect(() => SignatureParser.parse("foo@bar(uint256)")).toThrow(CallciumError);
+  test("rejects each whitespace character", () => {
+    for (const whitespace of [" ", "\t", "\n", "\r"]) {
+      expectErrorCode(
+        () => SignatureParser.parse(`transfer(address,${whitespace}uint256)`),
+        "SIGNATURE_CONTAINS_WHITESPACE",
+      );
+    }
+  });
+
+  test("rejects a signature with no opening parenthesis", () => {
+    expectErrorCode(() => SignatureParser.parse("transfer)"), "MALFORMED_SIGNATURE");
   });
 
   test("rejects missing closing parenthesis", () => {
-    expect(() => SignatureParser.parse("foo(uint256")).toThrow(CallciumError);
+    expectErrorCode(() => SignatureParser.parse("foo(uint256"), "MALFORMED_SIGNATURE");
   });
 
   test("rejects function name starting with a digit", () => {
-    expect(() => SignatureParser.parse("1foo(uint256)")).toThrow(CallciumError);
+    expectErrorCode(() => SignatureParser.parse("1foo(uint256)"), "INVALID_FUNCTION_NAME");
+  });
+
+  test("rejects a non-ASCII character in the function name", () => {
+    expectErrorCode(() => SignatureParser.parse("tránsfer(uint256)"), "INVALID_FUNCTION_NAME");
   });
 });

@@ -1,18 +1,15 @@
 import { expect } from "vitest";
 
-import { CallciumError } from "../src";
 import { bigintToHex } from "../src/bytes";
+import { CallciumError } from "../src/errors";
+import { PolicyCoder } from "../src/policy-coder";
 
-import type {
-  CallciumErrorCode,
-  Constraint,
-  EnforceResult,
-  Issue,
-  IssueCode,
-  PolicyData,
-  Violation,
-  ViolationCode,
-} from "../src";
+import type { CallciumErrorCode } from "../src/errors";
+import type { EnforceResult, Violation } from "../src/types";
+
+///////////////////////////////////////////////////////////////////////////
+// Assertions
+///////////////////////////////////////////////////////////////////////////
 
 /** Assert an enforcement result is a failure and narrow its type. */
 export function assertFailed(result: EnforceResult): asserts result is Extract<EnforceResult, { ok: false }> {
@@ -30,7 +27,7 @@ export function assertPassed(result: EnforceResult): asserts result is Extract<E
 }
 
 /** Assert a violation has the given code and narrow it to the matching variant. */
-export function assertViolationCode<C extends ViolationCode>(
+function assertViolationCode<C extends Violation["code"]>(
   violation: Violation,
   code: C,
 ): asserts violation is Extract<Violation, { code: C }> {
@@ -40,7 +37,7 @@ export function assertViolationCode<C extends ViolationCode>(
 }
 
 /** Assert a result failed and its first violation carries `code`, and return that violation. */
-export function expectFirstViolation<C extends ViolationCode>(
+export function expectFirstViolation<C extends Violation["code"]>(
   result: EnforceResult,
   code: C,
 ): Extract<Violation, { code: C }> {
@@ -53,39 +50,65 @@ export function expectFirstViolation<C extends ViolationCode>(
   return violation;
 }
 
-/** Assert that `issues` carries one with the given code and return it. */
-export function expectIssueCode(issues: readonly Issue[], code: IssueCode): Issue {
-  const issue = issues.find((candidate) => candidate.code === code);
-  if (issue === undefined) {
-    const found = issues.map((candidate) => candidate.code).join(", ") || "no issues";
-    throw new Error(`Expected issue ${code}, got ${found}`);
-  }
-  return issue;
-}
-
-/** Assert that `issues` carries none with the given code. */
-export function refuteIssueCode(issues: readonly Issue[], code: IssueCode): void {
-  expect(issues.map((issue) => issue.code)).not.toContain(code);
-}
-
-/** Assert that calling call() throws a CallciumError with the given code and return it. */
-export function expectErrorCode(call: () => unknown, code: CallciumErrorCode): CallciumError {
+/** Assert that calling call() throws a CallciumError with the given code, or one of the given codes, and return it. */
+export function expectErrorCode(
+  call: () => unknown,
+  code: CallciumErrorCode | readonly CallciumErrorCode[],
+): CallciumError {
   try {
     call();
   } catch (error) {
     if (!(error instanceof CallciumError)) {
       throw error;
     }
-    expect(error.code).toBe(code);
+    if (typeof code === "string") expect(error.code).toBe(code);
+    else expect(code).toContain(error.code);
     return error;
   }
-  expect.unreachable(`Expected CallciumError ${code}`);
+  expect.unreachable(`Expected CallciumError ${[code].flat().join(" or ")}`);
 }
 
+///////////////////////////////////////////////////////////////////////////
+// Vectors
+///////////////////////////////////////////////////////////////////////////
+
 /** Coerce a plain string to a 0x-prefixed hex value. */
-export function hex(s: string) {
-  const body = s.startsWith("0x") ? s.slice(2) : s;
+export function hex(value: string) {
+  const body = value.startsWith("0x") ? value.slice(2) : value;
   return `0x${body}` as const;
+}
+
+/** The vector `id` of `vectors`. */
+export function vectorById<V extends { id: string }>(vectors: readonly V[], id: string): V {
+  const found = vectors.find((vector) => vector.id === id);
+  if (found === undefined) throw new Error(`No vector ${id}`);
+  return found;
+}
+
+/**
+ * The codes re-encoding refuses a policy with: a descriptor whose composite node disagrees with its children, a path
+ * that does not compile, or a comparison or a constant its target's type cannot hold.
+ */
+const encoderRefusals: ReadonlySet<CallciumErrorCode> = new Set<CallciumErrorCode>([
+  "NODE_LENGTH_MISMATCH",
+  "STATIC_WORDS_MISMATCH",
+  "PARAM_INDEX_OUT_OF_BOUNDS",
+  "TUPLE_FIELD_OUT_OF_BOUNDS",
+  "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS",
+  "NOT_COMPOSITE",
+  "QUANTIFIER_ON_NON_ARRAY",
+  "OPERATOR_TARGET_MISMATCH",
+  "OUT_OF_PHYSICAL_BOUNDS",
+]);
+
+/** Encode the policy `blob` states through the encoder; `0x` where re-encoding refuses the policy. */
+export function reencode(blob: `0x${string}`): `0x${string}` {
+  try {
+    return PolicyCoder.encode(PolicyCoder.decode(blob));
+  } catch (error) {
+    if (error instanceof CallciumError && encoderRefusals.has(error.code)) return "0x";
+    throw error;
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -126,43 +149,8 @@ export function op(code: number, value: bigint): `0x${string}` {
   return `0x${code.toString(16).padStart(2, "0")}${value.toString(16).padStart(64, "0")}`;
 }
 
-/** Build a BETWEEN/range operator hex (opcode + 64-byte pair). */
-export function rangeOp(code: number, low: bigint, high: bigint): `0x${string}` {
-  return `0x${code.toString(16).padStart(2, "0")}${low.toString(16).padStart(64, "0")}${high.toString(16).padStart(64, "0")}`;
-}
-
 /** Build an IN operator hex (opcode + N * 32-byte values). */
 export function inOp(code: number, values: bigint[]): `0x${string}` {
   const body = values.map((value) => value.toString(16).padStart(64, "0")).join("");
   return `0x${code.toString(16).padStart(2, "0")}${body}`;
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Vector policy specs
-///////////////////////////////////////////////////////////////////////////
-
-/** Structured policy spec as carried by the validation and enforcement vector files. */
-export type VectorPolicy = {
-  isSelectorless: boolean;
-  selector: string;
-  descriptor: string;
-  groups: { constraints: { scope: number; path: string; operators: string[]; hint?: string }[] }[];
-};
-
-/** Build a PolicyData from a vector's policy spec. */
-export function policyDataFromVector(policy: VectorPolicy): PolicyData {
-  const groups: Constraint[][] = policy.groups.map((group) =>
-    group.constraints.map((constraint) => ({
-      scope: constraint.scope,
-      path: hex(constraint.path),
-      operators: constraint.operators.map((operator) => hex(operator)),
-      ...(constraint.hint !== undefined && { hint: hex(constraint.hint) }),
-    })),
-  );
-  return {
-    isSelectorless: policy.isSelectorless,
-    selector: hex(policy.selector),
-    descriptor: hex(policy.descriptor),
-    groups,
-  };
 }

@@ -5,6 +5,7 @@ import remarkParse from "remark-parse";
 import remarkStringify from "remark-stringify";
 import { unified } from "unified";
 import { remove } from "unist-util-remove";
+import { visit } from "unist-util-visit";
 import type { Heading, Root } from "mdast";
 
 ///////////////////////////////////////////////////////////////////////////
@@ -13,6 +14,7 @@ import type { Heading, Root } from "mdast";
 
 const SPEC_DIR = join(import.meta.dirname, "../../../spec");
 const OUTPUT_DIR = join(import.meta.dirname, "../content/docs/(protocol)/specifications");
+const GITHUB_BASE = "https://github.com/provencraft/callcium";
 
 type SpecMeta = { title: string; description: string };
 
@@ -21,7 +23,7 @@ const SPECS: Record<string, SpecMeta> = {
     title: "Descriptor",
     description: "Binary format for describing ABI types in Callcium.",
   },
-  "policy-v2": {
+  "policy-v3": {
     title: "Policy",
     description: "Binary encoding format for onchain calldata policies.",
   },
@@ -54,20 +56,31 @@ function stripH1(tree: Root): void {
   });
 }
 
-/** Escape `{` and `}` in prose while leaving fenced code blocks untouched. */
-function escapeBracesOutsideCodeBlocks(text: string): string {
-  return text.replace(/(```[\s\S]*?```)|([{}])/g, (_match, codeBlock, brace) => {
-    if (codeBlock) return codeBlock;
+/** Escape `{` and `}` in prose while leaving fenced code blocks and inline code untouched. */
+function escapeBracesOutsideCode(text: string): string {
+  return text.replace(/(```[\s\S]*?```|`[^`\n]*`)|([{}])/g, (_match, code, brace) => {
+    if (code) return code;
     return `\\${brace}`;
   });
+}
+
+/** A relative link resolved for the site: a sibling spec to its page, anything else to `spec/` on GitHub's `main`. */
+function resolveLink(url: string): string {
+  if (/^([a-z]+:|[#/])/.test(url)) return url;
+  const slug = url.replace(/\.md$/, "");
+  if (Object.hasOwn(SPECS, slug)) return `/docs/specifications/${slug}`;
+  return `${GITHUB_BASE}/${url.endsWith("/") ? "tree" : "blob"}/main/spec/${url}`;
 }
 
 /** Spec markdown source to a rendered MDX page. */
 function renderPage(source: string, { title, description }: SpecMeta): string {
   const tree = processor.parse(source);
   stripH1(tree);
+  visit(tree, "link", (node) => {
+    node.url = resolveLink(node.url);
+  });
   const frontmatter = ["---", `title: ${title}`, `description: ${description}`, "---", ""].join("\n");
-  return frontmatter + escapeBracesOutsideCodeBlocks(processor.stringify(tree));
+  return frontmatter + escapeBracesOutsideCode(processor.stringify(tree));
 }
 
 ///////////////////////////////////////////////////////////////////////////

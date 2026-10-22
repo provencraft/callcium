@@ -1,8 +1,7 @@
-import { readU16, readU24, writeBE16, writeBE32 } from "./bytes";
-import { DescriptorFormat as DF, PolicyFormat as PF, TypeCode } from "./constants";
+import { readU16, readU24 } from "./bytes";
+import { DescriptorFormat as DF, TypeCode } from "./constants";
 import { CallciumError } from "./errors";
-import { classifyTypeCode } from "./operators";
-import { Quantifier, isQuantifier } from "./path";
+import { lookupTypeCode } from "./operators";
 
 ///////////////////////////////////////////////////////////////////////////
 // Public types
@@ -16,29 +15,6 @@ export type TypeInfo = {
 };
 
 ///////////////////////////////////////////////////////////////////////////
-// Internal types
-///////////////////////////////////////////////////////////////////////////
-
-/** A hop entry of a compiled chain: [delta, index, meta]. */
-type Hop = [number, number, number];
-
-/** State threaded through the compilation of a path into a hint block. */
-type HintWalk = {
-  /** Hops of the chain currently being compiled. */
-  chain: Hop[];
-  /** Hops of the main chain, captured when a quantifier closes it. */
-  mainHops: Hop[];
-  /** Byte offset of the next node relative to the chain's current base. */
-  delta: number;
-  /** Frame prefix fields, captured when a quantifier closes the main chain. */
-  frame: { arrayDelta: number; count: number; meta: number };
-  /** Header kind the path resolves to. */
-  kind: number;
-  /** Set while the chain already ends inside the current node, which then takes no entry hop. */
-  entered: boolean;
-};
-
-///////////////////////////////////////////////////////////////////////////
 // Internal helpers
 ///////////////////////////////////////////////////////////////////////////
 
@@ -46,7 +22,7 @@ type HintWalk = {
 type Node = { typeCode: number; staticWords: number; nodeLength: number };
 
 /**
- * Read the node at `offset`. Elementary nodes occupy exactly one byte; composite nodes encode their static word count
+ * Read the node at `offset`. Elementary nodes occupy exactly one byte. Composite nodes encode their static word count
  * and length in the 24-bit meta field that follows the type code.
  * @throws {CallciumError} When the node starts past the descriptor, carries an undefined type code, or declares a
  * length below its own header or beyond the descriptor.
@@ -56,7 +32,7 @@ export function readNode(desc: Uint8Array, offset: number): Node {
     throw new CallciumError("UNEXPECTED_END", "Unexpected end of descriptor", offset);
   }
   const typeCode = desc[offset]!;
-  const info = classifyTypeCode(typeCode);
+  const info = lookupTypeCode(typeCode);
   if (info.typeClass === "elementary") {
     return { typeCode, staticWords: info.isDynamic ? 0 : 1, nodeLength: DF.TYPECODE_SIZE };
   }
@@ -82,22 +58,10 @@ export function readNode(desc: Uint8Array, offset: number): Node {
 
 /**
  * Return the byte length of the node at `offset`.
- * @throws {CallciumError} When the descriptor holds no readable node at `offset`.
+ * @throws {CallciumError} When the descriptor contains no readable node at `offset`.
  */
 function nodeLength(desc: Uint8Array, offset: number): number {
   return readNode(desc, offset).nodeLength;
-}
-
-/**
- * Return the byte offset of the `fieldIndex`-th field inside a tuple node. Starts at the first field and skips
- * `fieldIndex` nodes using `nodeLength`.
- */
-function tupleFieldOffset(desc: Uint8Array, tupleOffset: number, fieldIndex: number): number {
-  let cursor = tupleOffset + DF.TUPLE_HEADER_SIZE;
-  for (let i = 0; i < fieldIndex; i++) {
-    cursor += nodeLength(desc, cursor);
-  }
-  return cursor;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -106,26 +70,13 @@ function tupleFieldOffset(desc: Uint8Array, tupleOffset: number, fieldIndex: num
 
 /**
  * Return the declared top-level parameter count.
- * @throws {CallciumError} When the descriptor is too short to hold a header.
+ * @throws {CallciumError} When the descriptor is too short for a header.
  */
 function paramCount(desc: Uint8Array): number {
   if (desc.length < DF.HEADER_SIZE) {
     throw new CallciumError("MALFORMED_HEADER", "Descriptor too short for header");
   }
-  return desc[1]!;
-}
-
-/** Return byte offset of the N-th top-level param (0-indexed). */
-function paramOffset(desc: Uint8Array, index: number): number {
-  const count = paramCount(desc);
-  if (index >= count) {
-    throw new CallciumError("PARAM_INDEX_OUT_OF_BOUNDS", `Param index ${index} out of range (paramCount=${count})`);
-  }
-  let cursor = DF.HEADER_SIZE;
-  for (let i = 0; i < index; i++) {
-    cursor += nodeLength(desc, cursor);
-  }
-  return cursor;
+  return desc[DF.HEADER_PARAMCOUNT_OFFSET]!;
 }
 
 /**
@@ -133,82 +84,11 @@ function paramOffset(desc: Uint8Array, index: number): number {
  * @param desc - Raw descriptor bytes.
  * @param offset - Byte position of the node.
  * @returns typeCode, isDynamic, and staticSize in bytes.
- * @throws {CallciumError} When the descriptor holds no readable node at `offset`.
+ * @throws {CallciumError} When the descriptor contains no readable node at `offset`.
  */
 function inspect(desc: Uint8Array, offset: number): TypeInfo {
   const { typeCode, staticWords } = readNode(desc, offset);
   return { typeCode, isDynamic: staticWords === 0, staticSize: staticWords * 32 };
-}
-
-/**
- * Resolve the type at a calldata path (array of step indices).
- *
- * The first step selects a top-level param. Each subsequent step descends into the current node: for tuples it selects
- * a field, for arrays it advances to the element descriptor.
- *
- * @param desc - Raw descriptor bytes.
- * @param steps - Path steps, length >= 1.
- * @returns TypeInfo for the node at the resolved path.
- * @throws {CallciumError} On empty steps, an out-of-bounds param index, tuple field or static array index, or descent
- * into an elementary type.
- */
-function typeAt(desc: Uint8Array, steps: number[]): TypeInfo {
-  return walkPath(desc, steps).typeInfo;
-}
-
-/**
- * Resolve the type at the path and the declared length of the static array a quantifier step descends into (zero when
- * the path holds no quantifier step over a static array).
- * @param desc - Raw descriptor bytes.
- * @param steps - Path steps, length >= 1.
- * @returns TypeInfo at the resolved path and the quantified static array length.
- * @throws {CallciumError} On empty steps, an out-of-bounds param index, tuple field or static array index, or descent
- * into an elementary type.
- */
-function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quantifiedStaticLength: number } {
-  if (steps.length === 0) {
-    throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
-  }
-
-  let cursor = paramOffset(desc, steps[0]!);
-  let quantifiedStaticLength = 0;
-
-  for (let stepIndex = 1; stepIndex < steps.length; stepIndex++) {
-    const typeCode = desc[cursor]!;
-    const step = steps[stepIndex]!;
-
-    if (typeCode === TypeCode.TUPLE) {
-      const fields = tupleFieldCount(desc, cursor);
-      if (step >= fields) {
-        throw new CallciumError(
-          "TUPLE_FIELD_OUT_OF_BOUNDS",
-          `Tuple field index ${step} out of range (tuple has ${fields} fields)`,
-        );
-      }
-      cursor = tupleFieldOffset(desc, cursor, step);
-    } else if (typeCode === TypeCode.STATIC_ARRAY || typeCode === TypeCode.DYNAMIC_ARRAY) {
-      // Quantifier sentinels descend into the element type; only concrete indices are bounds-checked against the
-      // declared array length.
-      if (typeCode === TypeCode.STATIC_ARRAY) {
-        if (isQuantifier(step)) {
-          quantifiedStaticLength = staticArrayLength(desc, cursor);
-        } else {
-          const length = staticArrayLength(desc, cursor);
-          if (step >= length) {
-            throw new CallciumError(
-              "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS",
-              `Array index ${step} out of range (length=${length})`,
-            );
-          }
-        }
-      }
-      cursor = arrayElementOffset(cursor);
-    } else {
-      throw new CallciumError("NOT_COMPOSITE", `Cannot descend into elementary type at offset ${cursor}`);
-    }
-  }
-
-  return { typeInfo: inspect(desc, cursor), quantifiedStaticLength };
 }
 
 /**
@@ -217,7 +97,7 @@ function walkPath(desc: Uint8Array, steps: number[]): { typeInfo: TypeInfo; quan
  * @param offset - Byte position of the tuple node.
  */
 function tupleFieldCount(desc: Uint8Array, offset: number): number {
-  return readU16(desc, offset + 4);
+  return readU16(desc, offset + DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE);
 }
 
 /**
@@ -240,188 +120,99 @@ function arrayElementOffset(offset: number): number {
   return offset + DF.ARRAY_HEADER_SIZE;
 }
 
-/** Build the error for a path step that does not resolve to a hop-chain target. */
-function uncompilablePath(stepIndex: number): CallciumError {
-  return new CallciumError("UNCOMPILABLE_PATH", `Path step ${stepIndex} does not resolve to a hop-chain target`);
-}
+///////////////////////////////////////////////////////////////////////////
+// Metadata validity
+///////////////////////////////////////////////////////////////////////////
 
-/** Return the combined head slot span of the `count` nodes at `offset`, and the offset of the node past them. */
-function headSpan(desc: Uint8Array, offset: number, count: number): { span: number; nodeOffset: number } {
-  let span = 0;
-  let nodeOffset = offset;
-  for (let i = 0; i < count; i++) {
-    const node = inspect(desc, nodeOffset);
-    // An indirected node occupies a single offset word.
-    span += node.isDynamic ? 32 : node.staticSize;
-    nodeOffset += nodeLength(desc, nodeOffset);
+/** Composite node metadata that disagrees with the node's children. */
+export type MetaFault = "NODE_LENGTH" | "STATIC_WORDS";
+
+/** A node's span and its type's static word count, or the first node whose metadata disagrees with them. */
+type MetaWalk = { span: number; staticWords: number } | { fault: MetaFault; offset: number };
+
+/** Walk the node at `offset` by the spans of its children. */
+function walkMeta(desc: Uint8Array, offset: number): MetaWalk {
+  const node = readNode(desc, offset);
+  if (lookupTypeCode(node.typeCode).typeClass === "elementary") {
+    return { span: DF.TYPECODE_SIZE, staticWords: node.staticWords };
   }
-  return { span, nodeOffset };
-}
 
-/** Return the meta word describing the array node at `arrayOffset`, and whether its elements are dynamic. */
-function arrayMeta(desc: Uint8Array, arrayOffset: number, code: number): { meta: number; elemIsDynamic: boolean } {
-  const element = inspect(desc, arrayElementOffset(arrayOffset));
-  // A dynamic element occupies one offset word within the element region.
-  let meta = element.isDynamic ? 1 : element.staticSize >> 5;
-  if (element.isDynamic) meta |= PF.HINT_META_ELEM_DYNAMIC;
-  if (code === TypeCode.DYNAMIC_ARRAY) meta |= PF.HINT_META_DYNAMIC_ARRAY;
-  return { meta, elemIsDynamic: element.isDynamic };
-}
-
-/** Append the hop entering an indirected node's payload and rebase the offset accumulator. */
-function enterNode(walk: HintWalk, needed: boolean): void {
-  if (!needed) return;
-  walk.chain.push([walk.delta, PF.HINT_NO_INDEX, 0]);
-  walk.delta = 0;
-}
-
-/** Apply one path step to `walk` and return the descriptor offset the step reaches. */
-function walkStep(desc: Uint8Array, walk: HintWalk, descOffset: number, step: number, stepIndex: number): number {
-  const node = inspect(desc, descOffset);
-
-  // A quantifier reaches an array alone, every other code reading its value as an index.
+  let span: number;
+  let staticWords = 0;
   if (node.typeCode === TypeCode.TUPLE) {
-    if (step >= tupleFieldCount(desc, descOffset)) throw uncompilablePath(stepIndex);
-    enterNode(walk, node.isDynamic && !walk.entered);
-
-    const field = headSpan(desc, descOffset + DF.TUPLE_HEADER_SIZE, step);
-    walk.delta += field.span;
-    walk.entered = false;
-    return field.nodeOffset;
-  }
-
-  if (node.typeCode !== TypeCode.STATIC_ARRAY && node.typeCode !== TypeCode.DYNAMIC_ARRAY) {
-    throw uncompilablePath(stepIndex);
-  }
-  if (node.typeCode === TypeCode.STATIC_ARRAY && !isQuantifier(step) && step >= staticArrayLength(desc, descOffset)) {
-    throw uncompilablePath(stepIndex);
-  }
-  const { meta, elemIsDynamic } = arrayMeta(desc, descOffset, node.typeCode);
-
-  if (isQuantifier(step)) {
-    if (walk.kind !== PF.HINT_KIND_NONE) throw uncompilablePath(stepIndex);
-    enterNode(walk, node.isDynamic && !walk.entered);
-
-    const count = node.typeCode === TypeCode.DYNAMIC_ARRAY ? 0 : staticArrayLength(desc, descOffset);
-    walk.frame = { arrayDelta: walk.delta, count, meta };
-    walk.kind = step === Quantifier.ALL ? PF.HINT_KIND_ALL : PF.HINT_KIND_ANY;
-
-    walk.mainHops = walk.chain;
-    walk.chain = [];
-    walk.delta = 0;
-  } else if (node.isDynamic) {
-    // An indirected array holds its elements behind an offset word.
-    enterNode(walk, !walk.entered);
-    walk.chain.push([0, step, meta]);
-    walk.delta = 0;
+    span = DF.TUPLE_HEADER_SIZE;
+    let hasDynamicField = false;
+    const fieldCount = tupleFieldCount(desc, offset);
+    for (let i = 0; i < fieldCount; i++) {
+      const field = walkMeta(desc, offset + span);
+      if ("fault" in field) return field;
+      span += field.span;
+      staticWords += field.staticWords;
+      if (field.staticWords === 0) hasDynamicField = true;
+    }
+    if (hasDynamicField) staticWords = 0;
   } else {
-    // A static array of static elements is inline, so the index folds into the accumulator.
-    walk.delta += step * (meta & PF.HINT_META_STRIDE_MASK) * 32;
+    const element = walkMeta(desc, arrayElementOffset(offset));
+    if ("fault" in element) return element;
+    span = DF.ARRAY_HEADER_SIZE + element.span;
+    if (node.typeCode === TypeCode.STATIC_ARRAY) {
+      staticWords = element.staticWords * readU16(desc, offset + span);
+      span += DF.ARRAY_LENGTH_SIZE;
+    }
   }
-
-  walk.entered = elemIsDynamic;
-  return arrayElementOffset(descOffset);
-}
-
-/** Serialize hop entries at `offset` and return the offset past them. */
-function writeHops(out: Uint8Array, offset: number, hops: Hop[]): number {
-  for (const [delta, index, meta] of hops) {
-    writeBE32(out, offset, delta);
-    writeBE16(out, offset + PF.HINT_HOP_INDEX_OFFSET, index);
-    writeBE16(out, offset + PF.HINT_HOP_META_OFFSET, meta);
-    offset += PF.HINT_HOP_SIZE;
-  }
-  return offset;
-}
-
-/** Serialize a completed walk and its target block into the wire hint block. */
-function encodeHint(walk: HintWalk, targetMeta: number, typeCode: number, depth: number): Uint8Array {
-  let suffixHops: Hop[] = [];
-  if (walk.kind === PF.HINT_KIND_NONE) walk.mainHops = walk.chain;
-  else suffixHops = walk.chain;
-
-  const mainHopCount = walk.mainHops.length;
-  const suffixHopCount = suffixHops.length;
-  if (mainHopCount > PF.HINT_HOP_COUNT_MASK || suffixHopCount > PF.HINT_HOP_COUNT_MASK) {
-    throw uncompilablePath(depth);
-  }
-
-  const quantified = walk.kind !== PF.HINT_KIND_NONE;
-  const frameSize = quantified
-    ? PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE + suffixHopCount * PF.HINT_HOP_SIZE
-    : 0;
-  const out = new Uint8Array(PF.HINT_HEADER_SIZE + mainHopCount * PF.HINT_HOP_SIZE + frameSize + PF.HINT_TARGET_SIZE);
-
-  let offset = 0;
-  out[offset] = (walk.kind << PF.HINT_KIND_SHIFT) | mainHopCount;
-  offset = writeHops(out, offset + PF.HINT_HEADER_SIZE, walk.mainHops);
-
-  if (quantified) {
-    writeBE32(out, offset, walk.frame.arrayDelta);
-    writeBE16(out, offset + PF.HINT_FRAME_COUNT_OFFSET, walk.frame.count);
-    writeBE16(out, offset + PF.HINT_FRAME_META_OFFSET, walk.frame.meta);
-    out[offset + PF.HINT_FRAME_PREFIX_SIZE] = suffixHopCount;
-    offset = writeHops(out, offset + PF.HINT_FRAME_PREFIX_SIZE + PF.HINT_HEADER_SIZE, suffixHops);
-  }
-
-  writeBE32(out, offset, walk.delta);
-  writeBE16(out, offset + PF.HINT_TARGET_META_OFFSET, targetMeta);
-  out[offset + PF.HINT_TARGET_TYPECODE_OFFSET] = typeCode;
-  return out;
+  if (span !== node.nodeLength) return { fault: "NODE_LENGTH", offset };
+  if (staticWords !== node.staticWords) return { fault: "STATIC_WORDS", offset };
+  return { span, staticWords };
 }
 
 /**
- * Compile a calldata rule path into its wire hint block.
- *
- * @param desc - Raw descriptor bytes.
- * @param steps - Path steps, length >= 1.
- * @returns The hint block bytes.
- * @throws {CallciumError} When a step leaves the structure the descriptor declares, quantifies over a non-array node,
- * or repeats a quantifier.
+ * Find the first composite node whose metadata disagrees with its children (DV-1, DV-2). A node's children are checked
+ * before the node.
+ * @param desc - A well-formed descriptor.
+ * @returns The disagreement and the node's offset, or `undefined` when every node agrees.
  */
-function compileHint(desc: Uint8Array, steps: number[]): Uint8Array {
-  if (steps.length === 0) {
-    throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
+function tryValidateMeta(desc: Uint8Array): { fault: MetaFault; offset: number } | undefined {
+  let cursor = DF.HEADER_SIZE;
+  const count = paramCount(desc);
+  for (let i = 0; i < count; i++) {
+    const walk = walkMeta(desc, cursor);
+    if ("fault" in walk) return walk;
+    cursor += walk.span;
   }
+  return undefined;
+}
 
-  const argIndex = steps[0]!;
-  if (argIndex >= paramCount(desc)) throw uncompilablePath(0);
-
-  // The argument's head slot sits past the slots of every preceding parameter.
-  const arg = headSpan(desc, DF.HEADER_SIZE, argIndex);
-  const walk: HintWalk = {
-    chain: [],
-    mainHops: [],
-    delta: arg.span,
-    frame: { arrayDelta: 0, count: 0, meta: 0 },
-    kind: PF.HINT_KIND_NONE,
-    entered: false,
-  };
-
-  let descOffset = arg.nodeOffset;
-  for (let stepIndex = 1; stepIndex < steps.length; stepIndex++) {
-    descOffset = walkStep(desc, walk, descOffset, steps[stepIndex]!, stepIndex);
+/**
+ * Validate every composite node's metadata against its children (DV-1, DV-2).
+ * @param desc - A well-formed descriptor.
+ * @throws {CallciumError} With `NODE_LENGTH_MISMATCH` or `STATIC_WORDS_MISMATCH` at the first node at fault.
+ */
+function validateMeta(desc: Uint8Array): void {
+  const found = tryValidateMeta(desc);
+  if (found?.fault === "NODE_LENGTH") {
+    throw new CallciumError(
+      "NODE_LENGTH_MISMATCH",
+      "Composite node length differs from the span of its children",
+      found.offset,
+    );
   }
-
-  const target = inspect(desc, descOffset);
-  enterNode(walk, target.isDynamic && !walk.entered);
-
-  const targetMeta = target.typeCode === TypeCode.DYNAMIC_ARRAY ? arrayMeta(desc, descOffset, target.typeCode).meta : 0;
-
-  return encodeHint(walk, targetMeta, target.typeCode, steps.length);
+  if (found?.fault === "STATIC_WORDS") {
+    throw new CallciumError(
+      "STATIC_WORDS_MISMATCH",
+      "Composite node static word count differs from its type's head size",
+      found.offset,
+    );
+  }
 }
 
 /** Inspect and navigate raw descriptor bytes. */
 export const Descriptor = {
   paramCount,
-  paramOffset,
   inspect,
-  typeAt,
-  tupleFieldOffset,
   tupleFieldCount,
   staticArrayLength,
   nodeLength,
   arrayElementOffset,
-  walkPath,
-  compileHint,
+  validateMeta,
+  tryValidateMeta,
 };

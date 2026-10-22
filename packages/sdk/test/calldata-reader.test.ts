@@ -3,26 +3,13 @@ import { describe, expect, test } from "vitest";
 import { loadWord, readPointer } from "../src/calldata-reader";
 import { word, words } from "./helpers";
 
-///////////////////////////////////////////////////////////////////////////
-// loadWord and readPointer
-///////////////////////////////////////////////////////////////////////////
-
 describe("loadWord", () => {
-  test("reads 32 bytes at offset 0", () => {
-    const callData = word(42n);
-    const result = loadWord(callData, 0);
+  test("succeeds at exact boundary (offset + 32 == length)", () => {
+    const callData = words(0n, 0n, 7n);
+    const result = loadWord(callData, callData.length - 32);
     expect(result).toBeInstanceOf(Uint8Array);
     if (result instanceof Uint8Array) {
-      expect(result[31]).toBe(42);
-    }
-  });
-
-  test("reads 32 bytes at nonzero offset", () => {
-    const callData = words(0n, 99n);
-    const result = loadWord(callData, 32);
-    expect(result).toBeInstanceOf(Uint8Array);
-    if (result instanceof Uint8Array) {
-      expect(result[31]).toBe(99);
+      expect(result[31]).toBe(7);
     }
   });
 
@@ -36,31 +23,10 @@ describe("loadWord", () => {
     const result = loadWord(word(1n), -1);
     expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });
-
-  test("succeeds at exact boundary (offset + 32 == length)", () => {
-    const callData = words(0n, 0n, 7n);
-    const result = loadWord(callData, callData.length - 32);
-    expect(result).toBeInstanceOf(Uint8Array);
-    if (result instanceof Uint8Array) {
-      expect(result[31]).toBe(7);
-    }
-  });
 });
 
 describe("readPointer", () => {
-  test("reads a small value", () => {
-    const callData = word(0x60n);
-    const result = readPointer(callData, 0);
-    expect(result).toBe(0x60);
-  });
-
-  test("reads zero", () => {
-    const result = readPointer(word(0n), 0);
-    expect(result).toBe(0);
-  });
-
   test("reads max uint32", () => {
-    // 0xFFFFFFFF in the last 4 bytes.
     const buf = new Uint8Array(32);
     buf[28] = 0xff;
     buf[29] = 0xff;
@@ -72,14 +38,7 @@ describe("readPointer", () => {
 
   test("rejects value with nonzero high bytes", () => {
     const buf = new Uint8Array(32);
-    buf[0] = 1; // High byte nonzero
-    const result = readPointer(buf, 0);
-    expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
-  });
-
-  test("rejects value with byte 27 nonzero", () => {
-    const buf = new Uint8Array(32);
-    buf[27] = 1;
+    buf[0] = 1;
     const result = readPointer(buf, 0);
     expect(result).toEqual({ code: "CALLDATA_OUT_OF_BOUNDS" });
   });

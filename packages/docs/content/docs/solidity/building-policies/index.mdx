@@ -8,7 +8,7 @@ A policy is a set of constraint groups. All constraints in a group must pass for
 ## Targeting arguments
 
 Constraints target values by path. `arg(n)` selects the zero-indexed parameter `n` of the function.\
-`arg(n, field)` descends into a struct, selecting field `field` of the value at position `n`. Paths nest up to four steps deep using the same indexed syntax.
+`arg(n, field)` descends into a struct, selecting field `field` of the value at position `n`. `arg()` takes up to four steps; `arg(Path.encode(steps))` takes a longer path, up to `MAX_PATH_DEPTH` steps.
 
 ```solidity
 import { arg } from "callcium/Constraint.sol";
@@ -22,7 +22,7 @@ Array quantifiers and deeper nested access are covered in [Array Constraints](./
 
 ## Equality and comparison
 
-`eq` and `neq` test exact equality. Both accept `uint256`, `int256`, `address`, `bytes32`, and `bool`. For boolean parameters, `eq(true)` and `eq(false)` are the only operators — there is no dedicated boolean operator.
+`eq` and `neq` test exact equality. Both accept the static elementary types: `uint*`, `int*`, `address`, `bool`, `bytes1` to `bytes32`, `function`. For boolean parameters, `eq` and `neq` are the only operators — there is no dedicated boolean operator.
 
 ```solidity
 import { arg } from "callcium/Constraint.sol";
@@ -52,7 +52,7 @@ bytes memory policy = PolicyBuilder
 
 `isIn` requires the value to match one element in a set. `notIn` requires it to match none.
 
-**Type restriction:** Accepts `address[]`, `uint256[]`, `int256[]`, and `bytes32[]`. The builder automatically sorts and deduplicates the set. The set must have at least one element and no more than 2,047.
+**Type restriction:** Accepts `address[]`, `uint256[]`, `int256[]`, and `bytes32[]`. The builder automatically sorts and deduplicates the set. The set must have at least one element, and its operands must fit the rule's data length field (PWF-20), so a narrower operand type admits a larger set.
 
 Allowlists (`isIn`) are the safer default over denylists (`notIn`) — an allowlist is bounded and exhaustive; a denylist can be bypassed by values not yet anticipated.
 
@@ -72,33 +72,30 @@ bytes memory policy = PolicyBuilder
     .build();
 ```
 
-### Cast helpers
+### Narrower types
 
-`isIn` and `notIn` require arrays of 32-byte types. For narrower types — `bytes4`, `uint16`, `int32`, and similar — use `Cast` to upcast the array:
+For a narrower parameter type — `bytes4`, `uint16`, `int32`, and similar — convert each member to its 32-byte type: `bytes32(value)` keeps a fixed-bytes value left-aligned, `uint256(value)` and `int256(value)` widen an integer. The builder stores each member at the parameter's width, and `add()` rejects a member the type cannot hold.
 
 ```solidity
 import { arg } from "callcium/Constraint.sol";
-import { Cast } from "callcium/Cast.sol";
 import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
 
-bytes4[] memory allowedSelectors = new bytes4[](2);
-allowedSelectors[0] = IERC20.transfer.selector;
-allowedSelectors[1] = IERC20.approve.selector;
+bytes32[] memory allowedSelectors = new bytes32[](2);
+allowedSelectors[0] = bytes32(IERC20.transfer.selector);
+allowedSelectors[1] = bytes32(IERC20.approve.selector);
 
 // dispatch(bytes4 selector, bytes calldata payload)
 bytes memory policy = PolicyBuilder
     .create("dispatch(bytes4,bytes)")
-    .add(arg(0).isIn(Cast.toBytes32Array(allowedSelectors)))  // selector
+    .add(arg(0).isIn(allowedSelectors))  // selector
     .build();
 ```
 
-`Cast` provides `toBytes32Array`, `toUint256Array`, and `toInt256Array`, each accepting any array of the corresponding fixed-width type.
-
 ## Bitmask operators
 
-`bitmaskAll`, `bitmaskAny`, and `bitmaskNone` check specific bits in an integer value.
+`bitmaskAll`, `bitmaskAny`, and `bitmaskNone` check specific bits in a value.
 
-**Type restriction:** Valid for `uint*` and `bytes32` parameters only.
+**Type restriction:** Valid for `uint*`, `int*`, `address`, and `bytes1` to `bytes32` parameters.
 
 | Operator            | Semantics                                                 |
 | ------------------- | --------------------------------------------------------- |
@@ -124,7 +121,7 @@ bytes memory policy = PolicyBuilder
 
 ## Length constraints
 
-`lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, and `lengthBetween` constrain the byte length of a dynamic value.
+`lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, and `lengthBetween` constrain the length of a dynamic value: the bytes of a `bytes` or `string` value, the elements of a dynamic array.
 
 **Type restriction:** Valid for `bytes`, `string`, and dynamic array parameters only. Not valid for static arrays.
 
@@ -213,7 +210,7 @@ Address properties (`CTX_MSG_SENDER`, `CTX_TX_ORIGIN`) pair with `address` argum
 
 ## Array quantifiers
 
-`Path.ALL` and `Path.ANY` apply a constraint across all elements of an array parameter:
+`Path.ALL` and `Path.ANY` apply a constraint across the elements of an array parameter:
 
 ```solidity
 import { arg } from "callcium/Constraint.sol";
@@ -228,7 +225,7 @@ bytes memory policy = PolicyBuilder
     .build();
 ```
 
-Full quantifier semantics, empty-array behavior, and nested path patterns are in [Array Constraints](./building-policies/array-constraints).
+Constraints with the same quantifier over the same array form one loop: under `ANY`, one element satisfies all of them. Full quantifier semantics, empty-array behavior, and nested path patterns are in [Array Constraints](./building-policies/array-constraints).
 
 ## OR groups
 
@@ -285,13 +282,13 @@ bytes memory policy = PolicyBuilder
 
 ## Operator compatibility
 
-| Operator family | Operators                                                                     | Valid argument types                                                     |
-| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Equality        | `eq`, `neq`                                                                   | All 32-byte static types (`address`, `uint*`, `int*`, `bytes32`, `bool`) |
-| Context reference | `eqCtx`, `neqCtx`, `gtCtx`, `ltCtx`, `gteCtx`, `lteCtx`                     | `address` for address properties (`eqCtx`, `neqCtx`); `uint*` for uint256 properties |
-| Comparison      | `gt`, `lt`, `gte`, `lte`, `between`                                           | `uint*`, `int*`                                                          |
-| Set membership  | `isIn`, `notIn`                                                               | `address`, `uint*`, `int*`, `bytes32` (use `Cast` for narrower types)    |
-| Bitmask         | `bitmaskAll`, `bitmaskAny`, `bitmaskNone`                                     | `uint*`, `bytes32`                                                       |
-| Length          | `lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, `lengthBetween` | `bytes`, `string`, dynamic arrays                                        |
+| Operator family   | Operators                                                                     | Valid argument types                                                                  |
+| ----------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Equality          | `eq`, `neq`                                                                   | `address`, `bool`, `uint*`, `int*`, `bytes1` to `bytes32`, `function`                 |
+| Context reference | `eqCtx`, `neqCtx`, `gtCtx`, `ltCtx`, `gteCtx`, `lteCtx`                       | `address` for address properties (`eqCtx`, `neqCtx`); `uint*` for uint256 properties |
+| Comparison        | `gt`, `lt`, `gte`, `lte`, `between`                                           | `uint*`, `int*`                                                                       |
+| Set membership    | `isIn`, `notIn`                                                               | `address`, `uint*`, `int*`, `bytes1` to `bytes32`, `function`                         |
+| Bitmask           | `bitmaskAll`, `bitmaskAny`, `bitmaskNone`                                     | `address`, `uint*`, `int*`, `bytes1` to `bytes32`                                     |
+| Length            | `lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, `lengthBetween` | `bytes`, `string`, dynamic arrays                                                     |
 
 `build()` enforces these restrictions and reports violations as `Issue` entries in `ValidationError`.

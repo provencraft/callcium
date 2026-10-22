@@ -25,12 +25,20 @@
   "type": "module",
   "scripts": {
     "build": "forge build",
+    "build:floor": "FOUNDRY_PROFILE=floor forge build --force --skip test --skip script",
     "test": "forge test",
     "fmt": "forge fmt",
+    "fmt:check": "forge fmt --check",
+    "lint": "forge lint",
     "docs": "forge doc",
     "bench:baseline": "forge test --match-path 'test/benchmark/**' -vv && bun tools/bench-baseline.ts",
     "bench:diff": "forge test --match-path 'test/benchmark/**' && bun tools/bench-compare.ts",
     "bench:compare": "bun tools/bench-compare.ts",
+    "prove": "forge test --symbolic --match-test '^prove_'",
+    "corpus:decoder-fidelity": "forge script script/LeanDecoderFidelity.s.sol --tc LeanDecoderFidelity --gas-limit 9223372036854775807 --sig 'run(uint256)'",
+    "corpus:mutants": "forge script script/LeanEnforcementMutation.s.sol --tc LeanEnforcementMutation --gas-limit 9223372036854775807",
+    "decoder-fidelity": "bun tools/decoder-fidelity.ts",
+    "differential": "bun tools/differential.ts",
     "mutate": "bun tools/mutate.ts"
   }
 }

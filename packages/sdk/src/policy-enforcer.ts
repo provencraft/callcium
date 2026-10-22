@@ -1,41 +1,95 @@
-import { hexToBytes, bytesToHex, readU16, readU32, bigintToHex, toAddress } from "./bytes";
+import { bigintToHex, hexToBytes, readU16, readU32, toAddress, toHex } from "./bytes";
 import { loadWord, readLength, readPointer } from "./calldata-reader";
-import { PolicyFormat as PF, Scope, TypeCode, lookupContextProperty } from "./constants";
+import {
+  comparisonOf,
+  findContextProperty,
+  formatCode,
+  isComparisonCode,
+  isQuantifierCode,
+  isScopeCode,
+  isSourceCode,
+  LoopQuantifier,
+  MAX_CONTEXT_PROPERTY_ID,
+  Op,
+  PolicyFormat as PF,
+  Scope,
+  Source,
+  sourceOf,
+  TypeCode,
+  type ScopeCode,
+} from "./constants";
 import { CallciumError, PolicyViolationError } from "./errors";
-import { applyOperator, isContextOp, toBigInt, isLengthValidType, canonicalize } from "./operators";
-import { decodePolicy } from "./policy-coder";
+import {
+  canonicalize,
+  contextPropertyType,
+  hasCalldataLength,
+  isSigned,
+  LENGTH_TYPE,
+  loadOperand,
+  operandWidth,
+  readOperator,
+  toBigInt,
+} from "./operators";
 
 import type { ReadResult } from "./calldata-reader";
-import type {
-  Address,
-  Context,
-  DecodedRule,
-  EnforceResult,
-  Hex,
-  NavigationViolationCode,
-  Span,
-  Violation,
-  ViolationCode,
-} from "./types";
+import type { Context, Hex } from "./types";
+import type { DecodedOperator, EnforceResult, Violation, ViolationCode } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers
 ///////////////////////////////////////////////////////////////////////////
 
-/** Violations that abort evaluation instead of failing only their group. */
-const abortViolationCodes: ReadonlySet<ViolationCode> = new Set<ViolationCode>([
-  "CALLDATA_OUT_OF_BOUNDS",
-  "ARRAY_INDEX_OUT_OF_BOUNDS",
-  "NON_CANONICAL_VALUE",
-  "QUANTIFIER_LIMIT_EXCEEDED",
-]);
+/** Whether a violation ends evaluation or fails only its group (a loop body at the element it read). */
+export const VIOLATION_EFFECT = {
+  VALUE_MISMATCH: "groupLocal",
+  NON_CANONICAL_VALUE: "abort",
+  SELECTOR_MISMATCH: "abort",
+  MISSING_SELECTOR: "abort",
+  CALLDATA_OUT_OF_BOUNDS: "abort",
+  ARRAY_INDEX_OUT_OF_BOUNDS: "groupLocal",
+  MISSING_CONTEXT: "groupLocal",
+  QUANTIFIER_LIMIT_EXCEEDED: "abort",
+  QUANTIFIER_NO_MATCH: "groupLocal",
+} as const satisfies Record<ViolationCode, "abort" | "groupLocal">;
+
+/** The value of each context property by ID, or undefined where the context does not supply it. */
+type ContextWords = readonly (bigint | undefined)[];
+
+/** What every evaluation step reads: the blob, the calldata and the context, and the operators parsed so far. */
+type Enforcement = {
+  policy: Uint8Array;
+  callData: Uint8Array;
+  context: ContextWords;
+  /** Each operator a violation has named, by the offset of its code. */
+  operators: Map<number, DecodedOperator>;
+};
 
 /**
- * Read a supplied context value as the 32-byte word that carries it.
- * @throws {CallciumError} When an address is not 20 bytes of hex or an integer does not fit a 32-byte word.
+ * Read the supplied context as the 32-byte words that carry its properties, by property ID.
+ * @throws {CallciumError} When a property is not of its declared type, or an address is not 20 bytes of hex. When an
+ * integer does not fit a 32-byte word.
  */
-function contextValueToWord(value: bigint | Address): bigint {
-  if (typeof value === "string") return BigInt(toAddress(value));
+function contextWords(context: Context | undefined): ContextWords {
+  const words: (bigint | undefined)[] = [];
+  for (let propertyId = 0; propertyId <= MAX_CONTEXT_PROPERTY_ID; propertyId++) {
+    const info = findContextProperty(propertyId)!;
+    const value: unknown = context?.[info.contextKey];
+    words.push(value === undefined ? undefined : contextValueToWord(info.contextKey, info.typeCode, value));
+  }
+  return words;
+}
+
+/** Read a supplied context value as the 32-byte word that carries it. */
+function contextValueToWord(contextKey: string, typeCode: number, value: unknown): bigint {
+  if (typeCode === TypeCode.ADDRESS) {
+    if (typeof value !== "string") {
+      throw new CallciumError("MALFORMED_CONTEXT_VALUE", `Context property ${contextKey} is not an address string`);
+    }
+    return BigInt(toAddress(value));
+  }
+  if (typeof value !== "bigint") {
+    throw new CallciumError("MALFORMED_CONTEXT_VALUE", `Context property ${contextKey} is not a bigint`);
+  }
   if (BigInt.asUintN(256, value) !== value) {
     throw new CallciumError(
       "CONTEXT_VALUE_OVERFLOW",
@@ -50,81 +104,87 @@ function contextValueToWord(value: bigint | Address): bigint {
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Check a policy against ABI-encoded call data without throwing on violations.
+ * Check a policy against ABI-encoded call data without throwing on violations. Requires a policy blob that passes
+ * storage validation. The outcome on any other blob past its header is undefined.
  * @param policy - Binary policy blob as 0x-prefixed hex string.
  * @param callData - ABI-encoded call data as 0x-prefixed hex string.
  * @param context - Optional execution context for context-scoped rules.
  * @returns Pass with matched group index, or fail with one violation per evaluated failing group.
- * @throws {CallciumError} If the policy blob is structurally malformed, the call data is not valid hex, or a context
- * value a rule reads is not an address or an integer a 32-byte word represents.
+ * @throws {CallciumError} If the policy blob is shorter than its fixed prefix or of an unsupported format version.
+ * If the policy or call data is not valid hex.
+ * If a context value is not of its property's type or does not fit a 32-byte word.
  */
 function check(policy: Hex, callData: Hex, context?: Context): EnforceResult {
-  const { policy: decoded, data: policyBytes } = decodePolicy(policy);
-  const callDataBytes = hexToBytes(callData);
+  const data = hexToBytes(policy);
+  if (data.length < PF.DESC_OFFSET) {
+    throw new CallciumError("MALFORMED_HEADER", "Policy blob is too short");
+  }
+  const headerByte = data[0]!;
+  const major = headerByte >> PF.MAJOR_SHIFT;
+  if (major !== PF.MAJOR) {
+    throw new CallciumError("UNSUPPORTED_VERSION", `Major version ${major} is not supported (expected ${PF.MAJOR})`);
+  }
+  const minor = (headerByte >> PF.MINOR_SHIFT) & PF.MINOR_MASK;
+  if (minor > PF.SUPPORTED_MINOR) {
+    throw new CallciumError(
+      "UNSUPPORTED_MINOR",
+      `Minor version ${minor} is above the highest supported (${PF.SUPPORTED_MINOR})`,
+    );
+  }
+
+  const enforcement: Enforcement = {
+    policy: data,
+    callData: hexToBytes(callData),
+    context: contextWords(context),
+    operators: new Map(),
+  };
 
   // Selector check.
-  if (!decoded.isSelectorless) {
-    if (callDataBytes.length < 4) {
-      return {
-        ok: false,
-        violations: [{ code: "MISSING_SELECTOR" }],
-      };
+  const isSelectorless = (headerByte & PF.FLAG_NO_SELECTOR) !== 0;
+  if (!isSelectorless) {
+    if (enforcement.callData.length < PF.SELECTOR_SIZE) {
+      return { ok: false, violations: [{ code: "MISSING_SELECTOR" }] };
     }
-    const expectedSelector = decoded.selector.value;
-    const actualSelector = bytesToHex(callDataBytes.subarray(0, 4));
+    const expectedSelector = toHex(data, PF.SELECTOR_OFFSET, PF.SELECTOR_OFFSET + PF.SELECTOR_SIZE);
+    const actualSelector = toHex(enforcement.callData, 0, PF.SELECTOR_SIZE);
     if (actualSelector !== expectedSelector) {
       return {
         ok: false,
-        violations: [
-          {
-            code: "SELECTOR_MISMATCH",
-            resolvedValue: actualSelector,
-            expectedValue: expectedSelector,
-          },
-        ],
+        violations: [{ code: "SELECTOR_MISMATCH", resolvedValue: actualSelector, expectedValue: expectedSelector }],
       };
     }
   }
+  const baseOffset = isSelectorless ? 0 : PF.SELECTOR_SIZE;
 
-  const baseOffset = decoded.isSelectorless ? 0 : PF.SELECTOR_SIZE;
+  // Groups sit past the embedded descriptor, whose bytes evaluation never reads.
+  const groupCountOffset = PF.DESC_OFFSET + readU16(data, PF.DESC_LENGTH_OFFSET);
+  const groupCount = data[groupCountOffset]!;
 
   // Evaluate groups with OR semantics.
-  const allViolations: Violation[] = [];
-
-  for (let groupIndex = 0; groupIndex < decoded.groups.length; groupIndex++) {
-    const group = decoded.groups[groupIndex]!;
-    let groupFailed = false;
-
-    for (let ruleIndex = 0; ruleIndex < group.rules.length; ruleIndex++) {
-      const rule = group.rules[ruleIndex]!;
-      const violation = evaluateRule(rule, policyBytes, callDataBytes, baseOffset, groupIndex, ruleIndex, context);
-      if (violation !== null) {
-        allViolations.push(violation);
-        if (abortViolationCodes.has(violation.code)) {
-          // Abort violations reject the policy outright; later groups are not consulted.
-          return { ok: false, violations: allViolations };
-        }
-        groupFailed = true;
-        break;
-      }
-    }
-
-    if (!groupFailed) {
-      return { ok: true, matchedGroup: groupIndex };
-    }
+  const violations: Violation[] = [];
+  let groupOffset = groupCountOffset + PF.GROUP_COUNT_SIZE;
+  for (let group = 0; group < groupCount; group++) {
+    const violation = evaluateGroup(enforcement, baseOffset, groupOffset, group);
+    if (violation === null) return { ok: true, matchedGroup: group };
+    violations.push(violation);
+    // Abort violations reject the policy outright; later groups are not consulted.
+    if (VIOLATION_EFFECT[violation.code] === "abort") return { ok: false, violations };
+    groupOffset += PF.GROUP_HEADER_SIZE + readU32(data, groupOffset + PF.GROUP_RULECOUNT_SIZE);
   }
 
-  return { ok: false, violations: allViolations };
+  return { ok: false, violations };
 }
 
 /**
- * Enforce a policy against ABI-encoded call data, throwing on violation.
+ * Enforce a policy against ABI-encoded call data, throwing on violation. Requires a policy blob that passes storage
+ * validation. The outcome on any other blob past its header is undefined.
  * @param policy - Binary policy blob as 0x-prefixed hex string.
  * @param callData - ABI-encoded call data as 0x-prefixed hex string.
  * @param context - Optional execution context for context-scoped rules.
  * @throws {PolicyViolationError} If the policy rejects the call data.
- * @throws {CallciumError} If the policy blob is structurally malformed, the call data is not valid hex, or a context
- * value a rule reads is not an address or an integer a 32-byte word represents.
+ * @throws {CallciumError} If the policy blob is shorter than its fixed prefix or of an unsupported format version.
+ * If the policy or call data is not valid hex.
+ * If a context value is not of its property's type or does not fit a 32-byte word.
  */
 function enforce(policy: Hex, callData: Hex, context?: Context): void {
   const result = check(policy, callData, context);
@@ -134,103 +194,291 @@ function enforce(policy: Hex, callData: Hex, context?: Context): void {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Rule evaluation
+// Group and rule evaluation
 ///////////////////////////////////////////////////////////////////////////
 
-/** Read the blob bytes a decoded field spans. */
-function fieldBytes(policyBytes: Uint8Array, field: { span: Span }): Uint8Array {
-  return policyBytes.subarray(field.span.start, field.span.end);
-}
+/** A violation of a test, before its root location is known. */
+type TestViolation =
+  Exclude<
+    Violation,
+    { code: "MISSING_SELECTOR" | "SELECTOR_MISMATCH" | "QUANTIFIER_LIMIT_EXCEEDED" | "QUANTIFIER_NO_MATCH" }
+  > extends infer V
+    ? V extends Violation
+      ? Omit<V, "group" | "rule">
+      : never
+    : never;
 
-/** Evaluate a single rule against calldata or context, returning a violation or null on pass. */
-function evaluateRule(
-  rule: DecodedRule,
-  policyBytes: Uint8Array,
-  callDataBytes: Uint8Array,
+/** A violation of a loop rule, before its root location is known. */
+type LoopViolation =
+  Exclude<Violation, { code: "MISSING_SELECTOR" | "SELECTOR_MISMATCH" }> extends infer V
+    ? V extends Violation
+      ? Omit<V, "group" | "rule">
+      : never
+    : never;
+
+/** Evaluate the root group at `groupOffset`, returning its first violation, or null when every rule passes. */
+function evaluateGroup(
+  enforcement: Enforcement,
   baseOffset: number,
-  groupIndex: number,
-  ruleIndex: number,
-  context?: Context,
+  groupOffset: number,
+  group: number,
 ): Violation | null {
-  const opCode = rule.opCode.value;
-  const operandData = fieldBytes(policyBytes, rule.data);
-
-  const scope = rule.scope.value;
-  if (scope === Scope.CONTEXT) {
-    const pathBytes = fieldBytes(policyBytes, rule.path);
-    return evaluateContextRule(pathBytes, opCode, operandData, groupIndex, ruleIndex, rule.path.value, context);
+  const ruleCount = readU16(enforcement.policy, groupOffset);
+  let ruleOffset = groupOffset + PF.GROUP_HEADER_SIZE;
+  for (let rule = 0; rule < ruleCount; rule++) {
+    const violation = evaluateRule(enforcement, baseOffset, ruleOffset);
+    if (violation !== null) return { ...violation, group, rule };
+    ruleOffset += readU16(enforcement.policy, ruleOffset);
   }
-
-  // The hint addresses the target on its own; path bytes carry no evaluation role.
-  if (rule.hint === undefined) {
-    throw new CallciumError("MALFORMED_HINT", "Calldata rule carries no hint block");
-  }
-  return evaluateCalldataRule(
-    fieldBytes(policyBytes, rule.hint),
-    callDataBytes,
-    baseOffset,
-    opCode,
-    operandData,
-    groupIndex,
-    ruleIndex,
-    rule.path.value,
-    context,
-  );
+  return null;
 }
 
-/** A context reference operand resolved to its word, or the missing property's type code. */
-type ReferenceOperand = bigint | { ctxTypeCode: number };
+/** Evaluate a root rule, returning its violation, or null when it passes. */
+function evaluateRule(enforcement: Enforcement, baseOffset: number, ruleOffset: number): LoopViolation | null {
+  const scope = scopeAt(enforcement.policy, ruleOffset);
+  switch (scope) {
+    case Scope.CALLDATA:
+      return evaluateTest(enforcement, baseOffset, ruleOffset);
+    case Scope.CONTEXT:
+      return evaluateContextTest(enforcement, ruleOffset);
+    case Scope.LOOP:
+      return evaluateLoop(enforcement, baseOffset, ruleOffset);
+    default:
+      return scope satisfies never;
+  }
+}
+
+/** Read the scope of the rule at `ruleOffset`. */
+function scopeAt(policy: Uint8Array, ruleOffset: number): ScopeCode {
+  const scope = policy[ruleOffset + PF.RULE_SCOPE_OFFSET]!;
+  if (!isScopeCode(scope)) throw new CallciumError("UNKNOWN_SCOPE", `Unknown scope value ${scope}`, ruleOffset);
+  return scope;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Loop evaluation
+///////////////////////////////////////////////////////////////////////////
+
+/** Evaluate the loop rule at `ruleOffset`, its body against each element of the array its frame resolves. */
+function evaluateLoop(enforcement: Enforcement, baseOffset: number, ruleOffset: number): LoopViolation | null {
+  const { policy, callData } = enforcement;
+  const quantifier = policy[ruleOffset + PF.RULE_QUANTIFIER_OFFSET]!;
+  if (!isQuantifierCode(quantifier)) {
+    throw new CallciumError("UNKNOWN_QUANTIFIER", `Unknown quantifier value ${quantifier}`, ruleOffset);
+  }
+  const depth = policy[ruleOffset + PF.LOOP_DEPTH_OFFSET]!;
+  const pathStart = ruleOffset + PF.LOOP_DEPTH_OFFSET + PF.RULE_DEPTH_SIZE;
+  const hintOffset = pathStart + depth * PF.PATH_STEP_SIZE;
+  const site = { scope: Scope.LOOP, path: toHex(policy, pathStart, hintOffset) };
+  const hopCount = policy[hintOffset]!;
+  const hopsOffset = hintOffset + PF.HINT_HEADER_SIZE;
+  const frameOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
+
+  const array = chain(policy, callData, baseOffset, hopsOffset, hopCount);
+  if (typeof array !== "number") return { code: array.code, ...site };
+  let elems = array + readU32(policy, frameOffset);
+
+  // A frame declaring no count spans a dynamic array, whose length word precedes its elements.
+  let count = BigInt(readU16(policy, frameOffset + PF.HINT_FRAME_COUNT_OFFSET));
+  if (count === 0n) {
+    const length = readLength(callData, elems);
+    if (typeof length !== "bigint") return { code: length.code, ...site };
+    count = length;
+    elems += 32;
+  }
+  if (count > BigInt(PF.MAX_QUANTIFIED_ARRAY_LENGTH)) {
+    return { code: "QUANTIFIER_LIMIT_EXCEEDED", ...site, resolvedValue: bigintToHex(count) };
+  }
+
+  const bodyOffset = frameOffset + PF.HINT_FRAME_PREFIX_SIZE;
+  const meta = readU16(policy, frameOffset + PF.HINT_FRAME_META_OFFSET);
+  const elemStride = (meta & PF.HINT_META_STRIDE_MASK) * 32;
+  const elemIsDynamic = (meta & PF.HINT_META_ELEM_DYNAMIC) !== 0;
+
+  for (let elementIndex = 0; elementIndex < count; elementIndex++) {
+    const slot = elems + elementIndex * elemStride;
+    let elem = slot;
+    if (elemIsDynamic) {
+      const followed = follow(callData, elems, slot);
+      if (typeof followed !== "number") return { code: followed.code, ...site, elementIndex };
+      elem = followed;
+    }
+
+    const violation = evaluateBody(enforcement, bodyOffset, elem);
+    switch (quantifier) {
+      case LoopQuantifier.ALL:
+        // A body violation fails the loop at its element, an abort included.
+        if (violation !== null) return { ...violation, elementIndex };
+        break;
+      case LoopQuantifier.ANY:
+        // A group-local body violation moves on to the next element; an abort ends evaluation.
+        if (violation === null) return null;
+        if (VIOLATION_EFFECT[violation.code] === "abort") return { ...violation, elementIndex };
+        break;
+      default:
+        return quantifier satisfies never;
+    }
+  }
+
+  if (quantifier === LoopQuantifier.ALL) return null;
+  return { code: "QUANTIFIER_NO_MATCH", ...site };
+}
 
 /**
- * Resolve a context reference operand word to the referenced context property's value as a raw word. Returns the
- * missing property's type code when the context does not supply it.
+ * Evaluate the loop body at `bodyOffset` against the element whose encoding starts at `elem`. Return the first
+ * violation, with the failing test's position, or null when every test passes.
  */
-function resolveContextOperand(operandData: Uint8Array, context?: Context): ReferenceOperand {
-  const propertyInfo = lookupContextProperty(Number(toBigInt(operandData, 0)));
-  const value = context?.[propertyInfo.contextKey];
-  if (value === undefined) return { ctxTypeCode: propertyInfo.typeCode };
-  return contextValueToWord(value);
+function evaluateBody(enforcement: Enforcement, bodyOffset: number, elem: number): TestViolation | null {
+  const ruleCount = readU16(enforcement.policy, bodyOffset);
+  let ruleOffset = bodyOffset + PF.GROUP_RULECOUNT_SIZE;
+  for (let bodyRule = 0; bodyRule < ruleCount; bodyRule++) {
+    const scope = scopeAt(enforcement.policy, ruleOffset);
+    let violation: TestViolation | null;
+    switch (scope) {
+      case Scope.CALLDATA:
+        violation = evaluateTest(enforcement, elem, ruleOffset);
+        break;
+      case Scope.CONTEXT:
+        violation = evaluateContextTest(enforcement, ruleOffset);
+        break;
+      case Scope.LOOP:
+        throw new CallciumError("INVALID_NESTED_LOOP", "Loop body holds a loop", ruleOffset);
+      default:
+        return scope satisfies never;
+    }
+    if (violation !== null) return { ...violation, bodyRule };
+    ruleOffset += readU16(enforcement.policy, ruleOffset);
+  }
+  return null;
 }
 
-/** Resolve the reference operand of a context reference rule; every other operator reads a literal. */
-function referenceOperand(opCode: number, operandData: Uint8Array, context?: Context): ReferenceOperand | undefined {
-  if (!isContextOp(opCode)) return undefined;
-  return resolveContextOperand(operandData, context);
+///////////////////////////////////////////////////////////////////////////
+// Test evaluation
+///////////////////////////////////////////////////////////////////////////
+
+/** Evaluate the calldata test at `ruleOffset` from the starting point whose encoding starts at `base`. */
+function evaluateTest(enforcement: Enforcement, base: number, ruleOffset: number): TestViolation | null {
+  const { policy, callData } = enforcement;
+  // The hint addresses the target on its own; path bytes carry no evaluation role.
+  const depth = policy[ruleOffset + PF.RULE_DEPTH_OFFSET]!;
+  const pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
+  const hintOffset = pathStart + depth * PF.PATH_STEP_SIZE;
+  const hopCount = policy[hintOffset]!;
+  const hopsOffset = hintOffset + PF.HINT_HEADER_SIZE;
+  const targetOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
+  const typeCode = policy[targetOffset + PF.HINT_TARGET_TYPECODE_OFFSET]!;
+  const opOffset = targetOffset + PF.HINT_TARGET_SIZE;
+  const opCode = policy[opOffset]!;
+  const dataLength = readU16(policy, opOffset + PF.RULE_OPCODE_SIZE);
+  const dataOffset = opOffset + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
+  // The fields every violation of the test carries, built only once one occurs.
+  const site = () => ({
+    scope: Scope.CALLDATA,
+    path: toHex(policy, pathStart, hintOffset),
+    operator: operatorAt(enforcement, opOffset, typeCode),
+    typeCode,
+  });
+
+  const chained = chain(policy, callData, base, hopsOffset, hopCount);
+  if (typeof chained !== "number") return { code: chained.code, ...site() };
+  const target = chained + readU32(policy, targetOffset);
+
+  const word = loadWord(callData, target);
+  if (!(word instanceof Uint8Array)) return { code: word.code, ...site() };
+  const value = toBigInt(word, 0);
+
+  // A dynamic target's chain ends at its payload, so the word there is the declared length.
+  let operandType = typeCode;
+  if (hasCalldataLength(typeCode)) {
+    // The declared payload of `value` items must lie within calldata past the length word.
+    const targetMeta = readU16(policy, targetOffset + PF.HINT_TARGET_META_OFFSET);
+    const stride = typeCode === TypeCode.DYNAMIC_ARRAY ? (targetMeta & PF.HINT_META_STRIDE_MASK) * 32 : 1;
+    const room = callData.length - (target + 32);
+    if (stride !== 0 && value > BigInt(Math.floor(room / stride))) return { code: "CALLDATA_OUT_OF_BOUNDS", ...site() };
+    operandType = LENGTH_TYPE;
+  } else if (canonicalize(value, typeCode) !== value) {
+    return { code: "NON_CANONICAL_VALUE", ...site(), resolvedValue: bigintToHex(value) };
+  }
+
+  const operand = resolveOperand(enforcement, opCode, dataOffset, ruleOffset);
+  if (operand === null) {
+    return { code: "MISSING_CONTEXT", ...site(), typeCode: contextPropertyType(readU16(policy, dataOffset)) };
+  }
+  if (applyOperator(opCode, value, operandType, policy, dataOffset, dataLength, operand, ruleOffset)) return null;
+  return {
+    code: "VALUE_MISMATCH",
+    ...site(),
+    resolvedValue: bigintToHex(value),
+    ...(operand !== undefined && { resolvedOperand: bigintToHex(operand) }),
+  };
+}
+
+/**
+ * Return the operator at `opOffset` against a target of `typeCode`, parsed once per check. An `ANY` loop discards the
+ * violation of every element whose body fails.
+ */
+function operatorAt(enforcement: Enforcement, opOffset: number, typeCode: number): DecodedOperator {
+  let operator = enforcement.operators.get(opOffset);
+  if (operator === undefined) {
+    operator = readOperator(enforcement.policy, opOffset, typeCode);
+    enforcement.operators.set(opOffset, operator);
+  }
+  return operator;
+}
+
+/** Evaluate the context test at `ruleOffset`. */
+function evaluateContextTest(enforcement: Enforcement, ruleOffset: number): TestViolation | null {
+  const { policy, context } = enforcement;
+  const pathStart = ruleOffset + PF.RULE_PATH_OFFSET;
+  const contextPropertyId = readU16(policy, pathStart);
+  const typeCode = contextPropertyType(contextPropertyId);
+  const opOffset = pathStart + PF.PROPERTY_ID_SIZE;
+  const site = () => ({ scope: Scope.CONTEXT, path: toHex(policy, pathStart, opOffset) });
+
+  const value = context[contextPropertyId];
+  if (value === undefined) return { code: "MISSING_CONTEXT", ...site(), typeCode };
+
+  const opCode = policy[opOffset]!;
+  const dataLength = readU16(policy, opOffset + PF.RULE_OPCODE_SIZE);
+  const dataOffset = opOffset + PF.RULE_OPCODE_SIZE + PF.RULE_DATALENGTH_SIZE;
+
+  const operand = resolveOperand(enforcement, opCode, dataOffset, ruleOffset);
+  if (operand === null) {
+    return {
+      code: "MISSING_CONTEXT",
+      ...site(),
+      operator: operatorAt(enforcement, opOffset, typeCode),
+      typeCode: contextPropertyType(readU16(policy, dataOffset)),
+    };
+  }
+  if (applyOperator(opCode, value, typeCode, policy, dataOffset, dataLength, operand, ruleOffset)) return null;
+  return {
+    code: "VALUE_MISMATCH",
+    ...site(),
+    operator: operatorAt(enforcement, opOffset, typeCode),
+    typeCode,
+    resolvedValue: bigintToHex(value),
+    ...(operand !== undefined && { resolvedOperand: bigintToHex(operand) }),
+  };
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Hint chain resolution
 ///////////////////////////////////////////////////////////////////////////
 
-/** Fields of a hint's target block. */
-type TargetBlock = {
-  targetDelta: number;
-  targetMeta: number;
-  typeCode: number;
-};
-
-/** Read the target block at `targetOffset` in the hint. */
-function readTargetBlock(hint: Uint8Array, targetOffset: number): TargetBlock {
-  return {
-    targetDelta: readU32(hint, targetOffset),
-    targetMeta: readU16(hint, targetOffset + PF.HINT_TARGET_META_OFFSET),
-    typeCode: hint[targetOffset + PF.HINT_TARGET_TYPECODE_OFFSET]!,
-  };
-}
-
 /** Advance `from` by the offset word at `at`. */
 function follow(callData: Uint8Array, from: number, at: number): ReadResult<number> {
   const word = readPointer(callData, at);
   if (typeof word !== "number") return word;
-  if (from > callData.length || word > callData.length - from) {
+  if (word > callData.length - from) {
     return { code: "CALLDATA_OUT_OF_BOUNDS" };
   }
   return from + word;
 }
 
 /** Follow `hopCount` hop entries from `base` and return the calldata offset they reach. */
-function chainResolve(
-  hint: Uint8Array,
+function chain(
+  policy: Uint8Array,
   callData: Uint8Array,
   base: number,
   hopsOffset: number,
@@ -238,16 +486,16 @@ function chainResolve(
 ): ReadResult<number> {
   for (let i = 0; i < hopCount; i++) {
     const hop = hopsOffset + i * PF.HINT_HOP_SIZE;
-    const index = readU16(hint, hop + PF.HINT_HOP_INDEX_OFFSET);
+    const index = readU16(policy, hop + PF.HINT_HOP_INDEX_OFFSET);
 
     if (index === PF.HINT_NO_INDEX) {
-      const next = follow(callData, base, base + readU32(hint, hop));
+      const next = follow(callData, base, base + readU32(policy, hop));
       if (typeof next !== "number") return next;
       base = next;
       continue;
     }
 
-    const meta = readU16(hint, hop + PF.HINT_HOP_META_OFFSET);
+    const meta = readU16(policy, hop + PF.HINT_HOP_META_OFFSET);
     let elems = base;
     if ((meta & PF.HINT_META_DYNAMIC_ARRAY) !== 0) {
       const length = readLength(callData, elems);
@@ -269,369 +517,134 @@ function chainResolve(
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Target evaluation
+// Operator application
 ///////////////////////////////////////////////////////////////////////////
-
-type TargetResult =
-  | { passed: boolean; value: bigint; ctxOperand?: bigint }
-  | { error: NavigationViolationCode }
-  | { error: "NON_CANONICAL_VALUE"; value: bigint }
-  | { error: "MISSING_CONTEXT"; ctxTypeCode: number };
 
 /**
- * Load the value at a resolved target offset and apply the operator.
- *
- * `value` is normalised at the decision point: length operators yield the byte/element count; scalar operators preserve
- * the full 32-byte ABI word, keeping left-aligned `bytesN` decodable. A passing target allocates no string.
+ * Resolve the operand of a single-operand comparison with a context source: the property's word, or null when the
+ * context does not supply it. Every other operand reads from the operator data, so it resolves to undefined here.
  */
-function evalTarget(
-  callData: Uint8Array,
-  target: number,
-  block: TargetBlock,
+function resolveOperand(
+  enforcement: Enforcement,
   opCode: number,
-  operandData: Uint8Array,
-  ctxOperand?: ReferenceOperand,
-): TargetResult {
-  const typeCode = block.typeCode;
-
-  // A dynamic target's chain ends at its payload, so the word there is the declared length.
-  if (isLengthValidType(typeCode)) {
-    const length = readLength(callData, target);
-    if (typeof length !== "bigint") return { error: length.code };
-
-    // The declared payload of `length` items must lie within calldata past the length word.
-    const stride = typeCode === TypeCode.DYNAMIC_ARRAY ? (block.targetMeta & PF.HINT_META_STRIDE_MASK) * 32 : 1;
-    const room = callData.length - (target + 32);
-    if (stride !== 0 && length > BigInt(Math.floor(room / stride))) return { error: "CALLDATA_OUT_OF_BOUNDS" };
-
-    const passed = applyOperator(opCode, 0n, length, operandData, typeCode);
-    return { passed, value: length };
-  }
-
-  const word = loadWord(callData, target);
-  if (!(word instanceof Uint8Array)) return { error: word.code };
-
-  const value = toBigInt(word, 0);
-  if (canonicalize(value, typeCode) !== value) {
-    return { error: "NON_CANONICAL_VALUE", value };
-  }
-
-  if (ctxOperand !== undefined) {
-    if (typeof ctxOperand !== "bigint") return { error: "MISSING_CONTEXT", ctxTypeCode: ctxOperand.ctxTypeCode };
-    const passed = applyOperator(opCode, value, 32n, hexToBytes(bigintToHex(ctxOperand)), typeCode);
-    return { passed, value, ctxOperand };
-  }
-
-  const passed = applyOperator(opCode, value, 32n, operandData, typeCode);
-  return { passed, value };
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Calldata rule evaluation
-///////////////////////////////////////////////////////////////////////////
-
-/** Coordinates and rule metadata shared by every violation a calldata rule can produce. */
-type RuleFrame = {
-  group: number;
-  rule: number;
-  path: Hex;
-  opCode: number;
-  operandData: Uint8Array;
-  typeCode: number;
-};
-
-/** The coordinates, target and operator fields every violation of a calldata rule carries. */
-function ruleFields(frame: RuleFrame) {
-  return {
-    group: frame.group,
-    rule: frame.rule,
-    scope: Scope.CALLDATA,
-    path: frame.path,
-    opCode: frame.opCode,
-    operandData: bytesToHex(frame.operandData),
-    typeCode: frame.typeCode,
-  };
-}
-
-/** Build a navigation violation for a read the enforcer cannot perform. */
-function navigationViolation(frame: RuleFrame, code: NavigationViolationCode, elementIndex?: number): Violation {
-  return {
-    code,
-    ...ruleFields(frame),
-    ...(elementIndex !== undefined && { elementIndex }),
-  };
-}
-
-/** Convert a failed or erroring target result into its violation. Passing results map to null. */
-function targetViolation(frame: RuleFrame, result: TargetResult, elementIndex?: number): Violation | null {
-  if ("error" in result) {
-    if (result.error === "MISSING_CONTEXT") {
-      // The type reported is the absent property's, not the target the operator reads.
-      return {
-        code: result.error,
-        ...ruleFields(frame),
-        typeCode: result.ctxTypeCode,
-      };
-    }
-    if (result.error === "NON_CANONICAL_VALUE") {
-      return {
-        code: result.error,
-        ...ruleFields(frame),
-        resolvedValue: bigintToHex(result.value),
-        ...(elementIndex !== undefined && { elementIndex }),
-      };
-    }
-    return navigationViolation(frame, result.error, elementIndex);
-  }
-
-  if (result.passed) return null;
-  return {
-    code: "VALUE_MISMATCH",
-    ...ruleFields(frame),
-    resolvedValue: bigintToHex(result.value),
-    ...(result.ctxOperand !== undefined && { resolvedOperand: bigintToHex(result.ctxOperand) }),
-    ...(elementIndex !== undefined && { elementIndex }),
-  };
-}
-
-/** Evaluate a calldata rule by resolving its target through the hint block. */
-function evaluateCalldataRule(
-  hint: Uint8Array,
-  callDataBytes: Uint8Array,
-  baseOffset: number,
-  opCode: number,
-  operandData: Uint8Array,
-  groupIndex: number,
-  ruleIndex: number,
-  pathHex: Hex,
-  context?: Context,
-): Violation | null {
-  const header = hint[0]!;
-  const hopCount = header & PF.HINT_HOP_COUNT_MASK;
-  const kind = header >> PF.HINT_KIND_SHIFT;
-  const hopsOffset = PF.HINT_HEADER_SIZE;
-
-  if (kind !== PF.HINT_KIND_NONE) {
-    return evaluateQuantified(
-      hint,
-      callDataBytes,
-      baseOffset,
-      kind,
-      hopsOffset,
-      hopCount,
-      opCode,
-      operandData,
-      groupIndex,
-      ruleIndex,
-      pathHex,
-      context,
+  dataOffset: number,
+  ruleOffset: number,
+): bigint | null | undefined {
+  const source = sourceOf(opCode);
+  if (!isSourceCode(source))
+    throw new CallciumError(
+      "UNKNOWN_OPERATOR",
+      `Unknown operator code ${formatCode(opCode & ~Op.NOT, PF.RULE_OPCODE_SIZE)}`,
+      ruleOffset,
     );
+  switch (source) {
+    case Source.CONSTANT:
+      return undefined;
+    case Source.CONTEXT:
+      return enforcement.context[readU16(enforcement.policy, dataOffset)] ?? null;
+    default:
+      return source satisfies never;
   }
-
-  const block = readTargetBlock(hint, hopsOffset + hopCount * PF.HINT_HOP_SIZE);
-  const frame: RuleFrame = {
-    group: groupIndex,
-    rule: ruleIndex,
-    path: pathHex,
-    opCode,
-    operandData,
-    typeCode: block.typeCode,
-  };
-
-  const base = chainResolve(hint, callDataBytes, baseOffset, hopsOffset, hopCount);
-  if (typeof base !== "number") return navigationViolation(frame, base.code);
-
-  return targetViolation(
-    frame,
-    evalTarget(
-      callDataBytes,
-      base + block.targetDelta,
-      block,
-      opCode,
-      operandData,
-      referenceOperand(opCode, operandData, context),
-    ),
-  );
 }
 
-///////////////////////////////////////////////////////////////////////////
-// Quantifier evaluation
-///////////////////////////////////////////////////////////////////////////
-
-/** Evaluate a quantified rule by iterating over array elements with ALL/ANY semantics. */
-function evaluateQuantified(
-  hint: Uint8Array,
-  callDataBytes: Uint8Array,
-  baseOffset: number,
-  kind: number,
-  hopsOffset: number,
-  hopCount: number,
+/**
+ * Apply an operator to `value`, a word of type `typeCode`, using the operator data in
+ * `policy[dataOffset : dataOffset+dataLength)` or the context operand already resolved. A length compares as
+ * `LENGTH_TYPE`. Handles the NOT flag by inverting the base result.
+ */
+function applyOperator(
   opCode: number,
-  operandData: Uint8Array,
-  groupIndex: number,
-  ruleIndex: number,
-  pathHex: Hex,
-  context?: Context,
-): Violation | null {
-  const frameOffset = hopsOffset + hopCount * PF.HINT_HOP_SIZE;
-  const suffixHeaderOffset = frameOffset + PF.HINT_FRAME_PREFIX_SIZE;
-  const suffixHopCount = hint[suffixHeaderOffset]! & PF.HINT_HOP_COUNT_MASK;
-  const suffixHopsOffset = suffixHeaderOffset + PF.HINT_HEADER_SIZE;
-
-  const block = readTargetBlock(hint, suffixHopsOffset + suffixHopCount * PF.HINT_HOP_SIZE);
-  const frame: RuleFrame = {
-    group: groupIndex,
-    rule: ruleIndex,
-    path: pathHex,
-    opCode,
-    operandData,
-    typeCode: block.typeCode,
-  };
-
-  const chained = chainResolve(hint, callDataBytes, baseOffset, hopsOffset, hopCount);
-  if (typeof chained !== "number") return navigationViolation(frame, chained.code);
-
-  const arrayDelta = readU32(hint, frameOffset);
-  let elems = chained + arrayDelta;
-
-  // A frame declaring no count spans a dynamic array, whose length word precedes its elements.
-  let count = BigInt(readU16(hint, frameOffset + PF.HINT_FRAME_COUNT_OFFSET));
-  if (count === 0n) {
-    const length = readLength(callDataBytes, elems);
-    if (typeof length !== "bigint") return navigationViolation(frame, length.code);
-    count = length;
-    elems += 32;
-  }
-
-  if (count > BigInt(PF.MAX_QUANTIFIED_ARRAY_LENGTH)) {
-    return {
-      group: groupIndex,
-      rule: ruleIndex,
-      code: "QUANTIFIER_LIMIT_EXCEEDED",
-      scope: Scope.CALLDATA,
-      path: pathHex,
-      resolvedValue: bigintToHex(count),
-    };
-  }
-
-  const isUniversal = kind === PF.HINT_KIND_ALL;
-  if (count === 0n) {
-    if (isUniversal) return null;
-    return {
-      group: groupIndex,
-      rule: ruleIndex,
-      code: "QUANTIFIER_EMPTY_ARRAY",
-      scope: Scope.CALLDATA,
-      path: pathHex,
-    };
-  }
-
-  const meta = readU16(hint, frameOffset + PF.HINT_FRAME_META_OFFSET);
-  const elemStride = (meta & PF.HINT_META_STRIDE_MASK) * 32;
-  const elemIsDynamic = (meta & PF.HINT_META_ELEM_DYNAMIC) !== 0;
-
-  // A reference operand resolves identically for every element, so it resolves before iterating.
-  const reference = referenceOperand(opCode, operandData, context);
-
-  for (let elemIndex = 0; elemIndex < count; elemIndex++) {
-    const slot = elems + elemIndex * elemStride;
-    let elem: number = slot;
-    if (elemIsDynamic) {
-      const followed = follow(callDataBytes, elems, slot);
-      // Navigation failures abort under every quantifier: calldata the enforcer cannot read is not an element that
-      // merely fails the operator.
-      if (typeof followed !== "number") return navigationViolation(frame, followed.code, elemIndex);
-      elem = followed;
-    }
-
-    let base: number = elem;
-    if (suffixHopCount > 0) {
-      const chainedElem = chainResolve(hint, callDataBytes, elem, suffixHopsOffset, suffixHopCount);
-      if (typeof chainedElem !== "number") return navigationViolation(frame, chainedElem.code, elemIndex);
-      base = chainedElem;
-    }
-
-    const applied = evalTarget(callDataBytes, base + block.targetDelta, block, opCode, operandData, reference);
-    if ("error" in applied) {
-      // Error results end the rule whatever the quantifier: a later element cannot rescue calldata the enforcer cannot
-      // read (an abort effect), and a missing context property is missing for every element alike (group-local).
-      return targetViolation(frame, applied, elemIndex);
-    }
-
-    if (applied.passed) {
-      // Existential quantification passes on the first passing element.
-      if (!isUniversal) return null;
-    } else if (isUniversal) {
-      return targetViolation(frame, applied, elemIndex);
-    }
-  }
-
-  if (isUniversal) return null;
-  // Existential (ANY) failure: every element rejected the constraint.
-  return {
-    code: "VALUE_MISMATCH",
-    ...ruleFields(frame),
-    ...(typeof reference === "bigint" && { resolvedOperand: bigintToHex(reference) }),
-  };
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Context rule evaluation
-///////////////////////////////////////////////////////////////////////////
-
-/** Evaluate a context-scoped rule by resolving the property from the execution context. */
-function evaluateContextRule(
-  pathBytes: Uint8Array,
-  opCode: number,
-  operandData: Uint8Array,
-  groupIndex: number,
-  ruleIndex: number,
-  pathHex: Hex,
-  context?: Context,
-): Violation | null {
-  const propertyId = readU16(pathBytes, 0);
-  const propertyInfo = lookupContextProperty(propertyId);
-  const contextValue = context?.[propertyInfo.contextKey];
-  const site = { group: groupIndex, rule: ruleIndex, scope: Scope.CONTEXT, path: pathHex };
-
-  if (contextValue === undefined) {
-    return { code: "MISSING_CONTEXT", ...site, typeCode: propertyInfo.typeCode };
-  }
-
-  const value = contextValueToWord(contextValue);
-
+  value: bigint,
+  typeCode: number,
+  policy: Uint8Array,
+  dataOffset: number,
+  dataLength: number,
+  contextOperand: bigint | undefined,
+  ruleOffset: number,
+): boolean {
+  const comparison = comparisonOf(opCode);
+  if (!isComparisonCode(comparison))
+    throw new CallciumError(
+      "UNKNOWN_OPERATOR",
+      `Unknown operator code ${formatCode(opCode & ~Op.NOT, PF.RULE_OPCODE_SIZE)}`,
+      ruleOffset,
+    );
+  const operand = () => contextOperand ?? loadOperand(policy, dataOffset, typeCode);
+  const upper = () => loadOperand(policy, dataOffset + operandWidth(typeCode)!, typeCode);
   let result: boolean;
-  let ctxOperand: bigint | undefined;
-  if (isContextOp(opCode)) {
-    const operand = resolveContextOperand(operandData, context);
-    if (typeof operand !== "bigint") {
-      return {
-        code: "MISSING_CONTEXT",
-        ...site,
-        opCode,
-        operandData: bytesToHex(operandData),
-        typeCode: operand.ctxTypeCode,
-      };
+
+  switch (comparison) {
+    case Op.EQ:
+    case Op.LENGTH_EQ:
+      result = value === operand();
+      break;
+    case Op.GT:
+    case Op.LENGTH_GT:
+      result = compareTyped(value, operand(), typeCode) > 0;
+      break;
+    case Op.LT:
+    case Op.LENGTH_LT:
+      result = compareTyped(value, operand(), typeCode) < 0;
+      break;
+    case Op.GTE:
+    case Op.LENGTH_GTE:
+      result = compareTyped(value, operand(), typeCode) >= 0;
+      break;
+    case Op.LTE:
+    case Op.LENGTH_LTE:
+      result = compareTyped(value, operand(), typeCode) <= 0;
+      break;
+    case Op.BETWEEN:
+    case Op.LENGTH_BETWEEN:
+      result = compareTyped(value, operand(), typeCode) >= 0 && compareTyped(value, upper(), typeCode) <= 0;
+      break;
+    case Op.IN:
+      result = isIn(value, typeCode, policy, dataOffset, dataLength);
+      break;
+    case Op.BITMASK_ALL: {
+      const mask = operand();
+      result = (value & mask) === mask;
+      break;
     }
-    result = applyOperator(opCode, value, 32n, hexToBytes(bigintToHex(operand)), propertyInfo.typeCode);
-    ctxOperand = operand;
-  } else {
-    result = applyOperator(opCode, value, 32n, operandData, propertyInfo.typeCode);
+    case Op.BITMASK_ANY:
+      result = (value & operand()) !== 0n;
+      break;
+    case Op.BITMASK_NONE:
+      result = (value & operand()) === 0n;
+      break;
+    default:
+      return comparison satisfies never;
   }
 
-  if (!result) {
-    return {
-      code: "VALUE_MISMATCH",
-      ...site,
-      opCode,
-      operandData: bytesToHex(operandData),
-      typeCode: propertyInfo.typeCode,
-      resolvedValue: bigintToHex(value),
-      ...(ctxOperand !== undefined && { resolvedOperand: bigintToHex(ctxOperand) }),
-    };
-  }
+  return (opCode & Op.NOT) !== 0 ? !result : result;
+}
 
-  return null;
+/** Compare two 256-bit values, using two's complement interpretation for signed type codes. */
+function compareTyped(value: bigint, operand: bigint, typeCode: number): number {
+  if (isSigned(typeCode)) {
+    const signedValue = BigInt.asIntN(256, value);
+    const signedOperand = BigInt.asIntN(256, operand);
+    return signedValue < signedOperand ? -1 : signedValue > signedOperand ? 1 : 0;
+  }
+  return value < operand ? -1 : value > operand ? 1 : 0;
+}
+
+/**
+ * Binary search for `value` among the members of an IN operand. The members are packed as consecutive operands of the
+ * width of `typeCode` and strictly ascending as loaded words compared unsigned.
+ */
+function isIn(value: bigint, typeCode: number, policy: Uint8Array, dataOffset: number, dataLength: number): boolean {
+  const width = operandWidth(typeCode)!;
+  let low = 0;
+  let high = dataLength / width - 1;
+  while (low <= high) {
+    const mid = (low + high) >>> 1;
+    const member = loadOperand(policy, dataOffset + mid * width, typeCode);
+    if (value === member) return true;
+    if (value < member) high = mid - 1;
+    else low = mid + 1;
+  }
+  return false;
 }
 
 /** Check and enforce policies against ABI-encoded call data. */

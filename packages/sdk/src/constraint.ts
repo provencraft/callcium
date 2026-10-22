@@ -1,9 +1,10 @@
 import { bytesToHex, hexToBytes, toAddress } from "./bytes";
-import { PolicyFormat, Op, Scope, ContextProperty, lookupContextProperty } from "./constants";
+import { ContextProperty, lookupContextProperty, Op, Scope, Source } from "./constants";
 import { CallciumError } from "./errors";
 import { encodePath } from "./path";
 
-import type { Address, Hex, Constraint } from "./types";
+import type { Address, Hex } from "./types";
+import type { Constraint } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Value encoding helpers
@@ -32,6 +33,17 @@ function addressBody(value: string): string {
   return toAddress(value).slice(2);
 }
 
+/**
+ * Require an operand that reached the builder untyped to be a bigint and return it.
+ * @throws {CallciumError} When the operand is of another type, as a JavaScript `number` is.
+ */
+function requireBigint(value: unknown): bigint {
+  if (typeof value !== "bigint") {
+    throw new CallciumError("MALFORMED_OPERAND", "Operand is not a bigint, a boolean or an address string");
+  }
+  return value;
+}
+
 /** Convert a scalar value to a 32-byte big-endian word. */
 function encodeWord(value: ScalarValue): Uint8Array {
   const word = new Uint8Array(32);
@@ -46,6 +58,8 @@ function encodeWord(value: ScalarValue): Uint8Array {
     word.set(hexToBytes(addressBody(value)), 12);
     return word;
   }
+
+  requireBigint(value);
 
   // A negative operand occupies the word in two's complement, which is the signed target's encoding.
   let bigValue = checkOperandRange(value);
@@ -79,6 +93,9 @@ function rangeOp(opCode: number, min: bigint, max: bigint): Hex {
   return bytesToHex(buffer);
 }
 
+/** The `source` bits of an operator code whose operand is a context property. */
+const CONTEXT_SOURCE = Source.CONTEXT << Op.SOURCE_SHIFT;
+
 /**
  * Require an assigned context property ID and return it as an operand word.
  * @throws {CallciumError} When the ID names no assigned property.
@@ -95,17 +112,14 @@ function setOp(opCode: number, values: readonly ScalarValue[]): Hex {
   const words = values.map((value) => {
     if (typeof value === "bigint") return BigInt.asUintN(256, checkOperandRange(value));
     if (typeof value === "boolean") return value ? 1n : 0n;
-    // String address.
-    return BigInt("0x" + addressBody(value));
+    if (typeof value === "string") return BigInt("0x" + addressBody(value));
+    return requireBigint(value);
   });
 
   const deduped = [...new Set(words)].toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
   if (deduped.length === 0) {
     throw new CallciumError("EMPTY_SET", "Set must contain at least one value");
-  }
-  if (deduped.length > PolicyFormat.MAX_SET_MEMBERS) {
-    throw new CallciumError("SET_TOO_LARGE", `Set must contain at most ${PolicyFormat.MAX_SET_MEMBERS} values`);
   }
 
   const buffer = new Uint8Array(1 + deduped.length * 32);
@@ -149,19 +163,17 @@ export function readOperandExtremes(constraint: Constraint | ConstraintBuilder):
  * be passed directly to policy builders.
  */
 export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implements Constraint {
-  readonly scope: number;
+  readonly scope: Constraint["scope"];
   readonly path: Hex;
   readonly operators: Hex[];
   /**
-   * Extremes of the numeric operands the value operators received, as written. Only the extremes can offend: an operand
-   * folds into a target's range from below it or from above it, and whichever reaches furthest arrives first. Read it
-   * through {@link readOperandExtremes}.
+   * Extremes of the numeric operands the value operators received, as written.
    * @internal
    */
   readonly operandExtremes: OperandExtremes;
 
   /** @internal */
-  constructor(scope: number, path: Hex) {
+  constructor(scope: Constraint["scope"], path: Hex) {
     this.scope = scope;
     this.path = path;
     this.operators = [];
@@ -169,7 +181,7 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
   }
 
   /**
-   * Push a pre-encoded operator hex string and return this for chaining. `values` are the operands as written; the
+   * Push a pre-encoded operator hex string and return this for chaining. `values` are the operands as written. The
    * numeric ones join the record.
    */
   private push(opHex: Hex, values: readonly ScalarValue[] = []): this {
@@ -198,32 +210,32 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
 
   /** Assert the value equals the context property `contextPropertyId`. */
   eqCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.EQ_CTX, contextOperand(contextPropertyId)));
+    return this.push(singleOp(Op.EQ | CONTEXT_SOURCE, contextOperand(contextPropertyId)));
   }
 
   /** Assert the value does not equal the context property `contextPropertyId`. */
   neqCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.EQ_CTX | Op.NOT, contextOperand(contextPropertyId)));
+    return this.push(singleOp(Op.EQ | CONTEXT_SOURCE | Op.NOT, contextOperand(contextPropertyId)));
   }
 
   /** Assert the value is greater than the context property `contextPropertyId`. */
   gtCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.GT_CTX, contextOperand(contextPropertyId)));
+    return this.push(singleOp(Op.GT | CONTEXT_SOURCE, contextOperand(contextPropertyId)));
   }
 
   /** Assert the value is less than the context property `contextPropertyId`. */
   ltCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.LT_CTX, contextOperand(contextPropertyId)));
+    return this.push(singleOp(Op.LT | CONTEXT_SOURCE, contextOperand(contextPropertyId)));
   }
 
   /** Assert the value is greater than or equal to the context property `contextPropertyId`. */
   gteCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.GTE_CTX, contextOperand(contextPropertyId)));
+    return this.push(singleOp(Op.GTE | CONTEXT_SOURCE, contextOperand(contextPropertyId)));
   }
 
   /** Assert the value is less than or equal to the context property `contextPropertyId`. */
   lteCtx(contextPropertyId: number): this {
-    return this.push(singleOp(Op.LTE_CTX, contextOperand(contextPropertyId)));
+    return this.push(singleOp(Op.LTE | CONTEXT_SOURCE, contextOperand(contextPropertyId)));
   }
 
   /** Assert the value is greater than `bound`. */
@@ -260,8 +272,7 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
 
   /**
    * Assert the value is a member of the set. Values are sorted and deduplicated before encoding.
-   * @throws {CallciumError} If the set is empty, has more than MAX_SET_MEMBERS distinct values, or a value is not
-   * encodable as an operand word.
+   * @throws {CallciumError} If the set is empty or a value is not encodable as an operand word.
    */
   isIn(values: readonly Operand[]): this {
     return this.push(setOp(Op.IN, values), values);
@@ -269,8 +280,7 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
 
   /**
    * Assert the value is not a member of the set.
-   * @throws {CallciumError} If the set is empty, has more than MAX_SET_MEMBERS distinct values, or a value is not
-   * encodable as an operand word.
+   * @throws {CallciumError} If the set is empty or a value is not encodable as an operand word.
    */
   notIn(values: readonly Operand[]): this {
     return this.push(setOp(Op.IN | Op.NOT, values), values);
@@ -338,7 +348,7 @@ export class ConstraintBuilder<Operand extends ScalarValue = ScalarValue> implem
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Target a calldata argument by path. Each argument is a big-endian uint16 step; further steps navigate nested types.
+ * Target a calldata argument by path. Each argument is a big-endian uint16 step. Further steps navigate nested types.
  */
 export function arg(p0: number, ...rest: number[]): ConstraintBuilder;
 export function arg(...steps: number[]): ConstraintBuilder {

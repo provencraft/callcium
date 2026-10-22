@@ -1,10 +1,14 @@
 import {
   ContextProperty,
-  isQuantifier,
+  type Hex,
+  LoopQuantifier,
   lookupContextProperty,
   lookupOp,
   lookupQuantifier,
   lookupTypeCode,
+  parsePathSteps,
+  Quantifier,
+  type QuantifierCode,
 } from "@callcium/sdk";
 import type { ParamNode } from "@/lib/policy-builder";
 
@@ -19,6 +23,11 @@ const CONTEXT_IDS: Record<string, number> = Object.fromEntries(CONTEXT_PROPERTIE
 
 /** Total number of context properties (derived from SDK). */
 export const CONTEXT_PROPERTY_COUNT = CONTEXT_PROPERTIES.length;
+
+/** Resolve the context property code for a camelCase key (e.g. "msgSender" → 0). */
+export function contextPropertyId(key: string): number | undefined {
+  return CONTEXT_IDS[key];
+}
 
 /** Resolve the Solidity type label for a context property key (e.g. "msgSender" → "address"). */
 export function contextPropertyType(key: string): string | null {
@@ -41,14 +50,65 @@ export function formatOpLabel(opCode: number, negated: boolean): string {
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Quantifier steps
+///////////////////////////////////////////////////////////////////////////
+
+/** True for the path steps that quantify over the array before them. */
+function isQuantifierStep(step: number): boolean {
+  return step === Quantifier.ALL || step === Quantifier.ANY;
+}
+
+/** Display label of a quantifier step. */
+export function quantifierLabel(step: number): string {
+  return lookupQuantifier(step === Quantifier.ALL ? LoopQuantifier.ALL : LoopQuantifier.ANY).label;
+}
+
+/** The steps of a loop's array with the quantifier step after them, as a constraint path spells the loop. */
+export function loopSteps(path: Hex, quantifier: QuantifierCode): number[] {
+  return [...parsePathSteps(path), quantifier === LoopQuantifier.ALL ? Quantifier.ALL : Quantifier.ANY];
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Path formatting — single source of truth for all tools.
 ///////////////////////////////////////////////////////////////////////////
+
+/** A path label so far and the parameter node it has reached, when known. */
+type PathPosition = { label: string; node: ParamNode | undefined };
+
+/** The position at an argument. */
+function argPosition(argIndex: number, params?: ParamNode[]): PathPosition {
+  const node = params?.[argIndex];
+  return { label: node?.name ?? `arg(${argIndex})`, node };
+}
+
+/** Extend a path label by `steps`, resolving names through the node tree when available. */
+function walkSteps(position: PathPosition, steps: readonly number[]): PathPosition {
+  let { label, node } = position;
+  for (const step of steps) {
+    if (isQuantifierStep(step)) {
+      label += `[${quantifierLabel(step)}]`;
+      if (node?.element) node = node.element;
+    } else if (node?.element) {
+      // Array node — this step is an explicit index.
+      label += `[${step}]`;
+      node = node.element;
+    } else if (node?.children) {
+      // Tuple node — this step is a field index.
+      const child = node.children[step];
+      label += `.${child?.name ?? `field(${step})`}`;
+      node = child;
+    } else {
+      // No node info — fall back to generic notation.
+      label += `.field(${step})`;
+    }
+  }
+  return { label, node };
+}
 
 /**
  * Format a calldata constraint path in dot-bracket notation.
  *
- * `steps` carries every step, quantifier sentinels included (detected via `isQuantifier`). Uses `ParamNode` tree for
- * named resolution when available.
+ * `steps` carries every step, quantifier steps included. Uses `ParamNode` tree for named resolution when available.
  *
  * Examples:
  *   - `transfers[all].amount` (named)
@@ -57,68 +117,21 @@ export function formatOpLabel(opCode: number, negated: boolean): string {
  */
 export function formatCalldataPath(steps: number[], params?: ParamNode[]): string {
   if (steps.length === 0) return "arg(?)";
+  return walkSteps(argPosition(steps[0], params), steps.slice(1)).label;
+}
 
-  const argIndex = steps[0];
-  let node: ParamNode | undefined = params?.[argIndex];
-  let label = node?.name ?? `arg(${argIndex})`;
-
-  let step = 1;
-  while (step < steps.length) {
-    const stepValue = steps[step];
-
-    if (isQuantifier(stepValue)) {
-      label += `[${lookupQuantifier(stepValue).label}]`;
-      if (node?.element) node = node.element;
-      step++;
-      continue;
-    }
-
-    if (node?.element) {
-      // Array node — this step is an explicit index.
-      label += `[${stepValue}]`;
-      node = node.element;
-      step++;
-      continue;
-    }
-
-    if (node?.children) {
-      // Tuple node — this step is a field index.
-      const child = node.children[stepValue];
-      label += `.${child?.name ?? `field(${stepValue})`}`;
-      node = child;
-      step++;
-      continue;
-    }
-
-    // No node info — fall back to generic notation.
-    label += `.field(${stepValue})`;
-    step++;
-  }
-
-  return label;
+/** Format a loop body test's path from the element of the loop at `loop`, e.g. `.amount`. */
+export function formatBodyPath(loop: number[], bodySteps: number[], params?: ParamNode[]): string {
+  const element = walkSteps(argPosition(loop[0], params), loop.slice(1)).node;
+  return walkSteps({ label: "", node: element }, bodySteps).label;
 }
 
 /**
  * Format a context property path from an internal property name (builder) or a numeric ID (violation formatter).
  */
 export function formatContextPath(contextProperty: string | number): string {
-  if (typeof contextProperty === "number") {
-    try {
-      return lookupContextProperty(contextProperty).label;
-    } catch {
-      return `context(${contextProperty})`;
-    }
-  }
-
-  const id = CONTEXT_IDS[contextProperty];
-  if (id !== undefined) {
-    try {
-      return lookupContextProperty(id).label;
-    } catch {
-      return contextProperty;
-    }
-  }
-  return contextProperty;
+  const id = typeof contextProperty === "number" ? contextProperty : CONTEXT_IDS[contextProperty];
+  return id === undefined ? String(contextProperty) : lookupContextProperty(id).label;
 }
 
 /**

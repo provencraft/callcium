@@ -1,24 +1,20 @@
 import {
+  type DecodedLoop,
   type DecodedPolicy,
-  type DecodedRule,
-  Descriptor,
+  type DecodedTest,
   type Hex,
   type Operands,
-  Op,
   Scope,
   type Span,
-  TypeCode,
-  hexToBytes,
-  lookupContextProperty,
   lookupOp,
   lookupScope,
   lookupTypeCode,
   parsePathSteps,
 } from "@callcium/sdk";
 import { type Abi, type AbiFunction, type AbiParameter, toFunctionSelector } from "viem";
-import { formatCalldataPath, formatOpLabel } from "./format-path";
-import { decodeOperandsFromData, formatOperandList } from "./format-value";
-import { type ParamNode, parseDescriptor, toNameTree } from "./policy-builder";
+import { formatBodyPath, formatCalldataPath, formatContextPath, formatOpLabel, loopSteps } from "./format-path";
+import { decodeOperands, formatOperandList } from "./format-value";
+import { type ParamNode, toNameTree, toParamNodes } from "./policy-builder";
 
 ///////////////////////////////////////////////////////////////////////////
 // Types
@@ -40,57 +36,39 @@ type ExplainedParam = {
   isDynamic: boolean;
 };
 
-type ExplainedGroup = {
-  constraints: ExplainedConstraint[];
+export type ExplainedGroup = {
+  rules: (ExplainedTest | ExplainedLoop)[];
 };
 
-type ExplainedConstraint = {
+/** A test: its target, its operator and its operands. A body test's path label starts at the element. */
+export type ExplainedTest = {
   scope: string;
   path: Hex;
   pathLabel: string;
   targetType: string;
-  rules: ExplainedRule[];
-  span?: Span;
-};
-
-type ExplainedRule = {
   operator: string;
   negated: boolean;
   operands: string[];
   arity: Operands;
+  /** The decoded test. */
+  rule: DecodedTest;
 };
 
-type ExplainedFlatRule = {
-  constraint: ExplainedConstraint;
-  rule: ExplainedRule;
+/** A loop: its array with its quantifier, and the tests its body holds for an element. */
+export type ExplainedLoop = {
+  pathLabel: string;
+  body: ExplainedTest[];
+  /** The decoded loop. */
+  rule: DecodedLoop;
 };
 
 type ExplainOptions = {
   abi?: Abi;
 };
 
-/** Flatten a group's constraints into a wire-order list of (constraint, rule) pairs. */
-export function flattenGroup(group: ExplainedGroup): ExplainedFlatRule[] {
-  return group.constraints.flatMap((c) => c.rules.map((r) => ({ constraint: c, rule: r })));
-}
-
-/** Render a rule's operands as a display string, bracketed by operator arity (set vs range vs single). */
-export function formatOperands(rule: ExplainedRule): string {
-  return formatOperandList(rule.arity, rule.operands);
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Path resolution
-///////////////////////////////////////////////////////////////////////////
-
-function resolveContextPath(steps: number[]): { pathLabel: string; leafTypeCode: number } {
-  const propertyCode = steps[0];
-  try {
-    const property = lookupContextProperty(propertyCode);
-    return { pathLabel: property.label, leafTypeCode: property.typeCode };
-  } catch {
-    return { pathLabel: `context(${propertyCode})`, leafTypeCode: TypeCode.UINT_MAX };
-  }
+/** Render a test's operands as a display string, bracketed by operator arity (set vs range vs single). */
+export function formatOperands(test: ExplainedTest): string {
+  return formatOperandList(test.arity, test.operands);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -98,12 +76,12 @@ function resolveContextPath(steps: number[]): { pathLabel: string; leafTypeCode:
 ///////////////////////////////////////////////////////////////////////////
 
 export function explainPolicy(policy: DecodedPolicy, options?: ExplainOptions): ExplainedPolicy {
-  const descBytes = hexToBytes(policy.descriptor.raw);
+  const { isSelectorless } = policy.header.value;
 
   let functionName: string | null = null;
   let abiInputs: readonly AbiParameter[] | undefined;
 
-  if (options?.abi && !policy.isSelectorless) {
+  if (options?.abi && !isSelectorless) {
     const matched = options.abi.find(
       (item): item is AbiFunction => item.type === "function" && toFunctionSelector(item) === policy.selector.value,
     );
@@ -113,82 +91,60 @@ export function explainPolicy(policy: DecodedPolicy, options?: ExplainOptions): 
     }
   }
 
-  // Parse descriptor once for both param info and path resolution.
   const nameTrees = abiInputs?.map(toNameTree) ?? [];
-  const paramNodes = parseDescriptor(descBytes, nameTrees);
+  const paramNodes = toParamNodes(policy.descriptor.params, nameTrees);
 
   const params: ExplainedParam[] = paramNodes.map((pn, i) => ({
     index: i,
     name: pn.name,
     type: pn.type,
-    isDynamic: pn.typeInfo.isDynamic,
+    isDynamic: pn.isDynamic,
   }));
 
-  const groups: ExplainedGroup[] = policy.groups.map((group) => {
-    // Group flat rules by (scope, path) into constraints. Map iteration preserves wire order.
-    const constraintMap = new Map<string, DecodedRule[]>();
-
-    for (const rule of group.rules) {
-      const key = `${rule.scope.value}:${rule.path.value}`;
-      const existing = constraintMap.get(key);
-      if (existing) existing.push(rule);
-      else constraintMap.set(key, [rule]);
-    }
-
-    return {
-      constraints: [...constraintMap.values()].map((rules) => explainConstraint(rules, descBytes, paramNodes)),
-    };
-  });
+  const groups: ExplainedGroup[] = policy.groups.map((group) => ({
+    rules: group.rules.map((rule) => ("body" in rule ? explainLoop(rule, paramNodes) : explainTest(rule, paramNodes))),
+  }));
 
   return {
     selector: policy.selector.value,
     functionName,
-    isSelectorless: policy.isSelectorless,
+    isSelectorless,
     params,
     groups,
     span: policy.span,
   };
 }
 
-function explainConstraint(rules: DecodedRule[], descBytes: Uint8Array, paramNodes: ParamNode[]): ExplainedConstraint {
-  const first = rules[0];
-  const scope = first.scope.value;
-  const path: Hex = first.path.value;
+/** Explain a test; a body test takes the steps of its loop, quantifier step included. */
+function explainTest(test: DecodedTest, paramNodes: ParamNode[], loop?: number[]): ExplainedTest {
+  const scope = test.scope.value;
+  const path = test.path.value;
   const steps = parsePathSteps(path);
-  const scopeLabel = lookupScope(scope).label;
-  const isContext = scope === Scope.CONTEXT;
   let pathLabel: string;
-  let leafTypeCode: number;
+  if (scope === Scope.CONTEXT) pathLabel = formatContextPath(steps[0]);
+  else if (loop) pathLabel = formatBodyPath(loop, steps, paramNodes);
+  else pathLabel = formatCalldataPath(steps, paramNodes);
 
-  if (isContext) {
-    ({ pathLabel, leafTypeCode } = resolveContextPath(steps));
-  } else {
-    pathLabel = formatCalldataPath(steps, paramNodes);
-    leafTypeCode = Descriptor.typeAt(descBytes, steps).typeCode;
-  }
-  const targetType = lookupTypeCode(leafTypeCode).label;
-
-  const explainedRules: ExplainedRule[] = rules.map((rule) => {
-    const opCode = rule.opCode.value;
-    const negated = (opCode & Op.NOT) !== 0;
-    const opBase = opCode & ~Op.NOT;
-    const operator = formatOpLabel(opBase, negated);
-    const decodeTypeCode = opBase >= Op.LENGTH_EQ && opBase <= Op.LENGTH_BETWEEN ? TypeCode.UINT_MAX : leafTypeCode;
-
-    return {
-      operator,
-      negated,
-      operands: decodeOperandsFromData(rule.data.value, decodeTypeCode, opBase),
-      arity: lookupOp(opBase).operands,
-    };
-  });
-
+  const { operator } = test;
   return {
-    scope: scopeLabel,
+    scope: lookupScope(scope).label,
     path,
     pathLabel,
-    targetType,
-    rules: explainedRules,
-    span: first.span,
+    targetType: lookupTypeCode(test.targetType).label,
+    operator: formatOpLabel(operator.opCode, operator.negated),
+    negated: operator.negated,
+    operands: decodeOperands(operator),
+    arity: lookupOp(operator.opCode).operands,
+    rule: test,
+  };
+}
+
+/** Explain a loop and each test of its body. */
+function explainLoop(loop: DecodedLoop, paramNodes: ParamNode[]): ExplainedLoop {
+  const steps = loopSteps(loop.path.value, loop.quantifier.value);
+  return {
+    pathLabel: formatCalldataPath(steps, paramNodes),
+    body: loop.body.map((test) => explainTest(test, paramNodes, steps)),
+    rule: loop,
   };
 }

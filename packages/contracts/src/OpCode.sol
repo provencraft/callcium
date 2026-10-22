@@ -22,16 +22,6 @@ library OpCode {
     uint8 internal constant IN = 0x07;
 
     /*/////////////////////////////////////////////////////////////////////////
-                          CONTEXT REFERENCE OPERATORS
-    /////////////////////////////////////////////////////////////////////////*/
-
-    uint8 internal constant EQ_CTX = 0x08;
-    uint8 internal constant GT_CTX = 0x09;
-    uint8 internal constant LT_CTX = 0x0A;
-    uint8 internal constant GTE_CTX = 0x0B;
-    uint8 internal constant LTE_CTX = 0x0C;
-
-    /*/////////////////////////////////////////////////////////////////////////
                                BITMASK OPERATORS
     /////////////////////////////////////////////////////////////////////////*/
 
@@ -43,12 +33,12 @@ library OpCode {
                                LENGTH OPERATORS
     /////////////////////////////////////////////////////////////////////////*/
 
-    uint8 internal constant LENGTH_EQ = 0x20;
-    uint8 internal constant LENGTH_GT = 0x21;
-    uint8 internal constant LENGTH_LT = 0x22;
-    uint8 internal constant LENGTH_GTE = 0x23;
-    uint8 internal constant LENGTH_LTE = 0x24;
-    uint8 internal constant LENGTH_BETWEEN = 0x25;
+    uint8 internal constant LENGTH_EQ = 0x18;
+    uint8 internal constant LENGTH_GT = 0x19;
+    uint8 internal constant LENGTH_LT = 0x1A;
+    uint8 internal constant LENGTH_GTE = 0x1B;
+    uint8 internal constant LENGTH_LTE = 0x1C;
+    uint8 internal constant LENGTH_BETWEEN = 0x1D;
 
     /*/////////////////////////////////////////////////////////////////////////
                                    NOT FLAG
@@ -56,4 +46,20 @@ library OpCode {
 
     /// @dev OR with any operator to negate.
     uint8 internal constant NOT = 0x80;
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                  OPERAND SOURCE
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev Bit shift of `source` (bits 6-5). The comparison fills bits 4-0.
+    uint8 internal constant SOURCE_SHIFT = 5;
+
+    /// @dev Mask for the comparison bits of an operator code.
+    uint8 internal constant COMPARISON_MASK = 0x1F;
+
+    /// @dev Source of constant operand values.
+    uint8 internal constant SOURCE_CONSTANT = 0;
+
+    /// @dev Source of a context property operand.
+    uint8 internal constant SOURCE_CONTEXT = 1;
 }

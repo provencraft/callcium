@@ -1,12 +1,14 @@
 "use client";
 
 import {
+  type DecodedFrameHint,
+  type DecodedHint,
   type DecodedPolicy,
   type Hex,
+  lookupQuantifier,
   lookupScope,
   parsePathSteps,
   PolicyCoder,
-  PolicyFormat,
   type Span,
   lookupTypeCode,
 } from "@callcium/sdk";
@@ -22,42 +24,33 @@ import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { PillToggle } from "@/components/ui/pill-toggle";
 import { lookup4byte, parseAbiJson } from "@/lib/abi";
 import { formatError } from "@/lib/format-error";
-import { type ExplainedPolicy, explainPolicy, flattenGroup, formatOperands } from "@/lib/policy-inspector";
+import {
+  type ExplainedGroup,
+  type ExplainedLoop,
+  type ExplainedPolicy,
+  type ExplainedTest,
+  explainPolicy,
+  formatOperands,
+} from "@/lib/policy-inspector";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
 
 const plural = (n: number) => (n === 1 ? "" : "s");
 
-/** Read a big-endian field of `width` bytes at `offset` in a hint block's hex body. */
-const hintField = (body: string, offset: number, width: number) =>
-  parseInt(body.slice(offset * 2, (offset + width) * 2), 16);
+/** Describe a hint's hops, empty when it has none. */
+const formatHops = (hopCount: number) => (hopCount === 0 ? "" : `${hopCount} hop${plural(hopCount)}, `);
 
-/** Describe a compiled hint block: its chain shape and the type code of the target it addresses. */
-function formatHint(hint: Hex): string {
-  const body = hint.slice(2);
-  const header = hintField(body, 0, PolicyFormat.HINT_HEADER_SIZE);
-  const kind = header >> PolicyFormat.HINT_KIND_SHIFT;
-  const hopCount = header & PolicyFormat.HINT_HOP_COUNT_MASK;
-  const hopsEnd = PolicyFormat.HINT_HEADER_SIZE + hopCount * PolicyFormat.HINT_HOP_SIZE;
+/** Describe a test hint: its hops and the target it addresses. */
+function formatTestHint(hint: DecodedHint): string {
+  const typeLabel = lookupTypeCode(hint.typeCode.value).label;
+  return `${formatHops(hint.hopCount.value)}target +${hint.targetDelta.value} : ${typeLabel}`;
+}
 
-  let targetOffset = hopsEnd;
-  let prefix = "";
-  if (kind !== PolicyFormat.HINT_KIND_NONE) {
-    const arrayDelta = hintField(body, hopsEnd, 4);
-    const suffixHeader = hintField(body, hopsEnd + PolicyFormat.HINT_FRAME_PREFIX_SIZE, 1);
-    const suffixHopCount = suffixHeader & PolicyFormat.HINT_HOP_COUNT_MASK;
-    targetOffset =
-      hopsEnd +
-      PolicyFormat.HINT_FRAME_PREFIX_SIZE +
-      PolicyFormat.HINT_HEADER_SIZE +
-      suffixHopCount * PolicyFormat.HINT_HOP_SIZE;
-    prefix = `${kind === PolicyFormat.HINT_KIND_ALL ? "all" : "any"} over array @${arrayDelta}, `;
-  }
-
-  const targetDelta = hintField(body, targetOffset, 4);
-  const typeLabel = lookupTypeCode(hintField(body, targetOffset + PolicyFormat.HINT_TARGET_TYPECODE_OFFSET, 1)).label;
-  const hops = hopCount === 0 ? "" : `${hopCount} hop${plural(hopCount)}, `;
-  return `${prefix}${hops}target +${targetDelta} : ${typeLabel}`;
+/** Describe a loop's frame hint: its hops and the array it addresses. */
+function formatFrameHint(hint: DecodedFrameHint): string {
+  const { isDynamicArray, strideWords } = hint.meta.value;
+  const length = isDynamicArray ? "dynamic" : `length ${hint.count.value}`;
+  return `${formatHops(hint.hopCount.value)}array +${hint.arrayDelta.value}, ${length}, stride ${strideWords} word${plural(strideWords)}`;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -168,7 +161,7 @@ export function Inspector() {
           id="policy-hex"
           className={cn(result && !result.ok && "border-red-500/50")}
           rows={3}
-          placeholder="0x01095ea7b3..."
+          placeholder="0x60095ea7b3..."
           value={hexInput}
           onChange={(e) => setHexInput(e.target.value)}
           onPaste={handlePaste}
@@ -230,8 +223,6 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
   const displayName = functionName ?? policy.functionName ?? policy.selector;
   const params = policy.params.map((p) => (p.name ? `${p.type} ${p.name}` : p.type)).join(", ");
 
-  const groupClauses = policy.groups.map(flattenGroup);
-
   return (
     <div className="space-y-3">
       {/* Signature */}
@@ -250,21 +241,13 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
         )}
       </div>
 
-      {groupClauses.length === 1 ? (
+      {policy.groups.length === 1 ? (
         <div className="rounded-lg border border-fd-border bg-fd-card px-4 py-3 font-mono text-sm space-y-0.5">
-          {groupClauses[0].map(({ constraint, rule }, ri) => (
-            // oxlint-disable-next-line react/no-array-index-key
-            <div key={ri} className="flex flex-wrap items-baseline gap-1.5">
-              <span className="text-fd-foreground">{constraint.pathLabel}</span>
-              <span className="text-fd-muted-foreground">{rule.operator}</span>
-              <span className="break-all text-fd-foreground">{formatOperands(rule)}</span>
-              <span className="text-fd-muted-foreground">: {constraint.targetType}</span>
-            </div>
-          ))}
+          <GroupRows group={policy.groups[0]} />
         </div>
       ) : (
         <div className="grid grid-cols-[auto_1fr] gap-x-2">
-          {groupClauses.map((clause, gi) => (
+          {policy.groups.map((group, gi) => (
             // oxlint-disable-next-line react/no-array-index-key
             <div key={gi} className="contents">
               {/* OR gap row */}
@@ -285,28 +268,52 @@ function SummaryView({ policy, functionName }: { policy: ExplainedPolicy; functi
                   className={cn(
                     "absolute left-px w-px bg-fd-muted-foreground/40",
                     gi === 0 && "top-1/2 bottom-0",
-                    gi === groupClauses.length - 1 && "top-0 bottom-1/2",
-                    gi > 0 && gi < groupClauses.length - 1 && "inset-y-0",
+                    gi === policy.groups.length - 1 && "top-0 bottom-1/2",
+                    gi > 0 && gi < policy.groups.length - 1 && "inset-y-0",
                   )}
                 />
                 <div className="h-px w-3 bg-fd-muted-foreground/40" />
               </div>
               {/* Card cell */}
               <div className="rounded-lg border border-fd-border bg-fd-card px-4 py-3 font-mono text-sm space-y-0.5">
-                {clause.map(({ constraint, rule }, ri) => (
-                  // oxlint-disable-next-line react/no-array-index-key
-                  <div key={ri} className="flex flex-wrap items-baseline gap-1.5">
-                    <span className="text-fd-foreground">{constraint.pathLabel}</span>
-                    <span className="text-fd-muted-foreground">{rule.operator}</span>
-                    <span className="break-all text-fd-foreground">{formatOperands(rule)}</span>
-                    <span className="text-fd-muted-foreground">: {constraint.targetType}</span>
-                  </div>
-                ))}
+                <GroupRows group={group} />
               </div>
             </div>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** One row per test; a loop's row heads the rows of its body. */
+function GroupRows({ group }: { group: ExplainedGroup }) {
+  return group.rules.map((rule, ri) =>
+    "body" in rule ? (
+      // oxlint-disable-next-line react/no-array-index-key
+      <div key={ri} className="space-y-0.5">
+        <div className="text-fd-foreground">{rule.pathLabel}</div>
+        <div className="space-y-0.5 pl-4">
+          {rule.body.map((test, ti) => (
+            // oxlint-disable-next-line react/no-array-index-key
+            <TestRow key={ti} test={test} />
+          ))}
+        </div>
+      </div>
+    ) : (
+      // oxlint-disable-next-line react/no-array-index-key
+      <TestRow key={ri} test={rule} />
+    ),
+  );
+}
+
+function TestRow({ test }: { test: ExplainedTest }) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-1.5">
+      <span className="text-fd-foreground">{test.pathLabel}</span>
+      <span className="text-fd-muted-foreground">{test.operator}</span>
+      <span className="break-all text-fd-foreground">{formatOperands(test)}</span>
+      <span className="text-fd-muted-foreground">: {test.targetType}</span>
     </div>
   );
 }
@@ -338,17 +345,19 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
   });
 
   // Header.
-  const headerBits: string[] = [`v${decoded.version}`];
-  if (decoded.isSelectorless) headerBits.push("selectorless");
+  const { major, minor, isSelectorless } = decoded.header.value;
+  const headerBits: string[] = [`v${major}.${minor}`];
+  if (isSelectorless) headerBits.push("selectorless");
 
   // Selector.
-  const selectorLabel = decoded.isSelectorless ? "zeroed" : decoded.selector.value;
+  const selectorLabel = isSelectorless ? "zeroed" : decoded.selector.value;
 
   // Descriptor.
   const desc = decoded.descriptor;
   const paramCount = explained.params.length;
+  const descHeaderSpan: Span = { start: desc.version.span.start, end: desc.paramCount.span.end };
   const descChildren: TreeNode[] = [
-    node("Desc Header", `v${desc.header.value.version}, ${paramCount} param${plural(paramCount)}`, desc.header.span),
+    node("Desc Header", `v${desc.version.value}, ${paramCount} param${plural(paramCount)}`, descHeaderSpan),
   ];
   for (let i = 0; i < desc.params.length; i++) {
     const dp = desc.params[i];
@@ -370,40 +379,48 @@ function buildTree(decoded: DecodedPolicy, explained: ExplainedPolicy, rawHex: s
     node("Group Count", String(decoded.groupCount.value), decoded.groupCount.span),
   ];
 
-  // Groups. Flatten explained constraints+rules for display alignment with decoded rules.
+  const testNode = (label: string, test: ExplainedTest): TreeNode => {
+    const { rule } = test;
+    const operands = `${formatOperands(test)} : ${test.targetType}`;
+    return {
+      ...node(label, `${test.pathLabel} ${test.operator} ${operands}`, rule.span, [
+        node("Rule Size", String(rule.ruleSize.value), rule.ruleSize.span),
+        node("Scope", lookupScope(rule.scope.value).label, rule.scope.span),
+        node("Path Depth", String(rule.pathDepth.value), rule.pathDepth.span),
+        node("Path", `[${parsePathSteps(rule.path.value).join(", ")}]`, rule.path.span),
+        ...(rule.hint ? [node("Hint", formatTestHint(rule.hint), rule.hint.span)] : []),
+        node("OpCode", test.operator, rule.opCode.span),
+        node("Data Length", String(rule.dataLength.value), rule.dataLength.span),
+        node("Data", operands, rule.data.span),
+      ]),
+      hex: "",
+    };
+  };
+
+  const loopNode = (label: string, loop: ExplainedLoop): TreeNode => {
+    const { rule } = loop;
+    const testCount = rule.ruleCount.value;
+    return {
+      ...node(label, `${loop.pathLabel}, ${testCount} test${plural(testCount)}`, rule.span, [
+        node("Rule Size", String(rule.ruleSize.value), rule.ruleSize.span),
+        node("Scope", lookupScope(rule.scope.value).label, rule.scope.span),
+        node("Quantifier", lookupQuantifier(rule.quantifier.value).label, rule.quantifier.span),
+        node("Path Depth", String(rule.pathDepth.value), rule.pathDepth.span),
+        node("Path", `[${parsePathSteps(rule.path.value).join(", ")}]`, rule.path.span),
+        node("Frame Hint", formatFrameHint(rule.hint), rule.hint.span),
+        node("Rule Count", String(testCount), rule.ruleCount.span),
+        ...loop.body.map((test, ti) => testNode(`Body ${ti + 1}`, test)),
+      ]),
+      hex: "",
+    };
+  };
+
+  // Groups.
   for (let gi = 0; gi < decoded.groups.length; gi++) {
     const decodedGroup = decoded.groups[gi];
-    const explainedGroup = explained.groups[gi];
-
-    let explainedRuleIndex = 0;
-    const explainedRules = explainedGroup ? flattenGroup(explainedGroup) : [];
-
-    const ruleNodes: TreeNode[] = [];
-    for (let ri = 0; ri < decodedGroup.rules.length; ri++) {
-      const decodedRule = decodedGroup.rules[ri];
-      const info = explainedRules[explainedRuleIndex];
-      explainedRuleIndex++;
-
-      const summary = info
-        ? `${info.constraint.pathLabel} ${info.rule.operator} ${formatOperands(info.rule)} : ${info.constraint.targetType}`
-        : "";
-      const opDisplay = info?.rule.operator ?? `0x${decodedRule.opCode.value.toString(16).padStart(2, "0")}`;
-      const dataValue = info ? `${formatOperands(info.rule)} : ${info.constraint.targetType}` : decodedRule.data.value;
-
-      ruleNodes.push({
-        ...node(`Rule ${ri + 1}`, summary, decodedRule.span, [
-          node("Rule Size", String(decodedRule.ruleSize.value), decodedRule.ruleSize.span),
-          node("Scope", lookupScope(decodedRule.scope.value).label, decodedRule.scope.span),
-          node("Path Depth", String(decodedRule.pathDepth.value), decodedRule.pathDepth.span),
-          node("Path", `[${parsePathSteps(decodedRule.path.value).join(", ")}]`, decodedRule.path.span),
-          ...(decodedRule.hint ? [node("Hint", formatHint(decodedRule.hint.value), decodedRule.hint.span)] : []),
-          node("OpCode", opDisplay, decodedRule.opCode.span),
-          node("Data Length", String(decodedRule.dataLength.value), decodedRule.dataLength.span),
-          node("Data", dataValue, decodedRule.data.span),
-        ]),
-        hex: "",
-      });
-    }
+    const ruleNodes = explained.groups[gi].rules.map((rule, ri) =>
+      "body" in rule ? loopNode(`Rule ${ri + 1}`, rule) : testNode(`Rule ${ri + 1}`, rule),
+    );
 
     // Group header spans (ruleCount + groupSize) for the parent hex display.
     const groupHeaderSpan: Span = {

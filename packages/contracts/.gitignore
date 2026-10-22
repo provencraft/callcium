@@ -3,9 +3,8 @@ out/
 /dependencies
 /.forge-doc
 /snapshots
-/.snapshots_baseline
+/.snapshots_*
 .gas-snapshot
-mewt.sqlite
 
 # Broadcast logs
 !/broadcast

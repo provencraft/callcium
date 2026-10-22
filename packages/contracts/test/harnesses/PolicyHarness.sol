@@ -5,27 +5,13 @@ import { Policy } from "src/Policy.sol";
 
 /// @notice Harness contract to expose Policy internal functions for testing.
 contract PolicyHarness {
+    /// @dev Exposes `Policy.validate`.
     function validate(bytes memory policy) external pure {
         Policy.validate(policy);
     }
 
-    function version(bytes memory policy) external pure returns (uint8) {
-        return Policy.version(policy);
-    }
-
+    /// @dev Exposes `Policy.selector`.
     function selector(bytes memory policy) external pure returns (bytes4) {
         return Policy.selector(policy);
-    }
-
-    function isSelectorless(bytes memory policy) external pure returns (bool) {
-        return Policy.isSelectorless(policy);
-    }
-
-    function hintView(bytes memory policy, uint256 ruleOffset) external pure returns (uint256, uint256) {
-        return Policy.hintView(policy, ruleOffset);
-    }
-
-    function compileHint(bytes memory desc, bytes memory path) external pure returns (bytes memory) {
-        return Policy.compileHint(desc, path);
     }
 }

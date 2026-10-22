@@ -12,7 +12,15 @@ optimizer_runs = 10_000
 via_ir = true
 isolate = true
 ast = true
-fs_permissions = [{ access = "read", path = "../../spec/vectors/" }]
+fs_permissions = [
+    { access = "read", path = "../../spec/vectors/" },
+    { access = "read-write", path = "../../spec/lean/corpus/" },
+    { access = "read-write", path = "./out/decoder-fidelity.txt" },
+    { access = "read-write", path = "./out/encoding.txt" },
+    { access = "read-write", path = "./out/enforcement.txt" },
+    { access = "read-write", path = "./out/storage.txt" },
+    { access = "read-write", path = "./out/validation.txt" },
+]
 
 # Compile-checks the library at the minimum supported compiler version.
 [profile.floor]
@@ -46,7 +54,7 @@ forge-std = "1.16.2"
 [lint]
 ignore = ["src/vendor/**/*.sol"]
 # Rules that fire on idioms this codebase is built from; no site annotation retires them.
-# Every other rule stays armed, silenced per item in src and per file in test.
+# Every other rule stays armed and is silenced per item in src; forge does not lint test files.
 exclude_lints = [
     "boolean-cst", # every predicate returning a boolean constant.
     "calls-loop", # every `new T[](n)` allocation.

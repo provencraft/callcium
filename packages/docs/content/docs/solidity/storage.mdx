@@ -55,11 +55,11 @@ bytes32 policyHash = _storeAndBindPolicy(address(this), policy);
 
 Policies are validated onchain during storage. `_storePolicy` runs a structural integrity check — it rejects malformed blobs that don't conform to the policy binary format. Semantic validation (type mismatches, contradictions, redundancies) is handled earlier by `PolicyBuilder.build()` at build time. The two checks are independent: build-time validation catches logic errors; storage-time validation catches format errors.
 
-The maximum policy size is 24,575 bytes (the SSTORE2 contract code ceiling).
+`PolicyRegistry` rejects a blob above `MAX_POLICY_SIZE` with `PolicyTooLarge`. SSTORE2 stores a blob as contract code, so the cap is the code size limit (EIP-170) less SSTORE2's prefix byte. The cap belongs to this storage, not to the policy format: the SDK and offchain stores accept a larger blob.
 
 ## Binding policies
 
-The binding layer is separate from the blob. A binding maps `(target, selector)` to a `policyHash`. The blob is immutable; the binding is not.
+The binding layer is separate from the blob. A binding maps `(target, selector)` to a stored policy. The blob is immutable; the binding is not.
 
 **Multi-target binding** is where the separation pays off. The `address[]` form of `_storeAndBindPolicy` stores the blob once and binds it to all targets atomically — one SSTORE2 write regardless of target count:
 
@@ -136,11 +136,11 @@ Any contract that resolves `(self, IVault.withdraw.selector)` with no specific b
 
 For selectorless policies, the selector is `bytes4(0)` in the internal mapping; resolution follows the same hierarchy.
 
-**Lookup-only variants** avoid loading the full blob when only the hash or existence is needed:
+**Lookup variants** return a policy's hash, existence, blob or pointer:
 
 | Function                           | Returns   | Use case                                              |
 | ---------------------------------- | --------- | ----------------------------------------------------- |
-| `_policyHashFor(target, selector)` | `bytes32` | Check which policy is active without loading the blob |
+| `_policyHashFor(target, selector)` | `bytes32` | Identify the policy bound to a pair                   |
 | `_policyExists(policyHash)`        | `bool`    | Verify a hash is stored before binding                |
 | `_loadPolicy(policyHash)`          | `bytes`   | Load by hash directly, bypassing the binding lookup   |
 | `_policyPointerOf(policyHash)`     | `address` | SSTORE2 pointer address, for offchain inspection      |

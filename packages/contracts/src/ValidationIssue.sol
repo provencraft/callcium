@@ -3,14 +3,14 @@ pragma solidity ^0.8.28;
 
 import { IssueCode } from "./IssueCode.sol";
 
-/// @dev IssueSeverity levels for validation issues.
+/// @dev Severity of a validation issue.
 enum IssueSeverity {
     Info,
     Warning,
     Error
 }
 
-/// @dev Categories of validation issues.
+/// @dev Kind of defect a validation issue reports.
 enum IssueCategory {
     TypeMismatch,
     Contradiction,
@@ -19,20 +19,45 @@ enum IssueCategory {
     Compatibility
 }
 
+/// @notice The rule a validation issue names.
+struct RuleLocation {
+    /// Group of the rule.
+    uint256 groupIndex;
+    /// Position of the rule in its group.
+    uint256 ruleIndex;
+    /// Position of the test in its loop body, or `NO_INDEX`.
+    uint256 bodyRuleIndex;
+    /// Scope of the rule.
+    uint8 scope;
+    /// BE16-encoded path. A path in a body starts at the element.
+    bytes path;
+    /// Encoded operator: opCode(1) || each operand value as a 32-byte word, a context property as its ID.
+    bytes operator;
+}
+
 /// @notice A single validation issue found during policy analysis.
 struct Issue {
-    /// IssueSeverity level of the issue.
+    /// Severity of the issue.
     IssueSeverity severity;
-    /// IssueCategory of the issue.
+    /// Kind of defect the issue reports.
     IssueCategory category;
-    /// Group index where the issue was found.
-    uint32 groupIndex;
-    /// Constraint index within the group.
-    uint32 constraintIndex;
-    /// Machine-readable code (e.g., "LENGTH_ON_STATIC").
+    /// Machine-readable code (for example "HINT_MISMATCH").
     bytes32 code;
-    /// Conflict values or metadata.
+    /// Group of the rule, or `NO_INDEX`.
+    uint256 groupIndex;
+    /// Position of the rule in its group, or `NO_INDEX`.
+    uint256 ruleIndex;
+    /// Position of the test in its loop body, or `NO_INDEX`.
+    uint256 bodyRuleIndex;
+    /// Scope of the rule.
+    uint8 scope;
+    /// BE16-encoded path. A path in a body starts at the element.
+    bytes path;
+    /// Encoded operator: opCode(1) || each operand value as a 32-byte word, a context property as its ID.
+    bytes operator;
+    /// First value that shows the defect, or zero.
     bytes32 value1;
+    /// Second value that shows the defect, or zero.
     bytes32 value2;
     /// Human-readable description.
     string message;
@@ -41,702 +66,239 @@ struct Issue {
 /// @title ValidationIssue
 /// @notice Constructors for validation issues.
 library ValidationIssue {
+    /// @dev Index of a location an issue does not name.
+    uint256 internal constant NO_INDEX = type(uint256).max;
+
     /*/////////////////////////////////////////////////////////////////////////
                                      FUNCTIONS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Creates an issue from operator compatibility results.
-    /// @param code Machine-readable error code from the compatibility check.
-    /// @param message Human-readable description from the compatibility check.
-    /// @param groupIndex Group index where the issue was found.
-    /// @param constraintIndex Constraint index within the group.
-    /// @param opCode The operator code that failed compatibility.
+    /// @notice Creates an issue for a descriptor whose composite node disagrees with its children.
+    /// @param offset The descriptor offset of the node.
     /// @return The constructed validation issue.
-    function fromOpRule(
-        bytes32 code,
-        string memory message,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint8 opCode
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
+    function invalidDescriptor(uint256 offset) internal pure returns (Issue memory) {
         return Issue({
             severity: IssueSeverity.Error,
             category: IssueCategory.TypeMismatch,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: code,
-            value1: bytes32(uint256(opCode)),
+            code: IssueCode.INVALID_DESCRIPTOR,
+            groupIndex: NO_INDEX,
+            ruleIndex: NO_INDEX,
+            bodyRuleIndex: NO_INDEX,
+            scope: 0,
+            path: "",
+            operator: "",
+            value1: bytes32(offset),
             value2: bytes32(0),
-            message: message
+            message: "Descriptor node metadata disagrees with its children"
         });
     }
 
-    /// @notice Creates an issue for eq(v) and neq(v) on the same path.
-    /// @param isLength True to report the length-domain variant of this issue.
+    /// @notice Creates an issue for a path that does not navigate the descriptor.
+    /// @param location The rule.
+    /// @param stepIndex The index of the step at fault.
+    /// @param bound The bound the step broke: a parameter, field or element count, or a type code.
     /// @return The constructed validation issue.
-    function eqNeqContradiction(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.LENGTH_EQ_NEQ_CONTRADICTION : IssueCode.EQ_NEQ_CONTRADICTION,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: isLength ? "lengthEq(v) and lengthNeq(v) on same path" : "eq(v) and neq(v) on same path"
-        });
-    }
-
-    /// @notice Creates an issue for multiple eq() operators with different values.
-    /// @param isLength True to report the length-domain variant of this issue.
-    /// @return The constructed validation issue.
-    function conflictingEquality(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 existing,
-        uint256 newValue
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.CONFLICTING_LENGTH : IssueCode.CONFLICTING_EQUALITY,
-            value1: bytes32(existing),
-            value2: bytes32(newValue),
-            message: isLength
-                ? "Multiple lengthEq() operators with different values"
-                : "Multiple eq() operators with different values"
-        });
-    }
-
-    /// @notice Creates an issue for a value outside the physical range of its type.
-    /// @param isLength True to report the length-domain variant of this issue.
-    /// @return The constructed validation issue.
-    function outOfPhysicalBounds(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.OUT_OF_PHYSICAL_LENGTH_BOUNDS : IssueCode.OUT_OF_PHYSICAL_BOUNDS,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: isLength
-                ? "Length value is outside the physical range"
-                : "Value is outside the physical range of the type"
-        });
-    }
-
-    /// @notice Creates an issue for gt() on the type maximum.
-    /// @param isLength True to report the length-domain variant of this issue.
-    /// @return The constructed validation issue.
-    function impossibleGt(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.IMPOSSIBLE_LENGTH_GT : IssueCode.IMPOSSIBLE_GT,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: isLength ? "lengthGt() on maximum length is impossible" : "gt() on type maximum is impossible"
-        });
-    }
-
-    /// @notice Creates an issue for lt() on the type minimum.
-    /// @param isLength True to report the length-domain variant of this issue.
-    /// @return The constructed validation issue.
-    function impossibleLt(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.IMPOSSIBLE_LENGTH_LT : IssueCode.IMPOSSIBLE_LT,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: isLength ? "lengthLt() on minimum length is impossible" : "lt() on type minimum is impossible"
-        });
-    }
-
-    /// @notice Creates an issue when an eq() value is excluded by a bound.
-    /// @param isLength True to report the length-domain variant of this issue.
-    /// @return The constructed validation issue.
-    function boundsExcludeEquality(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 eq,
+    function unnavigablePath(
+        RuleLocation memory location,
+        uint256 stepIndex,
         uint256 bound
     )
         internal
         pure
         returns (Issue memory)
     {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.BOUNDS_EXCLUDE_LENGTH : IssueCode.BOUNDS_EXCLUDE_EQUALITY,
-            value1: bytes32(eq),
-            value2: bytes32(bound),
-            message: isLength ? "lengthEq() value is excluded by bound" : "eq() value is excluded by bound"
-        });
+        return _issue(
+            location,
+            IssueSeverity.Error,
+            IssueCategory.TypeMismatch,
+            IssueCode.UNNAVIGABLE_PATH,
+            bytes32(stepIndex),
+            bytes32(bound),
+            "Path does not navigate the descriptor"
+        );
     }
 
-    /// @notice Creates an issue when a lower bound exceeds the upper bound.
+    /// @notice Creates an issue for a loop whose array path does not end at an array.
+    /// @param location The loop.
+    /// @param typeCode The type code of the node the path ends at.
+    /// @return The constructed validation issue.
+    function quantifierOnNonArray(RuleLocation memory location, uint256 typeCode) internal pure returns (Issue memory) {
+        return _issue(
+            location,
+            IssueSeverity.Error,
+            IssueCategory.TypeMismatch,
+            IssueCode.QUANTIFIER_ON_NON_ARRAY,
+            bytes32(typeCode),
+            bytes32(0),
+            "Loop path does not end at an array"
+        );
+    }
+
+    /// @notice Creates an issue for a hint other than the compilation of its path.
+    /// @param location The rule.
+    /// @return The constructed validation issue.
+    function hintMismatch(RuleLocation memory location) internal pure returns (Issue memory) {
+        return _issue(
+            location,
+            IssueSeverity.Error,
+            IssueCategory.TypeMismatch,
+            IssueCode.HINT_MISMATCH,
+            bytes32(0),
+            bytes32(0),
+            "Hint does not match the path compiled against the descriptor"
+        );
+    }
+
+    /// @notice Creates an issue for an operator the compatibility matrix does not admit on its target type.
+    /// @param code Machine-readable error code from the compatibility check.
+    /// @param message Human-readable description from the compatibility check.
+    /// @param location The rule.
+    /// @param opCode The operator code.
+    /// @return The constructed validation issue.
+    function fromOpRule(
+        bytes32 code,
+        string memory message,
+        RuleLocation memory location,
+        uint8 opCode
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return _issue(
+            location,
+            IssueSeverity.Error,
+            IssueCategory.TypeMismatch,
+            code,
+            bytes32(uint256(opCode)),
+            bytes32(0),
+            message
+        );
+    }
+
+    /// @notice Creates an issue for a context operand whose property type does not pair with the target type.
+    /// @param location The rule.
+    /// @param contextPropertyId The operand's context property ID.
+    /// @param typeCode The target's type code.
+    /// @return The constructed validation issue.
+    function contextTypeMismatch(
+        RuleLocation memory location,
+        uint256 contextPropertyId,
+        uint256 typeCode
+    )
+        internal
+        pure
+        returns (Issue memory)
+    {
+        return _issue(
+            location,
+            IssueSeverity.Error,
+            IssueCategory.TypeMismatch,
+            IssueCode.CONTEXT_TYPE_MISMATCH,
+            bytes32(contextPropertyId),
+            bytes32(typeCode),
+            "Context property type does not match the target type"
+        );
+    }
+
+    /// @notice Creates an issue for a constant outside its type's values.
+    /// @param location The rule.
+    /// @param value The constant.
+    /// @return The constructed validation issue.
+    function outOfPhysicalBounds(RuleLocation memory location, uint256 value) internal pure returns (Issue memory) {
+        return _issue(
+            location,
+            IssueSeverity.Error,
+            IssueCategory.Contradiction,
+            IssueCode.OUT_OF_PHYSICAL_BOUNDS,
+            bytes32(value),
+            bytes32(0),
+            "Value is outside the physical range of the type"
+        );
+    }
+
+    /// @notice Creates an issue for the rule at which the rules on its subject, in order, stop being satisfiable
+    /// together.
+    /// @param location The rule.
+    /// @return The constructed validation issue.
+    function contradictoryRule(RuleLocation memory location) internal pure returns (Issue memory) {
+        return _issue(
+            location,
+            IssueSeverity.Error,
+            IssueCategory.Contradiction,
+            IssueCode.CONTRADICTORY_RULE,
+            bytes32(0),
+            bytes32(0),
+            "Rules on the subject are not satisfiable together"
+        );
+    }
+
+    /// @notice Creates an issue for a rule the other rules on its subject imply.
+    /// @param location The rule.
+    /// @return The constructed validation issue.
+    function redundantRule(RuleLocation memory location) internal pure returns (Issue memory) {
+        return _issue(
+            location,
+            IssueSeverity.Warning,
+            IssueCategory.Redundancy,
+            IssueCode.REDUNDANT_RULE,
+            bytes32(0),
+            bytes32(0),
+            "Rule is implied by the other rules on its subject"
+        );
+    }
+
+    /// @notice Creates an issue for a bound looser than the tightest bound on its side of the subject.
     /// @param isLength True to report the length-domain variant of this issue.
-    /// @return The constructed validation issue.
-    function impossibleRange(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 lower,
-        uint256 upper
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.IMPOSSIBLE_LENGTH_RANGE : IssueCode.IMPOSSIBLE_RANGE,
-            value1: bytes32(lower),
-            value2: bytes32(upper),
-            message: isLength ? "Lower length bound exceeds upper bound" : "Lower bound exceeds upper bound"
-        });
-    }
-
-    /// @notice Creates an issue when a set operation excludes the existing eq() value.
-    /// @return The constructed validation issue.
-    function setExcludesEquality(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.SET_EXCLUDES_EQUALITY,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: "Set operation excludes existing eq() value"
-        });
-    }
-
-    /// @notice Creates an issue when multiple isIn() sets have no intersection.
-    /// @return The constructed validation issue.
-    function emptySetIntersection(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.EMPTY_SET_INTERSECTION,
-            value1: bytes32(0),
-            value2: bytes32(0),
-            message: "Multiple isIn() sets have no intersection"
-        });
-    }
-
-    /// @notice Creates an issue when all values in an isIn() set are excluded.
-    /// @return The constructed validation issue.
-    function setFullyExcluded(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.SET_FULLY_EXCLUDED,
-            value1: bytes32(0),
-            value2: bytes32(0),
-            message: "All values in isIn() set are excluded by neq/notIn"
-        });
-    }
-
-    /// @notice Creates an issue for conflicting bitmask operators.
-    /// @return The constructed validation issue.
-    function bitmaskContradiction(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 mask,
-        uint256 conflicting
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.BITMASK_CONTRADICTION,
-            value1: bytes32(mask),
-            value2: bytes32(conflicting),
-            message: "Bitmask operators conflict"
-        });
-    }
-
-    /// @notice Creates an issue when bitmaskAny is impossible because all bits are forbidden.
-    /// @return The constructed validation issue.
-    function bitmaskAnyImpossible(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 mask,
-        uint256 mustBeZero
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.BITMASK_ANY_IMPOSSIBLE,
-            value1: bytes32(mask),
-            value2: bytes32(mustBeZero),
-            message: "bitmaskAny is impossible because all bits are forbidden"
-        });
-    }
-
-    /// @notice Creates a warning for a numeric bound dominated by a stricter bound.
-    /// @param isLength True to report the length-domain variant of this issue.
+    /// @param location The rule.
+    /// @param bound The bound.
+    /// @param tightest The tightest bound on its side.
     /// @return The constructed validation issue.
     function dominatedBound(
         bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
+        RuleLocation memory location,
+        uint256 bound,
+        uint256 tightest
     )
         internal
         pure
         returns (Issue memory)
     {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.DOMINATED_LENGTH_BOUND : IssueCode.DOMINATED_BOUND,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: isLength
+        return _issue(
+            location,
+            IssueSeverity.Warning,
+            IssueCategory.Redundancy,
+            isLength ? IssueCode.DOMINATED_LENGTH_BOUND : IssueCode.DOMINATED_BOUND,
+            bytes32(bound),
+            bytes32(tightest),
+            isLength
                 ? "Length bound is dominated by a stricter bound"
                 : "Numeric bound is dominated by a stricter bound"
-        });
+        );
     }
 
-    /// @notice Creates a warning for a bound that is redundant because eq() is set.
-    /// @param isLength True to report the length-domain variant of this issue.
+    /// @notice Creates an issue for a rule that holds for every value and every context.
+    /// @param location The rule.
     /// @return The constructed validation issue.
-    function redundantBound(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 bound,
-        uint256 eq
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.REDUNDANT_LENGTH_BOUND : IssueCode.REDUNDANT_BOUND,
-            value1: bytes32(bound),
-            value2: bytes32(eq),
-            message: isLength
-                ? "Length bound is redundant because lengthEq() is set"
-                : "Bound is redundant because eq() is set"
-        });
+    function vacuousRule(RuleLocation memory location) internal pure returns (Issue memory) {
+        return _issue(
+            location,
+            IssueSeverity.Info,
+            IssueCategory.Vacuity,
+            IssueCode.VACUOUS_RULE,
+            bytes32(0),
+            bytes32(0),
+            "Rule holds for every value"
+        );
     }
 
-    /// @notice Creates a warning for a gte/lte pair that fuses into a single range operator.
-    /// @param isLength True to report the length-domain variant of this issue.
-    /// @return The constructed validation issue.
-    function fusibleRange(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 low,
-        uint256 high
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.FUSIBLE_LENGTH_RANGE : IssueCode.FUSIBLE_RANGE,
-            value1: bytes32(low),
-            value2: bytes32(high),
-            message: isLength
-                ? "lengthGte() and lengthLte() fuse into a single lengthBetween()"
-                : "gte() and lte() fuse into a single between()"
-        });
-    }
-
-    /// @notice Creates a warning when a notIn() value was present in an isIn() set.
-    /// @return The constructed validation issue.
-    function setReduction(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.SET_REDUCTION,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: "notIn() value was present in isIn() set"
-        });
-    }
-
-    /// @notice Creates a warning when isIn() sets partially overlap.
-    /// @return The constructed validation issue.
-    function setRedundancy(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 intersectionCount
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.SET_REDUNDANCY,
-            value1: bytes32(intersectionCount),
-            value2: bytes32(0),
-            message: "isIn() sets partially overlap"
-        });
-    }
-
-    /// @notice Creates a warning when some isIn() values are excluded by neq/notIn.
-    /// @return The constructed validation issue.
-    function setPartiallyExcluded(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 excludedCount
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.SET_PARTIALLY_EXCLUDED,
-            value1: bytes32(excludedCount),
-            value2: bytes32(0),
-            message: "Some values in isIn() set are excluded by neq/notIn"
-        });
-    }
-
-    /// @notice Creates an error when an isIn/notIn set is not strictly sorted and deduplicated.
-    /// @return The constructed validation issue.
-    function unsortedInSet(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Contradiction,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.UNSORTED_IN_SET,
-            value1: bytes32(0),
-            value2: bytes32(0),
-            message: "isIn/notIn set is not strictly sorted and deduplicated"
-        });
-    }
-
-    /// @notice Creates an error when a group contains zero constraints.
-    /// @return The constructed validation issue.
-    function emptyGroup(uint32 groupIndex) internal pure returns (Issue memory) {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Vacuity,
-            groupIndex: groupIndex,
-            constraintIndex: 0,
-            code: IssueCode.EMPTY_GROUP,
-            value1: bytes32(0),
-            value2: bytes32(0),
-            message: "Group contains zero constraints"
-        });
-    }
-
-    /// @notice Creates a warning for a redundant bitmask operation.
-    /// @return The constructed validation issue.
-    function redundantBitmask(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 mask,
-        uint256 existing
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.REDUNDANT_BITMASK,
-            value1: bytes32(mask),
-            value2: bytes32(existing),
-            message: "Bitmask operation is redundant"
-        });
-    }
-
-    /// @notice Creates a warning for a duplicate operator in a constraint.
-    /// @return The constructed validation issue.
-    function duplicateConstraint(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Redundancy,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.DUPLICATE_CONSTRAINT,
-            value1: bytes32(0),
-            value2: bytes32(0),
-            message: "Duplicate operator in constraint"
-        });
-    }
-
-    /// @notice Creates an info issue for gte() on the type minimum (always true).
-    /// @param isLength True to report the length-domain variant of this issue.
-    /// @return The constructed validation issue.
-    function vacuousGte(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Info,
-            category: IssueCategory.Vacuity,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.VACUOUS_LENGTH_GTE : IssueCode.VACUOUS_GTE,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: isLength ? "lengthGte(0) is always true" : "gte() bound equals type minimum (always true)"
-        });
-    }
-
-    /// @notice Creates an info issue for lte() on the type maximum (always true).
-    /// @param isLength True to report the length-domain variant of this issue.
-    /// @return The constructed validation issue.
-    function vacuousLte(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 value
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Info,
-            category: IssueCategory.Vacuity,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.VACUOUS_LENGTH_LTE : IssueCode.VACUOUS_LTE,
-            value1: bytes32(value),
-            value2: bytes32(0),
-            message: isLength
-                ? "lengthLte() bound equals maximum (always true)"
-                : "lte() bound equals type maximum (always true)"
-        });
-    }
-
-    /// @notice Creates an info issue for a negated range with inverted bounds (always true).
-    function vacuousNegatedRange(
-        bool isLength,
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 low,
-        uint256 high
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Info,
-            category: IssueCategory.Vacuity,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: isLength ? IssueCode.VACUOUS_NEGATED_LENGTH_RANGE : IssueCode.VACUOUS_NEGATED_RANGE,
-            value1: bytes32(low),
-            value2: bytes32(high),
-            message: isLength
-                ? "Negated lengthBetween() with low > high excludes nothing (always true)"
-                : "Negated between() with low > high excludes nothing (always true)"
-        });
-    }
-
-    /// @notice Creates an issue for a calldata path that does not navigate the descriptor.
-    /// @param groupIndex Group index where the issue was found.
-    /// @param constraintIndex Constraint index within the group.
-    /// @return The constructed validation issue.
-    function unnavigablePath(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.TypeMismatch,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.UNNAVIGABLE_PATH,
-            value1: bytes32(0),
-            value2: bytes32(0),
-            message: "Path does not navigate the descriptor"
-        });
-    }
-
-    /// @notice Creates an issue for a calldata path carrying more than one quantifier step.
-    /// @param groupIndex Group index where the issue was found.
-    /// @param constraintIndex Constraint index within the group.
-    /// @return The constructed validation issue.
-    function nestedQuantifier(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.TypeMismatch,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.NESTED_QUANTIFIER,
-            value1: bytes32(0),
-            value2: bytes32(0),
-            message: "Path applies more than one quantifier"
-        });
-    }
-
-    /// @notice Creates an error for a hint block that does not match its compiled path.
-    /// @param groupIndex The group index.
-    /// @param constraintIndex The constraint index.
-    /// @return The constructed validation issue.
-    function hintMismatch(uint32 groupIndex, uint32 constraintIndex) internal pure returns (Issue memory) {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.TypeMismatch,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.HINT_MISMATCH,
-            value1: bytes32(0),
-            value2: bytes32(0),
-            message: "Hint does not match the path compiled against the descriptor"
-        });
-    }
-
-    /// @notice Creates a warning for a path deeper than the cap PWF-17 fixes.
-    /// @return The constructed validation issue.
-    function pathDepthExceeded(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 depth,
-        uint256 maxDepth
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Compatibility,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.PATH_DEPTH_EXCEEDED,
-            value1: bytes32(depth),
-            value2: bytes32(maxDepth),
-            message: "Path depth exceeds the maximum a well-formed policy may declare"
-        });
-    }
-
-    /// @notice Creates an error for a quantifier over a static array beyond the iteration cap PV-7 fixes.
+    /// @notice Creates an issue for a loop over a static array declared longer than the quantified maximum.
+    /// @param location The loop.
+    /// @param arrayLength The declared length of the array.
+    /// @param maxLength The maximum quantified length.
     /// @return The constructed validation issue.
     function quantifierOverStaticLimit(
-        uint32 groupIndex,
-        uint32 constraintIndex,
+        RuleLocation memory location,
         uint256 arrayLength,
         uint256 maxLength
     )
@@ -744,110 +306,63 @@ library ValidationIssue {
         pure
         returns (Issue memory)
     {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.Compatibility,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.QUANTIFIER_OVER_STATIC_LIMIT,
-            value1: bytes32(arrayLength),
-            value2: bytes32(maxLength),
-            message: "Quantifier over static array exceeds the maximum quantified length"
-        });
+        return _issue(
+            location,
+            IssueSeverity.Error,
+            IssueCategory.Compatibility,
+            IssueCode.QUANTIFIER_OVER_STATIC_LIMIT,
+            bytes32(arrayLength),
+            bytes32(maxLength),
+            "Quantifier over static array exceeds the maximum quantified length"
+        );
     }
 
-    /// @notice Creates a warning for an unassigned context property ID.
+    /// @notice Creates an issue for a loop body that contains no test of the element.
+    /// @param location The loop.
     /// @return The constructed validation issue.
-    function unknownContextProperty(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 contextId,
-        uint256 maxContextId
+    function contextOnlyBody(RuleLocation memory location) internal pure returns (Issue memory) {
+        return _issue(
+            location,
+            IssueSeverity.Error,
+            IssueCategory.Compatibility,
+            IssueCode.CONTEXT_ONLY_BODY,
+            bytes32(0),
+            bytes32(0),
+            "Loop body holds no test of the element"
+        );
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                 PRIVATE FUNCTIONS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev Returns an issue naming the rule at `location`.
+    function _issue(
+        RuleLocation memory location,
+        IssueSeverity severity,
+        IssueCategory category,
+        bytes32 code,
+        bytes32 value1,
+        bytes32 value2,
+        string memory message
     )
-        internal
+        private
         pure
         returns (Issue memory)
     {
         return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Compatibility,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.UNKNOWN_CONTEXT_PROPERTY,
-            value1: bytes32(contextId),
-            value2: bytes32(maxContextId),
-            message: "Unknown context property ID"
-        });
-    }
-
-    /// @notice Creates an issue for a context reference whose property cannot match the target type.
-    /// @return The constructed validation issue.
-    function contextTypeMismatch(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 contextId,
-        uint8 typeCode
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.TypeMismatch,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.CONTEXT_TYPE_MISMATCH,
-            value1: bytes32(contextId),
-            value2: bytes32(uint256(typeCode)),
-            message: "Context property type does not match the target type"
-        });
-    }
-
-    /// @notice Creates a warning for a negated operator under an existential quantifier.
-    /// @return The constructed validation issue.
-    function negationUnderAny(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        uint256 opCode
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Warning,
-            category: IssueCategory.Compatibility,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.NEGATION_UNDER_ANY,
-            value1: bytes32(opCode),
-            value2: bytes32(0),
-            message: "Negated operator under any() passes when a decoy element differs"
-        });
-    }
-
-    /// @notice Creates an issue for an operand that is not canonically encoded for the declared type.
-    /// @return The constructed validation issue.
-    function nonCanonicalOperand(
-        uint32 groupIndex,
-        uint32 constraintIndex,
-        bytes32 operand,
-        bytes32 canonical
-    )
-        internal
-        pure
-        returns (Issue memory)
-    {
-        return Issue({
-            severity: IssueSeverity.Error,
-            category: IssueCategory.TypeMismatch,
-            groupIndex: groupIndex,
-            constraintIndex: constraintIndex,
-            code: IssueCode.NON_CANONICAL_OPERAND,
-            value1: operand,
-            value2: canonical,
-            message: "Operand is not the canonical encoding for the declared type"
+            severity: severity,
+            category: category,
+            code: code,
+            groupIndex: location.groupIndex,
+            ruleIndex: location.ruleIndex,
+            bodyRuleIndex: location.bodyRuleIndex,
+            scope: location.scope,
+            path: location.path,
+            operator: location.operator,
+            value1: value1,
+            value2: value2,
+            message: message
         });
     }
 }

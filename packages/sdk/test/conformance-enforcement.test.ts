@@ -1,105 +1,104 @@
 import { describe, expect, test } from "vitest";
 
 import rawVectors from "../../../spec/vectors/enforcement.json";
-import { PolicyCoder, PolicyEnforcer } from "../src";
 import { toAddress } from "../src/bytes";
-import { hex, policyDataFromVector } from "./helpers";
+import { PolicyEnforcer, VIOLATION_EFFECT } from "../src/policy-enforcer";
+import { assertFailed, expectErrorCode, hex } from "./helpers";
 
-import type { Context } from "../src";
-import type { VectorPolicy } from "./helpers";
+import type { CallciumErrorCode } from "../src/errors";
+import type { Context, ViolationCode } from "../src/types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Vector types
 ///////////////////////////////////////////////////////////////////////////
 
-type VectorContext = {
-  msgSender: string;
-  msgValue: string;
-  baseFee: string;
-  gasPrice: string;
-  txOrigin?: string;
-};
+type VectorContext = Partial<Record<keyof Context, string>>;
 
 type Vector = {
   id: string;
   description: string;
-  policy: VectorPolicy;
+  blob: string;
   callData: string;
   context?: VectorContext;
   expected?: boolean;
-  /** Violation code for abort-violation vectors (the onchain enforcer reverts). */
+  /** Abort code. */
   expectedError?: string;
-  /**
-   * Expected violation codes, one per failed group. Reporting detail is non-normative (spec 9.3): only implementations
-   * that expose a violation list consume this field.
-   */
+  /** Group-local codes, one per failed group. */
   violations?: string[];
+  integrityError?: boolean;
 };
-
-///////////////////////////////////////////////////////////////////////////
-// Test helpers
-///////////////////////////////////////////////////////////////////////////
-
-/** Parse a hex-encoded uint256 context word, returning undefined when zero (unset). */
-function parseUint(word: string | undefined): bigint | undefined {
-  if (!word) return undefined;
-  const value = BigInt(word);
-  return value === 0n ? undefined : value;
-}
-
-/** Parse a hex-encoded context into the SDK Context type. */
-function parseContext(ctx: VectorContext): Context {
-  const result: Context = {};
-
-  if (ctx.msgSender && ctx.msgSender !== "0x0000000000000000000000000000000000000000") {
-    result.msgSender = toAddress(ctx.msgSender);
-  }
-
-  if (ctx.txOrigin) {
-    result.txOrigin = toAddress(ctx.txOrigin);
-  }
-
-  const msgValue = parseUint(ctx.msgValue);
-  if (msgValue !== undefined) result.msgValue = msgValue;
-
-  const baseFee = parseUint(ctx.baseFee);
-  if (baseFee !== undefined) result.baseFee = baseFee;
-
-  const gasPrice = parseUint(ctx.gasPrice);
-  if (gasPrice !== undefined) result.gasPrice = gasPrice;
-
-  return result;
-}
 
 const vectors: Vector[] = rawVectors;
 
 ///////////////////////////////////////////////////////////////////////////
-// Conformance
+// Helpers
 ///////////////////////////////////////////////////////////////////////////
 
-describe("PolicyEnforcer conformance vectors", () => {
+/** The codes an integrity error throws, each the transliteration of the Solidity error. */
+const INTEGRITY_ERRORS = [
+  "MALFORMED_HEADER",
+  "UNSUPPORTED_VERSION",
+  "UNSUPPORTED_MINOR",
+] as const satisfies readonly CallciumErrorCode[];
+
+/** Narrow a vector's code to a violation code. */
+function violationCode(code: string): ViolationCode {
+  if (!isViolationCode(code)) throw new Error(`Unknown violation code ${code}`);
+  return code;
+}
+
+function isViolationCode(code: string): code is ViolationCode {
+  return Object.hasOwn(VIOLATION_EFFECT, code);
+}
+
+/** Read a vector context; every key it carries is present, a zero word included. */
+function parseContext(vectorContext: VectorContext): Context {
+  const context: Context = {};
+  for (const [key, word] of Object.entries(vectorContext)) {
+    if (key === "msgSender" || key === "txOrigin") context[key] = toAddress(word);
+    else if (
+      key === "msgValue" ||
+      key === "blockTimestamp" ||
+      key === "blockNumber" ||
+      key === "chainId" ||
+      key === "baseFee" ||
+      key === "gasPrice"
+    ) {
+      context[key] = BigInt(word);
+    } else throw new Error(`Unknown context key ${key}`);
+  }
+  return context;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Enforcement outcomes
+///////////////////////////////////////////////////////////////////////////
+
+describe("Enforcement conformance vectors - PolicyEnforcer.check", () => {
   for (const vector of vectors) {
     test(`${vector.id}: ${vector.description}`, () => {
-      const policy = PolicyCoder.encode(policyDataFromVector(vector.policy));
-      const context = vector.context ? parseContext(vector.context) : undefined;
+      const blob = hex(vector.blob);
+      const callData = hex(vector.callData);
+      const context = vector.context === undefined ? undefined : parseContext(vector.context);
 
-      const result = PolicyEnforcer.check(policy, hex(vector.callData), context);
-
-      if (vector.expectedError !== undefined) {
-        expect(result.ok, "Expected error but got pass").toBe(false);
-        if (!result.ok) {
-          expect(result.violations.map((violation) => violation.code)).toContain(vector.expectedError);
-        }
-      } else if (vector.expected) {
-        expect(result.ok, `Expected pass but got fail: ${!result.ok ? JSON.stringify(result.violations) : ""}`).toBe(
-          true,
-        );
-      } else {
-        expect(result.ok, "Expected fail but got pass").toBe(false);
+      if (vector.integrityError) {
+        expectErrorCode(() => PolicyEnforcer.check(blob, callData, context), INTEGRITY_ERRORS);
+        return;
       }
 
-      if (vector.violations !== undefined && !result.ok) {
-        expect(result.violations.map((violation) => violation.code).toSorted()).toEqual(vector.violations.toSorted());
+      const result = PolicyEnforcer.check(blob, callData, context);
+      if (vector.expectedError !== undefined) {
+        const code = violationCode(vector.expectedError);
+        expect(VIOLATION_EFFECT[code]).toBe("abort");
+        assertFailed(result);
+        expect(result.violations.at(-1)?.code).toBe(code);
+        return;
+      }
+
+      expect(result.ok, JSON.stringify(result)).toBe(vector.expected);
+      if (!result.ok) {
+        const codes = (vector.violations ?? []).map(violationCode);
+        expect(result.violations.map((violation) => violation.code)).toEqual(codes);
       }
     });
   }

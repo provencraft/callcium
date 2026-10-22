@@ -1,26 +1,27 @@
+import type { Issue, Violation } from "./types";
+
 /**
  * Machine-readable error code for structural decoding and validation failures.
  *
  * Each code names one invariant. Where Solidity detects the same invariant, the code is its error name transliterated
  * from `PascalCase` to `SCREAMING_SNAKE_CASE`. The codes under "Inputs and validation" have no counterpart: they name
- * input a Solidity signature cannot express. `OUT_OF_PHYSICAL_BOUNDS` names an invariant Solidity carries twice, as the
- * error `PolicyBuilder.OutOfPhysicalBounds` and as an issue code, so the name is shared with `IssueCode`.
+ * input a Solidity signature cannot express.
  */
 export type CallciumErrorCode =
   // Policy and descriptor framing.
   | "UNSUPPORTED_VERSION"
+  | "UNSUPPORTED_MINOR"
+  | "MINOR_MISMATCH"
   | "MALFORMED_HEADER"
   | "UNEXPECTED_END"
   | "TRAILING_BYTES"
   // Groups and rules.
   | "EMPTY_POLICY"
   | "EMPTY_GROUP"
-  | "GROUP_TOO_SMALL"
   | "GROUP_SIZE_MISMATCH"
   | "GROUP_OVERFLOW"
   | "RULE_TOO_SMALL"
   | "RULE_SIZE_MISMATCH"
-  | "RULE_FIELD_OUT_OF_BOUNDS"
   | "RULE_OVERFLOW"
   // Paths.
   | "EMPTY_PATH"
@@ -30,22 +31,25 @@ export type CallciumErrorCode =
   | "TUPLE_FIELD_OUT_OF_BOUNDS"
   | "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS"
   | "NOT_COMPOSITE"
-  | "UNCOMPILABLE_PATH"
   | "QUANTIFIER_ON_NON_ARRAY"
-  | "NESTED_QUANTIFIER"
+  | "UNKNOWN_PATH_STEP"
+  // Loops.
+  | "UNKNOWN_QUANTIFIER"
+  | "INVALID_NESTED_LOOP"
   // Scope and context.
-  | "INVALID_SCOPE"
+  | "UNKNOWN_SCOPE"
   | "INVALID_CONTEXT_PATH"
   | "UNKNOWN_CONTEXT_PROPERTY"
   // Operators and hints.
   | "UNKNOWN_OPERATOR"
   | "INVALID_OPERATOR_BYTES"
   | "OPERATOR_TARGET_MISMATCH"
+  | "INVALID_CONTEXT_OPERAND"
+  | "DATA_LENGTH_MISMATCH"
   | "UNSORTED_IN_SET"
   | "MALFORMED_HINT"
   // Constraint building.
   | "NO_CONSTRAINT_OPERATORS"
-  | "DUPLICATE_PATH_IN_GROUP"
   | "EMPTY_SET"
   | "SET_TOO_LARGE"
   | "INVALID_RANGE"
@@ -61,6 +65,12 @@ export type CallciumErrorCode =
   | "STATIC_WORDS_TOO_LARGE"
   | "PARAM_COUNT_MISMATCH"
   | "TOO_MANY_PARAMS"
+  | "NODE_LENGTH_MISMATCH"
+  | "STATIC_WORDS_MISMATCH"
+  // Type codes.
+  | "INVALID_UINT_BITS"
+  | "INVALID_INT_BITS"
+  | "INVALID_BYTES_LENGTH"
   // Type strings and signatures.
   | "MALFORMED_TYPE_STRING"
   | "UNKNOWN_TYPE"
@@ -75,12 +85,13 @@ export type CallciumErrorCode =
   // Strict build.
   | "VALIDATION_ERROR"
   // Inputs and validation.
-  | "UNKNOWN_QUANTIFIER"
   | "INVALID_HEX"
   | "MALFORMED_SELECTOR"
   | "PATH_STEP_OVERFLOW"
   | "OPERAND_OVERFLOW"
-  | "CONTEXT_VALUE_OVERFLOW";
+  | "CONTEXT_VALUE_OVERFLOW"
+  | "MALFORMED_CONTEXT_VALUE"
+  | "MALFORMED_OPERAND";
 
 /**
  * Thrown on malformed or inadmissible SDK input. `offset`, when set, is the error's byte position in the source blob.
@@ -95,7 +106,7 @@ export class CallciumError extends Error {
     super(`${prefix}${message}`);
     this.name = "CallciumError";
     this.code = code;
-    // The property is declared optional, so it stays absent rather than present and undefined.
+    // `exactOptionalPropertyTypes` admits no `undefined` in the optional property.
     if (offset !== undefined) this.offset = offset;
   }
 }
@@ -104,12 +115,12 @@ export class CallciumError extends Error {
  * Thrown by `PolicyBuilder.build` when validation reports any issue.
  *
  * Carries every issue the validator found. The `Error.message` is the first issue's message — a diagnostic summary, not
- * a presentation contract. Consumers rendering issues to users should iterate `issues` directly.
+ * a presentation contract. To render issues to users, iterate `issues` directly.
  */
 export class ValidationError extends CallciumError {
-  public readonly issues: import("./types").Issue[];
+  public readonly issues: Issue[];
 
-  constructor(issues: import("./types").Issue[]) {
+  constructor(issues: Issue[]) {
     super("VALIDATION_ERROR", issues[0]?.message ?? "Policy validation failed");
     this.name = "ValidationError";
     this.issues = issues;
@@ -121,13 +132,13 @@ export class ValidationError extends CallciumError {
  * signals static issues in the policy itself.
  *
  * Carries the full list of structured violations (one per failed group). The `Error.message` is a minimal non-lossy
- * diagnostic summary built from the first violation's structured fields — not a presentation contract. Consumers
- * rendering violations to users should iterate `violations` directly.
+ * diagnostic summary built from the first violation's structured fields — not a presentation contract. To render
+ * violations to users, iterate `violations` directly.
  */
 export class PolicyViolationError extends Error {
-  public readonly violations: import("./types").Violation[];
+  public readonly violations: Violation[];
 
-  constructor(violations: import("./types").Violation[]) {
+  constructor(violations: Violation[]) {
     super(formatDiagnostic(violations[0]));
     this.name = "PolicyViolationError";
     this.violations = violations;
@@ -135,7 +146,7 @@ export class PolicyViolationError extends Error {
 }
 
 /** Build a stack-trace-friendly diagnostic line from a violation's code and coordinates. */
-function formatDiagnostic(violation: import("./types").Violation | undefined): string {
+function formatDiagnostic(violation: Violation | undefined): string {
   if (!violation) return "Policy violation";
   const location = "group" in violation ? ` at group ${violation.group} rule ${violation.rule}` : "";
   return `Policy violation: ${violation.code}${location}`;

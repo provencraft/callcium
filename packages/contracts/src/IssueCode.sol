@@ -8,132 +8,67 @@ library IssueCode {
                                   TYPE MISMATCH
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// Value operator used on a dynamic type or one whose static head is not 32 bytes.
-    bytes32 internal constant VALUE_OP_ON_DYNAMIC = "VALUE_OP_ON_DYNAMIC";
-    /// Value operator used on a composite type (array or tuple), even when its static head is 32 bytes.
-    bytes32 internal constant VALUE_OP_ON_COMPOSITE = "VALUE_OP_ON_COMPOSITE";
-    /// Comparison operator used on a non-numeric type.
-    bytes32 internal constant NUMERIC_OP_ON_NON_NUMERIC = "NUMERIC_OP_ON_NON_NUMERIC";
-    /// Bitmask operator used on an incompatible type.
-    bytes32 internal constant BITMASK_ON_INVALID = "BITMASK_ON_INVALID";
-    /// IN operator used on a boolean.
-    bytes32 internal constant IN_ON_BOOL = "IN_ON_BOOL";
-    /// Length operator used on a non-dynamic type.
-    bytes32 internal constant LENGTH_ON_STATIC = "LENGTH_ON_STATIC";
-    /// Context reference operand paired with a target type its property cannot match.
-    bytes32 internal constant CONTEXT_TYPE_MISMATCH = "CONTEXT_TYPE_MISMATCH";
-    /// Unrecognised operator code.
-    bytes32 internal constant UNKNOWN_OPERATOR = "UNKNOWN_OPERATOR";
-    /// Operand word is not the canonical encoding for the declared type.
-    bytes32 internal constant NON_CANONICAL_OPERAND = "NON_CANONICAL_OPERAND";
-    /// Calldata path does not navigate the descriptor.
+    /// Descriptor whose composite node metadata disagrees with the node's children.
+    bytes32 internal constant INVALID_DESCRIPTOR = "INVALID_DESCRIPTOR";
+
+    /// Path that does not navigate the descriptor.
     bytes32 internal constant UNNAVIGABLE_PATH = "UNNAVIGABLE_PATH";
-    /// Calldata path applies more than one quantifier.
-    bytes32 internal constant NESTED_QUANTIFIER = "NESTED_QUANTIFIER";
-    /// Stored hint block differs from the compilation of the path against the descriptor.
+
+    /// Loop path that does not end at an array.
+    bytes32 internal constant QUANTIFIER_ON_NON_ARRAY = "QUANTIFIER_ON_NON_ARRAY";
+
+    /// Hint other than the compilation of its path against the descriptor.
     bytes32 internal constant HINT_MISMATCH = "HINT_MISMATCH";
+
+    /// Ordering comparison on a type that is neither `uintN` nor `intN`.
+    bytes32 internal constant NUMERIC_OP_ON_NON_NUMERIC = "NUMERIC_OP_ON_NON_NUMERIC";
+
+    /// Bitmask comparison on a `bool` or `function`.
+    bytes32 internal constant BITMASK_ON_INVALID = "BITMASK_ON_INVALID";
+
+    /// IN on a `bool`.
+    bytes32 internal constant IN_ON_BOOL = "IN_ON_BOOL";
+
+    /// Context operand whose property type does not pair with the target type.
+    bytes32 internal constant CONTEXT_TYPE_MISMATCH = "CONTEXT_TYPE_MISMATCH";
 
     /*/////////////////////////////////////////////////////////////////////////
                                   CONTRADICTION
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// eq(v) and neq(v) on the same path.
-    bytes32 internal constant EQ_NEQ_CONTRADICTION = "EQ_NEQ_CONTRADICTION";
-    /// Multiple eq() operators with different values.
-    bytes32 internal constant CONFLICTING_EQUALITY = "CONFLICTING_EQUALITY";
-    /// Value is outside the physical range of the type.
+    /// Constant outside its type's values.
     bytes32 internal constant OUT_OF_PHYSICAL_BOUNDS = "OUT_OF_PHYSICAL_BOUNDS";
-    /// gt() on the type maximum is impossible.
-    bytes32 internal constant IMPOSSIBLE_GT = "IMPOSSIBLE_GT";
-    /// lt() on the type minimum is impossible.
-    bytes32 internal constant IMPOSSIBLE_LT = "IMPOSSIBLE_LT";
-    /// eq() value is excluded by a bound.
-    bytes32 internal constant BOUNDS_EXCLUDE_EQUALITY = "BOUNDS_EXCLUDE_EQUALITY";
-    /// Lower bound exceeds upper bound.
-    bytes32 internal constant IMPOSSIBLE_RANGE = "IMPOSSIBLE_RANGE";
-    /// Set operation excludes the existing eq() value.
-    bytes32 internal constant SET_EXCLUDES_EQUALITY = "SET_EXCLUDES_EQUALITY";
-    /// Multiple isIn() sets have no intersection.
-    bytes32 internal constant EMPTY_SET_INTERSECTION = "EMPTY_SET_INTERSECTION";
-    /// All values in an isIn() set are excluded by neq/notIn.
-    bytes32 internal constant SET_FULLY_EXCLUDED = "SET_FULLY_EXCLUDED";
-    /// lengthEq(v) and lengthNeq(v) on the same path.
-    bytes32 internal constant LENGTH_EQ_NEQ_CONTRADICTION = "LENGTH_EQ_NEQ_CONTRADICTION";
-    /// Multiple lengthEq() operators with different values.
-    bytes32 internal constant CONFLICTING_LENGTH = "CONFLICTING_LENGTH";
-    /// lengthEq() value is excluded by a bound.
-    bytes32 internal constant BOUNDS_EXCLUDE_LENGTH = "BOUNDS_EXCLUDE_LENGTH";
-    /// Lower length bound exceeds upper bound.
-    bytes32 internal constant IMPOSSIBLE_LENGTH_RANGE = "IMPOSSIBLE_LENGTH_RANGE";
-    /// Length value is outside the physical range.
-    bytes32 internal constant OUT_OF_PHYSICAL_LENGTH_BOUNDS = "OUT_OF_PHYSICAL_LENGTH_BOUNDS";
-    /// lengthGt() on the maximum length is impossible.
-    bytes32 internal constant IMPOSSIBLE_LENGTH_GT = "IMPOSSIBLE_LENGTH_GT";
-    /// lengthLt() on the minimum length is impossible.
-    bytes32 internal constant IMPOSSIBLE_LENGTH_LT = "IMPOSSIBLE_LENGTH_LT";
-    /// Bitmask operators conflict.
-    bytes32 internal constant BITMASK_CONTRADICTION = "BITMASK_CONTRADICTION";
-    /// bitmaskAny is impossible because all bits are forbidden.
-    bytes32 internal constant BITMASK_ANY_IMPOSSIBLE = "BITMASK_ANY_IMPOSSIBLE";
-    /// isIn/notIn set is not strictly sorted and deduplicated.
-    bytes32 internal constant UNSORTED_IN_SET = "UNSORTED_IN_SET";
-    /// A group contains zero constraints.
-    bytes32 internal constant EMPTY_GROUP = "EMPTY_GROUP";
+
+    /// Rule at which the rules on its subject stop being satisfiable together (PV-9).
+    bytes32 internal constant CONTRADICTORY_RULE = "CONTRADICTORY_RULE";
 
     /*/////////////////////////////////////////////////////////////////////////
                                    REDUNDANCY
     /////////////////////////////////////////////////////////////////////////*/
 
+    /// Rule the other rules on its subject imply (PV-9).
+    bytes32 internal constant REDUNDANT_RULE = "REDUNDANT_RULE";
+
     /// Numeric bound is dominated by a stricter bound.
     bytes32 internal constant DOMINATED_BOUND = "DOMINATED_BOUND";
-    /// Bound is redundant because eq() is set.
-    bytes32 internal constant REDUNDANT_BOUND = "REDUNDANT_BOUND";
-    /// notIn() value was present in an isIn() set.
-    bytes32 internal constant SET_REDUCTION = "SET_REDUCTION";
-    /// isIn() sets partially overlap.
-    bytes32 internal constant SET_REDUNDANCY = "SET_REDUNDANCY";
-    /// Some values in an isIn() set are excluded by neq/notIn.
-    bytes32 internal constant SET_PARTIALLY_EXCLUDED = "SET_PARTIALLY_EXCLUDED";
+
     /// Length bound is dominated by a stricter bound.
     bytes32 internal constant DOMINATED_LENGTH_BOUND = "DOMINATED_LENGTH_BOUND";
-    /// Length bound is redundant because lengthEq() is set.
-    bytes32 internal constant REDUNDANT_LENGTH_BOUND = "REDUNDANT_LENGTH_BOUND";
-    /// Bitmask operation is redundant.
-    bytes32 internal constant REDUNDANT_BITMASK = "REDUNDANT_BITMASK";
-    /// Duplicate operator in a constraint.
-    bytes32 internal constant DUPLICATE_CONSTRAINT = "DUPLICATE_CONSTRAINT";
-    /// gte() and lte() bounds that fuse into a single between().
-    bytes32 internal constant FUSIBLE_RANGE = "FUSIBLE_RANGE";
-    /// lengthGte() and lengthLte() bounds that fuse into a single lengthBetween().
-    bytes32 internal constant FUSIBLE_LENGTH_RANGE = "FUSIBLE_LENGTH_RANGE";
 
     /*/////////////////////////////////////////////////////////////////////////
                                      VACUITY
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// gte() bound equals the type minimum (always true).
-    bytes32 internal constant VACUOUS_GTE = "VACUOUS_GTE";
-    /// lte() bound equals the type maximum (always true).
-    bytes32 internal constant VACUOUS_LTE = "VACUOUS_LTE";
-    /// lengthGte(0) is always true.
-    bytes32 internal constant VACUOUS_LENGTH_GTE = "VACUOUS_LENGTH_GTE";
-    /// lengthLte() bound equals the maximum (always true).
-    bytes32 internal constant VACUOUS_LENGTH_LTE = "VACUOUS_LENGTH_LTE";
-    /// Negated between() with low > high excludes nothing (always true).
-    bytes32 internal constant VACUOUS_NEGATED_RANGE = "VACUOUS_NEGATED_RANGE";
-    /// Negated lengthBetween() with low > high excludes nothing (always true).
-    bytes32 internal constant VACUOUS_NEGATED_LENGTH_RANGE = "VACUOUS_NEGATED_LENGTH_RANGE";
+    /// Rule that holds for every value and every context (PV-9).
+    bytes32 internal constant VACUOUS_RULE = "VACUOUS_RULE";
 
     /*/////////////////////////////////////////////////////////////////////////
                                   COMPATIBILITY
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// Path deeper than the cap PWF-17 fixes.
-    bytes32 internal constant PATH_DEPTH_EXCEEDED = "PATH_DEPTH_EXCEEDED";
-    /// Quantifier over a static array beyond the iteration cap PV-7 fixes.
+    /// Loop over a static array declared longer than `MAX_QUANTIFIED_ARRAY_LENGTH` (PV-7).
     bytes32 internal constant QUANTIFIER_OVER_STATIC_LIMIT = "QUANTIFIER_OVER_STATIC_LIMIT";
-    /// Context property ID is not in the assigned set.
-    bytes32 internal constant UNKNOWN_CONTEXT_PROPERTY = "UNKNOWN_CONTEXT_PROPERTY";
-    /// Negated operator under an existential quantifier (a decoy element satisfies the rule).
-    bytes32 internal constant NEGATION_UNDER_ANY = "NEGATION_UNDER_ANY";
+
+    /// Loop body that contains no test of the element (PV-8).
+    bytes32 internal constant CONTEXT_ONLY_BODY = "CONTEXT_ONLY_BODY";
 }

@@ -148,24 +148,24 @@ library TypeCode {
 
     /// @notice Computes the type code for an unsigned integer of the given bit width.
     /// @dev Valid widths are multiples of 8 in the inclusive range [8, 256].
-    /// @param bits The bit width of the unsigned integer (e.g., 8, 16, 24, …, 256).
+    /// @param bits The bit width of the unsigned integer (for example 8, 16, 24, …, 256).
     /// @return code The uint8 type code corresponding to the requested width.
     function uintN(uint16 bits) internal pure returns (uint8) {
         require(bits % 8 == 0 && bits >= 8 && bits <= 256, InvalidUintBits(bits));
         unchecked {
-            // forge-lint: disable-next-line(unsafe-typecast) bits <= 256 is enforced by the require above.
+            // forge-lint: disable-next-line(unsafe-typecast) bounded by the `InvalidUintBits` check above.
             return uint8(bits / 8);
         }
     }
 
     /// @notice Computes the type code for a signed integer of the given bit width.
     /// @dev Valid widths are multiples of 8 in the inclusive range [8, 256].
-    /// @param bits The bit width of the signed integer (e.g., 8, 16, 24, …, 256).
+    /// @param bits The bit width of the signed integer (for example 8, 16, 24, …, 256).
     /// @return code The uint8 type code corresponding to the requested width.
     function intN(uint16 bits) internal pure returns (uint8) {
         require(bits % 8 == 0 && bits >= 8 && bits <= 256, InvalidIntBits(bits));
         unchecked {
-            // forge-lint: disable-next-line(unsafe-typecast) the bounded bit width keeps the code within uint8.
+            // forge-lint: disable-next-line(unsafe-typecast) bounded by the `InvalidIntBits` check above.
             return uint8(0x20 + (bits / 8));
         }
     }

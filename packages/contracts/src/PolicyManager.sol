@@ -10,6 +10,19 @@ abstract contract PolicyManager {
     using PolicyRegistry for PolicyRegistry.Store;
 
     /*/////////////////////////////////////////////////////////////////////////
+                                     STORAGE
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @custom:storage-location erc7201:callcium.storage.PolicyManager
+    struct PolicyManagerStorage {
+        PolicyRegistry.Store store;
+    }
+
+    /// @dev EIP-7201 storage slot of the `callcium.storage.PolicyManager` namespace.
+    bytes32 private constant POLICY_MANAGER_STORAGE_LOCATION =
+        0x8aa465d0fd610b7d06ba8430304aa155d63c58ad6e68cf8241a8a9f56215da00;
+
+    /*/////////////////////////////////////////////////////////////////////////
                                      EVENTS
     /////////////////////////////////////////////////////////////////////////*/
 
@@ -27,30 +40,6 @@ abstract contract PolicyManager {
     event PolicyBindingChanged(
         address indexed target, bytes4 indexed selector, bytes32 previousHash, bytes32 indexed newHash
     );
-
-    /*/////////////////////////////////////////////////////////////////////////
-                                     STORAGE
-    /////////////////////////////////////////////////////////////////////////*/
-
-    /// @custom:storage-location erc7201:callcium.storage.PolicyManager
-    struct PolicyManagerStorage {
-        PolicyRegistry.Store store;
-    }
-
-    /// @dev EIP-7201 storage slot for PolicyManager.
-    /// keccak256(abi.encode(uint256(keccak256("callcium.storage.PolicyManager")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant POLICY_MANAGER_STORAGE_LOCATION =
-        0x8aa465d0fd610b7d06ba8430304aa155d63c58ad6e68cf8241a8a9f56215da00;
-
-    /// @dev Returns the namespaced policy store.
-    function _policyStore() private view returns (PolicyRegistry.Store storage) {
-        PolicyManagerStorage storage $;
-        bytes32 slot = POLICY_MANAGER_STORAGE_LOCATION;
-        assembly ("memory-safe") {
-            $.slot := slot
-        }
-        return $.store;
-    }
 
     /*/////////////////////////////////////////////////////////////////////////
                                  INTERNAL FUNCTIONS
@@ -159,5 +148,19 @@ abstract contract PolicyManager {
     /// @return The pointer address, or address(0) if not found.
     function _policyPointerOf(bytes32 policyHash) internal view returns (address) {
         return _policyStore().pointerOf(policyHash);
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                 PRIVATE FUNCTIONS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev Returns the namespaced policy store.
+    function _policyStore() private view returns (PolicyRegistry.Store storage) {
+        PolicyManagerStorage storage $;
+        bytes32 slot = POLICY_MANAGER_STORAGE_LOCATION;
+        assembly ("memory-safe") {
+            $.slot := slot
+        }
+        return $.store;
     }
 }

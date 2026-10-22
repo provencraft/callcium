@@ -1,12 +1,12 @@
 "use client";
 
-import { PolicyCoder, TypeCode, hexToBytes, lookupContextProperty, lookupQuantifier, Quantifier } from "@callcium/sdk";
+import { CallciumError, PolicyCoder, TypeCode, hexToBytes, lookupContextProperty, Quantifier } from "@callcium/sdk";
 import { ChevronDown, Copy, Check, Plus, Trash2, ArrowRight, AlertTriangle, Info as InfoIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatAbiItem } from "viem/utils";
-import type { Hex, Issue, ScalarValue, TypeInfo } from "@callcium/sdk";
+import type { Hex, Issue, ScalarValue } from "@callcium/sdk";
 import type { AbiFunction } from "viem";
 import { EXAMPLES, type BuilderExample } from "./examples";
 import { ErrorBox } from "@/components/ui/error-box";
@@ -17,7 +17,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { lookup4byte, descriptorToTypes } from "@/lib/abi";
 import { parseAbiJson } from "@/lib/abi";
 import { formatError } from "@/lib/format-error";
-import { CONTEXT_PROPERTIES, CONTEXT_PROPERTY_COUNT, contextPropertyType, formatPath } from "@/lib/format-path";
+import {
+  CONTEXT_PROPERTIES,
+  CONTEXT_PROPERTY_COUNT,
+  contextPropertyType,
+  formatPath,
+  quantifierLabel,
+} from "@/lib/format-path";
 import { formatOperandList } from "@/lib/format-value";
 import {
   createSession,
@@ -29,6 +35,7 @@ import {
   getOperatorOptions,
   getOperatorLabel,
   isContextOperator,
+  issueMatches,
   type BuilderSession,
   type ConstraintConfig,
   type ConstraintInput,
@@ -38,10 +45,6 @@ import {
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
 
-// Both context property types (address, uint256) use a 32-byte word.
-const CTX_ADDRESS: TypeInfo = { typeCode: TypeCode.ADDRESS, isDynamic: false, staticSize: 32 };
-const CTX_UINT256: TypeInfo = { typeCode: TypeCode.UINT_MAX, isDynamic: false, staticSize: 32 };
-
 ///////////////////////////////////////////////////////////////////////////
 // Quantifier options
 ///////////////////////////////////////////////////////////////////////////
@@ -49,12 +52,12 @@ const CTX_UINT256: TypeInfo = { typeCode: TypeCode.UINT_MAX, isDynamic: false, s
 const QUANTIFIER_OPTIONS = [
   {
     value: Quantifier.ALL,
-    label: lookupQuantifier(Quantifier.ALL).label,
+    label: quantifierLabel(Quantifier.ALL),
     desc: "all elements must pass\nempty array → pass",
   },
   {
     value: Quantifier.ANY,
-    label: lookupQuantifier(Quantifier.ANY).label,
+    label: quantifierLabel(Quantifier.ANY),
     desc: "at least one must pass\nempty array → fail",
   },
 ] as const;
@@ -117,8 +120,9 @@ export function Builder() {
           }
         });
       }
-    } catch {
-      // Invalid hex — ignore.
+    } catch (e) {
+      // An invalid policy in the link leaves the builder empty.
+      if (!(e instanceof CallciumError)) throw e;
     }
   }, [searchParams]);
 
@@ -372,7 +376,7 @@ export function Builder() {
                 </div>
 
                 {group.constraints.map((config, ci) => {
-                  const rowIssues = session.issues.filter((i) => i.groupIndex === gi && i.constraintIndex === ci);
+                  const rowIssues = session.issues.filter((i) => i.groupIndex === gi && issueMatches(i, config));
                   return (
                     <ConstraintRow
                       key={config.id}
@@ -580,7 +584,7 @@ function ConstraintRow({
 
 /** Strip error codes and hex paths from structural error messages. */
 function humanizeError(error: string): string {
-  // "DUPLICATE_PATH_IN_GROUP: Duplicate path 0x0001 in the same group" → "Duplicate path in the same group"
+  // "UNKNOWN_CONTEXT_PROPERTY: Unknown context property ID 0x0009" → "Unknown context property ID"
   const stripped = error.replace(/^[A-Z_]+:\s*/, "");
   return stripped
     .replace(/\s*0x[0-9a-fA-F]+\s*/g, " ")
@@ -601,7 +605,7 @@ function formatRuleValues(operator: string, values: ScalarValue[]): string {
   return formatOperandList(getOperatorArity(operator), operands);
 }
 
-function parseConstraintValues(operator: string, valueInput: string, typeInfo: TypeInfo | null): ScalarValue[] | null {
+function parseConstraintValues(operator: string, valueInput: string, typeCode: number | null): ScalarValue[] | null {
   try {
     // A context property ID, not a value of the target's type, so this precedes the type branches.
     if (isContextOperator(operator)) {
@@ -621,11 +625,11 @@ function parseConstraintValues(operator: string, valueInput: string, typeInfo: T
       if (parts.length < 2 || !parts[0] || !parts[1]) return null;
       return [BigInt(parts[0]), BigInt(parts[1])];
     }
-    if (typeInfo?.typeCode === TypeCode.ADDRESS) {
+    if (typeCode === TypeCode.ADDRESS) {
       const trimmed = valueInput.trim();
       return trimmed ? [trimmed] : null;
     }
-    if (typeInfo?.typeCode === TypeCode.BOOL) {
+    if (typeCode === TypeCode.BOOL) {
       const trimmed = valueInput.trim().toLowerCase();
       return trimmed === "true" || trimmed === "false" ? [trimmed === "true"] : null;
     }
@@ -638,11 +642,11 @@ function parseConstraintValues(operator: string, valueInput: string, typeInfo: T
 }
 
 /** Return a placeholder string for the value input based on operator and type. */
-function valuePlaceholder(operator: string, typeInfo: TypeInfo | null): string | undefined {
+function valuePlaceholder(operator: string, typeCode: number | null): string | undefined {
   if (operator === "isIn" || operator === "notIn") return "value1,value2,...";
   if (operator === "between" || operator === "lengthBetween") return "min,max";
-  if (typeInfo?.typeCode === TypeCode.ADDRESS) return "0x...";
-  if (typeInfo?.typeCode === TypeCode.BOOL) return "true / false";
+  if (typeCode === TypeCode.ADDRESS) return "0x...";
+  if (typeCode === TypeCode.BOOL) return "true / false";
   return undefined;
 }
 
@@ -651,11 +655,11 @@ function resolveRules(
   rules: OperatorRule[],
   operator: string,
   valueInput: string,
-  typeInfo: TypeInfo | null,
+  typeCode: number | null,
 ): OperatorRule[] {
   const result = [...rules];
   if (operator) {
-    const values = parseConstraintValues(operator, valueInput, typeInfo);
+    const values = parseConstraintValues(operator, valueInput, typeCode);
     if (values) result.push({ operator, values });
   }
   return result;
@@ -732,11 +736,10 @@ function AddConstraintForm({
     return arrayNode.element;
   }, [arrayNode, arrayMode, quantifier, arrayIndex]);
 
-  const targetTypeInfo = useMemo<TypeInfo | null>(() => {
+  const targetTypeCode = useMemo<number | null>(() => {
     if (scope === "context") {
       if (!contextProperty) return null;
-      const property = CONTEXT_PROPERTIES.find((p) => p.contextKey === contextProperty);
-      return property?.typeCode === TypeCode.ADDRESS ? CTX_ADDRESS : CTX_UINT256;
+      return CONTEXT_PROPERTIES.find((p) => p.contextKey === contextProperty)?.typeCode ?? null;
     }
     if (selectedParam === null || !session.params[selectedParam]) return null;
     const node = walkParamPath(session.params[selectedParam], selectedField);
@@ -757,12 +760,12 @@ function AddConstraintForm({
           }
           if (!resolved) return null;
         }
-        return resolved.typeInfo;
+        return resolved.typeCode;
       }
       // Array selected but no access mode chosen yet — don't resolve.
       return null;
     }
-    return node.typeInfo;
+    return node.typeCode;
   }, [
     scope,
     selectedParam,
@@ -776,11 +779,11 @@ function AddConstraintForm({
   ]);
 
   const operatorOptions = useMemo(() => {
-    if (!targetTypeInfo) return [];
-    const all = getOperatorOptions(targetTypeInfo);
+    if (targetTypeCode === null) return [];
+    const all = getOperatorOptions(targetTypeCode);
     const usedOps = new Set(rules.map((r) => r.operator));
     return all.filter((op) => !usedOps.has(op.value));
-  }, [targetTypeInfo, rules]);
+  }, [targetTypeCode, rules]);
 
   const debouncedValue = useDebounce(valueInput, 300);
   const validIndex = /^\d+$/.test(arrayIndex);
@@ -805,7 +808,7 @@ function AddConstraintForm({
   const constraintPath = useMemo(() => [...arrayAccessPath, ...postArrayField], [arrayAccessPath, postArrayField]);
 
   const previewResult = useMemo<{ errors: string[]; issues: Issue[] } | null>(() => {
-    const candidateRules = resolveRules(rules, operator, debouncedValue, targetTypeInfo);
+    const candidateRules = resolveRules(rules, operator, debouncedValue, targetTypeCode);
     if (candidateRules.length === 0) return null;
 
     const path = constraintPath;
@@ -816,14 +819,13 @@ function AddConstraintForm({
     };
 
     const preview = addConstraint(session, groupIndex, config);
-    const draftIndex = session.groups[groupIndex].constraints.length;
     return {
       errors: preview.errors,
-      issues: preview.issues.filter((i) => i.groupIndex === groupIndex && i.constraintIndex === draftIndex),
+      issues: preview.issues.filter((i) => i.groupIndex === groupIndex && issueMatches(i, config)),
     };
-  }, [scope, constraintPath, contextProperty, operator, debouncedValue, targetTypeInfo, rules, session, groupIndex]);
+  }, [scope, constraintPath, contextProperty, operator, debouncedValue, targetTypeCode, rules, session, groupIndex]);
 
-  const hasValidDraft = operator !== "" && parseConstraintValues(operator, valueInput, targetTypeInfo) !== null;
+  const hasValidDraft = operator !== "" && parseConstraintValues(operator, valueInput, targetTypeCode) !== null;
   const canAdd =
     indexValid &&
     (rules.length > 0 || hasValidDraft) &&
@@ -832,16 +834,16 @@ function AddConstraintForm({
     !previewResult.issues.some((i) => i.severity === "error");
 
   const handleAddOperator = useCallback(() => {
-    const values = parseConstraintValues(operator, valueInput, targetTypeInfo);
+    const values = parseConstraintValues(operator, valueInput, targetTypeCode);
     if (!values || !operator) return;
     setRules((prev) => [...prev, { operator, values }]);
     setOperator("");
     setValueInput("");
-  }, [operator, valueInput, targetTypeInfo]);
+  }, [operator, valueInput, targetTypeCode]);
 
   const handleSubmit = useCallback(() => {
     if (!canAdd) return;
-    const finalRules = resolveRules(rules, operator, valueInput, targetTypeInfo);
+    const finalRules = resolveRules(rules, operator, valueInput, targetTypeCode);
     if (finalRules.length === 0) return;
 
     const path = constraintPath;
@@ -856,7 +858,7 @@ function AddConstraintForm({
     setOperator("");
     setValueInput("");
     setExpanded(false);
-  }, [scope, constraintPath, contextProperty, operator, valueInput, targetTypeInfo, rules, canAdd, onAdd]);
+  }, [scope, constraintPath, contextProperty, operator, valueInput, targetTypeCode, rules, canAdd, onAdd]);
 
   if (!expanded) {
     if (!hasAvailableCalldata && !hasAvailableContext) return null;
@@ -1017,7 +1019,7 @@ function AddConstraintForm({
         )}
 
         {/* Operator, value, and buttons — all visible once target is selected. */}
-        {targetTypeInfo && (
+        {targetTypeCode !== null && (
           <>
             <div className="flex flex-col items-start gap-1">
               {rules.length === 0 && <span className="text-xs text-fd-muted-foreground">operator</span>}
@@ -1030,10 +1032,10 @@ function AddConstraintForm({
                   setOperator(op);
                 }}
               >
-                <SelectTrigger className="w-40 shrink-0">
+                <SelectTrigger className="w-40 shrink-0 font-mono">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="font-mono">
                   {operatorOptions.map((op) => (
                     <SelectItem key={op.value} value={op.value}>
                       {op.label}
@@ -1055,8 +1057,7 @@ function AddConstraintForm({
                   </SelectTrigger>
                   <SelectContent>
                     {CONTEXT_PROPERTIES.filter(
-                      (property) =>
-                        (targetTypeInfo.typeCode === TypeCode.ADDRESS) === (property.typeCode === TypeCode.ADDRESS),
+                      (property) => (targetTypeCode === TypeCode.ADDRESS) === (property.typeCode === TypeCode.ADDRESS),
                     ).map((property) => (
                       <SelectItem key={property.code} value={String(property.code)}>
                         {property.label}
@@ -1067,7 +1068,7 @@ function AddConstraintForm({
               ) : (
                 <MonoInput
                   id="constraint-value"
-                  placeholder={valuePlaceholder(operator, targetTypeInfo)}
+                  placeholder={valuePlaceholder(operator, targetTypeCode)}
                   value={valueInput}
                   onChange={(e) => setValueInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && canAdd && handleSubmit()}

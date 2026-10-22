@@ -7,13 +7,14 @@ description: "Offchain policy enforcement against ABI-encoded data."
 
 Check and enforce policies against ABI-encoded call data.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-enforcer.ts#L638)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-enforcer.ts#L651)
 
 ### Methods
 
 ### check
 
-Check a policy against ABI-encoded call data without throwing on violations.
+Check a policy against ABI-encoded call data without throwing on violations. Requires a policy blob that passes
+storage validation. The outcome on any other blob past its header is undefined.
 
 ```ts
 function check(policy: `0x${string}`, callData: `0x${string}`, context?: Context): EnforceResult;
@@ -33,7 +34,8 @@ function check(policy: `0x${string}`, callData: `0x${string}`, context?: Context
 
 ### enforce
 
-Enforce a policy against ABI-encoded call data, throwing on violation.
+Enforce a policy against ABI-encoded call data, throwing on violation. Requires a policy blob that passes storage
+validation. The outcome on any other blob past its header is undefined.
 
 ```ts
 function enforce(policy: `0x${string}`, callData: `0x${string}`, context?: Context): void;

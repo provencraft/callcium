@@ -1,43 +1,48 @@
 ---
 title: "PolicyValidator"
-description: "Semantic validation for policies: type mismatches, contradictions, and redundancies."
+description: "Build-time validation of policy blobs (PV-1 to PV-9)."
 ---
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L22)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L20)
 
 ## Functions
 
 ### validate
 
-Validates policy data for semantic issues.
+Validates a policy blob (PV-1 to PV-9).
 
-Reverts on a malformed descriptor; semantic validation is defined only over a well-formed one.
+Reverts with the storage validation error of a blob that fails it. Storage validation runs first, because
+the descriptor check reads the descriptor before anything is decoded. Reverts with a format overflow error when
+a group's normal form exceeds a format limit. Issues of PV-1 to PV-7 name a rule where the blob stores it.
+Issues of PV-8 and PV-9 name the group where the blob stores it. They name a rule by its position in the normal
+form of the rules left in the group. A rule is left if it raises no PV-2, PV-3, PV-5 or PV-6 issue and no PV-4
+issue on a test. PV-8 skips a loop that lost a body test to such an issue.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L109)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L147)
 
 ```solidity
-function validate(PolicyData memory data) internal pure returns (Issue[] memory);
+function validate(bytes memory policy) internal pure returns (Issue[] memory);
 ```
 
 **Parameters**
 
-| Name   | Type         | Description                  |
-| ------ | ------------ | ---------------------------- |
-| `data` | `PolicyData` | The policy data to validate. |
+| Name     | Type    | Description      |
+| -------- | ------- | ---------------- |
+| `policy` | `bytes` | The policy blob. |
 
 **Returns**
 
-| Name     | Type      | Description                  |
-| -------- | --------- | ---------------------------- |
-| `<none>` | `Issue[]` | All validation issues found. |
+| Name     | Type      | Description                                                             |
+| -------- | --------- | ----------------------------------------------------------------------- |
+| `<none>` | `Issue[]` | Every issue found, or one issue alone when the descriptor is not valid. |
 
 ## Errors
 
 ### ValidationError
 
-Thrown when policy validation finds errors.
+Thrown when validation reports any issue.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L99)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/contracts/src/PolicyValidator.sol#L132)
 
 ```solidity
 error ValidationError(Issue[] issues);
@@ -45,6 +50,6 @@ error ValidationError(Issue[] issues);
 
 **Parameters**
 
-| Name     | Type      | Description       |
-| -------- | --------- | ----------------- |
-| `issues` | `Issue[]` | The issues found. |
+| Name     | Type      | Description        |
+| -------- | --------- | ------------------ |
+| `issues` | `Issue[]` | Every issue found. |

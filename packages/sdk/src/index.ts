@@ -4,8 +4,7 @@
 
 export { PolicyBuilder } from "./policy-builder";
 export { PolicyCoder } from "./policy-coder";
-export { isQuantifier, lookupQuantifier, parsePathSteps, Quantifier } from "./path";
-export type { QuantifierInfo } from "./path";
+export { parsePathSteps, Quantifier } from "./path";
 export { isOpAllowed, PolicyValidator } from "./policy-validator";
 export {
   arg,
@@ -31,9 +30,7 @@ export { PolicyEnforcer } from "./policy-enforcer";
 ///////////////////////////////////////////////////////////////////////////
 
 export { hexToBytes, bytesToHex } from "./bytes";
-export { Descriptor } from "./descriptor";
 export { DescriptorCoder } from "./descriptor-coder";
-export type { TypeInfo } from "./descriptor";
 
 ///////////////////////////////////////////////////////////////////////////
 // Constants
@@ -41,18 +38,28 @@ export type { TypeInfo } from "./descriptor";
 
 export {
   Op,
+  Source,
   TypeCode,
-  PolicyFormat,
   Scope,
+  LoopQuantifier,
   ContextProperty,
-  findContextProperty,
   lookupOp,
   lookupScope,
+  lookupQuantifier,
   lookupContextProperty,
 } from "./constants";
-export { isContextOp, isLengthOp, lookupTypeCode } from "./operators";
+export { lookupTypeCode } from "./operators";
 export type { TypeCodeInfo, TypeClassInfo, TypeClass } from "./operators";
-export type { Operands, OpInfo, ScopeInfo, ContextPropertyInfo } from "./constants";
+export type {
+  Operands,
+  OpInfo,
+  ScopeInfo,
+  QuantifierInfo,
+  ContextPropertyInfo,
+  ComparisonCode,
+  ScopeCode,
+  QuantifierCode,
+} from "./constants";
 
 ///////////////////////////////////////////////////////////////////////////
 // Types
@@ -64,15 +71,27 @@ export type {
   Span,
   Field,
   PolicyData,
+  Rule,
+  BodyRule,
+  LoopRule,
   Constraint,
   DecodedPolicy,
   DecodedGroup,
   DecodedRule,
-  DecodedParam,
+  DecodedTest,
+  DecodedLoop,
+  DecodedHint,
+  DecodedFrameHint,
+  DecodedHop,
+  ArrayMeta,
+  DecodedOperator,
+  DecodedDescriptor,
+  DecodedNode,
   Issue,
   IssueCode,
   IssueSeverity,
   IssueCategory,
+  RuleLocation,
   Context,
   EnforceResult,
   Violation,
@@ -85,7 +104,7 @@ export type {
   CalldataNavigationViolation,
   NonCanonicalValueViolation,
   QuantifierLimitExceededViolation,
-  QuantifierEmptyArrayViolation,
+  QuantifierNoMatchViolation,
 } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////

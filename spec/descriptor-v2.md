@@ -8,7 +8,7 @@
 
 ## 2. Purpose, Scope, and Exclusions
 
-This document specifies the Descriptor binary format for Callcium, a policy engine for ABI-encoded data. The descriptor enables deterministic traversal of ABI-encoded data for runtime validation, parsing, and extraction without storing or shipping full ABI JSON.
+This document specifies the Descriptor binary format for Callcium, a policy engine for ABI-encoded data. A descriptor lets a reader traverse ABI-encoded data deterministically at runtime, to validate, parse and extract values. The reader does not need the full ABI JSON.
 
 ### Exclusions
 
@@ -22,7 +22,7 @@ This document does not define:
 
 ## 3. Terminology and Conformance
 
-- The key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY in this document are to be interpreted as described in RFC 2119.
+- This document uses the key words MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED and MAY. RFC 2119 defines their meaning.
 - "Validator" refers to any component that checks a descriptor blob against the invariants of Section 7.
 - "Builder" refers to any component that constructs descriptor blobs from higher-level type definitions.
 - "Reader" refers to any component that traverses ABI-encoded calldata using a descriptor.
@@ -39,31 +39,31 @@ An implementation is conformant if and only if it meets all MUST/REQUIRED obliga
 [version:1][paramCount:1][param_0][param_1]…[param_(paramCount-1)]
 ```
 
-`version` is a single byte identifying the descriptor format version. This specification describes format version `VERSION = 0x02`. The descriptor format version is independent of the policy format version (see Callcium Policy Spec). Validators MUST reject any descriptor with `version != VERSION`.
+`version` is a single byte that identifies the descriptor format version. This document describes format version `VERSION = 0x02`. The descriptor format version is independent of the policy format version (see Callcium Policy Spec). Validators MUST reject any descriptor with `version != VERSION`.
 
-`paramCount` is a single byte declaring the number of top-level parameters (0–255). The descriptor body MUST contain exactly `paramCount` parameter descriptors, concatenated back-to-back with no padding. Validators MUST reject descriptors where the parsed count does not equal `paramCount`, or where trailing bytes remain after parsing the last parameter.
+`paramCount` is a single byte that declares the number of top-level parameters (0–255). The descriptor body MUST contain exactly `paramCount` parameter descriptors, in sequence, with no padding between them. Validators MUST reject a descriptor if the parsed count is not equal to `paramCount`, or if bytes remain after the last parameter.
 
 ### 4.2 Elementary Types (Leaf Nodes)
 
-"Elementary" in this specification refers to descriptor leaf nodes: types encoded as a single type code byte with no nested children. This includes `bytes` (`0x70`) and `string` (`0x71`), which are dynamic in ABI encoding but elementary in the descriptor tree.
+In this document, "elementary" refers to descriptor leaf nodes: types that a single type code byte encodes, with no nested children. Elementary types include `bytes` (`0x70`) and `string` (`0x71`). These two types are dynamic in ABI encoding but elementary in the descriptor tree.
 
 - Encoding: `[typeCode]`.
 - Node length is exactly one byte.
 - ABI head contribution is one word (32 bytes) for all elementary types except `bytes` and `string`, which are dynamic.
-- For traversal purposes, elementary types have an implied `staticWords`: 1 for static elementary types (all except `bytes` and `string`), 0 for dynamic elementary types (`bytes`, `string`). Composite types carry explicit `staticWords` in their metadata.
+- For traversal, elementary types have an implied `staticWords`: 1 for static elementary types (all except `bytes` and `string`), 0 for dynamic elementary types (`bytes`, `string`). Composite types carry explicit `staticWords` in their metadata.
 
 ### 4.3 Composite Types (Common Structure)
 
-All composite types begin with `[typeCode][meta]`.
+All composite types start with `[typeCode][meta]`.
 
 `meta` is a big-endian 24-bit (3-byte) field split into two 12-bit components:
-- `staticWords` (high 12 bits, bits 23–12): number of 32-byte words in the ABI head for this node when it is static. Zero indicates a dynamic node.
+- `staticWords` (high 12 bits, bits 23–12): number of 32-byte words in the ABI head for this node when the node is static. Zero means that the node is dynamic.
 - `nodeLength` (low 12 bits, bits 11–0): total descriptor node length in bytes for this node.
 
 The following constants define the composite header layout:
 - `COMPOSITE_META_SIZE` = 3.
 - `TUPLE_HEADER_SIZE` = 6 (`typeCode` + `meta` + `fieldCount`).
-- `ARRAY_HEADER_SIZE` = 4 (`typeCode` + `meta`). Applies to both static and dynamic arrays.
+- `ARRAY_HEADER_SIZE` = 4 (`typeCode` + `meta`). This size applies to static arrays and to dynamic arrays.
 - `ARRAY_LENGTH_SIZE` = 2 (big-endian uint16).
 
 ### 4.4 Static Arrays
@@ -71,7 +71,7 @@ The following constants define the composite header layout:
 Layout: `[STATIC_ARRAY][meta][elemDesc][length]`.
 
 - `length` is big-endian uint16.
-- `staticWords` encodes `length * elemStaticWords`, or zero if the element type is dynamic. Here and throughout, `elemStaticWords` refers to the element node's `staticWords` metadata value (or the implied value 1 for static elementary types, 0 for dynamic elementary types).
+- `staticWords` encodes `length * elemStaticWords`, or zero if the element type is dynamic. In this document, `elemStaticWords` is the `staticWords` metadata value of the element node (or the implied value 1 for static elementary types, 0 for dynamic elementary types).
 
 ### 4.5 Dynamic Arrays
 
@@ -84,7 +84,7 @@ Element descriptors follow immediately after the common header.
 Layout: `[TUPLE][meta][fieldCount:be16][field_0][field_1]…[field_(fieldCount-1)]`.
 
 - `fieldCount` is big-endian uint16.
-- `staticWords` is the sum of static words for all static fields; zero if any field is dynamic.
+- If any field is dynamic, `staticWords` is zero. Otherwise, `staticWords` is the sum of the static words of all fields.
 
 ---
 
@@ -94,7 +94,7 @@ Layout: `[TUPLE][meta][fieldCount:be16][field_0][field_1]…[field_(fieldCount-1
 
 | Range | Category | Description |
 |:---|:---|:---|
-| `0x00` | Reserved Zero | MUST NOT be used; validators MUST reject descriptors containing this code |
+| `0x00` | Reserved Zero | MUST NOT be used. Validators MUST reject a descriptor that contains this code |
 | `0x01`–`0x20` | Unsigned Integers | 32 variants: `uint8` … `uint256` |
 | `0x21`–`0x40` | Signed Integers | 32 variants: `int8` … `int256` |
 | `0x41`–`0x4F` | Fixed Types | `address`, `bool`, `function` (external function pointer) |
@@ -102,7 +102,7 @@ Layout: `[TUPLE][meta][fieldCount:be16][field_0][field_1]…[field_(fieldCount-1
 | `0x70`–`0x7F` | Dynamic Elementary | `bytes`, `string` |
 | `0x80`–`0x8F` | Arrays | static array, dynamic array |
 | `0x90`–`0x9F` | Tuples | aggregate of fields |
-| `0xA0`–`0xFF` | Reserved | MUST NOT be used; validators MUST reject descriptors containing these codes |
+| `0xA0`–`0xFF` | Reserved | MUST NOT be used. Validators MUST reject a descriptor that contains one of these codes |
 
 ### 5.2 Derivation Formulas
 
@@ -113,31 +113,31 @@ The following formulas are normative and MUST produce the same code points as Ap
 
 ### 5.3 Reserved Codes
 
-Code `0x00` is permanently reserved: it is never a valid type code, in this or any future format version. Validators MUST reject it wherever a type code is expected.
+Code `0x00` is permanently reserved. Code `0x00` is not a valid type code in this format version or in any future format version. Validators MUST reject `0x00` at every type code position.
 
-Codes not listed in Appendix A within ranges `0x41`–`0x4F`, `0x70`–`0x7F`, `0x80`–`0x8F`, and `0x90`–`0x9F` are reserved for future use within their respective range. Validators MUST reject them in this format version.
+In the ranges `0x41`–`0x4F`, `0x70`–`0x7F`, `0x80`–`0x8F` and `0x90`–`0x9F`, the codes that Appendix A does not list are reserved for future use in their range. Validators MUST reject these codes in this format version.
 
 ---
 
 ## 6. Calldata Traversal
 
-Readers MUST maintain a state triple `(head, base, descOffset)` during path navigation through ABI-encoded calldata.
+When a reader navigates a path through ABI-encoded calldata, the reader MUST keep a state triple `(head, base, descOffset)`.
 
 ### 6.1 State Triple
 
 | Variable | Description |
 |:---|:---|
 | `head` | Byte offset in calldata for the head slot of the current node. |
-| `base` | Composite start offset for resolving relative ABI offsets. |
+| `base` | Start offset of a composite. Readers resolve relative ABI offsets from this offset. |
 | `descOffset` | Byte offset into the descriptor for the current node's type. |
 
 ### 6.2 Initial State
 
-Given a `baseOffset` (the byte offset where ABI-encoded parameters begin):
+For a `baseOffset` (the byte offset where the ABI-encoded parameters start):
 - `head = baseOffset`, `base = baseOffset`, `descOffset = HEADER_SIZE` (2).
-- The reader resolves the target parameter by iterating through prior parameters, advancing `head` by each parameter's head contribution and `descOffset` by each parameter's `nodeLength`.
+- To find the target parameter, the reader steps through the parameters before the target. For each of these parameters, the reader advances `head` by the parameter's head contribution and `descOffset` by the parameter's `nodeLength`.
 
-The calling layer determines `baseOffset`. Standard calldata uses `baseOffset = 4` (after the 4-byte selector); raw ABI payloads use `baseOffset = 0`.
+The calling layer determines `baseOffset`. Standard calldata uses `baseOffset = 4`, after the 4-byte selector. Raw ABI payloads use `baseOffset = 0`.
 
 ### 6.3 Tuple Descent
 
@@ -147,42 +147,42 @@ To navigate to field `childIndex` of a tuple at `(head, base, descOffset)`:
 2. Compute the tuple's data region:
    - Dynamic: `tupleBase = base + calldataload(head)`, `cursor = tupleBase`.
    - Static: `tupleBase = base`, `cursor = head`.
-3. Skip fields `0..childIndex-1`: for each skipped field, advance `cursor` by
-   `(staticWords == 0 ? 1 : staticWords) * 32` and advance `descOffset` by the
-   field's `nodeLength` (1 for elementary types).
-4. Result: `(head = cursor, base = tupleBase, descOffset = fieldDescOffset)`.
+3. Skip fields `0..childIndex-1`. For each skipped field, advance `cursor` by
+   `(staticWords == 0 ? 1 : staticWords) * 32` and `descOffset` by the field's
+   `nodeLength` (1 for elementary types).
+4. The result is `(head = cursor, base = tupleBase, descOffset = fieldDescOffset)`.
 
 ### 6.4 Array Descent
 
 To navigate to element `childIndex` of an array at `(head, base, descOffset)`:
 
-In both cases below, `elementStaticSize = elemStaticWords * 32` — the element's ABI head size in bytes, derived from its descriptor metadata (see Section 4.4 for `elemStaticWords`).
+In both cases below, `elementStaticSize = elemStaticWords * 32`. This value is the ABI head size of the element in bytes, from the descriptor metadata of the element (Section 4.4 defines `elemStaticWords`).
 
 **Dynamic array:**
 1. `arrayBase = base + calldataload(head)`.
 2. `length = calldataload(arrayBase)`. The reader MUST check `childIndex < length`.
 3. `headsSection = arrayBase + 32` (skip the length word).
-4. If elements are dynamic: `newHead = headsSection + (childIndex * 32)`,
+4. If the elements are dynamic: `newHead = headsSection + (childIndex * 32)`,
    `newBase = headsSection`.
-5. If elements are static: `newHead = headsSection + (childIndex * elementStaticSize)`,
+5. If the elements are static: `newHead = headsSection + (childIndex * elementStaticSize)`,
    `newBase = arrayBase`.
 
 **Static array:**
-1. If elements are dynamic: `arrayBase = base + calldataload(head)`,
+1. If the elements are dynamic: `arrayBase = base + calldataload(head)`,
    `newHead = arrayBase + (childIndex * 32)`, `newBase = arrayBase`.
-2. If elements are static: `newHead = head + (childIndex * elementStaticSize)`,
+2. If the elements are static: `newHead = head + (childIndex * elementStaticSize)`,
    `newBase = base` (unchanged).
 
-**Key invariant:** For dynamic elements, `base` MUST be set to the start of the heads section (where per-element offsets are measured from), not to the array's data start.
+**Key invariant:** For dynamic elements, the reader MUST set `base` to the start of the heads section, not to the start of the array data. Per-element offsets are relative to the start of the heads section.
 
-### 6.5 Bounds Checking
+### 6.5 Bounds Checks
 
-Readers MUST verify that ABI offsets read from calldata point within the calldata bounds. An offset that would cause a read beyond `calldatasize()` MUST cause traversal failure, not silent mis-parsing.
+Readers MUST verify that each ABI offset from calldata points within the calldata bounds. If an offset causes a read past `calldatasize()`, traversal MUST fail instead of a silent mis-parse.
 
-- **Bounds**: For every 32-byte read at offset `offset`, readers MUST check `offset + 32 <= calldatasize()`. For dynamic-length reads (e.g., `bytes`/`string` payload), readers MUST check that the declared length does not extend beyond the calldata boundary.
-- **Arithmetic overflow**: When computing a resolved offset as `base + offset`, readers MUST ensure the addition does not overflow.
-- **Word alignment**: Readers are NOT required to check that ABI offsets are 32-byte aligned. Implementations MAY reject non-aligned offsets as a strictness option but this is not required for conformance.
-- **Overlapping regions**: Readers are NOT required to detect overlapping data regions. Implementations MAY perform overlap detection as an optional strictness check.
+- **Bounds**: For every 32-byte read at offset `offset`, readers MUST check `offset + 32 <= calldatasize()`. For a dynamic-length read (for example, a `bytes` or `string` payload), readers MUST check that the declared length does not extend past the end of calldata.
+- **Arithmetic overflow**: When readers compute a resolved offset as `base + offset`, readers MUST make sure that the addition does not overflow.
+- **Word alignment**: Readers are not required to check that ABI offsets are 32-byte aligned. An implementation MAY reject a non-aligned offset as a strictness option. Conformance does not require this check.
+- **Overlapping regions**: Readers are not required to detect overlapping data regions. An implementation MAY detect overlaps as an optional strictness check.
 
 ---
 
@@ -190,23 +190,23 @@ Readers MUST verify that ABI offsets read from calldata point within the calldat
 
 ### 7.1 Well-Formedness
 
-A descriptor is well-formed if it satisfies all of the following invariants. Validators MUST reject a descriptor that is not well-formed before it is used for calldata traversal (Section 6). Where that rejection happens — decoding, storage, or a standalone validation pass — is implementation-defined.
+A descriptor is well-formed if it satisfies all of the following invariants. Validators MUST reject a descriptor that is not well-formed before a reader uses the descriptor for calldata traversal (Section 6). The implementation defines where the rejection occurs: at decoding, at storage, or in a standalone validation pass.
 
 - **DWF-1**: The descriptor is at least 2 bytes (version and `paramCount` are present).
 - **DWF-2**: `version == VERSION`.
-- **DWF-3**: Every type code is assigned in Appendix A; reserved and unassigned codes (Section 5.3) do not appear.
-- **DWF-4**: Every composite node's metadata lies within the descriptor, its `nodeLength` is at least the node's header size, and the node's span (`nodeLength` bytes from its type code) does not extend beyond the descriptor.
+- **DWF-3**: Every type code has an assignment in Appendix A. Reserved and unassigned codes (Section 5.3) do not appear.
+- **DWF-4**: Every composite node's metadata lies within the descriptor, and its `nodeLength` is at least the node's header size. The span of each composite node (`nodeLength` bytes from its type code) does not extend past the end of the descriptor.
 - **DWF-5**: Every tuple has `fieldCount` in `[1, MAX_TUPLE_FIELDS]`.
 - **DWF-6**: Every static array has `length` in `[1, MAX_STATIC_ARRAY_LENGTH]`.
-- **DWF-7**: No composite node has a nesting depth greater than `MAX_NESTING_DEPTH`. The nesting depth of a node is the number of nodes on the path from its top-level parameter node to it, inclusive. Leaf nodes are not subject to the cap.
+- **DWF-7**: No composite node has a nesting depth greater than `MAX_NESTING_DEPTH`. The nesting depth of a node is the number of nodes on the path from its top-level parameter node to the node, both ends included. The limit does not apply to leaf nodes.
 - **DWF-8**: The descriptor body contains exactly `paramCount` complete parameter nodes with no trailing bytes.
 
 ### 7.2 Validity
 
-A descriptor is valid if it is well-formed and satisfies the following invariants. Builders MUST NOT emit an invalid descriptor. Validators are not required to verify these invariants; calldata traversal (Section 6) is defined only for valid descriptors.
+A descriptor is valid if it is well-formed and satisfies the following invariants. Builders MUST NOT emit an invalid descriptor. Validators are not required to verify these invariants. Section 6 defines calldata traversal only for valid descriptors.
 
 - **DV-1**: `nodeLength` of every composite node equals the actual byte span of that node, and a tuple's `fieldCount` field descriptors exactly fill its `nodeLength`.
-- **DV-2**: `staticWords` is zero if and only if the node contains a dynamic sub-value; otherwise it equals the node's ABI head size in words (Sections 4.3–4.6).
+- **DV-2**: `staticWords` is zero if and only if the node contains a dynamic sub-value. Otherwise, `staticWords` equals the node's ABI head size in words (Sections 4.3–4.6).
 
 ### 7.3 Normative Limits
 
@@ -214,18 +214,18 @@ A descriptor is valid if it is well-formed and satisfies the following invariant
 |:---|:---|:---|:---|:---|
 | `MAX_NODE_LENGTH` | 4,095 bytes | Format | — | 12-bit `nodeLength` field in composite metadata (`0x0FFF`). |
 | `MAX_STATIC_WORDS` | 4,095 words (~128 KB) | Format | — | 12-bit `staticWords` field in composite metadata. |
-| `MAX_STATIC_ARRAY_LENGTH` | 4,095 elements | Format | DWF-6 | 12-bit field width uniformity with other composite metadata limits. |
+| `MAX_STATIC_ARRAY_LENGTH` | 4,095 elements | Format | DWF-6 | Same 12-bit field width as the other composite metadata limits. |
 | `MAX_TUPLE_FIELDS` | 4,089 fields | Derived | DWF-5 | `MAX_NODE_LENGTH - TUPLE_HEADER_SIZE` (4,095 - 6). |
-| `MAX_NESTING_DEPTH` | 64 levels | Design | DWF-7 | Operational cap on composite nesting; counting rule in Section 7.1. |
+| `MAX_NESTING_DEPTH` | 64 levels | Design | DWF-7 | Operational limit on composite nesting. Section 7.1 gives the counting rule. |
 | `MAX_PARAMS` | 255 | Format | — | 1-byte `paramCount` in descriptor header. |
 
-Limits without an invariant reference (—) are bounds of the encoding itself: no byte string can exceed them, so there is nothing for a validator to check.
+A limit without an invariant reference (—) is a bound of the encoding itself. No byte string can exceed such a limit, so a validator has nothing to check.
 
 Limit categories:
 
-- **Format**: Structural constraint from the binary encoding field width. Cannot change without a format version bump.
-- **Derived**: Mechanically follows from other limits.
-- **Design**: Operational cap chosen for implementation safety. Normative and fixed for this format version: all conformant implementations enforce the same value.
+- **Format**: Structural constraint from the width of an encoding field. A change to the limit needs a new format version.
+- **Derived**: Follows from other limits.
+- **Design**: Operational limit for implementation safety. The limit is normative and does not change within this format version: all conformant implementations enforce the same value.
 
 ---
 
@@ -234,7 +234,7 @@ Limit categories:
 - [ABI Specification](https://docs.soliditylang.org/en/latest/abi-spec.html) (Solidity documentation, applicable to all EVM languages).
 - [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) — Key words for use in RFCs to Indicate Requirement Levels.
 - Callcium reference implementation (non-normative).
-- Conformance test vector suite: `test/vectors/` in the reference implementation repository.
+- Conformance test vector suite: `spec/vectors/descriptors.json` in the reference implementation repository.
 
 ---
 
@@ -274,9 +274,9 @@ Limit categories:
 | `bool` | `0x42` |
 | `function` | `0x43` |
 
-`function` refers to the ABI external function pointer type: a 20-byte address followed by a 4-byte selector, encoded identical to `bytes24`.
+`function` is the ABI type of an external function pointer: a 20-byte address and then a 4-byte selector. The encoding of `function` is identical to the encoding of `bytes24`.
 
-Codes `0x44`–`0x4F` are reserved and MUST be rejected in this format version.
+Codes `0x44`–`0x4F` are reserved. Validators MUST reject these codes in this format version.
 
 #### Fixed Bytes (`0x50`–`0x6F`)
 
@@ -298,7 +298,7 @@ Codes `0x44`–`0x4F` are reserved and MUST be rejected in this format version.
 | `bytes` | `0x70` |
 | `string` | `0x71` |
 
-Codes `0x72`–`0x7F` are reserved and MUST be rejected in this format version.
+Codes `0x72`–`0x7F` are reserved. Validators MUST reject these codes in this format version.
 
 #### Arrays (`0x80`–`0x8F`)
 
@@ -307,7 +307,7 @@ Codes `0x72`–`0x7F` are reserved and MUST be rejected in this format version.
 | `static array`  | `0x80` |
 | `dynamic array` | `0x81` |
 
-Codes `0x82`–`0x8F` are reserved and MUST be rejected in this format version.
+Codes `0x82`–`0x8F` are reserved. Validators MUST reject these codes in this format version.
 
 #### Tuples (`0x90`–`0x9F`)
 
@@ -315,7 +315,7 @@ Codes `0x82`–`0x8F` are reserved and MUST be rejected in this format version.
 |:---|:---|
 | `tuple` | `0x90` |
 
-Codes `0x91`–`0x9F` are reserved and MUST be rejected in this format version.
+Codes `0x91`–`0x9F` are reserved. Validators MUST reject these codes in this format version.
 
 ---
 

@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { EfficientHashLib } from "solady/utils/EfficientHashLib.sol";
-import { SSTORE2 } from "solady/utils/SSTORE2.sol";
+import { SSTORE2 } from "./vendor/solady/utils/SSTORE2.sol";
 
 import { Policy } from "./Policy.sol";
 import { PolicyFormat as PF } from "./PolicyFormat.sol";
@@ -10,18 +9,16 @@ import { PolicyFormat as PF } from "./PolicyFormat.sol";
 /// @title PolicyRegistry
 /// @notice Policy storage and lookup.
 library PolicyRegistry {
-    using EfficientHashLib for bytes;
-
-    /// @dev Maximum policy size (SSTORE2 contract code limit minus overhead).
-    uint256 private constant MAX_POLICY_SIZE = 24_575;
-
     /// @dev Policy store data structure.
     struct Store {
         /// @dev Maps policy hash to SSTORE2 pointer.
         mapping(bytes32 policyHash => address pointer) policyOf;
-        /// @dev Maps (target, selector) to policy hash. Use `address(0)` for default policies.
-        mapping(address target => mapping(bytes4 selector => bytes32 policyHash)) policyFor;
+        /// @dev Maps (target, selector) to the bound policy's SSTORE2 pointer. Use `address(0)` for default policies.
+        mapping(address target => mapping(bytes4 selector => address pointer)) policyFor;
     }
+
+    /// @dev Maximum policy size (SSTORE2 contract code limit minus overhead).
+    uint256 private constant MAX_POLICY_SIZE = 24_575;
 
     /*/////////////////////////////////////////////////////////////////////////
                                      ERRORS
@@ -55,7 +52,7 @@ library PolicyRegistry {
     function store(Store storage self, bytes memory policy) internal returns (bytes32 policyHash, address pointer) {
         require(policy.length <= MAX_POLICY_SIZE, PolicyTooLarge(policy.length));
 
-        policyHash = policy.hash();
+        policyHash = keccak256(policy);
         pointer = self.policyOf[policyHash];
 
         if (pointer == address(0)) {
@@ -66,9 +63,10 @@ library PolicyRegistry {
     }
 
     /// @notice Binds a stored policy to a target under the policy's own selector.
-    /// @dev The bind key is derived from the stored policy — its embedded selector, or the zero selector for
-    /// selectorless policies — so a policy binds only under the selector it declares. This extends an already-stored
-    /// policy to more targets without re-uploading the blob; the derivation reads only the header prefix.
+    /// @dev The bind key is derived from the stored policy: its embedded selector, or the zero selector for
+    /// selectorless policies. A policy therefore binds only under the selector it declares. This function extends an
+    /// already-stored policy to more targets without re-uploading the blob. The derivation
+    /// reads only the header prefix.
     /// @param self The policy store.
     /// @param target The contract address to bind the policy to.
     /// @param policyHash The policy hash (must already be stored).
@@ -86,11 +84,8 @@ library PolicyRegistry {
         address pointer = self.policyOf[policyHash];
         require(pointer != address(0), PolicyNotFound(policyHash));
 
-        bytes memory prefix = SSTORE2.read(pointer, 0, PF.POLICY_HEADER_PREFIX);
-        selector = Policy.isSelectorless(prefix) ? bytes4(0) : Policy.selector(prefix);
-
-        previousHash = self.policyFor[target][selector];
-        self.policyFor[target][selector] = policyHash;
+        selector = _selectorOf(SSTORE2.read(pointer, 0, PF.POLICY_HEADER_PREFIX));
+        previousHash = _bind(self, target, selector, pointer);
     }
 
     /// @notice Unbinds a policy from a (target, selector) pair.
@@ -100,9 +95,10 @@ library PolicyRegistry {
     /// @param selector The function selector.
     /// @return previousHash The hash that was bound under the pair.
     function unbind(Store storage self, address target, bytes4 selector) internal returns (bytes32 previousHash) {
-        previousHash = self.policyFor[target][selector];
-        require(previousHash != bytes32(0), BindingNotFound(target, selector));
+        address pointer = self.policyFor[target][selector];
+        require(pointer != address(0), BindingNotFound(target, selector));
         delete self.policyFor[target][selector];
+        previousHash = keccak256(SSTORE2.read(pointer));
     }
 
     /// @notice Stores a policy and binds it to targets in one call.
@@ -125,14 +121,12 @@ library PolicyRegistry {
         require(targets.length != 0, EmptyTargets());
 
         (policyHash, pointer) = store(self, policy);
-
-        selector = Policy.isSelectorless(policy) ? bytes4(0) : Policy.selector(policy);
+        selector = _selectorOf(policy);
 
         uint256 targetCount = targets.length;
         previousHashes = new bytes32[](targetCount);
         for (uint256 i = 0; i < targetCount; ++i) {
-            previousHashes[i] = self.policyFor[targets[i]][selector];
-            self.policyFor[targets[i]][selector] = policyHash;
+            previousHashes[i] = _bind(self, targets[i], selector, pointer);
         }
     }
 
@@ -153,11 +147,8 @@ library PolicyRegistry {
         returns (bytes32 policyHash, address pointer, bytes4 selector, bytes32 previousHash)
     {
         (policyHash, pointer) = store(self, policy);
-
-        selector = Policy.isSelectorless(policy) ? bytes4(0) : Policy.selector(policy);
-
-        previousHash = self.policyFor[target][selector];
-        self.policyFor[target][selector] = policyHash;
+        selector = _selectorOf(policy);
+        previousHash = _bind(self, target, selector, pointer);
     }
 
     /// @notice Resolves and loads the policy blob for a (target, selector) pair.
@@ -167,21 +158,18 @@ library PolicyRegistry {
     /// @param selector The function selector.
     /// @return policy The policy blob, or empty bytes if none bound.
     function resolve(Store storage self, address target, bytes4 selector) internal view returns (bytes memory policy) {
-        bytes32 policyHash = self.policyFor[target][selector];
-        if (policyHash == bytes32(0)) policyHash = self.policyFor[address(0)][selector];
-        if (policyHash == bytes32(0)) return policy;
-
-        return SSTORE2.read(self.policyOf[policyHash]);
+        address pointer = _bound(self, target, selector);
+        return pointer == address(0) ? policy : SSTORE2.read(pointer);
     }
 
-    /// @notice Returns the policy hash for a (target, selector) pair without loading the blob.
+    /// @notice Returns the hash of the policy bound to a (target, selector) pair.
     /// @param self The policy store.
     /// @param target The contract address.
     /// @param selector The function selector.
     /// @return The policy hash, or bytes32(0) if none bound.
     function hashFor(Store storage self, address target, bytes4 selector) internal view returns (bytes32) {
-        bytes32 policyHash = self.policyFor[target][selector];
-        return policyHash != bytes32(0) ? policyHash : self.policyFor[address(0)][selector];
+        address pointer = _bound(self, target, selector);
+        return pointer == address(0) ? bytes32(0) : keccak256(SSTORE2.read(pointer));
     }
 
     /// @notice Loads a policy blob by its hash.
@@ -207,5 +195,35 @@ library PolicyRegistry {
     /// @return The pointer address, or address(0) if not found.
     function pointerOf(Store storage self, bytes32 policyHash) internal view returns (address) {
         return self.policyOf[policyHash];
+    }
+
+    /*/////////////////////////////////////////////////////////////////////////
+                                 PRIVATE FUNCTIONS
+    /////////////////////////////////////////////////////////////////////////*/
+
+    /// @dev Binds `pointer` under (target, selector) and returns the hash of the policy bound there before, or zero.
+    function _bind(
+        Store storage self,
+        address target,
+        bytes4 selector,
+        address pointer
+    )
+        private
+        returns (bytes32 previousHash)
+    {
+        address previous = self.policyFor[target][selector];
+        self.policyFor[target][selector] = pointer;
+        if (previous != address(0)) previousHash = keccak256(SSTORE2.read(previous));
+    }
+
+    /// @dev Returns the pointer bound under (target, selector), else under the default target, else zero.
+    function _bound(Store storage self, address target, bytes4 selector) private view returns (address pointer) {
+        pointer = self.policyFor[target][selector];
+        if (pointer == address(0)) pointer = self.policyFor[address(0)][selector];
+    }
+
+    /// @dev Returns the bind selector of a policy blob or its header prefix: its selector, or zero when selectorless.
+    function _selectorOf(bytes memory policy) private pure returns (bytes4) {
+        return Policy.isSelectorless(policy) ? bytes4(0) : Policy.selector(policy);
     }
 }

@@ -8,6 +8,7 @@ const hexBodyPattern = /^[0-9a-fA-F]*$/;
 
 /** Convert a hex string to a byte array, stripping the 0x prefix if present. */
 export function hexToBytes(hex: string): Uint8Array {
+  if (typeof hex !== "string") throw new CallciumError("INVALID_HEX", "Hex value is not a string");
   const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
   if (clean.length % 2 !== 0) {
     throw new CallciumError("INVALID_HEX", "Odd-length hex string");

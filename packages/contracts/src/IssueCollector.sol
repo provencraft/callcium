@@ -8,7 +8,7 @@ import { Issue } from "./ValidationIssue.sol";
 library IssueCollector {
     /// @notice A growable buffer of validation issues.
     struct Buffer {
-        /// Backing storage; its length is a capacity hint, grown as needed.
+        /// Backing storage. Its length is a capacity hint, grown as needed.
         Issue[] items;
         /// Number of issues written.
         uint256 count;
@@ -33,7 +33,7 @@ library IssueCollector {
     }
 
     /// @notice Returns the pushed issues, trimmed to the number written.
-    /// @dev Shrinks the backing array in place; a later push re-grows it.
+    /// @dev Shrinks the backing array in place. A later push re-grows the array.
     /// @param buffer The issue buffer to read.
     /// @return result The pushed issues.
     function toArray(Buffer memory buffer) internal pure returns (Issue[] memory result) {

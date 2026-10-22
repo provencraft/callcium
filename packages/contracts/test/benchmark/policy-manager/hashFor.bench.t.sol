@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-// forge-lint: disable-start(unused-return)
-
 import { PolicyManagerBench } from "../PolicyManager.bench.t.sol";
 
-/// @dev Benchmarks for PolicyManager.hashFor().
+/// @notice Benchmarks for PolicyManager.hashFor().
 contract HashForBench is PolicyManagerBench {
     function setUp() public override {
         super.setUp();
@@ -15,19 +13,19 @@ contract HashForBench is PolicyManagerBench {
 
     function test_TargetBound() public {
         bytes32 hash = harness.hashFor(target, SELECTOR);
-        vm.snapshotGasLastCall("PolicyManager.hashFor", "target_bound");
+        vm.snapshotGasLastFrame("PolicyManager.hashFor", "target_bound");
         assertEq(hash, policyHash);
     }
 
     function test_DefaultFallback() public {
         bytes32 hash = harness.hashFor(UNBOUND_TARGET, SELECTOR);
-        vm.snapshotGasLastCall("PolicyManager.hashFor", "default_fallback");
+        vm.snapshotGasLastFrame("PolicyManager.hashFor", "default_fallback");
         assertEq(hash, policyHash);
     }
 
     function test_None() public {
         bytes32 hash = harness.hashFor(UNBOUND_TARGET, UNBOUND_SELECTOR);
-        vm.snapshotGasLastCall("PolicyManager.hashFor", "none");
+        vm.snapshotGasLastFrame("PolicyManager.hashFor", "none");
         assertEq(hash, bytes32(0));
     }
 }

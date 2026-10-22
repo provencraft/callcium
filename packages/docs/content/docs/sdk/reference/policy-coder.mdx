@@ -5,15 +5,16 @@ description: "Encode and decode binary policies."
 
 ## PolicyCoder
 
-Encode, decode, and inspect policies in the canonical binary format.
+Encode policies in canonical form, and decode and inspect policy blobs.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-coder.ts#L695)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-coder.ts#L1328)
 
 ### Methods
 
 ### encode
 
-Encode a PolicyData structure into the canonical binary format.
+Encode the canonical form of a policy: each group normalized, its rules and the groups sorted by their
+size-free bytes, repeats dropped.
 
 ```ts
 function encode(data: PolicyData): `0x${string}`;
@@ -23,15 +24,15 @@ function encode(data: PolicyData): `0x${string}`;
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `data` | `PolicyData` | The policy data to encode. |
+| `data` | `PolicyData` | The policy. |
 
 **Returns**
 
-`` `0x${string}` `` — The encoded policy as a 0x-prefixed hex string.
+`` `0x${string}` `` — The policy blob as a 0x-prefixed hex string.
 
 ### decode
 
-Decode a binary policy blob into a PolicyData structure.
+Decode a policy blob into the policy it states.
 
 ```ts
 function decode(blob: `0x${string}`): PolicyData;
@@ -41,15 +42,16 @@ function decode(blob: `0x${string}`): PolicyData;
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `blob` | `` `0x${string}` `` | Binary policy as 0x-prefixed hex string. |
+| `blob` | `` `0x${string}` `` | The policy blob. |
 
 **Returns**
 
-`PolicyData` — The decoded policy data with constraints grouped by scope, path, and hint.
+`PolicyData` — The decoded policy, each operand loaded to its 32-byte word.
 
 ### inspect
 
-Inspect a binary policy blob, returning the structural representation with full byte-level spans.
+Inspect a policy blob: every field it stores with the bytes that contain it. The descriptor is a node tree, the hints
+are split into their fields and the operators are parsed.
 
 ```ts
 function inspect(blob: `0x${string}`): DecodedPolicy;
@@ -59,8 +61,8 @@ function inspect(blob: `0x${string}`): DecodedPolicy;
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `blob` | `` `0x${string}` `` | Binary policy as 0x-prefixed hex string. |
+| `blob` | `` `0x${string}` `` | The policy blob. |
 
 **Returns**
 
-`DecodedPolicy` — The inspected policy with per-field spans for every structural element.
+`DecodedPolicy` — The inspected policy, each operand loaded to its 32-byte word.

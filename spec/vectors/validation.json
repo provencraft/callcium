@@ -1,4591 +1,943 @@
 [
   {
-    "id": "clean-eq-uint256",
-    "description": "single eq on uint256, no issues",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000002a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
+    "blob": "0x60b3de648b00030201200100010000003100310101000000000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "EQ on uint256 arg(0)",
+    "id": "clean-eq",
+    "issues": []
   },
   {
-    "id": "clean-between",
-    "description": "between on uint256, no issues",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x060000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
+    "blob": "0x60fc68521a00030201410100010000002500250101000000000000000000411000140000000000000000000000000000000000000001",
+    "description": "BITMASK_ALL on address arg(0)",
+    "id": "clean-bitmask-on-address",
+    "issues": []
   },
   {
-    "id": "clean-context-sender",
-    "description": "context msg.sender eq, no issues",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 0,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000001234"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
+    "blob": "0x600a9a2963000302012101000100000012001201010000000000000000002111000101",
+    "description": "BITMASK_ANY on int8 arg(0)",
+    "id": "clean-bitmask-on-int",
+    "issues": []
   },
   {
-    "id": "clean-multi-group",
-    "description": "two OR groups, both clean",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x050000000000000000000000000000000000000000000000000000000000000064"
-              ]
-            }
-          ]
-        },
-        {
-          "constraints": [
-            {
-              "scope": 0,
-              "path": "0x0000",
-              "operators": [
-                "0x0100000000000000000000000000000000000000000000000000000000000000ab"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
+    "blob": "0x600a9a29630003020121010001000000130013010100000000000000000021060002fb05",
+    "description": "BETWEEN -5 and 5 on int8 arg(0)",
+    "id": "clean-ordering-on-int",
+    "issues": []
   },
   {
-    "id": "value-op-on-dynamic",
-    "description": "eq on bytes",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x60fc68521a00030201410100010000001300130101000000000000000000412100020000",
+    "description": "EQ on address arg(0) against msg.sender",
+    "id": "clean-context-eq-on-address",
+    "issues": []
+  },
+  {
+    "blob": "0x603120d43400030201010100010000001300130101000000000000000000012200020002",
+    "description": "GT on uint8 arg(0) against block.timestamp",
+    "id": "clean-context-gt-on-uint",
+    "issues": []
+  },
+  {
+    "blob": "0x606dbbd475000b020220900020080002207001000100000033003301020001000000000000200000200100200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Tuple declaring a nonzero static word count beside a bytes field reports alone",
+    "id": "invalid-descriptor",
     "issues": [
       {
-        "code": "VALUE_OP_ON_DYNAMIC",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "code": "INVALID_DESCRIPTOR",
+        "location": ""
       }
-    ],
-    "builds": false
+    ]
   },
   {
-    "id": "in-on-bool",
-    "description": "isIn on bool",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020142",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IN_ON_BOOL",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "value-op-on-composite-array",
-    "description": "eq on uint256[1] (32-byte head, composite)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020180001007200001",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VALUE_OP_ON_COMPOSITE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "value-op-on-composite-tuple",
-    "description": "eq on single-field tuple (uint256)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020190001007000120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VALUE_OP_ON_COMPOSITE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "unnavigable-path-arg-out-of-bounds",
-    "description": "eq on an arg index past the descriptor's param count",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0002",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x60d4362978000a0201900020080002202001000100000033003301020000000200000000200000200100200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Path [0, 2] past the last field of a two-field tuple",
+    "id": "unnavigable-path",
     "issues": [
       {
         "code": "UNNAVIGABLE_PATH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "location": "0.0"
       }
-    ],
-    "builds": false
+    ]
   },
   {
-    "id": "unnavigable-path-descends-elementary",
-    "description": "eq on a path that descends into an elementary type",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x00000000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNNAVIGABLE_PATH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "numeric-op-on-address",
-    "description": "gt on address",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020141",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x020000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x60438422dd000b02029000200800022020410100020000005800250101000100000000400000410200140000000000000000000000000000000000000001003301020000000200000000200000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "GT on address arg(1) beside a path past the last tuple field; both report",
+    "id": "unnavigable-path-beside-numeric-op",
     "issues": [
       {
         "code": "NUMERIC_OP_ON_NON_NUMERIC",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bitmask-on-address",
-    "description": "bitmaskAll on address",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020141",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x100000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BITMASK_ON_INVALID",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bitmask-on-int",
-    "description": "bitmaskAll on int8",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020121",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x100000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BITMASK_ON_INVALID",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "length-on-static",
-    "description": "lengthEq on uint256",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "LENGTH_ON_STATIC",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "unknown-operator",
-    "description": "unassigned opcode 0x30 (outside value and length ranges)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x300000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNKNOWN_OPERATOR",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "unassigned-value-range-opcode",
-    "description": "unassigned opcode at the upper edge of the gap is rejected",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0f0000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNKNOWN_OPERATOR",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "eq-neq-contradiction",
-    "description": "eq(5) and neq(5)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000005",
-                "0x810000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "EQ_NEQ_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "conflicting-equality",
-    "description": "eq(5) and eq(7)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000005",
-                "0x010000000000000000000000000000000000000000000000000000000000000007"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "CONFLICTING_EQUALITY",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "out-of-physical-bounds",
-    "description": "eq(256) on uint8",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000100"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "OUT_OF_PHYSICAL_BOUNDS",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "out-of-physical-bounds-in-member",
-    "description": "isIn(5, 1000) on uint8",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000003e8"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "OUT_OF_PHYSICAL_BOUNDS",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "out-of-physical-bounds-neq",
-    "description": "neq(300) on uint8",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x81000000000000000000000000000000000000000000000000000000000000012c"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "OUT_OF_PHYSICAL_BOUNDS",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "out-of-physical-bounds-not-in-member",
-    "description": "notIn(5, 1000) on uint8",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x87000000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000003e8"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "OUT_OF_PHYSICAL_BOUNDS",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "impossible-gt",
-    "description": "gt(255) on uint8",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0200000000000000000000000000000000000000000000000000000000000000ff"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_GT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "impossible-lt",
-    "description": "lt(0) on uint256",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x030000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_LT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bounds-exclude-equality",
-    "description": "eq(10) then gte(20)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000000a",
-                "0x040000000000000000000000000000000000000000000000000000000000000014"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BOUNDS_EXCLUDE_EQUALITY",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "impossible-range",
-    "description": "gte(20) then lte(10)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000014",
-                "0x05000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_RANGE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "impossible-range-between",
-    "description": "between(20,10)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x060000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_RANGE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "negated-between-satisfiable",
-    "description": "notBetween(5,10) is a satisfiable disjunction, no issues",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x860000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "set-excludes-equality",
-    "description": "eq(5) then isIn(1,2,3)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000005",
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "SET_EXCLUDES_EQUALITY",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "empty-set-intersection",
-    "description": "isIn(1,2) then isIn(3,4)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
-                "0x0700000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000004"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "EMPTY_SET_INTERSECTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "location": "0.0"
       },
       {
-        "code": "SET_FULLY_EXCLUDED",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "code": "UNNAVIGABLE_PATH",
+        "location": "0.1"
       }
-    ],
-    "builds": false
+    ]
   },
   {
-    "id": "set-fully-excluded",
-    "description": "isIn(1,2) then notIn(1,2)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
-                "0x8700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_FULLY_EXCLUDED",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "set-fully-excluded-large-exclusion-set",
-    "description": "isIn(1..9) + notIn(1..9), every member excluded",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000009",
-                "0x87000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000700000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000009"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_FULLY_EXCLUDED",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "unsorted-in-set",
-    "description": "isIn payload descending",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNSORTED_IN_SET",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "duplicate-in-set",
-    "description": "isIn payload with duplicate",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNSORTED_IN_SET",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "empty-group",
-    "description": "second group has zero constraints",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        },
-        {
-          "constraints": []
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "EMPTY_GROUP",
-        "severity": "error",
-        "groupIndex": 1,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "conflicting-length",
-    "description": "lengthEq(4) and lengthEq(8)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004",
-                "0x200000000000000000000000000000000000000000000000000000000000000008"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "CONFLICTING_LENGTH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bounds-exclude-length",
-    "description": "lengthEq(4) then lengthGte(8)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004",
-                "0x230000000000000000000000000000000000000000000000000000000000000008"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BOUNDS_EXCLUDE_LENGTH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "impossible-length-range",
-    "description": "lengthGte(8) then lengthLte(4)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x230000000000000000000000000000000000000000000000000000000000000008",
-                "0x240000000000000000000000000000000000000000000000000000000000000004"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_LENGTH_RANGE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "negated-length-between-satisfiable",
-    "description": "negated lengthBetween(5,10) is a satisfiable disjunction, no issues",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0xa50000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "out-of-physical-length-bounds",
-    "description": "lengthEq(2^32)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000100000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "OUT_OF_PHYSICAL_LENGTH_BOUNDS",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "out-of-physical-length-bounds-neq",
-    "description": "negated lengthEq(2^32)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0xa00000000000000000000000000000000000000000000000000000000100000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "OUT_OF_PHYSICAL_LENGTH_BOUNDS",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "impossible-length-gt",
-    "description": "lengthGt(uint32.max)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x2100000000000000000000000000000000000000000000000000000000ffffffff"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_LENGTH_GT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "impossible-length-lt",
-    "description": "lengthLt(0)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x220000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_LENGTH_LT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "length-eq-neq-contradiction",
-    "description": "lengthEq(4) and negated lengthEq(4)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004",
-                "0xa00000000000000000000000000000000000000000000000000000000000000004"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "LENGTH_EQ_NEQ_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bitmask-contradiction",
-    "description": "bitmaskAll(1) and bitmaskNone(1)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x100000000000000000000000000000000000000000000000000000000000000001",
-                "0x120000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BITMASK_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bitmask-any-impossible",
-    "description": "bitmaskNone(3) then bitmaskAny(3)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x120000000000000000000000000000000000000000000000000000000000000003",
-                "0x110000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BITMASK_ANY_IMPOSSIBLE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "redundant-bitmask",
-    "description": "bitmaskAll(3) then bitmaskAll(1)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x100000000000000000000000000000000000000000000000000000000000000003",
-                "0x100000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BITMASK",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "dominated-bound-gte",
-    "description": "gte(5) then weaker gte(3)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000005",
-                "0x040000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "dominated-bound-lte",
-    "description": "lte(5) then weaker lte(10)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x050000000000000000000000000000000000000000000000000000000000000005",
-                "0x05000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "redundant-bound",
-    "description": "eq(10) then satisfied gte(5)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000000a",
-                "0x040000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "set-reduction",
-    "description": "isIn(1,2,3) then notIn(2)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
-                "0x870000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "SET_REDUCTION",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "SET_PARTIALLY_EXCLUDED",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "set-redundancy",
-    "description": "isIn(1,2,3) then overlapping isIn(2,3,4)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
-                "0x07000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000004"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "SET_REDUNDANCY",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "set-partially-excluded",
-    "description": "isIn(1,2,3) then neq(2)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
-                "0x810000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "SET_PARTIALLY_EXCLUDED",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "dominated-length-bound",
-    "description": "lengthGte(5) then weaker lengthGte(3)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x230000000000000000000000000000000000000000000000000000000000000005",
-                "0x230000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DOMINATED_LENGTH_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "redundant-length-bound",
-    "description": "lengthEq(4) then satisfied lengthGte(2)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004",
-                "0x230000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_LENGTH_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "duplicate-constraint",
-    "description": "byte-identical eq(5) twice",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000005",
-                "0x010000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DUPLICATE_CONSTRAINT",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "duplicate-constraint-triple",
-    "description": "byte-identical eq(5) three times reports one duplicate",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000005",
-                "0x010000000000000000000000000000000000000000000000000000000000000005",
-                "0x010000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DUPLICATE_CONSTRAINT",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "vacuous-gte",
-    "description": "gte(0) on uint256",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VACUOUS_GTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "vacuous-lte",
-    "description": "lte(255) on uint8",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0500000000000000000000000000000000000000000000000000000000000000ff"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VACUOUS_LTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "vacuous-negated-range",
-    "description": "negated between(100, 10): inverted bounds exclude nothing",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x860000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VACUOUS_NEGATED_RANGE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "vacuous-gte-int8",
-    "description": "gte(-128) on int8 (signed edge)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020121",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x04ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff80"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VACUOUS_GTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "vacuous-length-gte",
-    "description": "lengthGte(0) on bytes",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x230000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VACUOUS_LENGTH_GTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "vacuous-length-lte",
-    "description": "lengthLte(uint32.max) on bytes",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x2400000000000000000000000000000000000000000000000000000000ffffffff"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VACUOUS_LENGTH_LTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "vacuous-lte-uint256",
-    "description": "lte(uint256.max)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x05ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VACUOUS_LTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "multi-issue-cross-group",
-    "description": "dominated bound in group 0, eq/neq in group 1",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000005",
-                "0x040000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            }
-          ]
-        },
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000007",
-                "0x810000000000000000000000000000000000000000000000000000000000000007"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "EQ_NEQ_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 1,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "eq-neq-contradiction-many-holes",
-    "description": "9 neq holes then eq of an excluded value: contradiction detected",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x810000000000000000000000000000000000000000000000000000000000000001",
-                "0x810000000000000000000000000000000000000000000000000000000000000002",
-                "0x810000000000000000000000000000000000000000000000000000000000000003",
-                "0x810000000000000000000000000000000000000000000000000000000000000004",
-                "0x810000000000000000000000000000000000000000000000000000000000000005",
-                "0x810000000000000000000000000000000000000000000000000000000000000006",
-                "0x810000000000000000000000000000000000000000000000000000000000000007",
-                "0x810000000000000000000000000000000000000000000000000000000000000008",
-                "0x810000000000000000000000000000000000000000000000000000000000000009",
-                "0x010000000000000000000000000000000000000000000000000000000000000009"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "EQ_NEQ_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "path-depth-exceeded",
-    "description": "33-step path exceeds the reference enforcer depth cap of 32",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x0201810000818100007d8100007981000075810000718100006d8100006981000065810000618100005d8100005981000055810000518100004d8100004981000045810000418100003d8100003981000035810000318100002d8100002981000025810000218100001d8100001981000015810000118100000d810000098100000520",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "PATH_DEPTH_EXCEEDED",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "quantifier-over-static-limit",
-    "description": "quantifier over uint256[300] exceeds the 256 iteration cap",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x02018012c00720012c",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000fffe",
-              "operators": [
-                "0x05000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "QUANTIFIER_OVER_STATIC_LIMIT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "nested-quantifier",
-    "description": "path applying two quantifiers is rejected",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x0201810000098100000520",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000ffffffff",
-              "operators": [
-                "0x05000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "NESTED_QUANTIFIER",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "quantifier-within-static-limit",
-    "description": "quantifier over uint256[3] is clean",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020180003007200003",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000fffe",
-              "operators": [
-                "0x05000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "unknown-context-property",
-    "description": "context property ID 0x0099 is unassigned",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 0,
-              "path": "0x0099",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNKNOWN_CONTEXT_PROPERTY",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "context-all-properties",
-    "description": "every defined context property is recognized and typed: eq on address props, gte on uint256 props",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 0,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000001234"
-              ]
-            },
-            {
-              "scope": 0,
-              "path": "0x0001",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            },
-            {
-              "scope": 0,
-              "path": "0x0002",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            },
-            {
-              "scope": 0,
-              "path": "0x0003",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            },
-            {
-              "scope": 0,
-              "path": "0x0004",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            },
-            {
-              "scope": 0,
-              "path": "0x0005",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000001234"
-              ]
-            },
-            {
-              "scope": 0,
-              "path": "0x0006",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            },
-            {
-              "scope": 0,
-              "path": "0x0007",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "negation-under-any",
-    "description": "neq under any() is satisfied by a decoy element",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x02018100000520",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000fffe",
-              "operators": [
-                "0x810000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "NEGATION_UNDER_ANY",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "negation-under-all",
-    "description": "neq under all() is the correct blocklist encoding",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x02018100000520",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000ffff",
-              "operators": [
-                "0x810000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "canonical-bytes4-eq",
-    "description": "eq on bytes4 with left-aligned operand, no issues",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020153",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x011122334400000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "non-canonical-bytes4-eq",
-    "description": "eq on bytes4 with right-aligned operand can never match",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020153",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000011223344"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "NON_CANONICAL_OPERAND",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "non-canonical-bytes4-in-member",
-    "description": "isIn on bytes4 with one right-aligned member",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020153",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0700000000000000000000000000000000000000000000000000000000112233441122334400000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "NON_CANONICAL_OPERAND",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "unassigned-opcode",
-    "description": "operator byte in the unassigned opcode gap is rejected",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0d0000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNKNOWN_OPERATOR",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "mismatched-payload-size",
-    "description": "eq with a two-word payload is rejected",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNKNOWN_OPERATOR",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "fusible-range",
-    "description": "gte(10) and lte(100) fuse into between",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x04000000000000000000000000000000000000000000000000000000000000000a",
-                "0x050000000000000000000000000000000000000000000000000000000000000064"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "FUSIBLE_RANGE",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "fusible-length-range",
-    "description": "lengthGte(2) and lengthLte(8) fuse into lengthBetween",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x230000000000000000000000000000000000000000000000000000000000000002",
-                "0x240000000000000000000000000000000000000000000000000000000000000008"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "FUSIBLE_LENGTH_RANGE",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "negated-lower-bound-no-fusible",
-    "description": "negated gte with lte does not fuse",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x84000000000000000000000000000000000000000000000000000000000000000a",
-                "0x050000000000000000000000000000000000000000000000000000000000000064"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "hint-matches-path",
-    "description": "hint equal to the compiled path is accepted",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000002a"
-              ],
-              "hint": "0x0000000000000020"
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "hint-diverges-from-path",
-    "description": "hint addressing a different offset than the compiled path",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000002a"
-              ],
-              "hint": "0x0000000020000020"
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "severity": "error",
-        "code": "HINT_MISMATCH",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "hint-spurious-hop",
-    "description": "hint carrying a hop the compiled path does not take",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000002a"
-              ],
-              "hint": "0x0100000000ffff000000000000000020"
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "severity": "error",
-        "code": "HINT_MISMATCH",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "negated-gte-normalizes-to-lt",
-    "description": "not(gte(0)) becomes lt(0), impossible at the domain floor",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x840000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_LT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "negated-lt-normalizes-to-gte",
-    "description": "not(lt(0)) becomes gte(0), vacuous at the domain floor",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x830000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VACUOUS_GTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "negated-lte-normalizes-to-gt",
-    "description": "not(lte(max)) becomes gt(max), impossible at the domain ceiling",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x85ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_GT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "dominated-lower-bound-under-equality",
-    "description": "eq(10) then gte(5) then weaker gte(3)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000000a",
-                "0x040000000000000000000000000000000000000000000000000000000000000005",
-                "0x040000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "exclusive-lower-tightens-inclusive",
-    "description": "eq(10) then gte(5) then gt(5) at the same value",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000000a",
-                "0x040000000000000000000000000000000000000000000000000000000000000005",
-                "0x020000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "inclusive-lower-repeats-inclusive",
-    "description": "eq(50) then between(5,100) then gte(5) at the same value",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000032",
-                "0x0600000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000064",
-                "0x040000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "exclusive-lower-repeats-exclusive",
-    "description": "gt(5) then not(lte(5)) at the same value",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x020000000000000000000000000000000000000000000000000000000000000005",
-                "0x850000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "dominated-upper-bound-under-equality",
-    "description": "eq(50) then lte(100) then weaker lte(200)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000032",
-                "0x050000000000000000000000000000000000000000000000000000000000000064",
-                "0x0500000000000000000000000000000000000000000000000000000000000000c8"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "exclusive-upper-tightens-inclusive",
-    "description": "eq(50) then lte(100) then lt(100) at the same value",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000032",
-                "0x050000000000000000000000000000000000000000000000000000000000000064",
-                "0x030000000000000000000000000000000000000000000000000000000000000064"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "inclusive-upper-repeats-inclusive",
-    "description": "eq(50) then between(5,100) then lte(100) at the same value",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000032",
-                "0x0600000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000064",
-                "0x050000000000000000000000000000000000000000000000000000000000000064"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "inclusive-upper-after-exclusive",
-    "description": "eq(50) then lt(100) then looser lte(100), silently ignored",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000032",
-                "0x030000000000000000000000000000000000000000000000000000000000000064",
-                "0x050000000000000000000000000000000000000000000000000000000000000064"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "exclusive-upper-repeats-exclusive",
-    "description": "lt(100) then not(gte(100)) at the same value",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x030000000000000000000000000000000000000000000000000000000000000064",
-                "0x840000000000000000000000000000000000000000000000000000000000000064"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "equality-excluded-by-exclusive-upper",
-    "description": "lt(50) then eq(50), excluded by the open bound",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x030000000000000000000000000000000000000000000000000000000000000032",
-                "0x010000000000000000000000000000000000000000000000000000000000000032"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BOUNDS_EXCLUDE_EQUALITY",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "impossible-range-then-dominated-lower",
-    "description": "gte(100) and lt(50) then a weaker gte(50)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000064",
-                "0x030000000000000000000000000000000000000000000000000000000000000032",
-                "0x040000000000000000000000000000000000000000000000000000000000000032"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "IMPOSSIBLE_RANGE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "equality-zero-after-upper-bound",
-    "description": "lte(100) then eq(0)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x050000000000000000000000000000000000000000000000000000000000000064",
-                "0x010000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "repeated-equality-under-lower-bound",
-    "description": "gte(5) then eq(50) twice",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000005",
-                "0x010000000000000000000000000000000000000000000000000000000000000032",
-                "0x010000000000000000000000000000000000000000000000000000000000000032"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "DUPLICATE_CONSTRAINT",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "repeated-exclusion-of-set-member",
-    "description": "isIn(1,2,3) then neq(2) twice",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
-                "0x810000000000000000000000000000000000000000000000000000000000000002",
-                "0x810000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "SET_PARTIALLY_EXCLUDED",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "DUPLICATE_CONSTRAINT",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "equality-after-set-exclusion",
-    "description": "isIn(1,2,3) then neq(2) then eq(1), which adds no hole",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
-                "0x810000000000000000000000000000000000000000000000000000000000000002",
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "SET_PARTIALLY_EXCLUDED",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "set-contains-equality",
-    "description": "eq(2) then isIn(1,2,3), which admits the pinned value",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000002",
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "identical-sets-intersect-fully",
-    "description": "isIn(1,2) twice, intersecting to the same set",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
-                "0x0700000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "DUPLICATE_CONSTRAINT",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "negated-bitmask-is-not-analyzed",
-    "description": "bitmaskAll(1) then not(bitmaskAll(1))",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x100000000000000000000000000000000000000000000000000000000000000001",
-                "0x900000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "bitmask-all-contradicts-earlier-none",
-    "description": "bitmaskNone(1) then bitmaskAll(1)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x120000000000000000000000000000000000000000000000000000000000000001",
-                "0x100000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BITMASK_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bitmask-any-redundant-under-all",
-    "description": "bitmaskAll(1) then bitmaskAny(1)",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x100000000000000000000000000000000000000000000000000000000000000001",
-                "0x110000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BITMASK",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bitmask-all-above-width",
-    "description": "bitmaskAll(256) on uint8, bit above the width",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x100000000000000000000000000000000000000000000000000000000000000100"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BITMASK_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bitmask-any-above-width",
-    "description": "bitmaskAny(256) on uint8, every bit above the width",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x110000000000000000000000000000000000000000000000000000000000000100"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "BITMASK_ANY_IMPOSSIBLE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bitmask-none-above-width",
-    "description": "bitmaskNone(256) on uint8, every bit above the width",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x120000000000000000000000000000000000000000000000000000000000000100"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "REDUNDANT_BITMASK",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "bitmask-all-high-bit-bytes32",
-    "description": "bitmaskAll(1 << 255) on bytes32, no issues",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x02016f",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x108000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "context-path-resembling-quantifier",
-    "description": "context property ID equal to the any() step, with a negated operator",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 0,
-              "path": "0xfffe",
-              "operators": [
-                "0x810000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNKNOWN_CONTEXT_PROPERTY",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "malformed-lower-bound-blocks-fusible",
-    "description": "a gte with a two-word payload alongside a lone gte/lte pair",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                "0x04000000000000000000000000000000000000000000000000000000000000000a",
-                "0x050000000000000000000000000000000000000000000000000000000000000064"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "UNKNOWN_OPERATOR",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      },
-      {
-        "code": "FUSIBLE_RANGE",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "vacuous-negated-length-range",
-    "description": "not(lengthBetween(100, 10)) on bytes: inverted bounds exclude nothing",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020170",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0xa50000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [
-      {
-        "code": "VACUOUS_NEGATED_LENGTH_RANGE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 0
-      }
-    ],
-    "builds": false
-  },
-  {
-    "id": "quantifier-on-non-array",
-    "description": "ANY quantifier applied to a uint256: quantifiers follow array nodes only",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000fffe",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000002a"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x60bfda4ee20008020220810000052001000100000049004902010100020100000020ffff000000000000000040010001002f010000000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "ALL loop over arg(2), past the parameter count",
+    "id": "unnavigable-loop-path",
     "issues": [
       {
         "code": "UNNAVIGABLE_PATH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "location": "0.0"
       }
-    ],
-    "builds": false
+    ]
   },
   {
-    "id": "issue-index-provenance",
-    "description": "mechanical index fixture: one inert context constraint, then every issue on its own later constraint, so each issue is reported at a constraint index that differs from its group index",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x0227202020202020202020202020202020707070707070707070707070707020202020202020010101",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 0,
-              "path": "0x0000",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000001234"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000002a"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0001",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000005",
-                "0x040000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0002",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000000a",
-                "0x040000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0003",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000014",
-                "0x05000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0004",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000005",
-                "0x810000000000000000000000000000000000000000000000000000000000000005"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0005",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000005",
-                "0x010000000000000000000000000000000000000000000000000000000000000007"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0006",
-              "operators": [
-                "0x01000000000000000000000000000000000000000000000000000000000000000a",
-                "0x040000000000000000000000000000000000000000000000000000000000000014"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0007",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0008",
-              "operators": [
-                "0x100000000000000000000000000000000000000000000000000000000000000001",
-                "0x120000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0009",
-              "operators": [
-                "0x860000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x000a",
-              "operators": [
-                "0x04000000000000000000000000000000000000000000000000000000000000000a",
-                "0x050000000000000000000000000000000000000000000000000000000000000064"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x000b",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000005",
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x000c",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
-                "0x07000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000004"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x000d",
-              "operators": [
-                "0x120000000000000000000000000000000000000000000000000000000000000003",
-                "0x110000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x000e",
-              "operators": [
-                "0x100000000000000000000000000000000000000000000000000000000000000003",
-                "0x100000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x000f",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004",
-                "0x230000000000000000000000000000000000000000000000000000000000000008"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0010",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004",
-                "0x200000000000000000000000000000000000000000000000000000000000000008"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0011",
-              "operators": [
-                "0x230000000000000000000000000000000000000000000000000000000000000005",
-                "0x230000000000000000000000000000000000000000000000000000000000000003"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0012",
-              "operators": [
-                "0x230000000000000000000000000000000000000000000000000000000000000002",
-                "0x240000000000000000000000000000000000000000000000000000000000000008"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0013",
-              "operators": [
-                "0x2100000000000000000000000000000000000000000000000000000000ffffffff"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0014",
-              "operators": [
-                "0x220000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0015",
-              "operators": [
-                "0x230000000000000000000000000000000000000000000000000000000000000008",
-                "0x240000000000000000000000000000000000000000000000000000000000000004"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0016",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004",
-                "0xa00000000000000000000000000000000000000000000000000000000000000004"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0017",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000100000000"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0018",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004",
-                "0x230000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0019",
-              "operators": [
-                "0x230000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x001a",
-              "operators": [
-                "0x2400000000000000000000000000000000000000000000000000000000ffffffff"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x001b",
-              "operators": [
-                "0xa50000000000000000000000000000000000000000000000000000000000000064000000000000000000000000000000000000000000000000000000000000000a"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x001c",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x001d",
-              "operators": [
-                "0x85ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x001e",
-              "operators": [
-                "0x030000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x001f",
-              "operators": [
-                "0x200000000000000000000000000000000000000000000000000000000000000004"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0020",
-              "operators": [
-                "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
-                "0x810000000000000000000000000000000000000000000000000000000000000002"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0021",
-              "operators": [
-                "0x300000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0022",
-              "operators": [
-                "0x040000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0023",
-              "operators": [
-                "0x05ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0024",
-              "operators": [
-                "0x0200000000000000000000000000000000000000000000000000000000000000ff"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0025",
-              "operators": [
-                "0x010000000000000000000000000000000000000000000000000000000000000100"
-              ]
-            },
-            {
-              "scope": 1,
-              "path": "0x0026",
-              "operators": [
-                "0x0500000000000000000000000000000000000000000000000000000000000000ff"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x60bfda4ee20008020220810000052001000100000049004902010100000100000020ffff000000000000000040010001002f010000000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "ALL loop over arg(0), a uint256",
+    "id": "quantifier-on-non-array",
+    "issues": [
+      {
+        "code": "QUANTIFIER_ON_NON_ARRAY",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x6004bc52f8000402022020010001000000310031010100000000000020000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Path [0] with the hint of arg(1)",
+    "id": "hint-mismatch",
+    "issues": [
+      {
+        "code": "HINT_MISMATCH",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60a7d2e4a7000e02018100000c90002008000220200100010000004b004b02010100000100000000ffff00000000000000004002000100310101000100000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "Body path [1] with the hint of [0] in an ALL loop over (uint256,uint256)[]",
+    "id": "body-hint-mismatch",
+    "issues": [
+      {
+        "code": "HINT_MISMATCH",
+        "location": "0.0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60d20da525000c02028100000520810000052001000100000049004902010100010100000000ffff000000000000000040010001002f010000000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "ALL loop over arg(1) with the frame hint of arg(0)",
+    "id": "frame-hint-mismatch",
+    "issues": [
+      {
+        "code": "HINT_MISMATCH",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60b3de648b00030201010100010000003100310101000000000000000000200100200000000000000000000000000000000000000000000000000000000000000100",
+    "description": "EQ 256 on arg(0) whose hint names uint256 where the descriptor declares uint8",
+    "id": "hint-type-mismatch",
+    "issues": [
+      {
+        "code": "HINT_MISMATCH",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60fc68521a00030201410100010000002500250101000000000000000000410200140000000000000000000000000000000000000001",
+    "description": "GT on address arg(0)",
+    "id": "numeric-op-on-address",
+    "issues": [
+      {
+        "code": "NUMERIC_OP_ON_NON_NUMERIC",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60d7da973a000302016f01000100000031003101010000000000000000006f0300200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "LT on bytes32 arg(0)",
+    "id": "numeric-op-on-bytes32",
+    "issues": [
+      {
+        "code": "NUMERIC_OP_ON_NON_NUMERIC",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x604721d17300050203414141010003000000830025010100000000000000000041040014000000000000000000000000000000000000000100250101000100000000200000410500140000000000000000000000000000000000000001003901010002000000004000004106002800000000000000000000000000000000000000010000000000000000000000000000000000000002",
+    "description": "GTE, LTE and BETWEEN on three address arguments",
+    "id": "ordering-ops-on-address",
+    "issues": [
+      {
+        "code": "NUMERIC_OP_ON_NON_NUMERIC",
+        "location": "0.0"
+      },
+      {
+        "code": "NUMERIC_OP_ON_NON_NUMERIC",
+        "location": "0.1"
+      },
+      {
+        "code": "NUMERIC_OP_ON_NON_NUMERIC",
+        "location": "0.2"
+      }
+    ]
+  },
+  {
+    "blob": "0x6098c3a6c1000302014201000100000012001201010000000000000000004211000101",
+    "description": "BITMASK_ANY on bool arg(0)",
+    "id": "bitmask-any-on-bool",
+    "issues": [
+      {
+        "code": "BITMASK_ON_INVALID",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x6098c3a6c100030201420100010000001300130101000000000000000000420700020001",
+    "description": "IN {false, true} on bool arg(0)",
+    "id": "in-on-bool",
+    "issues": [
+      {
+        "code": "IN_ON_BOOL",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x6045557578000302014201000100000012001201010000000000000000004210000101",
+    "description": "BITMASK_ALL on bool arg(0)",
+    "id": "bitmask-on-bool",
+    "issues": [
+      {
+        "code": "BITMASK_ON_INVALID",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60d6cd49740003020143010001000000290029010100000000000000000043120018ffffffffffffffffffffffffffffffffffffffffffffffff",
+    "description": "BITMASK_NONE on function arg(0)",
+    "id": "bitmask-on-function",
+    "issues": [
+      {
+        "code": "BITMASK_ON_INVALID",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x602fbebd3800030201200100010000001300130101000000000000000000202100020000",
+    "description": "EQ on uint256 arg(0) against msg.sender, an address",
+    "id": "context-operand-mispaired",
+    "issues": [
+      {
+        "code": "CONTEXT_TYPE_MISMATCH",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x601c008df900030201400100010000001300130101000000000000000000402100020001",
+    "description": "EQ on int256 arg(0) against msg.value",
+    "id": "context-operand-on-signed",
+    "issues": [
+      {
+        "code": "CONTEXT_TYPE_MISMATCH",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60fc68521a00030201410100010000001300130101000000000000000000412200020000",
+    "description": "GT on address arg(0) against msg.sender",
+    "id": "context-ordering-on-address",
+    "issues": [
+      {
+        "code": "CONTEXT_TYPE_MISMATCH",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x6026121ff0000202000100010000000b000b000100002100020001",
+    "description": "msg.value EQ msg.sender, the lower ID as subject",
+    "id": "context-subject-mispaired",
+    "issues": [
+      {
+        "code": "CONTEXT_TYPE_MISMATCH",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x6100000000000202000100010000001d001d000100000200140000000000000000000000000000000000000001",
+    "description": "GT on msg.sender, an address",
+    "id": "numeric-op-on-address-property",
+    "issues": [
+      {
+        "code": "NUMERIC_OP_ON_NON_NUMERIC",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x6045557578000302014201000100000012001201010000000000000000004201000102",
+    "description": "EQ on bool arg(0) with the operand byte 2",
+    "id": "bool-operand-two",
+    "issues": [
+      {
+        "code": "OUT_OF_PHYSICAL_BOUNDS",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x605d7d6025000902018010100720010101000100000041004102010100000000000000010100010001002f010000000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "ALL loop over a static array one longer than MAX_QUANTIFIED_ARRAY_LENGTH",
+    "id": "quantifier-over-static-limit",
+    "issues": [
+      {
+        "code": "QUANTIFIER_OVER_STATIC_LIMIT",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x6051d82cb6000902018010000720010001000100000041004102010100000000000000010000010001002f010000000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "ALL loop over a static array of MAX_QUANTIFIED_ARRAY_LENGTH elements",
+    "id": "quantifier-at-static-limit",
+    "issues": []
+  },
+  {
+    "blob": "0x610000000000070201810000052001000100000043004302010100000100000000ffff0000000000000000400100010029000100010100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "ALL loop over arg(0) whose body tests msg.value alone",
+    "id": "context-only-all-body",
+    "issues": [
+      {
+        "code": "CONTEXT_ONLY_BODY",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x610000000000070201810000052001000100000043004302020100000100000000ffff0000000000000000400100010029000100010100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "ANY loop over arg(0) whose body tests msg.value alone",
+    "id": "context-only-any-body",
+    "issues": [
+      {
+        "code": "CONTEXT_ONLY_BODY",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x6100000000000e02018100000c900020080002202001000100000074007402010100000100000000ffff000000000000000040020002002900010001010020000000000000000000000000000000000000000000000000000000000000000100310101000200000000200000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "ALL body of msg.value and a path past the last tuple field reports the path alone",
+    "id": "context-only-body-after-drop",
+    "issues": [
+      {
+        "code": "UNNAVIGABLE_PATH",
+        "location": "0.0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x6100000000000e02018100000c90002008000220200200020000009d0029000100010100200000000000000000000000000000000000000000000000000000000000000001007402010100000100000000ffff000000000000000040020002002900010001010020000000000000000000000000000000000000000000000000000000000000000100310101000200000000200000200100200000000000000000000000000000000000000000000000000000000000000001000100000043004302010100000100000000ffff0000000000000000400200010029000100010100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "A body test lost in the first group leaves a context-only loop over the same array in the second group reported",
+    "id": "context-only-body-other-group",
+    "issues": [
+      {
+        "code": "UNNAVIGABLE_PATH",
+        "location": "0.1.1"
+      },
+      {
+        "code": "CONTEXT_ONLY_BODY",
+        "location": "1.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x61000000000007020181000005200100020000008c004302010100000100000000ffff0000000000000000400100010029000100010100200000000000000000000000000000000000000000000000000000000000000001004902010100000100000000ffff000000000000000040010001002f010000000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "Two ALL loops over arg(0), one testing msg.value alone, join into a body that tests the element",
+    "id": "context-only-body-joined",
+    "issues": []
+  },
+  {
+    "blob": "0x603120d434000302010101000200000024001201010000000000000000000103000180001201010000000000000000000110000180",
+    "description": "BITMASK_ALL 0x80 beside LT 0x80 on uint8",
+    "id": "mask-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100030000003600120101000000000000000000010300010800120101000000000000000000011100010f001201010000000000000000000112000107",
+    "description": "BITMASK_ANY 0x0f, BITMASK_NONE 0x07 and LT 8 on uint8",
+    "id": "clause-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.2"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100060000006c001201010000000000000000000111000103001201010000000000000000000111000105001201010000000000000000000111000106001201010000000000000000000190000103001201010000000000000000000190000105001201010000000000000000000190000106",
+    "description": "BITMASK_ANY and NOT BITMASK_ALL of each pair of three bits on uint8",
+    "id": "mask-search-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.5"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d434000302010101000200000024001201010000000000000000000104000103001201010000000000000000000110000103",
+    "description": "GTE 3 beside BITMASK_ALL 0x03 on uint8",
+    "id": "bound-implied-by-mask",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d4340003020101010002000000240012010100000000000000000001020001000012010100000000000000000001110001ff",
+    "description": "GT 0 and BITMASK_ANY 0xff on uint8 imply each other",
+    "id": "mutually-implied",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      },
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x600a9a29630003020121010002000000240012010100000000000000000021020001ff001201010000000000000000002110000180",
+    "description": "GT -1 beside BITMASK_ALL 0x80 on int8",
+    "id": "signed-mask-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x600a9a2963000302012101000200000024001201010000000000000000002103000100001201010000000000000000002190000180",
+    "description": "NOT BITMASK_ALL 0x80 beside LT 0 on int8",
+    "id": "signed-clause-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x600a9a29630003020121010002000000250013010100000000000000000021060002ff01001201010000000000000000002181000100",
+    "description": "BETWEEN -1 and 1 beside NOT EQ 0 on int8",
+    "id": "signed-range",
+    "issues": []
+  },
+  {
+    "blob": "0x603120d4340003020101010001000000120012010100000000000000000001020001ff",
+    "description": "GT 255 on uint8",
+    "id": "gt-type-maximum",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60b3de648b0003020120010001000000310031010100000000000000000020020020ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "description": "GT 2^256 - 1 on uint256",
+    "id": "gt-word-maximum",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100010000001300130101000000000000000000010600020503",
+    "description": "BETWEEN 5 and 3 on uint8",
+    "id": "empty-range",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60b3de648b00030201200100010000005100510101000000000000000000208600400000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "description": "NOT BETWEEN 0 and 2^256 - 1 on uint256",
+    "id": "negated-full-range",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d434000302010101000200000025001201010000000000000000000112000101001301010000000000000000000186000200fe",
+    "description": "NOT BETWEEN 0 and 254 beside BITMASK_NONE 0x01 on uint8",
+    "id": "hole-and-mask-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d4340003020101010002000000250012010100000000000000000001040001fe0013010100000000000000000001870002feff",
+    "description": "GTE 254 beside NOT IN {254, 255} on uint8",
+    "id": "excluded-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100020000002800140101000000000000000000010700030102030014010100000000000000000001870003010203",
+    "description": "IN {1, 2, 3} beside NOT IN {1, 2, 3} on uint8",
+    "id": "set-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100020000002500120101000000000000000000010300010500130101000000000000000000010700020102",
+    "description": "LT 5 beside IN {1, 2} on uint8",
+    "id": "bound-implied-by-set",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d4340003020101010002000000250012010100000000000000000001030001050013010100000000000000000001060002010a",
+    "description": "BETWEEN 1 and 10 beside LT 5 on uint8",
+    "id": "dominated-bound",
     "issues": [
       {
         "code": "DOMINATED_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 2
-      },
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x600a9a29630003020121010002000000250012010100000000000000000021020001fd0013010100000000000000000021060002f60a",
+    "description": "BETWEEN -10 and 10 beside GT -3 on int8",
+    "id": "signed-dominated-bound",
+    "issues": [
       {
-        "code": "REDUNDANT_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 3
-      },
+        "code": "DOMINATED_BOUND",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x601c008df900030201400100020000008200310101000000000000000000400200208000000000000000000000000000000000000000000000000000000000000000005101010000000000000000004006004080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "description": "BETWEEN -2^255 and 0 beside GT -2^255 on int256",
+    "id": "int256-dominated-bound",
+    "issues": [
       {
-        "code": "IMPOSSIBLE_RANGE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 4
-      },
+        "code": "DOMINATED_BOUND",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d4340003020101010003000000370012010100000000000000000001040001030013010100000000000000000001060002010a001201010000000000000000000110000103",
+    "description": "GTE 3 beside BETWEEN 1 and 10 and BITMASK_ALL 0x03 on uint8, the GTE implied by the mask",
+    "id": "redundant-bound-dominates-nothing",
+    "issues": [
       {
-        "code": "EQ_NEQ_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 5
-      },
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100020000002500120101000000000000000000010500010a0013010100000000000000000001060002010a",
+    "description": "BETWEEN 1 and 10 beside LTE 10 on uint8",
+    "id": "tied-bound",
+    "issues": [
       {
-        "code": "CONFLICTING_EQUALITY",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 6
-      },
-      {
-        "code": "BOUNDS_EXCLUDE_EQUALITY",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 7
-      },
-      {
-        "code": "UNSORTED_IN_SET",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 8
-      },
-      {
-        "code": "BITMASK_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 9
-      },
-      {
-        "code": "VACUOUS_NEGATED_RANGE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 10
-      },
-      {
-        "code": "FUSIBLE_RANGE",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 11
-      },
-      {
-        "code": "SET_EXCLUDES_EQUALITY",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 12
-      },
-      {
-        "code": "SET_REDUNDANCY",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 13
-      },
-      {
-        "code": "BITMASK_ANY_IMPOSSIBLE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 14
-      },
-      {
-        "code": "REDUNDANT_BITMASK",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 15
-      },
-      {
-        "code": "BOUNDS_EXCLUDE_LENGTH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 16
-      },
-      {
-        "code": "CONFLICTING_LENGTH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 17
-      },
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x60d45754f800030201700100020000003e001d010100000100000000ffff0000000000000000701a0004000000050021010100000100000000ffff0000000000000000701d0008000000010000000a",
+    "description": "LENGTH_BETWEEN 1 and 10 beside LENGTH_LT 5 on bytes",
+    "id": "dominated-length-bound",
+    "issues": [
       {
         "code": "DOMINATED_LENGTH_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 18
-      },
-      {
-        "code": "FUSIBLE_LENGTH_RANGE",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 19
-      },
-      {
-        "code": "IMPOSSIBLE_LENGTH_GT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 20
-      },
-      {
-        "code": "IMPOSSIBLE_LENGTH_LT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 21
-      },
-      {
-        "code": "IMPOSSIBLE_LENGTH_RANGE",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 22
-      },
-      {
-        "code": "LENGTH_EQ_NEQ_CONTRADICTION",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 23
-      },
-      {
-        "code": "OUT_OF_PHYSICAL_LENGTH_BOUNDS",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 24
-      },
-      {
-        "code": "REDUNDANT_LENGTH_BOUND",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 25
-      },
-      {
-        "code": "VACUOUS_LENGTH_GTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 26
-      },
-      {
-        "code": "VACUOUS_LENGTH_LTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 27
-      },
-      {
-        "code": "VACUOUS_NEGATED_LENGTH_RANGE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 28
-      },
-      {
-        "code": "VALUE_OP_ON_DYNAMIC",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 29
-      },
-      {
-        "code": "IMPOSSIBLE_GT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 30
-      },
-      {
-        "code": "IMPOSSIBLE_LT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 31
-      },
-      {
-        "code": "LENGTH_ON_STATIC",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 32
-      },
-      {
-        "code": "SET_PARTIALLY_EXCLUDED",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 33
-      },
-      {
-        "code": "UNKNOWN_OPERATOR",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 34
-      },
-      {
-        "code": "VACUOUS_GTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 35
-      },
-      {
-        "code": "VACUOUS_LTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 36
-      },
-      {
-        "code": "IMPOSSIBLE_GT",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 37
-      },
-      {
-        "code": "OUT_OF_PHYSICAL_BOUNDS",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 38
-      },
-      {
-        "code": "VACUOUS_LTE",
-        "severity": "info",
-        "groupIndex": 0,
-        "constraintIndex": 39
+        "location": "0.1"
       }
-    ],
-    "builds": false
+    ]
   },
   {
-    "id": "eq-ctx-valid",
-    "description": "EQ_CTX pairing an address target with the msg.sender property builds",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020141",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x080000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "eq-ctx-type-mismatch",
-    "description": "EQ_CTX pairing a uint256 target with the msg.sender address property is rejected",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x080000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x60d45754f800030201700100010000001d001d010100000100000000ffff0000000000000000701b000400000000",
+    "description": "LENGTH_GTE 0 on bytes",
+    "id": "vacuous-length",
     "issues": [
       {
-        "code": "CONTEXT_TYPE_MISMATCH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "code": "VACUOUS_RULE",
+        "location": "0.0"
       }
-    ],
-    "builds": false
+    ]
   },
   {
-    "id": "eq-ctx-unknown-property",
-    "description": "EQ_CTX operand referencing an undefined context property is flagged",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020141",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x080000000000000000000000000000000000000000000000000000000000000008"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x60d45754f800030201700100010000001d001d010100000100000000ffff0000000000000000701c0004ffffffff",
+    "description": "LENGTH_LTE 2^32 - 1 on bytes, which longer lengths fail",
+    "id": "length-below-maximum",
+    "issues": []
+  },
+  {
+    "blob": "0x6098c3a6c1000302014201000200000024001201010000000000000000004201000101001201010000000000000000004281000100",
+    "description": "EQ true and NOT EQ false on bool imply each other",
+    "id": "bool-implied",
     "issues": [
       {
-        "code": "UNKNOWN_CONTEXT_PROPERTY",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      },
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.1"
       }
-    ],
-    "builds": false
+    ]
   },
   {
-    "id": "gt-ctx-valid",
-    "description": "GT_CTX pairing a uint256 target with the msg.value property builds",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x090000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "lte-ctx-narrow-uint-valid",
-    "description": "LTE_CTX pairing a uint128 target with the msg.value property builds",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020110",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0c0000000000000000000000000000000000000000000000000000000000000001"
-              ]
-            }
-          ]
-        }
-      ]
-    },
-    "issues": [],
-    "builds": true
-  },
-  {
-    "id": "gt-ctx-address-target-mismatch",
-    "description": "GT_CTX pairing an address target with the msg.sender property is rejected",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020141",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x090000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x6098c3a6c1000302014201000200000024001201010000000000000000004201000100001201010000000000000000004201000101",
+    "description": "EQ false beside EQ true on bool",
+    "id": "bool-contradiction",
     "issues": [
       {
-        "code": "CONTEXT_TYPE_MISMATCH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
       }
-    ],
-    "builds": false
+    ]
   },
   {
-    "id": "gte-ctx-address-property-mismatch",
-    "description": "GTE_CTX pairing a uint256 target with the msg.sender address property is rejected",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x0b0000000000000000000000000000000000000000000000000000000000000000"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x60f2a03a95000302015001000200000024001201010000000000000000005001000100001201010000000000000000005010000180",
+    "description": "BITMASK_ALL 0x80 beside EQ 0x00 on bytes1",
+    "id": "left-aligned-contradiction",
     "issues": [
       {
-        "code": "CONTEXT_TYPE_MISMATCH",
-        "severity": "error",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
       }
-    ],
-    "builds": false
+    ]
   },
   {
-    "id": "gt-ctx-unknown-property",
-    "description": "GT_CTX operand referencing an undefined context property is flagged",
-    "policy": {
-      "isSelectorless": true,
-      "selector": "0x00000000",
-      "descriptor": "0x020120",
-      "groups": [
-        {
-          "constraints": [
-            {
-              "scope": 1,
-              "path": "0x0000",
-              "operators": [
-                "0x090000000000000000000000000000000000000000000000000000000000000008"
-              ]
-            }
-          ]
-        }
-      ]
-    },
+    "blob": "0x60d7da973a000302016f01000200000062003101010000000000000000006f0100200000000000000000000000000000000000000000000000000000000000000000003101010000000000000000006f1000200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "BITMASK_ALL 0x01 beside EQ 0x00 on bytes32",
+    "id": "bytes32-contradiction",
     "issues": [
       {
-        "code": "UNKNOWN_CONTEXT_PROPERTY",
-        "severity": "warning",
-        "groupIndex": 0,
-        "constraintIndex": 0
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
       }
-    ],
-    "builds": false
+    ]
+  },
+  {
+    "blob": "0x60fc68521a00030201410100020000004a0025010100000000000000000041110014ffffffffffffffffffffffffffffffffffffffff00250101000000000000000000418100140000000000000000000000000000000000000000",
+    "description": "BITMASK_ANY 2^160 - 1 and NOT EQ 0 on address imply each other",
+    "id": "address-mutually-implied",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      },
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d434000302010101000200000024001201010000000000000000000110000101001201010000000000000000000112000101",
+    "description": "BITMASK_ALL 0x01 beside BITMASK_NONE 0x01 on uint8",
+    "id": "fixed-bits-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d434000302010101000200000024001201010000000000000000000102000105001201010000000000000000000105000105",
+    "description": "GT 5 beside LTE 5 on uint8",
+    "id": "lte-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d4340003020101010002000000250012010100000000000000000001020001030013010100000000000000000001860002050a",
+    "description": "NOT BETWEEN 5 and 10 beside GT 3 on uint8",
+    "id": "negated-range-bounds-nothing",
+    "issues": []
+  },
+  {
+    "blob": "0x603120d4340003020101010002000000260013010100000000000000000001210002000200130101000000000000000000012300020002",
+    "description": "EQ block.timestamp beside LT block.timestamp on uint8",
+    "id": "context-operand-equal-or-less",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d4340003020101010002000000260013010100000000000000000001240002000200130101000000000000000000012500020002",
+    "description": "GTE block.timestamp beside LTE block.timestamp on uint8",
+    "id": "context-operand-equal-bounds",
+    "issues": []
+  },
+  {
+    "blob": "0x603120d43400030201010100050000005a00120101000000000000000000011000011000120101000000000000000000011100010300120101000000000000000000011100010c001201010000000000000000000190000105001201010000000000000000000190000109",
+    "description": "BITMASK_ALL 0x10, BITMASK_ANY 0x03 and 0x0c, NOT BITMASK_ALL 0x05 and 0x09 on uint8, met by clearing bit 0",
+    "id": "mask-search-backtrack",
+    "issues": []
+  },
+  {
+    "blob": "0x603120d43400030201010100080000009000120101000000000000000000011000014000120101000000000000000000011100010300120101000000000000000000011100010500120101000000000000000000011100010900120101000000000000000000011100011200120101000000000000000000011100012200120101000000000000000000019000010c001201010000000000000000000190000130",
+    "description": "BITMASK_ALL 0x40, BITMASK_ANY 0x03, 0x05, 0x09, 0x12 and 0x22, NOT BITMASK_ALL 0x0c and 0x30 on uint8, met only with bits 0 and 1 both set",
+    "id": "mask-search-all-satisfying",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100060000006c00120101000000000000000000011100010500120101000000000000000000011100010600120101000000000000000000011100010900120101000000000000000000011200010a00120101000000000000000000019000010300120101000000000000000000019000010d",
+    "description": "BITMASK_ANY 0x05, 0x06 and 0x09, BITMASK_NONE 0x0a, NOT BITMASK_ALL 0x03 and 0x0d on uint8, met only with bits 0 and 2 set",
+    "id": "mask-search-forced-bits",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      },
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.4"
+      },
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.5"
+      }
+    ]
+  },
+  {
+    "blob": "0x60b3de648b000302012001000300000093003101010000000000000000002010002000000000000000000000000000000000000000000000000000000000000000ff003101010000000000000000002010002080000000000000000000000000000000000000000000000000000000000000000031010100000000000000000020100020ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "description": "BITMASK_ALL of the low byte, the top bit and every bit on uint256",
+    "id": "mask-search-wide",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      },
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100030000003600120101000000000000000000010200010a001201010000000000000000000103000105001201010000000000000000000110000101",
+    "description": "GT 10, LT 5 and BITMASK_ALL 0x01 on uint8",
+    "id": "contradiction-before-last",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d434000302010101000200000024001201010000000000000000000104000103001201010000000000000000000104000105",
+    "description": "GTE 3 beside GTE 5 on uint8",
+    "id": "weaker-bound-redundant",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x600b507c62000502030101010100020000003b002900010002020020000000000000000000000000000000000000000000000000000000000000000a001201010002000000004000000103000105",
+    "description": "LT 5 on arg(2) beside block.timestamp GT 10, whose path bytes are equal",
+    "id": "context-and-calldata-apart",
+    "issues": []
+  },
+  {
+    "blob": "0x603120d4340003020101010002000000260013010100000000000000000001230002000200130101000000000000000000012500020002",
+    "description": "LTE block.timestamp beside LT block.timestamp on uint8",
+    "id": "context-operand-implied",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d4340003020101010002000000260013010100000000000000000001220002000200130101000000000000000000012300020002",
+    "description": "GT block.timestamp beside LT block.timestamp on uint8",
+    "id": "context-operand-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100020000002500120101000000000000000000010100010000130101000000000000000000012200020002",
+    "description": "GT block.timestamp beside EQ 0 on uint8",
+    "id": "context-operand-below-zero",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x60b3de648b0003020120010002000000440031010100000000000000000020010020ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00130101000000000000000000202300020001",
+    "description": "LT msg.value beside EQ 2^256 - 1 on uint256",
+    "id": "context-operand-above-maximum",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x603120d43400030201010100020000002500120101000000000000000000010100010000130101000000000000000000012500020002",
+    "description": "LTE block.timestamp beside EQ 0 on uint8, which an absent timestamp fails",
+    "id": "context-operand-absent",
+    "issues": []
+  },
+  {
+    "blob": "0x603120d43400030201010100030000004e002900010002030020000000000000000000000000000000000000000000000000000000000000000500120101000000000000000000010200010a00130101000000000000000000012300020002",
+    "description": "GT 10 and LT block.timestamp on uint8 beside block.timestamp LT 5, which never pass together",
+    "id": "context-subject-coupling",
+    "issues": []
+  },
+  {
+    "blob": "0x603120d4340003020101010002000000260013010100000000000000000001220002000200130101000000000000000000012300020003",
+    "description": "GT block.timestamp beside LT block.number on uint8",
+    "id": "context-operands-apart",
+    "issues": []
+  },
+  {
+    "blob": "0x60fc68521a000302014101000200000026001301010000000000000000004121000200000013010100000000000000000041a100020000",
+    "description": "EQ msg.sender beside NOT EQ msg.sender on address",
+    "id": "address-context-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x6026121ff0000202000100020000005200290001000203002000000000000000000000000000000000000000000000000000000000000000640029000100020400200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "GTE 0 beside LT 100 on block.timestamp",
+    "id": "context-subject-implied",
+    "issues": [
+      {
+        "code": "REDUNDANT_RULE",
+        "location": "0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x6026121ff000020200010001000000290029000100020400200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "GTE 0 on block.timestamp, which an absent timestamp fails",
+    "id": "context-subject-present",
+    "issues": []
+  },
+  {
+    "blob": "0x6026121ff0000202000100010000000b000b000100012200020001",
+    "description": "msg.value GT msg.value",
+    "id": "context-subject-self-gt",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.0"
+      }
+    ]
+  },
+  {
+    "blob": "0x6026121ff0000202000100010000000b000b000100012100020001",
+    "description": "msg.value EQ msg.value, which an absent value fails",
+    "id": "context-subject-self-eq",
+    "issues": []
+  },
+  {
+    "blob": "0x61000000000007020181000005010100010000003a003a02010100000100000000ffff0000000000000000400100020010010000000000000000010200010500100100000000000000000103000103",
+    "description": "GT 5 beside LT 3 in an ALL body over uint8[]",
+    "id": "body-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.0.1"
+      }
+    ]
+  },
+  {
+    "blob": "0x61000000000007020181000005010100020000007c0029000100020300200000000000000000000000000000000000000000000000000000000000000005005302010100000100000000ffff000000000000000040010002002900010002020020000000000000000000000000000000000000000000000000000000000000000a00100100000000000000000101000101",
+    "description": "block.timestamp LT 5 in the group beside block.timestamp GT 10 in an ALL body, which an empty array passes",
+    "id": "body-apart-from-group",
+    "issues": []
+  },
+  {
+    "blob": "0x61000000000007020181000005010100030000007c002900010002020020000000000000000000000000000000000000000000000000000000000000000a0029000100020300200000000000000000000000000000000000000000000000000000000000000005002a02020100000100000000ffff00000000000000004001000100100100000000000000000101000101",
+    "description": "block.timestamp LT 5 in the group beside block.timestamp GT 10 hoisted from an ANY body",
+    "id": "hoisted-context-contradiction",
+    "issues": [
+      {
+        "code": "CONTRADICTORY_RULE",
+        "location": "0.1"
+      }
+    ]
   }
 ]

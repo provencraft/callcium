@@ -9,186 +9,271 @@ description: "Core TypeScript types exported by the SDK."
 
 Hex-encoded byte string, 0x-prefixed.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L6)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L8)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="Hex" />
 
 ### Address
 
 Ethereum address, 0x-prefixed.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L9)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L11)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="Address" />
 
 ### Span
 
 Byte range in a source blob.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L12)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L14)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="Span" />
 
 ### Field
 
 A decoded value with its byte position in the source blob.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L216)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L17)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="Field" />
 
 ### PolicyData
 
-Canonical structured representation of a policy.
+A policy: its selector, its descriptor and its groups of rules.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L193)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L233)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="PolicyData" />
+
+### Rule
+
+A rule of a group: a test, a context test or a loop.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L230)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="Rule" />
+
+### BodyRule
+
+A test or a context test of a loop body, or of a group.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L208)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="BodyRule" />
+
+### LoopRule
+
+A loop: its body over each element of the array at `path`.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L219)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="LoopRule" />
 
 ### Constraint
 
 A collection of operators targeting a specific value.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L202)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L270)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="Constraint" />
 
 ### DecodedPolicy
 
-Structural representation of a decoded policy with full byte-level spans.
+A policy blob, each field with the bytes that contain it.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L251)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L388)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedPolicy" />
 
 ### DecodedGroup
 
-Structural representation of a decoded group with metadata spans.
+A group, each field with the bytes that contain it.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L243)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L380)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedGroup" />
 
 ### DecodedRule
 
-Structural representation of a decoded rule with per-field spans.
+A rule of a group: a test, a context test or a loop.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L229)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L377)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedRule" />
 
-### DecodedParam
+### DecodedTest
 
-Structural representation of a decoded parameter within the descriptor.
+A test or a context test, each field with the bytes that contain it.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L219)
-<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedParam" />
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L344)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedTest" />
+
+### DecodedLoop
+
+A loop rule, each field with the bytes that contain it.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L363)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedLoop" />
+
+### DecodedHint
+
+A test hint: its hops, then the target's position, meta word and type code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L322)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedHint" />
+
+### DecodedFrameHint
+
+A frame hint: its hops, then the array's position, declared length and meta word.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L333)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedFrameHint" />
+
+### DecodedHop
+
+A hop of a compiled hint: a plain hop enters the node behind an offset word, an element hop selects an element.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L313)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedHop" />
+
+### ArrayMeta
+
+An array's meta word.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L303)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="ArrayMeta" />
+
+### DecodedOperator
+
+An operator as a policy stores it: its comparison, its polarity and its operands. Constants are loaded to 32-byte
+words of `operandType`. A context operand names its property.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L244)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedOperator" />
+
+### DecodedDescriptor
+
+A descriptor: its header fields and one node per parameter.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L295)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedDescriptor" />
+
+### DecodedNode
+
+A descriptor node: its type, its head size and the bytes it spans, with its fields or its element.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L281)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="DecodedNode" />
 
 ### Issue
 
-A single validation issue found during policy analysis.
+A validation issue: the rule it names, absent for one about the descriptor, and the values that show the defect.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L340)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L443)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="Issue" />
 
 ### IssueCode
 
-Machine-readable code for a policy validation issue.
+Machine-readable code of a validation issue.
 
-Each code names one finding of the semantic validator, matching the same-named Solidity `IssueCode` constant.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L278)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L410)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="IssueCode" />
 
 ### IssueSeverity
 
 Severity of a validation issue.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L268)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L404)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="IssueSeverity" />
 
 ### IssueCategory
 
-Category of a validation issue.
+Kind of defect a validation issue reports.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L271)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L407)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="IssueCategory" />
+
+### RuleLocation
+
+The rule an issue names: its group, its position in the group and, for a test in a loop body, its position in the
+body. The location also carries the rule's scope, path and operator as decoded.
+A path in a body starts at the element.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L433)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="RuleLocation" />
 
 ### Context
 
 Execution context for context-scoped rules. Each property maps to a well-known EVM execution environment value. Only
 the properties referenced by the policy need to be supplied.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L22)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L27)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="Context" />
 
 ### EnforceResult
 
 Result of enforcing a policy: pass with matched group index, or fail with one violation per failed group.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L34)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L39)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="EnforceResult" />
 
 ### Violation
 
 Structured details of a single rule failure during enforcement.
 
-Carries semantic data only; no message strings. Discriminate on `code` to narrow to the matching variant.
+Carries semantic data only, with no message strings. Discriminate on `code` to narrow to the matching variant.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L175)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L190)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="Violation" />
 
 ### ViolationCode
 
 Machine-readable reason code for an enforcement violation. Derived from `Violation` to prevent drift.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L186)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L201)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="ViolationCode" />
 
 ### NavigationViolationCode
 
 Subset of violation codes emitted by reader/navigation primitives.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L37)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L42)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="NavigationViolationCode" />
 
 ### MissingSelectorViolation
 
 Calldata is shorter than the policy's selector slot.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L40)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L45)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="MissingSelectorViolation" />
 
 ### SelectorMismatchViolation
 
 Calldata selector does not match the policy's expected selector.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L45)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L50)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="SelectorMismatchViolation" />
 
 ### MissingContextViolation
 
-A rule referenced a context property not supplied in the execution context — a context-scoped subject, or a context
-reference operand on either scope.
+A test read a context property not supplied in the execution context — a context test's subject, or a context
+operand on either kind of test.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L57)
+`group` and `rule` locate the root rule. A test in a loop body adds `bodyRule` and `elementIndex`.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L64)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="MissingContextViolation" />
 
 ### ValueMismatchViolation
 
-A rule's operator returned false against the loaded value.
+A test's operator returned false against the loaded value.
 
-Field combinations:
-- `resolvedValue` present, `elementIndex` absent — scalar leaf or context value that failed the operator.
-- `resolvedValue` present, `elementIndex` present — universal-quantifier per-element failure.
-- `resolvedValue` absent, `elementIndex` absent — existential-aggregate failure (no element satisfied).
+`resolvedValue` is the value the operator compared: a word, or for length operators the length as a 32-byte word.
+`group` and `rule` locate the root rule. A test in a loop body adds `bodyRule` and `elementIndex`.
 
-For length operators, `resolvedValue` is the length as a 32-byte word.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L81)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L87)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="ValueMismatchViolation" />
 
 ### CalldataNavigationViolation
 
-Calldata structure prevented the rule from being evaluated.
+Calldata structure prevented a rule from being evaluated.
 
-The operator was never applied; `opCode`, `operandData`, `typeCode`, and `elementIndex` are diagnostic context
-describing the failing site, not a constraint claim.
+The operator was never applied. `operator`, `typeCode`, `bodyRule` and `elementIndex` are diagnostic context
+describing the failing site, not a constraint claim. A failure resolving a loop's array carries the loop
+rule's scope and array path and no operator. A failure resolving an element adds `elementIndex`. A failure in a body
+test adds the test's fields and `bodyRule`.
 
 A union of per-code variants, narrowable with `Extract&lt;Violation, { code: "..." }>`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L126)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L136)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="CalldataNavigationViolation" />
 
 ### NonCanonicalValueViolation
@@ -197,19 +282,19 @@ A resolved word is not the canonical encoding of its declared type.
 
 `resolvedValue` is the raw 32-byte word as it appeared in calldata, before any masking.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L146)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L157)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="NonCanonicalValueViolation" />
 
 ### QuantifierLimitExceededViolation
 
-A quantified array exceeded `PolicyFormat.MAX_QUANTIFIED_ARRAY_LENGTH`.
+A loop's array exceeded `MAX_QUANTIFIED_ARRAY_LENGTH`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L131)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L141)
 <auto-type-table path="../../../../../sdk/src/types.ts" name="QuantifierLimitExceededViolation" />
 
-### QuantifierEmptyArrayViolation
+### QuantifierNoMatchViolation
 
-An `ANY` quantifier was applied to an empty array.
+No element satisfied an `ANY` loop's body, the empty array included. No element and no test is to blame.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L162)
-<auto-type-table path="../../../../../sdk/src/types.ts" name="QuantifierEmptyArrayViolation" />
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/types.ts#L176)
+<auto-type-table path="../../../../../sdk/src/types.ts" name="QuantifierNoMatchViolation" />

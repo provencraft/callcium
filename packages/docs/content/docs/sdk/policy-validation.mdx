@@ -44,20 +44,24 @@ const policy = builder.buildUnsafe();
 
 Each issue is an `Issue` object with the following fields:
 
-| Field             | Type                                                             | Description                                                                  |
-| ----------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `severity`        | `"info" \| "warning" \| "error"`                                 | Impact level for display and triage. Any issue blocks `build()`.             |
-| `category`        | `"typeMismatch" \| "contradiction" \| "redundancy" \| "vacuity" \| "compatibility"` | Nature of the issue.                                      |
-| `groupIndex`      | `number`                                                         | Index of the group containing the issue.                                     |
-| `constraintIndex` | `number`                                                         | Index of the constraint within the group.                                    |
-| `code`            | `IssueCode`                                                      | Machine-readable identifier.                                                 |
-| `value1`          | `Hex`                                                            | First value involved in the issue (e.g. the lower bound in a contradiction). |
-| `value2`          | `Hex`                                                            | Second value involved in the issue (e.g. the upper bound).                   |
-| `message`         | `string`                                                         | Human-readable description suitable for logs.                                |
+| Field           | Type                                                                                | Description                                                               |
+| --------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `severity`      | `"info" \| "warning" \| "error"`                                                    | Impact level for display and triage. Any issue blocks `build()`.          |
+| `category`      | `"typeMismatch" \| "contradiction" \| "redundancy" \| "vacuity" \| "compatibility"` | Nature of the issue.                                                      |
+| `code`          | `IssueCode`                                                                         | Machine-readable identifier.                                              |
+| `groupIndex`    | `number`                                                                            | Index of the group holding the rule the issue names.                      |
+| `ruleIndex`     | `number`                                                                            | Index of that rule within the group: a test, or the loop of a body test. |
+| `bodyRuleIndex` | `number`                                                                            | Index of the test within its loop's body. Absent for a root rule.         |
+| `scope`         | `ScopeCode`                                                                         | Scope of the rule.                                                        |
+| `path`          | `Hex`                                                                               | Path of the rule; a body test's path starts at the element.               |
+| `operator`      | `Hex`                                                                               | Encoded operator of a test. Absent for a loop.                            |
+| `value1`        | `Hex`                                                                               | First value that shows the defect, or zero.                               |
+| `value2`        | `Hex`                                                                               | Second value that shows the defect, or zero.                              |
+| `message`       | `string`                                                                            | Human-readable description suitable for logs.                             |
 
-`value1` and `value2` surface the conflicting operands behind contradictions and redundancies, which makes validation output rich enough to render diagnostic UI: highlight the two bounds of an impossible `between`, the two values of `eq(x)` and `neq(x)`, or the overlap between two set constraints.
+The location fields are absent on an issue about the descriptor. They index the policy's normal form, the one `build()` encodes: groups and rules sorted, constraints on one array and quantifier joined into one loop, a `gte` and `lte` pair on one path joined into one `between`. They do not follow the order of `.add()` and `.or()` calls; match an issue to a constraint by its `scope` and `path`.
 
-Both values are `Hex` strings in the canonical 32-byte-padded encoding used throughout the wire format. Convert with `BigInt(value1)` for numeric comparisons, or slice as needed for addresses (`0x` + last 40 hex chars) and `bytes32` values.
+`value1` and `value2` carry the values behind the defect, zero where none applies: for example the bound a tighter bound dominates and that tighter bound, or the declared length of a static array beside `MAX_QUANTIFIED_ARRAY_LENGTH`. Both are `Hex` strings padded to 32 bytes. Convert with `BigInt(value1)` for numeric comparisons.
 
 ## Severity levels
 
@@ -77,11 +81,11 @@ The strict gate is identical across implementations: the Solidity `PolicyBuilder
 | `contradiction` | Two constraints in the same group cannot both hold (e.g. `eq(x)` and `neq(x)`).          |
 | `redundancy`    | A constraint is implied by another in the same group and adds no additional check.       |
 | `vacuity`       | A constraint is satisfied by every value (e.g. `between(0, 2**256 - 1)` on a `uint256`). |
-| `compatibility` | A construct crosses a normative limit, or is a known semantic footgun (e.g. `neq` under `any()`).       |
+| `compatibility` | A loop crosses a normative limit or holds no test of its element.                        |
 
 ## Skipping validation
 
-`PolicyBuilder` does not expose an unsafe build path; every blob it emits has been validated. To construct a policy without running the validator (for tooling that replays opaque blobs or round-trips decoded data), build a `PolicyData` object directly and pass it to `PolicyCoder.encode`. This is an advanced path; prefer `PolicyBuilder` for authored policies.
+`buildUnsafe()` is the builder's one path to a blob it has not validated. Tooling that replays opaque blobs or round-trips decoded data can also build a `PolicyData` object directly and pass it to `PolicyCoder.encode`, which normalizes the policy without running the validator. This is an advanced path; prefer `PolicyBuilder` for authored policies.
 
 ```ts
 import { PolicyCoder } from "@callcium/sdk";

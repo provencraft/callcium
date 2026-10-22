@@ -16,9 +16,7 @@
     "id": "uint256",
     "params": [
       {
-        "index": 0,
         "isDynamic": false,
-        "path": "0x0000",
         "staticSize": 32,
         "typeCode": 32
       }
@@ -33,9 +31,7 @@
     "id": "address",
     "params": [
       {
-        "index": 0,
         "isDynamic": false,
-        "path": "0x0000",
         "staticSize": 32,
         "typeCode": 65
       }
@@ -50,9 +46,7 @@
     "id": "bool",
     "params": [
       {
-        "index": 0,
         "isDynamic": false,
-        "path": "0x0000",
         "staticSize": 32,
         "typeCode": 66
       }
@@ -67,9 +61,7 @@
     "id": "bytes-dynamic",
     "params": [
       {
-        "index": 0,
         "isDynamic": true,
-        "path": "0x0000",
         "staticSize": 0,
         "typeCode": 112
       }
@@ -84,9 +76,7 @@
     "id": "bytes32-fixed",
     "params": [
       {
-        "index": 0,
         "isDynamic": false,
-        "path": "0x0000",
         "staticSize": 32,
         "typeCode": 111
       }
@@ -101,9 +91,7 @@
     "id": "static-array",
     "params": [
       {
-        "index": 0,
         "isDynamic": false,
-        "path": "0x0000",
         "staticSize": 128,
         "typeCode": 128
       }
@@ -118,9 +106,7 @@
     "id": "dynamic-array",
     "params": [
       {
-        "index": 0,
         "isDynamic": true,
-        "path": "0x0000",
         "staticSize": 0,
         "typeCode": 129
       }
@@ -135,11 +121,54 @@
     "id": "tuple-two-fields",
     "params": [
       {
-        "index": 0,
         "isDynamic": false,
-        "path": "0x0000",
         "staticSize": 64,
         "typeCode": 144
+      }
+    ],
+    "version": 2
+  },
+  {
+    "blob": "0x02019000000800024170",
+    "description": "(address,bytes) tuple, dynamic through its field",
+    "error": "",
+    "errorArgs": [],
+    "id": "tuple-dynamic-field",
+    "params": [
+      {
+        "isDynamic": true,
+        "staticSize": 0,
+        "typeCode": 144
+      }
+    ],
+    "version": 2
+  },
+  {
+    "blob": "0x02018000600d800020072000020003",
+    "description": "uint256[2][3] static array of static arrays",
+    "error": "",
+    "errorArgs": [],
+    "id": "static-array-nested",
+    "params": [
+      {
+        "isDynamic": false,
+        "staticSize": 192,
+        "typeCode": 128
+      }
+    ],
+    "version": 2
+  },
+  {
+    "blob": "0x020180fff007410fff",
+    "description": "address[MAX_STATIC_ARRAY_LENGTH] static array",
+    "error": "",
+    "errorArgs": [],
+    "id": "static-array-max-length",
+    "params": [
+      {
+        "isDynamic": false,
+        "staticSize": 131040,
+        "typeCode": 128
       }
     ],
     "version": 2
@@ -152,23 +181,17 @@
     "id": "multi-param",
     "params": [
       {
-        "index": 0,
         "isDynamic": false,
-        "path": "0x0000",
         "staticSize": 32,
         "typeCode": 65
       },
       {
-        "index": 1,
         "isDynamic": false,
-        "path": "0x0001",
         "staticSize": 32,
         "typeCode": 32
       },
       {
-        "index": 2,
         "isDynamic": true,
-        "path": "0x0002",
         "staticSize": 0,
         "typeCode": 112
       }
@@ -268,6 +291,30 @@
     "version": 0
   },
   {
+    "blob": "0x02018100000341",
+    "description": "MUST reject: dynamic array nodeLength one below the array header",
+    "error": "NodeLengthTooSmall",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "0x0000000000000000000000000000000000000000000000000000000000000003"
+    ],
+    "id": "node-length-below-array-header",
+    "params": [],
+    "version": 0
+  },
+  {
+    "blob": "0x02019000100500014100",
+    "description": "MUST reject: tuple nodeLength one below the tuple header",
+    "error": "NodeLengthTooSmall",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000002",
+      "0x0000000000000000000000000000000000000000000000000000000000000005"
+    ],
+    "id": "node-length-below-tuple-header",
+    "params": [],
+    "version": 0
+  },
+  {
     "blob": "0x0201810000ff41",
     "description": "MUST reject: nodeLength=255 but descriptor only 6 bytes (overflow)",
     "error": "NodeOverflow",
@@ -325,6 +372,18 @@
     "version": 0
   },
   {
+    "blob": "0x02019000000d000180000007410000",
+    "description": "MUST reject: static array with length=0 nested in a tuple, reported at its own offset",
+    "error": "InvalidArrayLength",
+    "errorArgs": [
+      "0x0000000000000000000000000000000000000000000000000000000000000008",
+      "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ],
+    "id": "static-array-zero-length-nested",
+    "params": [],
+    "version": 0
+  },
+  {
     "blob": "0x02ff41414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141414141",
     "description": "MUST reject: 256 top-level params exceeds the uint8 maximum of 255",
     "error": "TooManyParams",
@@ -365,9 +424,7 @@
     "id": "tuple-nesting-max-depth",
     "params": [
       {
-        "index": 0,
         "isDynamic": false,
-        "path": "0x0000",
         "staticSize": 32,
         "typeCode": 144
       }

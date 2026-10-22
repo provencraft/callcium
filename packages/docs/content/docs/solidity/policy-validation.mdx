@@ -36,150 +36,82 @@ for (uint256 i = 0; i < issues.length; i++) {
 
 Each issue contains:
 
-| Field             | Type            | Description                                                  |
-| ----------------- | --------------- | ------------------------------------------------------------ |
-| `severity`        | `IssueSeverity` | `Error`, `Warning`, or `Info`.                               |
-| `category`        | `IssueCategory` | `TypeMismatch`, `Contradiction`, `Redundancy`, or `Vacuity`. |
-| `groupIndex`      | `uint32`        | Constraint group where the issue was found.                  |
-| `constraintIndex` | `uint32`        | Constraint index within the group.                           |
-| `code`            | `bytes32`       | Machine-readable identifier.                                 |
-| `value1`          | `bytes32`       | First value involved in the issue.                           |
-| `value2`          | `bytes32`       | Second value involved in the issue.                          |
-| `message`         | `string`        | Human-readable description.                                  |
+| Field           | Type            | Description                                                                   |
+| --------------- | --------------- | ----------------------------------------------------------------------------- |
+| `severity`      | `IssueSeverity` | `Error`, `Warning`, or `Info`.                                                |
+| `category`      | `IssueCategory` | `TypeMismatch`, `Contradiction`, `Redundancy`, `Vacuity`, or `Compatibility`. |
+| `code`          | `bytes32`       | Machine-readable identifier.                                                  |
+| `groupIndex`    | `uint256`       | Index of the group holding the rule the issue names.                          |
+| `ruleIndex`     | `uint256`       | Index of that rule within the group: a test, or the loop of a body test.      |
+| `bodyRuleIndex` | `uint256`       | Index of the test within its loop's body; `NO_INDEX` for a root rule.         |
+| `scope`         | `uint8`         | Scope of the rule.                                                            |
+| `path`          | `bytes`         | Path of the rule; a body test's path starts at the element.                   |
+| `operator`      | `bytes`         | Encoded operator of a test; empty for a loop.                                 |
+| `value1`        | `bytes32`       | First value that shows the defect, or zero.                                   |
+| `value2`        | `bytes32`       | Second value that shows the defect, or zero.                                  |
+| `message`       | `string`        | Human-readable description.                                                   |
+
+An issue about the descriptor names no rule: its indices are `ValidationIssue.NO_INDEX`. The indices follow the policy's normal form, the one `build()` encodes: groups and rules sorted, constraints on one array and quantifier joined into one loop, a `gte` and `lte` pair on one path joined into one `between`. They do not follow the order of `.add()` and `.or()` calls; match an issue to a constraint by its `scope` and `path`.
 
 ## Severity levels
 
 `PolicyBuilder.build()` reverts on **any** issue regardless of severity. Use `PolicyBuilder.validate()` to inspect issues without reverting.
 
-| Severity    | Meaning                                                               |
-| ----------- | --------------------------------------------------------------------- |
-| **Error**   | The policy is logically invalid (contradictions, type mismatches).    |
-| **Warning** | The policy is valid but contains redundant or suspicious constraints. |
-| **Info**    | The constraint is technically correct but vacuous (always true).      |
+| Severity    | Meaning                                                            |
+| ----------- | ------------------------------------------------------------------ |
+| **Error**   | The policy is logically invalid (contradictions, type mismatches). |
+| **Warning** | The policy is valid but contains redundant constraints.            |
+| **Info**    | The constraint is technically correct but vacuous (always true).   |
 
 ## Issue catalog
 
-### Type compatibility
+### Type mismatch
 
 Operators, operands, and paths that do not fit the descriptor's declared types. All are **Error** severity.
 
-| Code                        | Description                                                          |
-| --------------------------- | -------------------------------------------------------------------- |
-| `VALUE_OP_ON_DYNAMIC`       | Value operator used on a dynamic type.                               |
-| `VALUE_OP_ON_COMPOSITE`     | Value operator used on a composite type.                             |
-| `NUMERIC_OP_ON_NON_NUMERIC` | Comparison operator used on a non-numeric type.                      |
-| `BITMASK_ON_INVALID`        | Bitmask operator used on an incompatible type.                       |
-| `IN_ON_BOOL`                | `isIn`/`notIn` used on a `bool`.                                     |
-| `LENGTH_ON_STATIC`          | Length operator used on a non-dynamic type.                          |
-| `CONTEXT_TYPE_MISMATCH`     | Context operand paired with a target type its property cannot match. |
-| `UNKNOWN_OPERATOR`          | Unrecognized operator code.                                          |
-| `NON_CANONICAL_OPERAND`     | Operand word is not the canonical encoding for the declared type.    |
-| `UNNAVIGABLE_PATH`          | Path does not navigate the descriptor.                               |
-| `NESTED_QUANTIFIER`         | Path applies more than one quantifier.                               |
-| `HINT_MISMATCH`             | Stored hint differs from the path compiled against the descriptor.   |
+| Code                        | Description                                                             |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `INVALID_DESCRIPTOR`        | Descriptor whose composite node metadata disagrees with its children.   |
+| `UNNAVIGABLE_PATH`          | Path that does not navigate the descriptor.                             |
+| `QUANTIFIER_ON_NON_ARRAY`   | Loop path that does not end at an array.                                |
+| `HINT_MISMATCH`             | Hint other than the compilation of its path against the descriptor.     |
+| `NUMERIC_OP_ON_NON_NUMERIC` | Ordering comparison on a type that is neither `uint*` nor `int*`.       |
+| `BITMASK_ON_INVALID`        | Bitmask comparison on a `bool` or `function`.                           |
+| `IN_ON_BOOL`                | `isIn`/`notIn` on a `bool`.                                             |
+| `CONTEXT_TYPE_MISMATCH`     | Context operand whose property type does not pair with the target type. |
 
-### Contradictions
+### Contradiction
 
 Make the constraint set unsatisfiable. All are **Error** severity.
 
-#### Bound contradictions
+| Code                     | Description                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `OUT_OF_PHYSICAL_BOUNDS` | Constant outside its type's values.                                            |
+| `CONTRADICTORY_RULE`     | Rule at which the rules on its subject stop being satisfiable together (PV-9). |
 
-These apply to both numeric values and lengths. Length variants have the `LENGTH_` prefix.
+### Redundancy
 
-| Code                            | Description                                    |
-| ------------------------------- | ---------------------------------------------- |
-| `EQ_NEQ_CONTRADICTION`          | `eq(v)` and `neq(v)` on same path.             |
-| `LENGTH_EQ_NEQ_CONTRADICTION`   | `lengthEq(v)` and `lengthNeq(v)` on same path. |
-| `CONFLICTING_EQUALITY`          | Multiple `eq()` with different values.         |
-| `CONFLICTING_LENGTH`            | Multiple `lengthEq()` with different values.   |
-| `OUT_OF_PHYSICAL_BOUNDS`        | Value outside the type's physical range.       |
-| `OUT_OF_PHYSICAL_LENGTH_BOUNDS` | Length value outside physical range.           |
-| `IMPOSSIBLE_GT`                 | `gt()` on type maximum.                        |
-| `IMPOSSIBLE_LT`                 | `lt()` on type minimum.                        |
-| `IMPOSSIBLE_LENGTH_GT`          | `lengthGt()` on maximum length.                |
-| `IMPOSSIBLE_LENGTH_LT`          | `lengthLt(0)` on minimum length.               |
-| `BOUNDS_EXCLUDE_EQUALITY`       | `eq()` value excluded by a bound.              |
-| `BOUNDS_EXCLUDE_LENGTH`         | `lengthEq()` value excluded by a bound.        |
-| `IMPOSSIBLE_RANGE`              | Lower bound exceeds upper bound.               |
-| `IMPOSSIBLE_LENGTH_RANGE`       | Lower length bound exceeds upper.              |
-
-#### Set contradictions
-
-| Code                     | Description                                    |
-| ------------------------ | ---------------------------------------------- |
-| `SET_EXCLUDES_EQUALITY`  | Set operation excludes existing `eq()` value.  |
-| `EMPTY_SET_INTERSECTION` | Multiple `isIn()` sets have no intersection.   |
-| `SET_FULLY_EXCLUDED`     | All `isIn()` values excluded by `neq`/`notIn`. |
-
-#### Bitmask contradictions
+Constraints with no effect because others imply them. All are **Warning** severity.
 
 | Code                     | Description                                       |
 | ------------------------ | ------------------------------------------------- |
-| `BITMASK_CONTRADICTION`  | Conflicting `bitmaskAll`/`bitmaskNone` bits.      |
-| `BITMASK_ANY_IMPOSSIBLE` | `bitmaskAny` bits all forbidden by `bitmaskNone`. |
-
-#### Structural errors
-
-| Code              | Description                                                 |
-| ----------------- | ----------------------------------------------------------- |
-| `UNSORTED_IN_SET` | `isIn`/`notIn` set is not strictly sorted and deduplicated. |
-| `EMPTY_GROUP`     | Group contains zero constraints.                            |
-
-### Redundancies
-
-Constraints with no effect because they are subsumed. All are **Warning** severity.
-
-#### Bound redundancies
-
-| Code                     | Description                                                           |
-| ------------------------ | --------------------------------------------------------------------- |
-| `DOMINATED_BOUND`        | Numeric bound dominated by a stricter bound.                          |
-| `DOMINATED_LENGTH_BOUND` | Length bound dominated by a stricter bound.                           |
-| `REDUNDANT_BOUND`        | Numeric bound redundant because `eq()` is set.                        |
-| `REDUNDANT_LENGTH_BOUND` | Length bound redundant because `lengthEq()` is set.                   |
-| `FUSIBLE_RANGE`          | `gte()` and `lte()` fuse into a single `between()`.                   |
-| `FUSIBLE_LENGTH_RANGE`   | `lengthGte()` and `lengthLte()` fuse into a single `lengthBetween()`. |
-
-#### Set redundancies
-
-| Code                     | Description                                     |
-| ------------------------ | ----------------------------------------------- |
-| `SET_REDUCTION`          | `notIn()` value was present in `isIn()` set.    |
-| `SET_REDUNDANCY`         | `isIn()` sets partially overlap.                |
-| `SET_PARTIALLY_EXCLUDED` | Some `isIn()` values excluded by `neq`/`notIn`. |
-
-#### Bitmask redundancies
-
-| Code                | Description                                  |
-| ------------------- | -------------------------------------------- |
-| `REDUNDANT_BITMASK` | Bitmask operation subsumed by existing mask. |
-
-#### Duplicates
-
-| Code                   | Description                       |
-| ---------------------- | --------------------------------- |
-| `DUPLICATE_CONSTRAINT` | Identical operator appears twice. |
+| `REDUNDANT_RULE`         | Rule the other rules on its subject imply (PV-9). |
+| `DOMINATED_BOUND`        | Numeric bound dominated by a stricter bound.      |
+| `DOMINATED_LENGTH_BOUND` | Length bound dominated by a stricter bound.       |
 
 ### Vacuity
 
-Constraints that are always true. All are **Info** severity.
+Constraints that are always true. **Info** severity.
 
-| Code                           | Description                                                 |
-| ------------------------------ | ----------------------------------------------------------- |
-| `VACUOUS_GTE`                  | `gte()` on type minimum (always true).                      |
-| `VACUOUS_LTE`                  | `lte()` on type maximum (always true).                      |
-| `VACUOUS_LENGTH_GTE`           | `lengthGte(0)` (always true).                               |
-| `VACUOUS_LENGTH_LTE`           | `lengthLte()` on maximum (always true).                     |
-| `VACUOUS_NEGATED_RANGE`        | Negated `between()` with low > high excludes nothing.       |
-| `VACUOUS_NEGATED_LENGTH_RANGE` | Negated `lengthBetween()` with low > high excludes nothing. |
+| Code           | Description                                               |
+| -------------- | --------------------------------------------------------- |
+| `VACUOUS_RULE` | Rule that holds for every value and every context (PV-9). |
 
 ### Compatibility
 
-Constructs that cross a normative limit or that behave differently than most authors intend. `QUANTIFIER_OVER_STATIC_LIMIT` is **Error** severity; the rest are **Warning**. Normative limits are fixed for this format version and every conformant enforcer applies the same values, so `buildUnsafe()` is the only way to emit a policy that crosses one.
+Loops that cross a normative limit or hold no test of their element. All are **Error** severity. Normative limits are fixed for each minor version and every conformant enforcer applies the same values, so `buildUnsafe()` is the only way to emit a policy that crosses one.
 
-| Code                           | Description                                                                     |
-| ------------------------------ | ------------------------------------------------------------------------------- |
-| `PATH_DEPTH_EXCEEDED`          | Path deeper than `MAX_PATH_DEPTH`; a policy declaring it is not well-formed (PWF-17).  |
-| `QUANTIFIER_OVER_STATIC_LIMIT` | Quantifier over a static array longer than `MAX_QUANTIFIED_ARRAY_LENGTH` (PV-7).       |
-| `UNKNOWN_CONTEXT_PROPERTY`     | Context property ID outside the assigned set (PWF-25).                                 |
-| `NEGATION_UNDER_ANY`           | Negated operator under `any()`; a single decoy element satisfies the rule.             |
+| Code                           | Description                                                                         |
+| ------------------------------ | ----------------------------------------------------------------------------------- |
+| `QUANTIFIER_OVER_STATIC_LIMIT` | Loop over a static array declared longer than `MAX_QUANTIFIED_ARRAY_LENGTH` (PV-7). |
+| `CONTEXT_ONLY_BODY`            | Loop body that holds no test of the element (PV-8).                                 |

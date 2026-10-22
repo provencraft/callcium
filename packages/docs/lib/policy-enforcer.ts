@@ -1,33 +1,37 @@
 import {
+  CallciumError,
   type Context,
+  type DecodedPolicy,
   type EnforceResult,
   type Hex,
-  hexToBytes,
   PolicyCoder,
   PolicyEnforcer,
   type Violation,
 } from "@callcium/sdk";
 import { formatError } from "./format-error";
-import { type ParamNode, parseDescriptor } from "./policy-builder";
 
 ///////////////////////////////////////////////////////////////////////////
 // Types
 ///////////////////////////////////////////////////////////////////////////
 
-export type EnforceOutput = {
-  /** Four-state result. */
-  status: "pass" | "fail" | "inconclusive" | "error";
-  /** Violations that caused failure (VALUE_MISMATCH etc.). */
-  violations: Violation[];
-  /** Violations classified as skipped (MISSING_CONTEXT). */
-  skipped: Violation[];
-  /** Matched group index on pass. */
-  matchedGroup?: number;
-  /** Decoded descriptor parameter trees, used by the formatter for path labels. */
-  params?: ParamNode[];
-  /** Error message if the policy or calldata is malformed. */
-  errorMessage?: string;
-};
+export type EnforceOutput =
+  | {
+      status: "error";
+      /** Error message if the policy or calldata is malformed. */
+      errorMessage: string;
+    }
+  | {
+      /** Three-state result of a policy that decodes. */
+      status: "pass" | "fail" | "inconclusive";
+      /** Violations that caused failure (VALUE_MISMATCH etc.). */
+      violations: Violation[];
+      /** Violations classified as skipped (MISSING_CONTEXT). */
+      skipped: Violation[];
+      /** Matched group index on pass. */
+      matchedGroup?: number;
+      /** The inspected policy, used by the formatter for path labels. */
+      policy: DecodedPolicy;
+    };
 
 ///////////////////////////////////////////////////////////////////////////
 // Public API
@@ -35,31 +39,24 @@ export type EnforceOutput = {
 
 /** Check a policy against calldata and classify the result. */
 export function checkPolicy(policy: Hex, callData: Hex, context?: Context): EnforceOutput {
-  // Decode once to surface descriptor params for downstream rendering. Re-uses the same decoder PolicyEnforcer.check
-  // runs internally; the duplicate cost is negligible at UI scale and keeps the engine surface clean.
-  let params: ParamNode[] | undefined;
+  // Enforcement requires a policy that passes storage validation, which inspection runs.
+  let inspected: DecodedPolicy;
   try {
-    const decoded = PolicyCoder.decode(policy);
-    params = parseDescriptor(hexToBytes(decoded.descriptor));
-  } catch {
-    // Defer error reporting to PolicyEnforcer.check below — its diagnostics are richer than a bare descriptor decode.
+    inspected = PolicyCoder.inspect(policy);
+  } catch (e) {
+    if (!(e instanceof CallciumError)) throw e;
+    return { status: "error", errorMessage: formatError(e) };
   }
 
   let result: EnforceResult;
   try {
     result = PolicyEnforcer.check(policy, callData, context);
   } catch (e) {
-    return { status: "error", violations: [], skipped: [], errorMessage: formatError(e) };
+    return { status: "error", errorMessage: formatError(e) };
   }
 
   if (result.ok) {
-    return {
-      status: "pass",
-      violations: [],
-      skipped: [],
-      matchedGroup: result.matchedGroup,
-      ...(params && { params }),
-    };
+    return { status: "pass", violations: [], skipped: [], matchedGroup: result.matchedGroup, policy: inspected };
   }
 
   // Separate MISSING_CONTEXT violations from real failures.
@@ -75,8 +72,8 @@ export function checkPolicy(policy: Hex, callData: Hex, context?: Context): Enfo
   }
 
   if (realViolations.length === 0 && skipped.length > 0) {
-    return { status: "inconclusive", violations: [], skipped, ...(params && { params }) };
+    return { status: "inconclusive", violations: [], skipped, policy: inspected };
   }
 
-  return { status: "fail", violations: realViolations, skipped, ...(params && { params }) };
+  return { status: "fail", violations: realViolations, skipped, policy: inspected };
 }

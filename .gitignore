@@ -3,4 +3,5 @@ node_modules/
 .idea/
 .claude/
 .junie/
+.mutation-tmp/
 CLAUDE.md

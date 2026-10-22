@@ -7,7 +7,7 @@ import { PolicyBuilder } from "src/PolicyBuilder.sol";
 
 import { PolicyEnforcerBench } from "../PolicyEnforcer.bench.t.sol";
 
-/// @dev End-to-end cost of policies over signatures with the argument shapes real ABIs produce, as opposed to the
+/// @notice End-to-end cost of policies over signatures with the argument shapes real ABIs produce, as opposed to the
 /// single-constraint scenarios that isolate one cost each. Every policy here is accepted by the strict builder, so the
 /// corpus also shows how hop count adds to the cost.
 contract RealisticBench is PolicyEnforcerBench {

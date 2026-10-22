@@ -7,9 +7,9 @@ description: "Constraint helpers and builder types."
 
 ### arg
 
-Target a calldata argument by path. Each argument is a big-endian uint16 step; further steps navigate nested types.
+Target a calldata argument by path. Each argument is a big-endian uint16 step. Further steps navigate nested types.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L343)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L353)
 
 ```ts
 function arg(p0: number, ...rest: number[]): ConstraintBuilder;
@@ -30,7 +30,7 @@ function arg(p0: number, ...rest: number[]): ConstraintBuilder;
 
 Target the `msg.sender` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L349)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L359)
 
 ```ts
 function msgSender(): ConstraintBuilder<`0x${string}`>;
@@ -44,7 +44,7 @@ function msgSender(): ConstraintBuilder<`0x${string}`>;
 
 Target the `msg.value` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L354)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L364)
 
 ```ts
 function msgValue(): ConstraintBuilder<bigint>;
@@ -58,7 +58,7 @@ function msgValue(): ConstraintBuilder<bigint>;
 
 Target the `block.timestamp` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L359)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L369)
 
 ```ts
 function blockTimestamp(): ConstraintBuilder<bigint>;
@@ -72,7 +72,7 @@ function blockTimestamp(): ConstraintBuilder<bigint>;
 
 Target the `block.number` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L364)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L374)
 
 ```ts
 function blockNumber(): ConstraintBuilder<bigint>;
@@ -86,7 +86,7 @@ function blockNumber(): ConstraintBuilder<bigint>;
 
 Target the `block.chainid` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L369)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L379)
 
 ```ts
 function chainId(): ConstraintBuilder<bigint>;
@@ -100,7 +100,7 @@ function chainId(): ConstraintBuilder<bigint>;
 
 Target the `tx.origin` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L374)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L384)
 
 ```ts
 function txOrigin(): ConstraintBuilder<`0x${string}`>;
@@ -114,7 +114,7 @@ function txOrigin(): ConstraintBuilder<`0x${string}`>;
 
 Target the `block.basefee` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L379)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L389)
 
 ```ts
 function baseFee(): ConstraintBuilder<bigint>;
@@ -128,7 +128,7 @@ function baseFee(): ConstraintBuilder<bigint>;
 
 Target the `tx.gasprice` context property.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L384)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L394)
 
 ```ts
 function gasPrice(): ConstraintBuilder<bigint>;
@@ -145,10 +145,10 @@ function gasPrice(): ConstraintBuilder<bigint>;
 Mutable builder that accumulates operators targeting a single path. Implements the `Constraint` interface so it can
 be passed directly to policy builders.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L151)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L165)
 
 ### ScalarValue
 
 Accepted scalar value types for operator arguments.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L13)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constraint.ts#L14)

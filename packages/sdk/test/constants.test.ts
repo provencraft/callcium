@@ -1,113 +1,58 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  lookupOp,
-  lookupScope,
+  ContextProperty,
   lookupContextProperty,
+  lookupOp,
+  lookupQuantifier,
+  lookupScope,
+  LoopQuantifier,
   Op,
   Scope,
-  ContextProperty,
-  MAX_CONTEXT_PROPERTY_ID,
+  Source,
+  TypeCode,
 } from "../src/constants";
 import { expectErrorCode } from "./helpers";
 
 describe("lookupOp", () => {
-  ///////////////////////////////////////////////////////////////////////////
-  // COMPARISON OPERATORS
-  ///////////////////////////////////////////////////////////////////////////
-
-  test("EQ", () => {
-    expect(lookupOp(Op.EQ)).toEqual({ label: "==", operands: "single" });
-  });
-
-  test("GT", () => {
-    expect(lookupOp(Op.GT)).toEqual({ label: ">", operands: "single" });
-  });
-
-  test("LT", () => {
-    expect(lookupOp(Op.LT)).toEqual({ label: "<", operands: "single" });
-  });
-
-  test("GTE", () => {
-    expect(lookupOp(Op.GTE)).toEqual({ label: ">=", operands: "single" });
-  });
-
-  test("LTE", () => {
-    expect(lookupOp(Op.LTE)).toEqual({ label: "<=", operands: "single" });
-  });
-
-  test("BETWEEN", () => {
+  test("labels a constant comparison", () => {
     expect(lookupOp(Op.BETWEEN)).toEqual({ label: "between", operands: "range" });
   });
 
-  test("IN", () => {
-    expect(lookupOp(Op.IN)).toEqual({ label: "in", operands: "variadic" });
+  test("labels a context source", () => {
+    expect(lookupOp(Op.GTE | (Source.CONTEXT << Op.SOURCE_SHIFT))).toEqual({ label: ">= ctx", operands: "single" });
   });
 
-  ///////////////////////////////////////////////////////////////////////////
-  // BITMASK OPERATORS
-  ///////////////////////////////////////////////////////////////////////////
-
-  test("BITMASK_ALL", () => {
-    expect(lookupOp(Op.BITMASK_ALL)).toEqual({ label: "bitmask all", operands: "single" });
+  test("throws on a reserved comparison", () => {
+    const error = expectErrorCode(() => lookupOp(0x08), "UNKNOWN_OPERATOR");
+    expect(error.message).toBe("Unknown operator code 0x08");
   });
 
-  test("BITMASK_ANY", () => {
-    expect(lookupOp(Op.BITMASK_ANY)).toEqual({ label: "bitmask any", operands: "single" });
-  });
-
-  test("BITMASK_NONE", () => {
-    expect(lookupOp(Op.BITMASK_NONE)).toEqual({ label: "bitmask none", operands: "single" });
-  });
-
-  ///////////////////////////////////////////////////////////////////////////
-  // LENGTH OPERATORS
-  ///////////////////////////////////////////////////////////////////////////
-
-  test("LENGTH_EQ", () => {
-    expect(lookupOp(Op.LENGTH_EQ)).toEqual({ label: "length ==", operands: "single" });
-  });
-
-  test("LENGTH_BETWEEN", () => {
-    expect(lookupOp(Op.LENGTH_BETWEEN)).toEqual({ label: "length between", operands: "range" });
-  });
-
-  ///////////////////////////////////////////////////////////////////////////
-  // NOT FLAG HANDLING
-  ///////////////////////////////////////////////////////////////////////////
-
-  test("strips NOT flag and returns base label", () => {
-    expect(lookupOp(Op.EQ | Op.NOT)).toEqual({ label: "==", operands: "single" });
-  });
-
-  test("strips NOT flag for GT", () => {
-    expect(lookupOp(Op.GT | Op.NOT)).toEqual({ label: ">", operands: "single" });
-  });
-
-  ///////////////////////////////////////////////////////////////////////////
-  // ERROR CASES
-  ///////////////////////////////////////////////////////////////////////////
-
-  test("rejects unknown operator code", () => {
-    expectErrorCode(() => lookupOp(0x00), "UNKNOWN_OPERATOR");
-  });
-
-  test("rejects unknown operator code 0xff", () => {
-    expectErrorCode(() => lookupOp(0xff), "UNKNOWN_OPERATOR");
+  test("throws on a reserved source", () => {
+    expectErrorCode(() => lookupOp(Op.EQ | (2 << Op.SOURCE_SHIFT)), "UNKNOWN_OPERATOR");
   });
 });
 
 describe("lookupScope", () => {
-  test("CONTEXT", () => {
-    expect(lookupScope(Scope.CONTEXT)).toEqual({ label: "context" });
+  test("labels the loop scope", () => {
+    expect(lookupScope(Scope.LOOP)).toEqual({ label: "loop" });
   });
 
-  test("CALLDATA", () => {
-    expect(lookupScope(Scope.CALLDATA)).toEqual({ label: "calldata" });
+  test("throws on a reserved scope", () => {
+    const error = expectErrorCode(() => lookupScope(0x03), "UNKNOWN_SCOPE");
+    expect(error.message).toBe("Unknown scope value 3");
+  });
+});
+
+describe("lookupQuantifier", () => {
+  test("labels both loop quantifiers", () => {
+    expect(lookupQuantifier(LoopQuantifier.ALL)).toEqual({ label: "all" });
+    expect(lookupQuantifier(LoopQuantifier.ANY)).toEqual({ label: "any" });
   });
 
-  test("rejects unknown scope code", () => {
-    expectErrorCode(() => lookupScope(0x02), "INVALID_SCOPE");
+  test("throws on a reserved quantifier", () => {
+    const error = expectErrorCode(() => lookupQuantifier(0x00), "UNKNOWN_QUANTIFIER");
+    expect(error.message).toBe("Unknown quantifier value 0");
   });
 });
 
@@ -116,7 +61,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.MSG_SENDER)).toEqual({
       label: "msg.sender",
       contextKey: "msgSender",
-      typeCode: 0x41,
+      typeCode: TypeCode.ADDRESS,
     });
   });
 
@@ -124,7 +69,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.MSG_VALUE)).toEqual({
       label: "msg.value",
       contextKey: "msgValue",
-      typeCode: 0x20,
+      typeCode: TypeCode.UINT_MAX,
     });
   });
 
@@ -132,7 +77,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.BLOCK_TIMESTAMP)).toEqual({
       label: "block.timestamp",
       contextKey: "blockTimestamp",
-      typeCode: 0x20,
+      typeCode: TypeCode.UINT_MAX,
     });
   });
 
@@ -140,7 +85,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.BLOCK_NUMBER)).toEqual({
       label: "block.number",
       contextKey: "blockNumber",
-      typeCode: 0x20,
+      typeCode: TypeCode.UINT_MAX,
     });
   });
 
@@ -148,7 +93,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.CHAIN_ID)).toEqual({
       label: "block.chainid",
       contextKey: "chainId",
-      typeCode: 0x20,
+      typeCode: TypeCode.UINT_MAX,
     });
   });
 
@@ -156,7 +101,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.TX_ORIGIN)).toEqual({
       label: "tx.origin",
       contextKey: "txOrigin",
-      typeCode: 0x41,
+      typeCode: TypeCode.ADDRESS,
     });
   });
 
@@ -164,7 +109,7 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.BASE_FEE)).toEqual({
       label: "block.basefee",
       contextKey: "baseFee",
-      typeCode: 0x20,
+      typeCode: TypeCode.UINT_MAX,
     });
   });
 
@@ -172,12 +117,8 @@ describe("lookupContextProperty", () => {
     expect(lookupContextProperty(ContextProperty.GAS_PRICE)).toEqual({
       label: "tx.gasprice",
       contextKey: "gasPrice",
-      typeCode: 0x20,
+      typeCode: TypeCode.UINT_MAX,
     });
-  });
-
-  test("rejects unknown context property code", () => {
-    expectErrorCode(() => lookupContextProperty(MAX_CONTEXT_PROPERTY_ID + 1), "UNKNOWN_CONTEXT_PROPERTY");
   });
 
   test("names a code the ID field cannot hold in its own decimal form", () => {

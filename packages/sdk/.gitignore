@@ -4,3 +4,4 @@ coverage/
 CLAUDE.md
 README.md
 /.typedoc
+out/

@@ -1,2105 +1,697 @@
 [
   {
-    "blob": "0x022fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "single EQ rule on uint256 arg(0), calldata scope",
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "canonical": true,
+    "description": "EQ on uint256 arg(0)",
     "error": "",
-    "errorArgs": [],
-    "id": "calldata-eq-uint256",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x01000000000000000000000000000000000000000000000000000000000000002a"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x01000000000000000000000000000000000000000000000000000000000000002a",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
+    "id": "calldata-eq-uint256"
   },
   {
-    "blob": "0x02fdf80bda00030201410100010000003100310101000000000000000000410100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "single EQ rule on address arg(0), calldata scope",
+    "blob": "0x60fdf80bda00030201410100010000002500250101000000000000000000410100140000000000000000000000000000000000000001",
+    "canonical": true,
+    "description": "EQ on address arg(0), 20-byte operand",
     "error": "",
-    "errorArgs": [],
-    "id": "calldata-eq-address",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020141",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x010000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0xfdf80bda"
-      },
-      "encodingInput": {
-        "descriptor": "0x020141",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0xfdf80bda"
-      }
-    }
+    "id": "calldata-eq-address"
   },
   {
-    "blob": "0x02fdf80bda0003020141010001000000710071010100000000000000000041070060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
-    "description": "IN rule on address arg(0), 3-element set {addr(1),addr(2),addr(3)}, calldata scope",
+    "blob": "0x60fdf80bda00030201410100010000004d004d01010000000000000000004107003c000000000000000000000000000000000000000100000000000000000000000000000000000000020000000000000000000000000000000000000003",
+    "canonical": true,
+    "description": "IN on address arg(0), three ascending 20-byte members",
     "error": "",
-    "errorArgs": [],
-    "id": "calldata-in-address",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020141",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0xfdf80bda"
-      },
-      "encodingInput": {
-        "descriptor": "0x020141",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x07000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0xfdf80bda"
-      }
-    }
+    "id": "calldata-in-address"
   },
   {
-    "blob": "0x022fbebd380003020120010001000000510051010100000000000000000020060040000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000064",
-    "description": "BETWEEN rule on uint256 arg(0), range [10,100], calldata scope",
+    "blob": "0x60e4a6bf780003020121010001000000120012010100000000000000000021020001ff",
+    "canonical": true,
+    "description": "GT on int8 arg(0), 1-byte operand -1",
     "error": "",
-    "errorArgs": [],
-    "id": "calldata-between-uint256",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x06000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000064"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x06000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000064",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
+    "id": "calldata-gt-int8"
   },
   {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "GT rule on uint256 arg(0), bound=0, calldata scope",
+    "blob": "0x60580526ee000302015301000100000015001501010000000000000000005301000411223344",
+    "canonical": true,
+    "description": "EQ on bytes4 arg(0), 4-byte operand",
     "error": "",
-    "errorArgs": [],
-    "id": "calldata-gt-uint256",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x020000000000000000000000000000000000000000000000000000000000000000"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x020000000000000000000000000000000000000000000000000000000000000000",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
+    "id": "calldata-eq-bytes4"
   },
   {
-    "blob": "0x02fdf80bda00030201410100010000003100310101000000000000000000418100200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "NOT_EQ rule on address arg(0), value=address(0), calldata scope",
+    "blob": "0x602fbebd380003020120010001000000510051010100000000000000000020060040000000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000064",
+    "canonical": true,
+    "description": "BETWEEN on uint256 arg(0), two 32-byte values",
     "error": "",
-    "errorArgs": [],
-    "id": "calldata-not-eq-address",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020141",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x810000000000000000000000000000000000000000000000000000000000000000"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0xfdf80bda"
-      },
-      "encodingInput": {
-        "descriptor": "0x020141",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x810000000000000000000000000000000000000000000000000000000000000000",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0xfdf80bda"
-      }
-    }
+    "id": "calldata-between-uint256"
   },
   {
-    "blob": "0x022fbebd38000302012001000100000031003101010000000000000000002010002000000000000000000000000000000000000000000000000000000000000000ff",
-    "description": "BITMASK_ALL rule on uint256 arg(0), mask=0xff, calldata scope",
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020810020000000000000000000000000000000000000000000000000000000000000002a",
+    "canonical": true,
+    "description": "NOT EQ on uint256 arg(0)",
     "error": "",
-    "errorArgs": [],
-    "id": "calldata-bitmask-all",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x1000000000000000000000000000000000000000000000000000000000000000ff"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x1000000000000000000000000000000000000000000000000000000000000000ff",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
+    "id": "calldata-not-eq"
   },
   {
-    "blob": "0x0230c8d1da0003020170010001000000390039010100000100000000ffff0000000000000000702400200000000000000000000000000000000000000000000000000000000000000064",
-    "description": "LENGTH_LTE rule on bytes arg(0), bound=100, calldata scope",
+    "blob": "0x6030c8d1da00030201700100010000001d001d010100000100000000ffff00000000000000007018000400000005",
+    "canonical": true,
+    "description": "LENGTH_EQ on bytes arg(0), 4-byte operand",
     "error": "",
-    "errorArgs": [],
-    "id": "calldata-length-lte-bytes",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020170",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x240000000000000000000000000000000000000000000000000000000000000064"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x30c8d1da"
-      },
-      "encodingInput": {
-        "descriptor": "0x020170",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x240000000000000000000000000000000000000000000000000000000000000064",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x30c8d1da"
-      }
-    }
+    "id": "calldata-length-eq-bytes"
   },
   {
-    "blob": "0x022fbebd380003020120010001000000290029000100000100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "EQ rule on msg.sender context property, value=address(1)",
+    "blob": "0x608b44cef1000702018100000520010001000000210021010100000100000000ffff0000000000004001811d0008000000010000000a",
+    "canonical": true,
+    "description": "LENGTH_BETWEEN on uint256[] arg(0), its meta word in the hint",
     "error": "",
-    "errorArgs": [],
-    "id": "context-msg-sender-eq",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x010000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000",
-                "scope": 0
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000",
-                "scope": 0
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
+    "id": "calldata-length-between-array"
   },
   {
-    "blob": "0x022fbebd3800030201200100020000005a00290001000001002000000000000000000000000000000000000000000000000000000000000000010031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "two rules in one group: context msg.sender=addr(1) AND calldata arg(0)=uint256(42)",
+    "blob": "0x602fbebd3800030201200100010000001d001d000100000100140000000000000000000000000000000000000001",
+    "canonical": true,
+    "description": "Context test msg.sender EQ, 20-byte operand",
     "error": "",
-    "errorArgs": [],
-    "id": "mixed-scope",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x010000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000",
-                "scope": 0
-              },
-              {
-                "operators": [
-                  "0x01000000000000000000000000000000000000000000000000000000000000002a"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000",
-                "scope": 0
-              },
-              {
-                "operator": "0x01000000000000000000000000000000000000000000000000000000000000002a",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
+    "id": "context-eq-sender"
   },
   {
-    "blob": "0x022fbebd380003020120020001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000000100010000003100310101000000000000000000200100200000000000000000000000000000000000000000000000000000000000000002",
-    "description": "two groups (OR semantics): EQ(arg0,2) | EQ(arg0,1); canonical group order is by hash",
+    "blob": "0x602fbebd380003020120010001000000290029000100010400200000000000000000000000000000000000000000000000000de0b6b3a7640000",
+    "canonical": true,
+    "description": "Context test msg.value GTE, 32-byte operand",
     "error": "",
-    "errorArgs": [],
-    "id": "multi-group",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x010000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          },
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x010000000000000000000000000000000000000000000000000000000000000002"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x010000000000000000000000000000000000000000000000000000000000000002",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          },
-          {
-            "rules": [
-              {
-                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
+    "id": "context-gte-value"
   },
   {
-    "blob": "0x12000000000003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "FLAG_NO_SELECTOR set, zeroed selector, single EQ rule on uint256 arg(0)",
+    "blob": "0x60fdf80bda00030201410100010000001300130101000000000000000000412100020000",
+    "canonical": true,
+    "description": "EQ on address arg(0) against msg.sender",
     "error": "",
-    "errorArgs": [],
-    "id": "selectorless",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x01000000000000000000000000000000000000000000000000000000000000002a"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": true,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x01000000000000000000000000000000000000000000000000000000000000002a",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": true,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "calldata-eq-context-sender"
   },
   {
-    "blob": "0x02217d581c000a020190002008000241200100010000003300330102000000010000000020000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "EQ rule on field (0,1) of (address,uint256) tuple arg, path depth=2",
+    "blob": "0x602fbebd3800030201200100020000004e001d0001000001001400000000000000000000000000000000000000010031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "canonical": true,
+    "description": "A context test and a calldata test in one group, the context test first",
     "error": "",
-    "errorArgs": [],
-    "id": "nested-path-tuple",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x02019000200800024120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x01000000000000000000000000000000000000000000000000000000000000002a"
-                ],
-                "path": "0x00000001",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x217d581c"
-      },
-      "encodingInput": {
-        "descriptor": "0x02019000200800024120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x01000000000000000000000000000000000000000000000000000000000000002a",
-                "path": "0x00000001",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x217d581c"
-      }
-    }
+    "id": "context-and-calldata"
   },
   {
-    "blob": "0x022fbebd380003020120010002000000620031010100000000000000000020020020000000000000000000000000000000000000000000000000000000000000000000310101000000000000000000200500200000000000000000000000000000000000000000000000000000000000000064",
-    "description": "two calldata rules on arg(0) in one group: GT(0) AND LTE(100); canonical rule order by opCode",
+    "blob": "0x602fbebd3800030201200100010000000b000b000100062500020007",
+    "canonical": true,
+    "description": "Context test block.basefee LTE tx.gasprice",
     "error": "",
-    "errorArgs": [],
-    "id": "calldata-two-constraints-same-group",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x020000000000000000000000000000000000000000000000000000000000000000",
-                  "0x050000000000000000000000000000000000000000000000000000000000000064"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x020000000000000000000000000000000000000000000000000000000000000000",
-                "path": "0x0000",
-                "scope": 1
-              },
-              {
-                "operator": "0x050000000000000000000000000000000000000000000000000000000000000064",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
+    "id": "context-lte-context"
   },
   {
-    "blob": "0x012fbebd3800030201200100010000002e002e010100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: version nibble = 1 (unsupported)",
+    "blob": "0x608b44cef100070201810000052001000100000049004902010100000100000000ffff000000000000000040010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "canonical": true,
+    "description": "ALL loop over uint256[] with one body test on the element",
+    "error": "",
+    "id": "loop-all"
+  },
+  {
+    "blob": "0x60e487d195000e02018100000c900020080002412001000100000070007002020100000100000000ffff00000000000000004002000200250101000000000000000000410100140000000000000000000000000000000000000001003101010001000000002000002004002000000000000000000000000000000000000000000000000000000000000003e8",
+    "canonical": true,
+    "description": "ANY loop over (address,uint256)[] with two body tests",
+    "error": "",
+    "id": "loop-any-two-tests"
+  },
+  {
+    "blob": "0x608b44cef100070201810000052001000100000066006602010100000100000000ffff000000000000000040010002001d000100000100140000000000000000000000000000000000000001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "canonical": true,
+    "description": "ALL loop whose body holds a context test beside an element test",
+    "error": "",
+    "id": "loop-body-context"
+  },
+  {
+    "blob": "0x60692ce76c000902018000300720000301000100000041004102010100000000000000000300010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "canonical": true,
+    "description": "ALL loop over uint256[3], its declared length in the hint",
+    "error": "",
+    "id": "loop-static-array"
+  },
+  {
+    "blob": "0x61000000000003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "canonical": true,
+    "description": "Selectorless policy, flag set and selector slot zero",
+    "error": "",
+    "id": "selectorless"
+  },
+  {
+    "blob": "0x602fbebd380003020120020001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000000100010000003100310101000000000000000000200100200000000000000000000000000000000000000000000000000000000000000002",
+    "canonical": true,
+    "description": "Two groups",
+    "error": "",
+    "id": "two-groups"
+  },
+  {
+    "blob": "0x60bb8ecee6000802028100000520200100010000004300430102000000050200000000ffff00000000000000054001000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "canonical": true,
+    "description": "EQ on arg(0)[5], a plain hop then an element hop",
+    "error": "",
+    "id": "calldata-element-hop"
+  },
+  {
+    "blob": "0x603e44feec000b020181000009810000052001000100000053005302020100000100000000ffff0000000000000000c001000100390101000301000000000003400100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "canonical": true,
+    "description": "ANY loop over uint256[][] whose body test indexes the element",
+    "error": "",
+    "id": "loop-body-element-hop"
+  },
+  {
+    "blob": "0x6004bc52f8000402022020010001000000310031010100000000000020000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "canonical": false,
+    "description": "Path [0] with the hint of arg(1)",
+    "error": "",
+    "id": "hint-not-path-compilation"
+  },
+  {
+    "blob": "0x60d4362978000a0201900020080002202001000100000033003301020000000200000000200000200100200000000000000000000000000000000000000000000000000000000000000000",
+    "canonical": false,
+    "description": "Path [0, 2] past the last field of a two-field tuple, with the hint of [0, 1]",
+    "error": "",
+    "id": "path-not-compiled"
+  },
+  {
+    "blob": "0x60d4362978000b020190002009000220202001000100000033003301020000000100000000200000200100200000000000000000000000000000000000000000000000000000000000000000",
+    "canonical": false,
+    "description": "Descriptor of (uint256,uint256) declaring the tuple one byte longer than its fields",
+    "error": "",
+    "id": "descriptor-node-length"
+  },
+  {
+    "blob": "0x606dbbd475000b020220900020080002207001000100000033003301020001000000000000200000200100200000000000000000000000000000000000000000000000000000000000000000",
+    "canonical": false,
+    "description": "Descriptor of (uint256,(uint256,bytes)) declaring the tuple's static word count nonzero, hints compiled from it",
+    "error": "",
+    "id": "descriptor-static-words"
+  },
+  {
+    "blob": "0x6045557578000302014201000100000012001201010000000000000000004201000102",
+    "canonical": false,
+    "description": "EQ on bool arg(0) with the operand byte 2",
+    "error": "",
+    "id": "bool-operand-two"
+  },
+  {
+    "blob": "0x6045557578000302014201000100000012001201010000000000000000004210000101",
+    "canonical": true,
+    "description": "BITMASK_ALL on bool arg(0)",
+    "error": "",
+    "id": "bitmask-on-bool"
+  },
+  {
+    "blob": "0x602fbebd3800030201200100010000001300130101000000000000000000202100020000",
+    "canonical": true,
+    "description": "EQ on uint256 arg(0) against msg.sender, an address",
+    "error": "",
+    "id": "context-operand-mispaired"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020070020000000000000000000000000000000000000000000000000000000000000002a",
+    "canonical": false,
+    "description": "IN with one member",
+    "error": "",
+    "id": "in-one-member"
+  },
+  {
+    "blob": "0x602fbebd380003020120010002000000620031010100000000000000000020030020000000000000000000000000000000000000000000000000000000000000006400310101000000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "canonical": false,
+    "description": "LT before GT on one path, against the size-free byte order",
+    "error": "",
+    "id": "rules-out-of-order"
+  },
+  {
+    "blob": "0x602fbebd380003020120020001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000000200010000003100310101000000000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "canonical": false,
+    "description": "Group EQ 2 before group EQ 1, against the size-free byte order",
+    "error": "",
+    "id": "groups-out-of-order"
+  },
+  {
+    "blob": "0x602fbebd380003020120010002000000620031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a0031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "canonical": false,
+    "description": "One rule twice in a group",
+    "error": "",
+    "id": "repeated-rule"
+  },
+  {
+    "blob": "0x402fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Header major 2",
     "error": "UnsupportedVersion",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000001"
-    ],
-    "id": "invalid-version",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "major-2"
   },
   {
-    "blob": "0x01",
-    "description": "MUST reject: blob too short (1 byte, missing selector and descriptor)",
+    "blob": "0x802fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Header major 4",
+    "error": "UnsupportedVersion",
+    "id": "major-4"
+  },
+  {
+    "blob": "0x622fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Header minor 1 on a blob that uses no extension",
+    "error": "MinorMismatch",
+    "id": "minor-1"
+  },
+  {
+    "blob": "0x612fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Selectorless flag with a nonzero selector slot",
     "error": "MalformedHeader",
-    "errorArgs": [],
-    "id": "malformed-header-short",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "selectorless-nonzero-slot"
   },
   {
-    "blob": "0x222fbebd3800030201200100010000002e002e010100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: reserved bit 5 (0x20) set in header byte",
+    "blob": "0x602fbe",
+    "description": "Blob ends inside the selector slot",
     "error": "MalformedHeader",
-    "errorArgs": [],
-    "id": "reserved-bits-set",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "truncated-header"
   },
   {
-    "blob": "0x121234567800030201200100010000002e002e010100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: FLAG_NO_SELECTOR set but selector field is non-zero",
+    "blob": "0x602fbebd380003020220010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Embedded descriptor fails well-formedness: paramCount 2 over one node",
+    "error": "ParamCountMismatch",
+    "id": "malformed-descriptor"
+  },
+  {
+    "blob": "0x602fbebd38000102010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "descLength 1: a descriptor without its paramCount",
     "error": "MalformedHeader",
-    "errorArgs": [],
-    "id": "selectorless-nonzero-selector",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "descriptor-too-short"
   },
   {
-    "blob": "0x022fbebd380001020100010000002e002e010100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: descLength=1 which is less than the minimum of 2",
+    "blob": "0x602fbebd380100020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "descLength runs past the end of the blob",
     "error": "MalformedHeader",
-    "errorArgs": [],
-    "id": "desc-length-too-short",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "descriptor-overruns-blob"
   },
   {
-    "blob": "0x022fbebd3800ff020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: descLength=255 but the blob holds fewer bytes than the header it declares",
-    "error": "MalformedHeader",
-    "errorArgs": [],
-    "id": "desc-length-overflow",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd38000302012000",
-    "description": "MUST reject: groupCount=0 (empty policy)",
+    "blob": "0x602fbebd38000302012000",
+    "description": "groupCount 0",
     "error": "EmptyPolicy",
-    "errorArgs": [],
-    "id": "zero-group-count",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "empty-policy"
   },
   {
-    "blob": "0x022fbebd38000302012001000000000000",
-    "description": "MUST reject: group with ruleCount=0 (empty group)",
+    "blob": "0x602fbebd38000302012001000000000000",
+    "description": "A group with ruleCount 0",
     "error": "EmptyGroup",
-    "errorArgs": [
-      "0x000000000000000000000000000000000000000000000000000000000000000b"
-    ],
-    "id": "empty-group",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "empty-group"
   },
   {
-    "blob": "0x022fbebd380003020120010001000000310031010100000000000000000020000020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: opCode=0x00 (unassigned, unknown operator)",
-    "error": "UnknownOperator",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "unknown-opcode",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000002500250101000000000000000000200100140000000000000000000000000000000000000000",
-    "description": "MUST reject: EQ operator with 20-byte payload (requires exactly 32)",
-    "error": "UnknownOperator",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "eq-invalid-payload-size",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003e003e01010000000000000000002007002d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-    "description": "MUST reject: IN operator with 45-byte payload (must be non-zero multiple of 32)",
-    "error": "UnknownOperator",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "in-invalid-payload-size",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380003020120010001000000080000000000000000",
-    "description": "MUST reject: groupSize=8 which is less than ruleCount(1) * RULE_MIN_SIZE(9)",
-    "error": "GroupTooSmall",
-    "errorArgs": [
-      "0x000000000000000000000000000000000000000000000000000000000000000b"
-    ],
-    "id": "group-too-small",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380003020120010001000000330031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a0000",
-    "description": "MUST reject: rules do not exactly fill the declared group size (2 trailing bytes)",
+    "blob": "0x602fbebd380003020120010001000000320031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a00",
+    "description": "groupSize one byte past its rules, a stray byte inside the group",
     "error": "GroupSizeMismatch",
-    "errorArgs": [
-      "0x000000000000000000000000000000000000000000000000000000000000000b"
-    ],
-    "id": "group-size-mismatch",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "group-size-long"
   },
   {
-    "blob": "0x022fbebd3800030201200100010000002f002e010100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: groupSize=42 but only 41 bytes remain in the blob",
+    "blob": "0x602fbebd380003020120010001000000410031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "groupSize past the end of the blob",
     "error": "GroupOverflow",
-    "errorArgs": [
-      "0x000000000000000000000000000000000000000000000000000000000000000b"
-    ],
-    "id": "group-overflow",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "group-overflow"
   },
   {
-    "blob": "0x022fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a00",
-    "description": "MUST reject: one byte remains after the last group",
-    "error": "TrailingBytes",
-    "errorArgs": [],
-    "id": "trailing-bytes",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000002e0008010100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: ruleSize=8 which is below the minimum of 9",
-    "error": "RuleTooSmall",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011",
-      "0x0000000000000000000000000000000000000000000000000000000000000008"
-    ],
-    "id": "rule-too-small",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd38000302012001000100000031003c010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: declared rule size extends past the group boundary",
-    "error": "RuleOverflow",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "rule-overflow",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380003020120010001000000330033010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a0000",
-    "description": "MUST reject: declared rule size exceeds the computed field layout by 2 bytes",
-    "error": "RuleSizeMismatch",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "rule-size-mismatch",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000002f002f01000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: rule with pathDepth=0 (a path must have at least one step)",
-    "error": "EmptyPath",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "empty-path",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000002e002e020100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: scope byte 0x02 is neither CONTEXT (0x00) nor CALLDATA (0x01)",
-    "error": "InvalidScope",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "invalid-scope",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000002b002b0002000000010100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "MUST reject: context-scope rule with depth=2 (must be exactly 1)",
-    "error": "InvalidContextPath",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "invalid-context-path",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380003020120010001",
-    "description": "MUST reject: blob truncated mid-group-header (only 2 of 6 header bytes present)",
+    "blob": "0x602fbebd380003020120020001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "groupCount 2 with one group",
     "error": "UnexpectedEnd",
-    "errorArgs": [],
-    "id": "truncated-group-header",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "group-count-over"
   },
   {
-    "blob": "0x022fbebd380003020120010001000000710071010100000000000000000020070060000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
-    "description": "MUST reject: IN operands not strictly ascending (3,1,2); the enforcer binary search relies on sorted sets",
-    "error": "UnsortedInSet",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "unsorted-in-set",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a00",
+    "description": "A byte after the last group",
+    "error": "TrailingBytes",
+    "id": "trailing-bytes"
   },
   {
-    "blob": "0x022fbebd380003020120010001000000710071010100000000000000000020070060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
-    "description": "MUST reject: IN operands carrying a duplicate (1,1,2); ascending is strict, so equal adjacent members are rejected",
-    "error": "UnsortedInSet",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "duplicate-in-set",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "blob": "0x602fbebd380003020120010002000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "ruleCount 2 with one rule filling groupSize",
+    "error": "GroupSizeMismatch",
+    "id": "rule-count-over"
   },
   {
-    "blob": "0x022fbebd38000302012001000100000029002900010099010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: context-scope rule referencing undefined context property 0x0099",
-    "error": "UnknownContextProperty",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "unknown-context-property"
+    "blob": "0x602fbebd380003020120010001000000320032010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a00",
+    "description": "ruleSize one byte past the rule's fields",
+    "error": "RuleSizeMismatch",
+    "id": "rule-size-long"
   },
   {
-    "blob": "0x022fbebd38000302012001000100000071007101210000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: rule with pathDepth=33 (exceeds MAX_PATH_DEPTH)",
-    "error": "PathTooDeep",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011",
-      "0x0000000000000000000000000000000000000000000000000000000000000021"
-    ],
-    "id": "path-too-deep",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "blob": "0x602fbebd380003020120010001000000310030010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "ruleSize one byte short of the rule's fields",
+    "error": "RuleSizeMismatch",
+    "id": "rule-size-short"
   },
   {
-    "blob": "0x120000000000bd0201900010bb0001900010b50001900010af0001900010a90001900010a300019000109d00019000109700019000109100019000108b00019000108500019000107f00019000107900019000107300019000106d00019000106700019000106100019000105b00019000105500019000104f00019000104900019000104300019000103d00019000103700019000103100019000102b00019000102500019000101f00019000101900019000101300019000100d0001900010070001200100010000006f006f01200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "path depth exactly MAX_PATH_DEPTH (32) through nested tuples",
-    "error": "",
-    "errorArgs": [],
-    "id": "path-depth-at-max",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x0201900010bb0001900010b50001900010af0001900010a90001900010a300019000109d00019000109700019000109100019000108b00019000108500019000107f00019000107900019000107300019000106d00019000106700019000106100019000105b00019000105500019000104f00019000104900019000104300019000103d00019000103700019000103100019000102b00019000102500019000101f00019000101900019000101300019000100d000190001007000120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x010000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": true,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x0201900010bb0001900010b50001900010af0001900010a90001900010a300019000109d00019000109700019000109100019000108b00019000108500019000107f00019000107900019000107300019000106d00019000106700019000106100019000105b00019000105500019000104f00019000104900019000104300019000103d00019000103700019000103100019000102b00019000102500019000101f00019000101900019000101300019000100d000190001007000120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": true,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x12000000000003020120010001000000290029000100050100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "EQ rule on tx.origin context property",
-    "error": "",
-    "errorArgs": [],
-    "id": "context-tx-origin-eq",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x010000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0005",
-                "scope": 0
-              }
-            ]
-          }
-        ],
-        "isSelectorless": true,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0005",
-                "scope": 0
-              }
-            ]
-          }
-        ],
-        "isSelectorless": true,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x028b44cef100070201810000052001000100000044004401020000fffe8100000000ffff0000000000000000400100000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "ANY quantifier over a dynamic array of static elements compiles to a quantified hint",
-    "error": "",
-    "errorArgs": [],
-    "id": "quantified-dynamic-array",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x02018100000520",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x010000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000fffe",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x8b44cef1"
-      },
-      "encodingInput": {
-        "descriptor": "0x02018100000520",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000fffe",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x8b44cef1"
-      }
-    }
-  },
-  {
-    "blob": "0x02692ce76c00090201800030072000030100010000003c003c01020000fffe80000000000003000100000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "ANY quantifier over a static array is not compilable, so the hint is the sentinel",
-    "error": "",
-    "errorArgs": [],
-    "id": "quantified-static-array",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020180003007200003",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x010000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000fffe",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x692ce76c"
-      },
-      "encodingInput": {
-        "descriptor": "0x020180003007200003",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x010000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000fffe",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x692ce76c"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800070201810000052001000100000044004401020000ffffc100000000ffff000000000000000040010000000000000020050020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: hint header kind 3 is reserved",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000015"
-    ],
-    "id": "hint-reserved-kind",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd38000a020190000008000270200100010000003b003b0102000000010100000000fffe000000000020000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: hop index 0xFFFE is reserved",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000018"
-    ],
-    "id": "hint-reserved-hop-index",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd38000a020190000008000270200100010000003b003b0102000000010100000000ffff000100000020000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: a plain hop carries a non-zero meta word",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000018"
-    ],
-    "id": "hint-plain-hop-meta",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380007020181000005200100010000004300430102000000010200000000ffff0000000000010001400100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: an element hop carries a non-zero delta",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000015"
-    ],
-    "id": "hint-element-hop-delta",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380007020181000005200100010000004300430102000000010200000000ffff0000000000000001500100000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: hop meta word carries reserved bits",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000015"
-    ],
-    "id": "hint-hop-meta-reserved-bits",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800070201810000052001000100000044004401020000ffff4100000000ffff000000000000000050010000000000000020050020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: quantifier frame meta word carries reserved bits",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000015"
-    ],
-    "id": "hint-frame-meta-reserved-bits",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800070201810000052001000100000044004401020000ffff4100000000ffff000000000000000040018000000000000020050020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: suffix header carries reserved bits",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000015"
-    ],
-    "id": "hint-suffix-reserved-bits",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380003020120010001000000310031010100000000000000000120010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: target meta word is non-zero for a non-array target",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "hint-target-meta-unused",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000900100200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "MUST reject: hint target type code is the tuple marker",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "hint-target-tuple",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000800100200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "MUST reject: hint target type code is the static array marker",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "hint-target-static-array",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000000100200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "MUST reject: hint target type code is undefined",
-    "error": "MalformedHint",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "hint-target-undefined-type",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000700100200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "MUST reject: value operator on a target declaring bytes",
-    "error": "OperatorTargetMismatch",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "operator-value-on-bytes-target",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000100810700200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "MUST reject: IN on a target declaring a dynamic array",
-    "error": "OperatorTargetMismatch",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "operator-set-on-dynamic-array-target",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000202000200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "MUST reject: length operator on a target declaring uint256",
-    "error": "OperatorTargetMismatch",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "operator-length-on-elementary-target",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000708100200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "MUST reject: negated value operator on a target declaring bytes",
-    "error": "OperatorTargetMismatch",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "operator-negated-value-on-bytes-target",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x02fdf80bda00030201410100010000003100310101000000000000000000410800200000000000000000000000000000000000000000000000000000000000000000",
-    "description": "single EQ_CTX rule on address arg(0) referencing msg.sender, calldata scope",
-    "error": "",
-    "errorArgs": [],
-    "id": "calldata-eq-ctx-address",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020141",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x080000000000000000000000000000000000000000000000000000000000000000"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0xfdf80bda"
-      },
-      "encodingInput": {
-        "descriptor": "0x020141",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x080000000000000000000000000000000000000000000000000000000000000000",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0xfdf80bda"
-      }
-    }
-  },
-  {
-    "blob": "0x02fdf80bda00030201410100010000003100310101000000000000000000410800200000000000000000000000000000000000000000000000000000000000000008",
-    "description": "MUST reject: EQ_CTX operand references undefined context property 0x0008",
-    "error": "UnknownContextProperty",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "eq-ctx-unknown-context-property",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x02fdf80bda000302014101000100000051005101010000000000000000004108004000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-    "description": "MUST reject: EQ_CTX with a 64-byte payload",
-    "error": "UnknownOperator",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "eq-ctx-payload-size",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200900200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "single GT_CTX rule on uint256 arg(0) referencing msg.value, calldata scope",
-    "error": "",
-    "errorArgs": [],
-    "id": "calldata-gt-ctx-uint256",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x090000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x090000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200a00200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "single LT_CTX rule on uint256 arg(0) referencing msg.value, calldata scope",
-    "error": "",
-    "errorArgs": [],
-    "id": "calldata-lt-ctx-uint256",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x0a0000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x0a0000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200b00200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "single GTE_CTX rule on uint256 arg(0) referencing msg.value, calldata scope",
-    "error": "",
-    "errorArgs": [],
-    "id": "calldata-gte-ctx-uint256",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x0b0000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x0b0000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200c00200000000000000000000000000000000000000000000000000000000000000001",
-    "description": "single LTE_CTX rule on uint256 arg(0) referencing msg.value, calldata scope",
-    "error": "",
-    "errorArgs": [],
-    "id": "calldata-lte-ctx-uint256",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "constraints": [
-              {
-                "operators": [
-                  "0x0c0000000000000000000000000000000000000000000000000000000000000001"
-                ],
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      },
-      "encodingInput": {
-        "descriptor": "0x020120",
-        "groups": [
-          {
-            "rules": [
-              {
-                "operator": "0x0c0000000000000000000000000000000000000000000000000000000000000001",
-                "path": "0x0000",
-                "scope": 1
-              }
-            ]
-          }
-        ],
-        "isSelectorless": false,
-        "selector": "0x2fbebd38"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd3800030201200100010000003100310101000000000000000000200c00200000000000000000000000000000000000000000000000000000000000000008",
-    "description": "MUST reject: LTE_CTX operand references an undefined context property",
-    "error": "UnknownContextProperty",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "lte-ctx-unknown-context-property",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380003020120010000000000ff0031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: group overruns the blob and declares no rules; the overrun is reported first",
-    "error": "GroupOverflow",
-    "errorArgs": [
-      "0x000000000000000000000000000000000000000000000000000000000000000b"
-    ],
-    "id": "group-overflow-precedes-empty-group",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380003020120010001000000090031050100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: rule overruns its group but not the blob and declares an undefined scope; the scope is reported first",
-    "error": "InvalidScope",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "invalid-scope-precedes-group-rule-overflow",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x01000000000000",
-    "description": "MUST reject: blob is exactly the header prefix and declares version nibble 1",
-    "error": "UnsupportedVersion",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000001"
-    ],
-    "id": "unsupported-version-at-header-prefix",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
-  },
-  {
-    "blob": "0x022fbebd380003020120010001000000090031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
-    "description": "MUST reject: rule is well-formed and inside the blob but overruns its declared group",
+    "blob": "0x602fbebd38000302012001000100000031003b010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "ruleSize past the end of its group",
     "error": "RuleOverflow",
-    "errorArgs": [
-      "0x0000000000000000000000000000000000000000000000000000000000000011"
-    ],
-    "id": "rule-overflow-within-blob",
-    "spec": {
-      "decoded": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      },
-      "encodingInput": {
-        "descriptor": "0x",
-        "groups": [],
-        "isSelectorless": false,
-        "selector": "0x00000000"
-      }
-    }
+    "id": "rule-overflow"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001",
+    "description": "Blob ends inside a group header",
+    "error": "UnexpectedEnd",
+    "id": "truncated-group-header"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310001010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "ruleSize below its own field",
+    "error": "RuleTooSmall",
+    "id": "rule-too-small"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031030100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "scope 0x03",
+    "error": "UnknownScope",
+    "id": "unknown-scope"
+  },
+  {
+    "blob": "0x602fbebd3800030201200100010000001f001f0002000000000100140000000000000000000000000000000000000001",
+    "description": "Context test with pathDepth 2",
+    "error": "InvalidContextPath",
+    "id": "context-path-depth-2"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000290029000100080100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "Context test on a property past CTX_MAX",
+    "error": "UnknownContextProperty",
+    "id": "context-property-undefined"
+  },
+  {
+    "blob": "0x602fbebd3800030201200100010000002f002f01000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Calldata test with an empty path at the root",
+    "error": "EmptyPath",
+    "id": "empty-root-path"
+  },
+  {
+    "blob": "0x602fbebd3800030201200100010000003100310101ff000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "A path step in the reserved marker range",
+    "error": "UnknownPathStep",
+    "id": "reserved-path-marker"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000af00af014000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "A path of 64 steps, past every value MAX_PATH_DEPTH can take",
+    "error": "PathTooDeep",
+    "id": "path-too-deep"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020000020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "comparison 0x00",
+    "error": "UnknownOperator",
+    "id": "comparison-zero"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020080020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "comparison 0x08, reserved",
+    "error": "UnknownOperator",
+    "id": "comparison-reserved"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020410020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "source 0b10, reserved",
+    "error": "UnknownOperator",
+    "id": "source-reserved"
+  },
+  {
+    "blob": "0x60fdf80bda00030201410100010000003100310101000000000000000000410100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "EQ on address with a 32-byte operand",
+    "error": "DataLengthMismatch",
+    "id": "operand-wrong-width"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020060020000000000000000000000000000000000000000000000000000000000000000a",
+    "description": "BETWEEN with one value",
+    "error": "DataLengthMismatch",
+    "id": "between-one-value"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000110011010100000000000000000020070000",
+    "description": "IN with no members",
+    "error": "DataLengthMismatch",
+    "id": "in-empty"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000710071010100000000000000000020070060000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002",
+    "description": "IN members out of order",
+    "error": "UnsortedInSet",
+    "id": "in-unsorted"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000710071010100000000000000000020070060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002",
+    "description": "IN with a repeated member",
+    "error": "UnsortedInSet",
+    "id": "in-duplicate"
+  },
+  {
+    "blob": "0x60e4a6bf78000302012101000100000013001301010000000000000000002107000201ff",
+    "canonical": true,
+    "description": "IN on int8 ascending as loaded words compared unsigned: 1, then -1",
+    "error": "",
+    "id": "in-int8-ascending-words"
+  },
+  {
+    "blob": "0x60e4a6bf780003020121010001000000130013010100000000000000000021070002ff01",
+    "description": "IN on int8 ordered by signed value: -1 loads above 1 as an unsigned word",
+    "error": "UnsortedInSet",
+    "id": "in-signed-order"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000320032010100000000000000000020070021000000000000000000000000000000000000000000000000000000000000000102",
+    "description": "IN on uint256 with 33 bytes of data",
+    "error": "DataLengthMismatch",
+    "id": "in-partial-member"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000290029000100000100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "Context test on msg.sender with a 32-byte operand",
+    "error": "DataLengthMismatch",
+    "id": "context-operand-width"
+  },
+  {
+    "blob": "0x6030c8d1da0003020170010001000000390039010100000100000000ffff0000000000000000701800200000000000000000000000000000000000000000000000000000000000000005",
+    "description": "LENGTH_EQ on bytes with a 32-byte operand",
+    "error": "DataLengthMismatch",
+    "id": "length-operand-width"
+  },
+  {
+    "blob": "0x602fbebd3800030201200100010000001300130101000000000000000000202600020001",
+    "description": "A context source on BETWEEN",
+    "error": "InvalidContextOperand",
+    "id": "context-source-on-between"
+  },
+  {
+    "blob": "0x602fbebd3800030201200100010000003100310101000000000000000000202100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "A context source with 32 bytes of data",
+    "error": "DataLengthMismatch",
+    "id": "context-source-wide"
+  },
+  {
+    "blob": "0x602fbebd3800030201200100010000001300130101000000000000000000202100020008",
+    "description": "A context source naming a property past CTX_MAX",
+    "error": "UnknownContextProperty",
+    "id": "context-source-undefined"
+  },
+  {
+    "blob": "0x602fbebd38000302012001000100000015001501010000000000000000002018000400000001",
+    "description": "LENGTH_EQ on a uint256 target",
+    "error": "OperatorTargetMismatch",
+    "id": "length-on-word"
+  },
+  {
+    "blob": "0x6030c8d1da0003020170010001000000390039010100000100000000ffff000000000000000070010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "EQ on a bytes target",
+    "error": "OperatorTargetMismatch",
+    "id": "value-on-bytes"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100004000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Hint header with a kind bit set",
+    "error": "MalformedHint",
+    "id": "hint-kind-bits"
+  },
+  {
+    "blob": "0x6030c8d1da00030201700100010000001d001d010100000100000000ffff00010000000000007018000400000005",
+    "description": "Plain hop with a nonzero meta word",
+    "error": "MalformedHint",
+    "id": "plain-hop-meta"
+  },
+  {
+    "blob": "0x60bb8ecee6000802028100000520200100010000004300430102000000050200000000ffff00000000002000054001000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "Element hop with a nonzero delta",
+    "error": "MalformedHint",
+    "id": "element-hop-delta"
+  },
+  {
+    "blob": "0x60bb8ecee6000802028100000520200100010000004300430102000000050200000000ffff000000000000ff004001000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "Element hop index in the reserved range",
+    "error": "MalformedHint",
+    "id": "element-hop-reserved-index"
+  },
+  {
+    "blob": "0x60bb8ecee6000802028100000520200100010000004300430102000000050200000000ffff00000000000000055001000000000000200100200000000000000000000000000000000000000000000000000000000000000001",
+    "description": "Element hop meta word with a reserved bit",
+    "error": "MalformedHint",
+    "id": "element-hop-meta-reserved"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000120010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Target meta word on a target that is not a dynamic array",
+    "error": "MalformedHint",
+    "id": "target-meta-on-word"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000000010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Hint target type code 0x00, reserved",
+    "error": "MalformedHint",
+    "id": "hint-target-zero-code"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000090010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Hint target type code of a tuple",
+    "error": "MalformedHint",
+    "id": "hint-target-tuple"
+  },
+  {
+    "blob": "0x602fbebd3800030201200100010000003100310101000000000000000000a0010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Hint target type code 0xA0, outside every range",
+    "error": "MalformedHint",
+    "id": "hint-target-undefined-code"
+  },
+  {
+    "blob": "0x608b44cef1000702018100000520010001000000210021010100000100000000ffff0000000000005001811d0008000000010000000a",
+    "description": "Target meta word of a dynamic array with a reserved bit",
+    "error": "MalformedHint",
+    "id": "target-meta-reserved"
+  },
+  {
+    "blob": "0x608b44cef100070201810000052001000100000049004902010100004100000000ffff000000000000000040010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Loop frame hint header with a kind bit set",
+    "error": "MalformedHint",
+    "id": "frame-hint-kind-bits"
+  },
+  {
+    "blob": "0x608b44cef100070201810000052001000100000049004902010100000100000000ffff000000000000000060010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Loop frame meta word with a reserved bit",
+    "error": "MalformedHint",
+    "id": "frame-meta-reserved"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000002290229010100003f00000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000ffff000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "canonical": false,
+    "description": "Test hint with MAX_HOP_COUNT plain hops",
+    "error": "",
+    "id": "hint-max-hop-count"
+  },
+  {
+    "blob": "0x608b44cef100070201810000052001000100000049004902000100000100000000ffff000000000000000040010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Loop quantifier 0x00",
+    "error": "UnknownQuantifier",
+    "id": "quantifier-zero"
+  },
+  {
+    "blob": "0x608b44cef100070201810000052001000100000049004902030100000100000000ffff000000000000000040010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Loop quantifier 0x03, reserved",
+    "error": "UnknownQuantifier",
+    "id": "quantifier-reserved"
+  },
+  {
+    "blob": "0x608b44cef10007020181000005200100010000004700470201000100000000ffff000000000000000040010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Loop with an empty array path",
+    "error": "EmptyPath",
+    "id": "loop-empty-path"
+  },
+  {
+    "blob": "0x608b44cef1000702018100000520010001000000490049020101ff000100000000ffff000000000000000040010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Loop array path with a reserved marker step",
+    "error": "UnknownPathStep",
+    "id": "loop-reserved-path-marker"
+  },
+  {
+    "blob": "0x608b44cef10007020181000005200100010000001a001a02010100000100000000ffff000000000000000040010000",
+    "description": "Loop body with ruleCount 0",
+    "error": "EmptyGroup",
+    "id": "loop-empty-body"
+  },
+  {
+    "blob": "0x608b44cef100070201810000052001000100000049004902010100000100000000ffff000000000000000040010002002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Loop body ruleCount 2 with one test",
+    "error": "RuleSizeMismatch",
+    "id": "loop-body-count-over"
+  },
+  {
+    "blob": "0x608b44cef100070201810000052001000100000063006302010100000100000000ffff000000000000000040010001004902010100000100000000ffff000000000000000040010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "A loop inside a loop body",
+    "error": "InvalidNestedLoop",
+    "id": "loop-in-body"
+  },
+  {
+    "blob": "0x608b44cef10007020181000005200100010000004b004b02010100000100000000ffff00000000000000004001000100310101ff0000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Body test path with a reserved marker step",
+    "error": "UnknownPathStep",
+    "id": "loop-body-reserved-path-marker"
+  },
+  {
+    "blob": "0x608b44cef1000702018100000520010001000000c700c702010100000100000000ffff00000000000000004001000100ad013f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Array path and body path of 64 steps together, past every value MAX_PATH_DEPTH can take",
+    "error": "PathTooDeep",
+    "id": "loop-path-too-deep"
+  },
+  {
+    "blob": "0x608b44cef1000702018100000520010001000000c700c7020120000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000ffff000000000000000040010001006f01200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Array path and body path of 32 steps each: each within every value MAX_PATH_DEPTH can take, together past every one",
+    "error": "PathTooDeep",
+    "id": "loop-path-depth-sum"
+  },
+  {
+    "blob": "0x822fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Header major 4 and minor 1: the major is checked first",
+    "error": "UnsupportedVersion",
+    "id": "order-major-before-minor"
+  },
+  {
+    "blob": "0x612fbebd380003020220010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Selectorless flag with a nonzero selector slot and an ill-formed descriptor: the header is checked first",
+    "error": "MalformedHeader",
+    "id": "order-header-before-descriptor"
+  },
+  {
+    "blob": "0x602fbebd38000302012001000000000001",
+    "description": "ruleCount 0 and groupSize past the end of the blob: the group extent is checked first",
+    "error": "GroupOverflow",
+    "id": "order-group-extent-before-rule-count"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310032030100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "scope 0x03 and ruleSize past the end of its group: the rule extent is checked first",
+    "error": "RuleOverflow",
+    "id": "order-rule-extent-before-scope"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000af00af0140ff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "A path of 64 steps with a reserved marker step: the steps are checked first",
+    "error": "UnknownPathStep",
+    "id": "order-path-step-before-depth"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000090000020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "Hint target type code of a tuple and comparison 0x00: the hint is checked first",
+    "error": "MalformedHint",
+    "id": "order-hint-before-operator"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020180020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "LENGTH_EQ on a uint256 target with 32 bytes of data: the comparison family is checked first",
+    "error": "OperatorTargetMismatch",
+    "id": "order-family-before-data-length"
+  },
+  {
+    "blob": "0x602fbebd380003020120010001000000310031010100000000000000000020260020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "A context source on BETWEEN with 32 bytes of data: the comparison is checked first",
+    "error": "InvalidContextOperand",
+    "id": "order-context-operand-before-data-length"
+  },
+  {
+    "blob": "0x602fbebd380003020120010002000000a200710101000000000000000000200700600000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020031030100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a",
+    "description": "An unsorted IN in the first rule and scope 0x03 in the second: rules are checked in blob order",
+    "error": "UnsortedInSet",
+    "id": "order-rules-in-blob-order"
+  },
+  {
+    "blob": "0x608b44cef10007020181000005200100010000004700470200000100000000ffff000000000000000040010001002f010000000000000000200200200000000000000000000000000000000000000000000000000000000000000000",
+    "description": "Loop quantifier 0x00 and an empty array path: the quantifier is checked first",
+    "error": "UnknownQuantifier",
+    "id": "order-quantifier-before-path"
   }
 ]

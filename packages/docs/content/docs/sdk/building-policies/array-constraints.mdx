@@ -26,10 +26,26 @@ This is the same indexing syntax used for struct fields.
 import { Quantifier } from "@callcium/sdk";
 ```
 
-| Quantifier       | Semantics                                        | Empty array |
-| ---------------- | ------------------------------------------------ | ----------- |
-| `Quantifier.ALL` | All elements must satisfy the constraint         | Passes      |
-| `Quantifier.ANY` | At least one element must satisfy the constraint | Fails       |
+| Quantifier       | Semantics                                         | Empty array |
+| ---------------- | ------------------------------------------------- | ----------- |
+| `Quantifier.ALL` | Every element satisfies the loop's constraints    | Passes      |
+| `Quantifier.ANY` | At least one element satisfies all of them        | Fails       |
+
+The constraints of a group that share an array and a quantifier form one loop over that array. Under `ALL`, every element satisfies each of them. Under `ANY`, one element satisfies all of them together:
+
+```ts
+import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";
+
+// struct Transfer { address to; uint256 amount; }
+// function batchTransfer(Transfer[] transfers)
+const policy = PolicyBuilder
+  .create("batchTransfer((address,uint256)[])")
+  .add(arg(0, Quantifier.ANY, 0).eq(TREASURY))             // transfers[any].to
+  .add(arg(0, Quantifier.ANY, 1).gte(1_000n * 10n ** 18n)) // transfers[any].amount
+  .build();
+```
+
+The data is valid against this policy only when a single transfer goes to the treasury with at least 1,000 tokens. A transfer to the treasury of 1 token beside a transfer of 1,000 tokens elsewhere does not satisfy it.
 
 `Quantifier.ALL` is vacuously true on an empty array. When an empty array must be rejected, add a length constraint to the same group: `lengthGt(0n)` alongside the `ALL` constraint.
 
@@ -74,9 +90,9 @@ const policy = PolicyBuilder
   .build();
 ```
 
-## Depth limit
+## Path limits
 
-Paths nest up to four steps deep: argument index, plus any combination of struct fields, array indices, and quantifiers up to a total depth of four. Deeper navigation is rejected at `build()` time.
+A path holds at most `MAX_PATH_DEPTH` steps, counted from the argument across the loop it passes through, the quantifier not included (PWF-14). It passes through at most one quantifier. `.add()` rejects a second quantifier, and `build()` a deeper path.
 
 ## Length constraints
 

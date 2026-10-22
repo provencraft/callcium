@@ -4,11 +4,11 @@ pragma solidity ^0.8.28;
 import { Descriptor } from "./Descriptor.sol";
 import { DescriptorFormat as DF } from "./DescriptorFormat.sol";
 import { TypeDesc } from "./TypeDesc.sol";
-import { DynamicBufferLib } from "solady/utils/DynamicBufferLib.sol";
+import { DynamicBufferLib } from "./vendor/solady/utils/DynamicBufferLib.sol";
 
 /// @notice Internal state for drafting a parameter descriptor.
 struct DescriptorDraft {
-    /// The buffer holding the descriptor bytes being built.
+    /// The buffer that contains the descriptor bytes being built.
     DynamicBufferLib.DynamicBuffer buffer;
     /// The number of top-level parameters added so far.
     uint8 paramCount;
@@ -172,7 +172,7 @@ library DescriptorBuilder {
                 // Static array [N].
                 uint256 length = _parseUint(input, cursor + 1, closeBracket);
                 require(length <= type(uint16).max, MalformedTypeString());
-                // forge-lint: disable-next-line(unsafe-typecast)
+                // forge-lint: disable-next-line(unsafe-typecast) bounded by the `MalformedTypeString` check above.
                 baseDesc = TypeDesc.array_(baseDesc, uint16(length));
             }
             cursor = closeBracket + 1;
@@ -197,7 +197,7 @@ library DescriptorBuilder {
             if (length >= 5 && _eq(input, start, start + 4, "uint")) {
                 uint256 bits = _parseUint(input, start + 4, end);
                 require(bits >= 8 && bits <= 256 && bits % 8 == 0, UnknownType());
-                // forge-lint: disable-next-line(unsafe-typecast)
+                // forge-lint: disable-next-line(unsafe-typecast) bounded by the `UnknownType` check above.
                 return TypeDesc.uintN_(uint16(bits));
             }
         } else if (firstChar == "b") {
@@ -207,7 +207,7 @@ library DescriptorBuilder {
                 if (length == 5) return TypeDesc.bytes_();
                 uint256 byteCount = _parseUint(input, start + 5, end);
                 require(byteCount >= 1 && byteCount <= 32, UnknownType());
-                // forge-lint: disable-next-line(unsafe-typecast)
+                // forge-lint: disable-next-line(unsafe-typecast) bounded by the `UnknownType` check above.
                 return TypeDesc.bytesN_(uint8(byteCount));
             }
         } else if (firstChar == "s") {
@@ -220,7 +220,7 @@ library DescriptorBuilder {
             if (length >= 4 && _eq(input, start, start + 3, "int")) {
                 uint256 bits = _parseUint(input, start + 3, end);
                 require(bits >= 8 && bits <= 256 && bits % 8 == 0, UnknownType());
-                // forge-lint: disable-next-line(unsafe-typecast)
+                // forge-lint: disable-next-line(unsafe-typecast) bounded by the `UnknownType` check above.
                 return TypeDesc.intN_(uint16(bits));
             }
         } else if (firstChar == "f") {
@@ -245,9 +245,9 @@ library DescriptorBuilder {
         uint256 depth = 0;
 
         for (uint256 i = start; i <= end; i++) {
-            bool isEnd = (i == end);
-            // forge-lint: disable-next-line(unsafe-typecast)
-            bytes1 char = isEnd ? bytes1(",") : input[i];
+            // The end of the list reads as the comma that closes the last field.
+            bytes1 char = ",";
+            if (i != end) char = input[i];
 
             if (char == "(" || char == "[") {
                 depth++;

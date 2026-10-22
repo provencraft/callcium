@@ -1,156 +1,76 @@
 import { describe, expect, test } from "vitest";
 
 import rawVectors from "../../../spec/vectors/policies.json";
-import { PolicyCoder } from "../src/policy-coder";
-import { expectErrorCode, hex, policyDataFromVector } from "./helpers";
+import { validatePolicy } from "../src/policy-coder";
+import { expectErrorCode, hex, reencode } from "./helpers";
 
-import type { CallciumErrorCode } from "../src";
+import type { CallciumErrorCode } from "../src/errors";
 
 ///////////////////////////////////////////////////////////////////////////
 // Vector types
 ///////////////////////////////////////////////////////////////////////////
-
-type VectorConstraint = {
-  path: string;
-  scope: number;
-  operators: string[];
-};
-
-type VectorGroup = {
-  constraints: VectorConstraint[];
-};
-
-type VectorDecoded = {
-  isSelectorless: boolean;
-  selector: string;
-  descriptor: string;
-  groups: VectorGroup[];
-};
 
 type Vector = {
   id: string;
   blob: string;
   description: string;
   error: string;
-  errorArgs: string[];
-  spec?: {
-    decoded?: VectorDecoded;
-  };
+  canonical?: boolean;
 };
 
 const vectors: Vector[] = rawVectors;
-const validVectors = vectors.filter((v) => v.error === "" && v.spec?.decoded !== undefined);
 
 ///////////////////////////////////////////////////////////////////////////
-// Test helpers
+// Helpers
 ///////////////////////////////////////////////////////////////////////////
 
-const ERROR_MAP: Record<string, CallciumErrorCode> = {
-  MalformedHeader: "MALFORMED_HEADER",
-  UnsupportedVersion: "UNSUPPORTED_VERSION",
-  UnexpectedEnd: "UNEXPECTED_END",
-  EmptyPolicy: "EMPTY_POLICY",
+/** Vector error names and the SDK codes that transliterate them. */
+const errorMap: Record<string, CallciumErrorCode> = {
+  DataLengthMismatch: "DATA_LENGTH_MISMATCH",
   EmptyGroup: "EMPTY_GROUP",
   EmptyPath: "EMPTY_PATH",
-  InvalidContextPath: "INVALID_CONTEXT_PATH",
-  InvalidScope: "INVALID_SCOPE",
-  RuleSizeMismatch: "RULE_SIZE_MISMATCH",
-  MalformedHint: "MALFORMED_HINT",
-  OperatorTargetMismatch: "OPERATOR_TARGET_MISMATCH",
-  GroupSizeMismatch: "GROUP_SIZE_MISMATCH",
-  GroupTooSmall: "GROUP_TOO_SMALL",
+  EmptyPolicy: "EMPTY_POLICY",
   GroupOverflow: "GROUP_OVERFLOW",
-  TrailingBytes: "TRAILING_BYTES",
-  RuleTooSmall: "RULE_TOO_SMALL",
-  RuleOverflow: "RULE_OVERFLOW",
-  UnknownOperator: "UNKNOWN_OPERATOR",
-  UnsortedInSet: "UNSORTED_IN_SET",
+  GroupSizeMismatch: "GROUP_SIZE_MISMATCH",
+  InvalidContextOperand: "INVALID_CONTEXT_OPERAND",
+  InvalidContextPath: "INVALID_CONTEXT_PATH",
+  InvalidNestedLoop: "INVALID_NESTED_LOOP",
+  MalformedHeader: "MALFORMED_HEADER",
+  MalformedHint: "MALFORMED_HINT",
+  MinorMismatch: "MINOR_MISMATCH",
+  OperatorTargetMismatch: "OPERATOR_TARGET_MISMATCH",
+  ParamCountMismatch: "PARAM_COUNT_MISMATCH",
   PathTooDeep: "PATH_TOO_DEEP",
+  RuleOverflow: "RULE_OVERFLOW",
+  RuleSizeMismatch: "RULE_SIZE_MISMATCH",
+  RuleTooSmall: "RULE_TOO_SMALL",
+  TrailingBytes: "TRAILING_BYTES",
+  UnexpectedEnd: "UNEXPECTED_END",
   UnknownContextProperty: "UNKNOWN_CONTEXT_PROPERTY",
+  UnknownOperator: "UNKNOWN_OPERATOR",
+  UnknownPathStep: "UNKNOWN_PATH_STEP",
+  UnknownQuantifier: "UNKNOWN_QUANTIFIER",
+  UnknownScope: "UNKNOWN_SCOPE",
+  UnsortedInSet: "UNSORTED_IN_SET",
+  UnsupportedVersion: "UNSUPPORTED_VERSION",
 };
 
 ///////////////////////////////////////////////////////////////////////////
-// Inspect
+// Storage verdicts
 ///////////////////////////////////////////////////////////////////////////
 
-describe("PolicyCoder conformance vectors - inspect", () => {
+describe("Storage conformance vectors - validatePolicy", () => {
   for (const vector of vectors) {
     test(`${vector.id}: ${vector.description}`, () => {
+      const blob = hex(vector.blob);
       if (vector.error === "") {
-        const result = PolicyCoder.inspect(hex(vector.blob));
-        const decoded = vector.spec?.decoded;
-        if (decoded !== undefined) {
-          expect(result.isSelectorless).toBe(decoded.isSelectorless);
-          expect(result.selector.value).toBe(decoded.selector);
-          expect(result.descriptor.raw).toBe(decoded.descriptor);
-          expect(result.groups).toHaveLength(decoded.groups.length);
-        }
-      } else {
-        const expectedCode = ERROR_MAP[vector.error];
-        expect(expectedCode, `No error code mapping for "${vector.error}"`).toBeDefined();
-        expectErrorCode(() => PolicyCoder.inspect(hex(vector.blob)), expectedCode);
+        validatePolicy(blob);
+        expect(reencode(blob) === blob).toBe(vector.canonical);
+        return;
       }
-    });
-  }
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Decode
-///////////////////////////////////////////////////////////////////////////
-
-describe("PolicyCoder conformance vectors - decode", () => {
-  for (const vector of validVectors) {
-    test(`${vector.id}: decodes blob to expected structure`, () => {
-      const decoded = vector.spec!.decoded!;
-      const result = PolicyCoder.decode(hex(vector.blob));
-
-      expect(result.isSelectorless).toBe(decoded.isSelectorless);
-      expect(result.selector).toBe(decoded.selector);
-      expect(result.descriptor).toBe(decoded.descriptor);
-      expect(result.groups).toHaveLength(decoded.groups.length);
-
-      for (let gi = 0; gi < decoded.groups.length; gi++) {
-        const expectedConstraints = decoded.groups[gi].constraints;
-        const actualConstraints = result.groups[gi];
-        expect(actualConstraints).toHaveLength(expectedConstraints.length);
-
-        for (let ci = 0; ci < expectedConstraints.length; ci++) {
-          const expected = expectedConstraints[ci];
-          const actual = actualConstraints[ci];
-          expect(actual.scope).toBe(expected.scope);
-          expect(actual.path).toBe(expected.path);
-          expect(actual.operators).toEqual(expected.operators);
-        }
-      }
-    });
-  }
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Encode
-///////////////////////////////////////////////////////////////////////////
-
-describe("PolicyCoder conformance vectors - encode", () => {
-  for (const vector of validVectors) {
-    test(`${vector.id}: encodes to expected blob`, () => {
-      const decoded = vector.spec!.decoded!;
-      const data = policyDataFromVector(decoded);
-      const encoded = PolicyCoder.encode(data);
-      expect(encoded).toBe(vector.blob);
-    });
-  }
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Round-trip
-///////////////////////////////////////////////////////////////////////////
-
-describe("PolicyCoder conformance vectors - round-trip", () => {
-  for (const vector of validVectors) {
-    test(`${vector.id}: encode(decode(blob)) === blob`, () => {
-      const decoded = PolicyCoder.decode(hex(vector.blob));
-      const reEncoded = PolicyCoder.encode(decoded);
-      expect(reEncoded).toBe(vector.blob);
+      const code = errorMap[vector.error];
+      expect(code, `No error code mapping for "${vector.error}"`).toBeDefined();
+      expectErrorCode(() => validatePolicy(blob), code);
     });
   }
 });

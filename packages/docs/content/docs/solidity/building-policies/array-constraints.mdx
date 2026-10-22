@@ -3,7 +3,7 @@ title: Array Constraints
 description: Constrain elements of array parameters using path quantifiers.
 ---
 
-Array parameters can be constrained element-by-element using path quantifiers. A quantifier extends the `arg()` path to apply a constraint across every element, or to require that at least one element satisfies it.
+Array parameters are constrained element-by-element using path quantifiers. A quantifier extends the `arg()` path to apply a constraint across every element, or to require that at least one element satisfies it.
 
 ## Path indexing
 
@@ -26,10 +26,28 @@ This is the same indexing syntax used for struct fields.
 import { Path } from "callcium/Path.sol";
 ```
 
-| Quantifier | Semantics                                        | Empty array |
-| ---------- | ------------------------------------------------ | ----------- |
-| `Path.ALL` | All elements must satisfy the constraint         | Passes      |
-| `Path.ANY` | At least one element must satisfy the constraint | Fails       |
+| Quantifier | Semantics                                      | Empty array |
+| ---------- | ---------------------------------------------- | ----------- |
+| `Path.ALL` | Every element satisfies the loop's constraints | Passes      |
+| `Path.ANY` | At least one element satisfies all of them     | Fails       |
+
+The constraints of a group that share an array and a quantifier form one loop over that array. Under `ALL`, every element satisfies each of them. Under `ANY`, one element satisfies all of them together:
+
+```solidity
+import { arg } from "callcium/Constraint.sol";
+import { Path } from "callcium/Path.sol";
+import { PolicyBuilder } from "callcium/PolicyBuilder.sol";
+
+// struct Transfer { address to; uint256 amount; }
+// function batchTransfer(Transfer[] transfers)
+bytes memory policy = PolicyBuilder
+    .create("batchTransfer((address,uint256)[])")
+    .add(arg(0, Path.ANY, 0).eq(TREASURY))                // transfers[any].to
+    .add(arg(0, Path.ANY, 1).gte(uint256(1_000e18)))      // transfers[any].amount
+    .build();
+```
+
+The data is valid against this policy only when a single transfer goes to the treasury with at least 1,000 tokens. A transfer to the treasury of 1 token beside a transfer of 1,000 tokens elsewhere does not satisfy it.
 
 `Path.ALL` is vacuously true on an empty array. When an empty array must be rejected, add a length constraint to the same group: `lengthGt(0)` alongside the `ALL` constraint.
 
@@ -82,9 +100,11 @@ bytes memory policy = PolicyBuilder
 
 ## Limits
 
+A path holds at most `MAX_PATH_DEPTH` steps, counted from the argument across the loop it passes through, the quantifier not included (PWF-14). It passes through at most one quantifier. `add()` rejects a second quantifier, and the builder a deeper path.
+
 <Callout type="warn">
-  A single quantified traversal evaluates at most 256 elements — enforcement reverts with `QuantifierLimitExceeded` when
-  exceeded. Only one quantifier is allowed per path; `add()` rejects paths that contain more than one.
+  A loop evaluates at most `MAX_QUANTIFIED_ARRAY_LENGTH` elements — enforcement reverts with `QuantifierLimitExceeded`
+  on a longer array.
 </Callout>
 
-Quantified rules dominate enforcement gas. Each quantified rule traverses its array once, so cost grows with the product of quantified rule count and array length, and path steps below the quantifier multiply the per-element work. Benchmark policies that stack many quantified rules on the target chain — opcode costs and block limits are chain-specific.
+Loops dominate enforcement gas. Cost grows with the root rules and, in a loop, with the array's elements times the body's tests; each test adds one offset read per hop on its path. `MAX_QUANTIFIED_ARRAY_LENGTH` and `MAX_PATH_DEPTH` bound one loop and one path, not a policy: they keep the verdict independent of the chain, and they do not keep a policy within a transaction's gas cap. Benchmark a policy with many loops or heavy loop bodies on the target chain before storing it — opcode costs and transaction gas caps are chain-specific.

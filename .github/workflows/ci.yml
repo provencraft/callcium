@@ -1,11 +1,19 @@
 name: CI
 
+# The run ID seeds the differential corpus, the decoder-fidelity corpus and the Forge fuzz runs, so a failure reproduces
+# from this name.
+run-name: CI (seed ${{ github.run_id }})
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      decoder_fidelity_cases:
+        description: Decoder-fidelity seeds per shape
+        default: '512'
 
 permissions:
   contents: read
@@ -20,7 +28,10 @@ env:
 jobs:
   forge:
     name: Forge
+    needs: [corpus]
     runs-on: ubuntu-latest
+    env:
+      FOUNDRY_FUZZ_SEED: ${{ github.run_id }}
     defaults:
       run:
         working-directory: packages/contracts
@@ -30,7 +41,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: v1.8.1
+          version: v1.8.5
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -38,24 +49,78 @@ jobs:
       - name: Install dependencies
         run: forge soldeer install
 
-      - name: Run Forge fmt
-        run: forge fmt --check
+      - name: Check Forge formatting
+        run: bun run fmt:check
         id: fmt
 
+      - name: Lint
+        run: bun run lint
+        id: lint
+
       - name: Run Forge build
-        run: forge build
+        run: bun run build
         id: build
 
+      # The replay tests read it from here.
+      - name: Download the differential corpus
+        uses: actions/download-artifact@v4
+        with:
+          name: differential-corpus
+          path: spec/lean/corpus
+
+      - name: Mutate the differential corpus
+        run: bun run corpus:mutants
+
+      - name: Upload the mutated differential corpus
+        uses: actions/upload-artifact@v4
+        with:
+          name: differential-mutants
+          path: spec/lean/corpus/enforcement-mutants.txt
+          if-no-files-found: error
+
       - name: Run Forge tests
-        run: forge test -vvv
+        run: bun run test -vvv
         id: test
+
+      - name: Write the decoder-fidelity corpus
+        run: bun run corpus:decoder-fidelity ${{ inputs.decoder_fidelity_cases || '512' }}
+
+      # The floor step below rebuilds into `out/`, which holds this corpus.
+      - name: Upload the decoder-fidelity corpus
+        uses: actions/upload-artifact@v4
+        with:
+          name: decoder-fidelity-corpus
+          path: packages/contracts/out/decoder-fidelity.txt
+          if-no-files-found: error
+
+      - name: Upload the Forge replay
+        uses: actions/upload-artifact@v4
+        with:
+          name: forge-replay
+          path: |
+            packages/contracts/out/encoding.txt
+            packages/contracts/out/enforcement.txt
+            packages/contracts/out/storage.txt
+            packages/contracts/out/validation.txt
+          if-no-files-found: error
+
+      # Ubuntu's apt ships Z3 4.8.12; the release zip pins the version the proofs are run with locally.
+      - name: Install Z3
+        working-directory: ${{ runner.temp }}
+        run: |
+          curl -fsSL -o z3.zip https://github.com/Z3Prover/z3/releases/download/z3-4.16.0/z3-4.16.0-x64-glibc-2.39.zip
+          echo "7288c49a5bd6dbafd7b0b0d1f65956b91672da24b08f09242919af159be3418e  z3.zip" | sha256sum --check
+          unzip -q z3.zip
+          echo "$PWD/z3-4.16.0-x64-glibc-2.39/bin" >> "$GITHUB_PATH"
+
+      - name: Prove the prove_ tests symbolically
+        run: bun run prove
+        id: prove
 
       # Last: the floor profile forces a full rebuild into the shared out directory,
       # so every step above would otherwise recompile under the ci profile.
       - name: Check floor compiler version
-        run: forge build --force --skip test --skip script
-        env:
-          FOUNDRY_PROFILE: floor
+        run: bun run build:floor
         id: floor
 
   docs:
@@ -101,8 +166,131 @@ jobs:
         working-directory: packages/docs
         run: bun run build
 
+  lean:
+    name: Lean
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Building Tests runs the axiom audit; --wfail makes a `sorry` warning fatal.
+      - name: Build and check the Lean model
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: spec/lean
+          build-args: --wfail Callcium Tests vectors
+          test: false
+          leanchecker: true
+
+      - name: Check the conformance vectors against the model
+        working-directory: spec/lean
+        run: lake exe vectors
+
+  corpus:
+    name: Corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No GitHub cache: the Lean job saves the proof build under the same key.
+      - name: Build the corpus generator
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: spec/lean
+          build-args: --wfail generate-corpus
+          test: false
+          use-github-cache: false
+
+      # Exits nonzero when a coverage count is zero, so a corpus that misses one is never uploaded.
+      - name: Generate the differential corpus
+        working-directory: spec/lean
+        run: lake exe generate-corpus ${{ github.run_id }} 1000 corpus
+
+      - name: Upload the differential corpus
+        uses: actions/upload-artifact@v4
+        with:
+          name: differential-corpus
+          path: spec/lean/corpus/
+          if-no-files-found: error
+
+  differential:
+    name: Differential
+    needs: [corpus, forge, sdk]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the checkers
+        uses: leanprover/lean-action@v1
+        with:
+          lake-package-directory: spec/lean
+          build-args: --wfail decoder-fidelity check-encoding check-enforcement check-storage check-validation
+          test: false
+          use-github-cache: false
+
+      - name: Download the decoder-fidelity corpus
+        uses: actions/download-artifact@v4
+        with:
+          name: decoder-fidelity-corpus
+          path: spec/lean/decoder-fidelity
+
+      # The memory limit fails a run in which the model reads a length no reader read.
+      - name: Check decoder fidelity
+        working-directory: spec/lean
+        run: (ulimit -v 8000000; .lake/build/bin/decoder-fidelity decoder-fidelity/decoder-fidelity.txt)
+
+      - name: Download the differential corpus
+        uses: actions/download-artifact@v4
+        with:
+          name: differential-corpus
+          path: spec/lean/corpus
+
+      - name: Download the Forge replay
+        uses: actions/download-artifact@v4
+        with:
+          name: forge-replay
+          path: spec/lean/replay/forge
+
+      - name: Download the SDK replay
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-replay
+          path: spec/lean/replay/sdk
+
+      - name: Check the Forge storage replay
+        working-directory: spec/lean
+        run: .lake/build/bin/check-storage corpus/storage.txt replay/forge/storage.txt
+
+      - name: Check the SDK storage replay
+        working-directory: spec/lean
+        run: .lake/build/bin/check-storage corpus/storage.txt replay/sdk/storage.txt
+
+      - name: Check the Forge enforcement replay
+        working-directory: spec/lean
+        run: .lake/build/bin/check-enforcement corpus/enforcement.txt replay/forge/enforcement.txt
+
+      - name: Check the SDK enforcement replay
+        working-directory: spec/lean
+        run: .lake/build/bin/check-enforcement corpus/enforcement.txt replay/sdk/enforcement.txt
+
+      - name: Check the Forge encoding replay
+        working-directory: spec/lean
+        run: .lake/build/bin/check-encoding corpus/encoding.txt replay/forge/encoding.txt
+
+      - name: Check the SDK encoding replay
+        working-directory: spec/lean
+        run: .lake/build/bin/check-encoding corpus/encoding.txt replay/sdk/encoding.txt
+
+      - name: Check the Forge validation replay
+        working-directory: spec/lean
+        run: .lake/build/bin/check-validation corpus/validation.txt replay/forge/validation.txt
+
+      - name: Check the SDK validation replay
+        working-directory: spec/lean
+        run: .lake/build/bin/check-validation corpus/validation.txt replay/sdk/validation.txt
+
   sdk:
     name: SDK
+    needs: [corpus, forge]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -116,7 +304,6 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        working-directory: packages/sdk
         run: bun install
 
       - name: Check formatting
@@ -138,3 +325,30 @@ jobs:
       - name: Run tests
         working-directory: packages/sdk
         run: bun run test
+
+      - name: Download the differential corpus
+        uses: actions/download-artifact@v4
+        with:
+          name: differential-corpus
+          path: spec/lean/corpus
+
+      - name: Download the mutated differential corpus
+        uses: actions/download-artifact@v4
+        with:
+          name: differential-mutants
+          path: spec/lean/corpus
+
+      - name: Replay the differential corpus
+        working-directory: packages/sdk
+        run: bun run replay
+
+      - name: Upload the SDK replay
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-replay
+          path: |
+            packages/sdk/out/encoding.txt
+            packages/sdk/out/enforcement.txt
+            packages/sdk/out/storage.txt
+            packages/sdk/out/validation.txt
+          if-no-files-found: error

@@ -5,50 +5,55 @@ description: "Static validation of policies against their declared signatures."
 
 ## PolicyValidator
 
-Semantic validation for policies.
+Build-time validation of policy blobs.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-validator.ts#L1169)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-validator.ts#L680)
 
 ### Methods
 
 ### validate
 
-Validate a policy for type mismatches, contradictions, redundancies, and vacuities.
+Validate a policy blob (PV-1 to PV-9). Storage validation runs first, since the descriptor check reads the descriptor
+before anything is decoded. Issues of PV-1 to PV-7 name a rule where the blob stores it. Issues of PV-8 and PV-9 name
+the group where the blob stores it and the rule's position in the normal form of that group. Only rules that raise no
+PV-2, PV-3, PV-5 or PV-6 issue and no PV-4 issue on a test enter the normal form. PV-8 skips a loop that lost a body
+test to such an issue.
 
 ```ts
-function validate(data: PolicyData): Issue[];
+function validate(blob: `0x${string}`): Issue[];
 ```
 
 **Parameters**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `data` | `PolicyData` | The canonical policy data to validate. |
+| `blob` | `` `0x${string}` `` | A policy blob that passes storage validation. |
 
 **Returns**
 
-`Issue[]` — All validation issues found, ordered by group and constraint index.
+`Issue[]` — Every issue found, or one issue alone when the descriptor is not valid.
 
 ## Functions
 
 ### isOpAllowed
 
-True if operator `opCode` is a defined operator allowed on a target with the given type info. Tolerates the NOT flag
-on `opCode`.
+Determine whether the compatibility matrix admits an operator on a target type. A context operand is admitted on a
+target its comparison can pair with a context property. These targets are `uintN` under `EQ`, `GT`, `LT`, `GTE` and
+`LTE`, and `address` under `EQ`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-validator.ts#L219)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/policy-validator.ts#L80)
 
 ```ts
-function isOpAllowed(opCode: number, typeInfo: TypeInfo): boolean;
+function isOpAllowed(opCode: number, typeCode: number): boolean;
 ```
 
 **Parameters**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `opCode` | `number` | - |
-| `typeInfo` | `TypeInfo` | - |
+| `opCode` | `number` | The operator code, with or without the NOT flag. |
+| `typeCode` | `number` | The target's type code. |
 
 **Returns**
 
-`boolean`
+`boolean` — True when the operator applies to the target.

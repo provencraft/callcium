@@ -7,16 +7,16 @@ description: "Error classes thrown by the SDK."
 
 Thrown on malformed or inadmissible SDK input. `offset`, when set, is the error's byte position in the source blob.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L88)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L99)
 
 ## ValidationError
 
 Thrown by `PolicyBuilder.build` when validation reports any issue.
 
 Carries every issue the validator found. The `Error.message` is the first issue's message — a diagnostic summary, not
-a presentation contract. Consumers rendering issues to users should iterate `issues` directly.
+a presentation contract. To render issues to users, iterate `issues` directly.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L109)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L120)
 
 ## PolicyViolationError
 
@@ -24,10 +24,10 @@ Thrown by `PolicyEnforcer.enforce` when calldata fails policy enforcement. Disti
 signals static issues in the policy itself.
 
 Carries the full list of structured violations (one per failed group). The `Error.message` is a minimal non-lossy
-diagnostic summary built from the first violation's structured fields — not a presentation contract. Consumers
-rendering violations to users should iterate `violations` directly.
+diagnostic summary built from the first violation's structured fields — not a presentation contract. To render
+violations to users, iterate `violations` directly.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L127)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L138)
 
 ## Types
 
@@ -37,8 +37,7 @@ Machine-readable error code for structural decoding and validation failures.
 
 Each code names one invariant. Where Solidity detects the same invariant, the code is its error name transliterated
 from `PascalCase` to `SCREAMING_SNAKE_CASE`. The codes under "Inputs and validation" have no counterpart: they name
-input a Solidity signature cannot express. `OUT_OF_PHYSICAL_BOUNDS` names an invariant Solidity carries twice, as the
-error `PolicyBuilder.OutOfPhysicalBounds` and as an issue code, so the name is shared with `IssueCode`.
+input a Solidity signature cannot express.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L9)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/errors.ts#L10)
 <auto-type-table path="../../../../../sdk/src/errors.ts" name="CallciumErrorCode" />

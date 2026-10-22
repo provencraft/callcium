@@ -9,9 +9,9 @@ description: Enforce policies against calldata at runtime.
 
 Two functions expose the enforcer. `enforce(policy, callData)` reverts with `PolicyViolation` when the data fails. `check(policy, callData)` returns `true` when the data is valid against the policy and `false` otherwise.
 
-Both revert with `MalformedHeader` on a blob too short to hold a policy header, and both revert on a violation that aborts evaluation. Only `enforce` reverts on a violation that merely fails its group.
+Both revert with `MalformedHeader` on a blob shorter than its header, selector and descriptor length fields, with `UnsupportedVersion` or `UnsupportedMinor` on a format version the enforcer does not implement, and on a violation that aborts evaluation. Only `enforce` reverts on a violation that merely fails its group.
 
-Past that length check, enforcement assumes a validated blob. An unbound `(target, selector)` pair resolves to empty bytes, which is too short to hold a header, so decide explicitly whether an absent policy should revert or skip enforcement — see [Integration examples](#integration-examples).
+Past those checks, enforcement assumes a blob that passes storage validation. An unbound `(target, selector)` pair resolves to empty bytes, which is too short to hold a header, so decide explicitly whether an absent policy should revert or skip enforcement — see [Integration examples](#integration-examples).
 
 ```solidity
 import { PolicyEnforcer } from "callcium/PolicyEnforcer.sol";
@@ -108,7 +108,7 @@ fallback() external payable {
 
 Callcium's evaluation model has two levels.
 
-**Groups use OR semantics.** The enforcer evaluates groups in canonical order — `build()` sorts groups by group hash, so the evaluation order is deterministic but independent of authoring order. The first group that passes ends evaluation — the data is valid against the policy. If every group fails, `PolicyViolation` is thrown.
+**Groups use OR semantics.** The enforcer evaluates groups in canonical order — `build()` sorts groups by their encoding, so the evaluation order is deterministic but independent of authoring order. The first group that passes ends evaluation — the data is valid against the policy. If every group fails, `PolicyViolation` is thrown.
 
 **Rules within a group use AND semantics.** All rules in a group must pass for the group to pass. Evaluation short-circuits on the first failing rule.
 
@@ -128,7 +128,7 @@ Both indices are zero-indexed.
 
 **`groupIndex`** is the index of the last group evaluated. Since groups use OR semantics, a `PolicyViolation` means every group failed — `groupIndex` is the final one attempted.
 
-**`ruleIndex`** is the index of the first rule within that group that failed; evaluation short-circuits, so no subsequent rules in that group were checked.
+**`ruleIndex`** is the index of the first rule within that group that failed: a test, or the loop whose body failed. Evaluation short-circuits, so no subsequent rules in that group were checked.
 
 The error reflects a single point of failure, not a complete trace. If a policy has multiple groups, the indices only reflect the failure in the final group; earlier group failures are discarded as the enforcer advances. Group indices follow the canonical group order, not `.or()` authoring order.
 
@@ -148,16 +148,16 @@ For creating selectorless policies, see [Selectorless Policies](/docs/solidity/b
 
 ## Error reference
 
-| Error                     | When thrown                                                      |
-| ------------------------- | ---------------------------------------------------------------- |
-| `PolicyViolation`         | Calldata fails all groups.                                       |
-| `SelectorMismatch`        | Calldata selector doesn't match the policy.                      |
-| `MissingSelector`         | Calldata too short to contain a selector.                        |
-| `CalldataOutOfBounds`     | A read falls outside the calldata.                               |
-| `ArrayIndexOutOfBounds`   | A path index is past the end of a dynamic array.                 |
-| `NonCanonicalValue`       | A resolved word is not the canonical encoding of its type.       |
-| `QuantifierLimitExceeded` | A quantified array is longer than `MAX_QUANTIFIED_ARRAY_LENGTH`. |
-| `UnknownOperator`         | Policy contains an unrecognized operator code.                   |
-| `UnknownContextProperty`  | Policy references an unknown context property ID.                |
+| Error                     | When thrown                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------- |
+| `PolicyViolation`         | Calldata fails all groups.                                                    |
+| `SelectorMismatch`        | Calldata selector doesn't match the policy.                                   |
+| `MissingSelector`         | Calldata too short to contain a selector.                                     |
+| `CalldataOutOfBounds`     | A read, an offset or a declared payload extends past the end of the calldata. |
+| `NonCanonicalValue`       | A resolved word is not the canonical encoding of its type.                    |
+| `QuantifierLimitExceeded` | A loop's array is longer than `MAX_QUANTIFIED_ARRAY_LENGTH`.                  |
+| `MalformedHeader`         | The policy is shorter than its header, selector and descriptor length fields. |
+| `UnsupportedVersion`      | The policy's major version is not the one the enforcer implements.            |
+| `UnsupportedMinor`        | The policy's minor version is above the highest one the enforcer implements.  |
 
-`UnknownOperator` and `UnknownContextProperty` indicate a policy that is not well-formed. `PolicyBuilder.build()` never produces one; for policy bytes from any other source, `Policy.validate` is the minimum check, and `PolicyRegistry` runs it at storage.
+A fixed index at or past a dynamic array's length fails its group, and evaluation continues with the next group. The last three errors are fixed by the blob: no calldata cures them. Past them, the enforcer reads the blob without checking it. `PolicyBuilder.build()` emits a blob that passes storage validation, and `PolicyRegistry` runs `Policy.validate` at storage.

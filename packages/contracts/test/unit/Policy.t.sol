@@ -1,57 +1,85 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import { Be16 } from "src/Be16.sol";
-import { arg, msgSender } from "src/Constraint.sol";
-import { PolicyBuilder } from "src/PolicyBuilder.sol";
-import { PolicyFormat as PF } from "src/PolicyFormat.sol";
+import { Test } from "forge-std/Test.sol";
+
+import { Policy } from "src/Policy.sol";
 
 import { PolicyHarness } from "test/harnesses/PolicyHarness.sol";
-import { BaseTest } from "test/unit/BaseTest.sol";
 
-/// @dev Base contract for Policy unit tests.
-abstract contract PolicyTest is BaseTest {
-    /// @dev A hop-free hint block addressing the first argument of `foo(uint256)`.
-    bytes internal constant STATIC_HINT = hex"0000000000000020";
+abstract contract PolicyTest is Test {
+    /// @dev Storage vector `calldata-eq-uint256`: `foo(uint256)` with arg(0) EQ 42.
+    bytes internal constant SELECTOR_BLOB =
+        hex"602fbebd380003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a";
+
+    /// @dev Storage vector `selectorless`: the same rule, the selectorless flag set and the selector slot zero.
+    bytes internal constant SELECTORLESS_BLOB =
+        hex"61000000000003020120010001000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a";
 
     PolicyHarness internal harness;
 
     function setUp() public virtual {
         harness = new PolicyHarness();
     }
+}
 
-    /// @dev Builds a valid single-rule policy: foo(uint256) with arg(0).eq(42).
-    function _validBlob() internal pure returns (bytes memory) {
-        return PolicyBuilder.create("foo(uint256)").add(arg(0).eq(uint256(42))).buildUnsafe();
+contract PolicySelectorTest is PolicyTest {
+    function test_ReturnsSelector() public view {
+        assertEq(harness.selector(SELECTOR_BLOB), bytes4(keccak256("foo(uint256)")));
     }
 
-    /// @dev Builds a valid two-group policy for OR-group tests.
-    function _twoGroupBlob() internal pure returns (bytes memory) {
-        return
-            PolicyBuilder.create("foo(uint256)")
-                .add(arg(0).eq(uint256(1)))
-                .or()
-                .add(arg(0).eq(uint256(2)))
-                .buildUnsafe();
+    function test_RevertWhen_Selectorless() public {
+        vm.expectRevert(Policy.OmittedSelector.selector);
+        harness.selector(SELECTORLESS_BLOB);
     }
 
-    /// @dev Builds a valid context-scope policy: msgSender().eq(address).
-    function _contextBlob() internal pure returns (bytes memory) {
-        return PolicyBuilder.create("foo(uint256)").add(msgSender().eq(address(1))).buildUnsafe();
+    function test_RevertWhen_HeaderTruncated() public {
+        vm.expectRevert(Policy.MalformedHeader.selector);
+        harness.selector(hex"602fbebd3800");
+    }
+}
+
+/// @notice Error arguments, which the storage vectors leave unpinned. Each offset is a position in the blobs below.
+contract PolicyValidateTest is PolicyTest {
+    uint256 internal constant GROUP_OFFSET = 11;
+
+    uint256 internal constant RULE_OFFSET = 17;
+
+    uint256 internal constant BODY_RULE_OFFSET = 47;
+
+    /// @dev Storage vector `rule-count-over`: ruleCount 2 with one rule filling groupSize.
+    bytes internal constant RULE_COUNT_OVER =
+        hex"602fbebd380003020120010002000000310031010100000000000000000020010020000000000000000000000000000000000000000000000000000000000000002a";
+
+    /// @dev Storage vector `hint-target-tuple`: a hint target type code of a tuple.
+    bytes internal constant HINT_TARGET_TUPLE =
+        hex"602fbebd380003020120010001000000310031010100000000000000000090010020000000000000000000000000000000000000000000000000000000000000002a";
+
+    /// @dev Storage vector `length-on-word`: LENGTH_EQ on a uint256 target.
+    bytes internal constant LENGTH_ON_WORD =
+        hex"602fbebd38000302012001000100000015001501010000000000000000002018000400000001";
+
+    /// @dev Storage vector `loop-path-too-deep`: an array path of 1 step and a body path of 63.
+    bytes internal constant LOOP_PATH_TOO_DEEP =
+        hex"608b44cef1000702018100000520010001000000c700c702010100000100000000ffff00000000000000004001000100ad013f00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200200200000000000000000000000000000000000000000000000000000000000000000";
+
+    function test_RevertWhen_RulesOverrunGroup() public {
+        vm.expectRevert(abi.encodeWithSelector(Policy.GroupSizeMismatch.selector, GROUP_OFFSET));
+        harness.validate(RULE_COUNT_OVER);
     }
 
-    /// @dev Builds a context-scope policy and rewrites its property ID to `ctxId`, bypassing builder validation.
-    function _contextBlob(uint16 ctxId) internal pure returns (bytes memory) {
-        bytes memory blob = _contextBlob();
-        Be16.write(blob, _firstRuleOffset(blob) + PF.RULE_PATH_OFFSET, ctxId);
-        return blob;
+    function test_RevertWhen_HintTargetAddressesNoValue() public {
+        vm.expectRevert(abi.encodeWithSelector(Policy.MalformedHint.selector, RULE_OFFSET));
+        harness.validate(HINT_TARGET_TUPLE);
     }
 
-    /// @dev Zeroes the 4-byte selector slot in a policy blob.
-    function _zeroSelector(bytes memory blob) internal pure {
-        blob[PF.POLICY_SELECTOR_OFFSET] = 0x00;
-        blob[PF.POLICY_SELECTOR_OFFSET + 1] = 0x00;
-        blob[PF.POLICY_SELECTOR_OFFSET + 2] = 0x00;
-        blob[PF.POLICY_SELECTOR_OFFSET + 3] = 0x00;
+    function test_RevertWhen_OperatorFamilyMismatchesTarget() public {
+        vm.expectRevert(abi.encodeWithSelector(Policy.OperatorTargetMismatch.selector, RULE_OFFSET));
+        harness.validate(LENGTH_ON_WORD);
+    }
+
+    function test_RevertWhen_BodyPathTooDeep() public {
+        vm.expectRevert(abi.encodeWithSelector(Policy.PathTooDeep.selector, BODY_RULE_OFFSET, 64));
+        harness.validate(LOOP_PATH_TOO_DEEP);
     }
 }

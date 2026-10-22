@@ -1,6 +1,6 @@
 import { arg, PolicyBuilder, PolicyCoder, type Span } from "@callcium/sdk";
 import type { Abi } from "viem";
-import { explainPolicy, flattenGroup, formatOperands } from "@/lib/policy-inspector";
+import { explainPolicy, type ExplainedTest, formatOperands } from "@/lib/policy-inspector";
 
 /** One decoded "meaning" row, carrying the byte span it owns for bytes↔rule linking. */
 export type LensRow = {
@@ -51,16 +51,14 @@ export function buildApproveLens(): LensData {
   const decoded = PolicyCoder.inspect(hex);
   const explained = explainPolicy(decoded, { abi: APPROVE_ABI });
 
-  const group = decoded.groups[0];
-  const explainedGroup = explained.groups[0];
-  const flat = explainedGroup ? flattenGroup(explainedGroup) : [];
-
-  const rows: LensRow[] = flat.map(({ constraint, rule }, i) => ({
-    path: constraint.pathLabel,
-    operator: rule.operator,
-    value: formatOperands(rule),
-    type: constraint.targetType,
-    span: group?.rules[i]?.span ?? { start: 0, end: 0 },
+  // The approve policy holds tests only.
+  const tests = explained.groups[0].rules.filter((rule): rule is ExplainedTest => "operator" in rule);
+  const rows: LensRow[] = tests.map((test) => ({
+    path: test.pathLabel,
+    operator: test.operator,
+    value: formatOperands(test),
+    type: test.targetType,
+    span: test.rule.span,
   }));
 
   const params = explained.params.map((p) => (p.name ? `${p.type} ${p.name}` : p.type)).join(", ");

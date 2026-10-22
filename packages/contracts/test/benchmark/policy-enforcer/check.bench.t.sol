@@ -3,7 +3,7 @@ pragma solidity ^0.8.28;
 
 import { PolicyEnforcerBench } from "../PolicyEnforcer.bench.t.sol";
 
-/// @dev Benchmarks for PolicyEnforcer.check().
+/// @notice Benchmarks for PolicyEnforcer.check().
 contract CheckBench is PolicyEnforcerBench {
     /*/////////////////////////////////////////////////////////////////////////
                               GROUP SCALING
@@ -77,8 +77,8 @@ contract CheckBench is PolicyEnforcerBench {
         _benchCheckPasses(rules16AllPass, "rules_16_all_pass");
     }
 
-    /// @dev Also the value-type series' large-tuple row, which addresses 32 fields of one tuple.
     function test_Rules32AllPass() public {
+        // Also the value-type series' large-tuple row, which addresses 32 fields of one tuple.
         _benchCheckPasses(rules32AllPass, "rules_32_all_pass");
     }
 
@@ -86,9 +86,8 @@ contract CheckBench is PolicyEnforcerBench {
                               PATH DEPTH
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @dev The cheapest calldata-rule policy, and the baseline the operator and value-type series read against. Those
-    /// sections once carried their own copies of it, which recorded this number by construction and never diverged.
     function test_Depth1Elementary() public {
+        // The cheapest calldata-rule policy, and the baseline the operator and value-type series read against.
         _benchCheckPasses(elementaryEq, "depth_1_elementary");
     }
 
@@ -96,8 +95,8 @@ contract CheckBench is PolicyEnforcerBench {
         _benchCheckPasses(depth8VeryDeep, "depth_8_very_deep");
     }
 
-    /// @dev Also the value-type array row: the element hop makes this the array baseline for both series.
     function test_Depth2ArrayElem() public {
+        // Also the value-type array row: the element hop makes this the array baseline for both series.
         _benchCheckPasses(arrayElem, "depth_2_array_elem");
     }
 

@@ -7,6 +7,7 @@ import { CallciumError } from "./errors";
 /** Binary layout constants for the Callcium descriptor format. */
 export const DescriptorFormat = {
   VERSION: 0x02,
+  HEADER_PARAMCOUNT_OFFSET: 1,
   HEADER_SIZE: 2,
   TYPECODE_SIZE: 1,
   COMPOSITE_META_SIZE: 3,
@@ -28,27 +29,23 @@ export const DescriptorFormat = {
 // Policy format
 ///////////////////////////////////////////////////////////////////////////
 
-/** Byte width of a rule's data length field. */
-const RULE_DATALENGTH_SIZE = 2;
-
-/** Byte width of one path step. */
-const PATH_STEP_SIZE = 2;
-
-/** Byte overhead of a rule header, excluding the path, the hint block, and the operator payload. */
-const RULE_FIXED_OVERHEAD = 7;
-
-/** Highest value a big-endian field of `byteWidth` bytes holds. */
+/** Highest value a big-endian field of `byteWidth` bytes can represent. */
 export function fieldMax(byteWidth: number): number {
   return 256 ** byteWidth - 1;
 }
 
+/** Lowest minor version, the minor of a blob that uses no extension. */
+const MINOR = 0;
+
 /** Binary layout constants and normative limits for the Callcium policy format. */
 export const PolicyFormat = {
-  VERSION: 0x02,
-  VERSION_MASK: 0x0f,
-  FLAG_NO_SELECTOR: 0x10,
-  RESERVED_MASK: 0xe0,
-  HEADER_SIZE: 1,
+  MAJOR: 3,
+  MINOR,
+  SUPPORTED_MINOR: MINOR,
+  MAJOR_SHIFT: 5,
+  MINOR_SHIFT: 1,
+  MINOR_MASK: 0x0f,
+  FLAG_NO_SELECTOR: 0x01,
   SELECTOR_OFFSET: 1,
   SELECTOR_SIZE: 4,
   DESC_LENGTH_OFFSET: 5,
@@ -56,18 +53,20 @@ export const PolicyFormat = {
   DESC_OFFSET: 7,
   GROUP_COUNT_SIZE: 1,
   GROUP_RULECOUNT_SIZE: 2,
-  GROUP_SIZE_SIZE: 4,
   GROUP_HEADER_SIZE: 6,
   RULE_SIZE_SIZE: 2,
   RULE_SCOPE_OFFSET: 2,
+  RULE_SCOPE_SIZE: 1,
   RULE_DEPTH_OFFSET: 3,
+  RULE_DEPTH_SIZE: 1,
   RULE_PATH_OFFSET: 4,
-  PATH_STEP_SIZE,
-  PATH_STEP_MAX: fieldMax(PATH_STEP_SIZE),
+  PATH_STEP_SIZE: 2,
+  PROPERTY_ID_SIZE: 2,
+  RULE_QUANTIFIER_OFFSET: 3,
+  RULE_QUANTIFIER_SIZE: 1,
+  LOOP_DEPTH_OFFSET: 4,
   RULE_OPCODE_SIZE: 1,
-  RULE_DATALENGTH_SIZE,
-  RULE_FIXED_OVERHEAD,
-  RULE_MIN_SIZE: RULE_FIXED_OVERHEAD + PATH_STEP_SIZE,
+  RULE_DATALENGTH_SIZE: 2,
   HINT_HEADER_SIZE: 1,
   HINT_HOP_SIZE: 8,
   HINT_HOP_INDEX_OFFSET: 4,
@@ -78,15 +77,10 @@ export const PolicyFormat = {
   HINT_TARGET_SIZE: 7,
   HINT_TARGET_META_OFFSET: 4,
   HINT_TARGET_TYPECODE_OFFSET: 6,
-  HINT_KIND_NONE: 0x0,
-  HINT_KIND_ALL: 0x1,
-  HINT_KIND_ANY: 0x2,
-  HINT_KIND_MAX: 0x2,
-  HINT_KIND_SHIFT: 6,
   HINT_HOP_COUNT_MASK: 0x3f,
-  HINT_SUFFIX_RESERVED_MASK: 0xc0,
+  HINT_HEADER_RESERVED_MASK: 0xc0,
   HINT_NO_INDEX: 0xffff,
-  HINT_INDEX_RESERVED: 0xfffe,
+  PATH_MARKER_BASE: 0xff00,
   HINT_META_ELEM_DYNAMIC: 0x8000,
   HINT_META_DYNAMIC_ARRAY: 0x4000,
   HINT_META_RESERVED_MASK: 0x3000,
@@ -94,7 +88,6 @@ export const PolicyFormat = {
   // Normative limits.
   MAX_PATH_DEPTH: 32,
   MAX_QUANTIFIED_ARRAY_LENGTH: 256,
-  MAX_SET_MEMBERS: Math.floor(fieldMax(RULE_DATALENGTH_SIZE) / 32),
 } as const satisfies Record<string, number>;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -113,7 +106,7 @@ type CodeMap<T extends readonly { readonly key: string; readonly code: number }[
  * Render a wire code as fixed-width hex.
  * @param code - Code value.
  * @param byteWidth - Byte width of the field the code occupies.
- * @returns The code as `0x`-prefixed hex, or its decimal form when no such field holds it.
+ * @returns The code as `0x`-prefixed hex, or its decimal form when no such field can represent it.
  */
 export function formatCode(code: number, byteWidth: number): string {
   if (!Number.isInteger(code) || code < 0 || code > fieldMax(byteWidth)) return String(code);
@@ -126,37 +119,6 @@ export function buildCodeMap<T extends readonly { readonly key: string; readonly
 ): CodeMap<T> {
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- derived from the same const table that defines the type.
   return Object.fromEntries(table.map((entry) => [entry.key, entry.code])) as CodeMap<T>;
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Scope codes
-///////////////////////////////////////////////////////////////////////////
-
-const SCOPE_TABLE = [
-  { key: "CONTEXT", code: 0x00, label: "context" },
-  { key: "CALLDATA", code: 0x01, label: "calldata" },
-] as const;
-
-/** Rule scope discriminant: context (EVM environment) vs. calldata (ABI payload). */
-export const Scope = buildCodeMap(SCOPE_TABLE);
-
-/** Display metadata for a scope code. */
-export type ScopeInfo = { label: string };
-
-const scopeByCode: ReadonlyMap<number, ScopeInfo> = new Map<number, ScopeInfo>(
-  SCOPE_TABLE.map((entry) => [entry.code, { label: entry.label }]),
-);
-
-/**
- * Map a scope code to its display label.
- * @param code - Scope byte value.
- * @returns Display metadata for the scope.
- * @throws {CallciumError} If the code is not a recognised scope.
- */
-export function lookupScope(code: number): ScopeInfo {
-  const info = scopeByCode.get(code);
-  if (!info) throw new CallciumError("INVALID_SCOPE", `Unknown scope value ${code}`);
-  return info;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -233,9 +195,88 @@ export function lookupContextProperty(code: number): ContextPropertyInfo {
   if (!info) {
     throw new CallciumError(
       "UNKNOWN_CONTEXT_PROPERTY",
-      `Unknown context property ID ${formatCode(code, PATH_STEP_SIZE)}`,
+      `Unknown context property ID ${formatCode(code, PolicyFormat.PROPERTY_ID_SIZE)}`,
     );
   }
+  return info;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Scope codes
+///////////////////////////////////////////////////////////////////////////
+
+const SCOPE_TABLE = [
+  { key: "CONTEXT", code: 0x00, label: "context" },
+  { key: "CALLDATA", code: 0x01, label: "calldata" },
+  { key: "LOOP", code: 0x02, label: "loop" },
+] as const;
+
+/** Rule scope discriminant: context (EVM environment), calldata (ABI payload) or loop (array elements). */
+export const Scope = buildCodeMap(SCOPE_TABLE);
+
+/** A defined scope code. */
+export type ScopeCode = (typeof SCOPE_TABLE)[number]["code"];
+
+/** Display metadata for a scope code. */
+export type ScopeInfo = { label: string };
+
+const scopeByCode: ReadonlyMap<number, ScopeInfo> = new Map<number, ScopeInfo>(
+  SCOPE_TABLE.map((entry) => [entry.code, { label: entry.label }]),
+);
+
+/** Check whether a scope byte is a defined scope code. */
+export function isScopeCode(code: number): code is ScopeCode {
+  return scopeByCode.has(code);
+}
+
+/**
+ * Map a scope code to its display label.
+ * @param code - Scope byte value.
+ * @returns Display metadata for the scope.
+ * @throws {CallciumError} If the code is not a recognised scope.
+ */
+export function lookupScope(code: number): ScopeInfo {
+  const info = scopeByCode.get(code);
+  if (!info) throw new CallciumError("UNKNOWN_SCOPE", `Unknown scope value ${code}`);
+  return info;
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Quantifier codes
+///////////////////////////////////////////////////////////////////////////
+
+const QUANTIFIER_TABLE = [
+  { key: "ALL", code: 0x01, label: "all" },
+  { key: "ANY", code: 0x02, label: "any" },
+] as const;
+
+/** Loop quantifier: the body holds for every element (`ALL`) or for some element (`ANY`). */
+export const LoopQuantifier = buildCodeMap(QUANTIFIER_TABLE);
+
+/** A defined loop quantifier code. */
+export type QuantifierCode = (typeof QUANTIFIER_TABLE)[number]["code"];
+
+/** Display metadata for a loop quantifier code. */
+export type QuantifierInfo = { label: string };
+
+const quantifierByCode: ReadonlyMap<number, QuantifierInfo> = new Map<number, QuantifierInfo>(
+  QUANTIFIER_TABLE.map((entry) => [entry.code, { label: entry.label }]),
+);
+
+/** Check whether a quantifier byte is a defined quantifier code. */
+export function isQuantifierCode(code: number): code is QuantifierCode {
+  return quantifierByCode.has(code);
+}
+
+/**
+ * Map a loop quantifier code to its display label.
+ * @param code - Quantifier byte value.
+ * @returns Display metadata for the quantifier.
+ * @throws {CallciumError} If the code is not a recognised quantifier.
+ */
+export function lookupQuantifier(code: number): QuantifierInfo {
+  const info = quantifierByCode.get(code);
+  if (!info) throw new CallciumError("UNKNOWN_QUANTIFIER", `Unknown quantifier value ${code}`);
   return info;
 }
 
@@ -243,7 +284,7 @@ export function lookupContextProperty(code: number): ContextPropertyInfo {
 // Operator codes
 ///////////////////////////////////////////////////////////////////////////
 
-/** Operand count category for operator data validation. */
+/** Operand count category of an operator. */
 export type Operands = "single" | "range" | "variadic";
 
 /** @internal */
@@ -255,24 +296,33 @@ const OP_TABLE = [
   { key: "LTE", code: 0x05, label: "<=", operands: "single" },
   { key: "BETWEEN", code: 0x06, label: "between", operands: "range" },
   { key: "IN", code: 0x07, label: "in", operands: "variadic" },
-  { key: "EQ_CTX", code: 0x08, label: "== ctx", operands: "single" },
-  { key: "GT_CTX", code: 0x09, label: "> ctx", operands: "single" },
-  { key: "LT_CTX", code: 0x0a, label: "< ctx", operands: "single" },
-  { key: "GTE_CTX", code: 0x0b, label: ">= ctx", operands: "single" },
-  { key: "LTE_CTX", code: 0x0c, label: "<= ctx", operands: "single" },
   { key: "BITMASK_ALL", code: 0x10, label: "bitmask all", operands: "single" },
   { key: "BITMASK_ANY", code: 0x11, label: "bitmask any", operands: "single" },
   { key: "BITMASK_NONE", code: 0x12, label: "bitmask none", operands: "single" },
-  { key: "LENGTH_EQ", code: 0x20, label: "length ==", operands: "single" },
-  { key: "LENGTH_GT", code: 0x21, label: "length >", operands: "single" },
-  { key: "LENGTH_LT", code: 0x22, label: "length <", operands: "single" },
-  { key: "LENGTH_GTE", code: 0x23, label: "length >=", operands: "single" },
-  { key: "LENGTH_LTE", code: 0x24, label: "length <=", operands: "single" },
-  { key: "LENGTH_BETWEEN", code: 0x25, label: "length between", operands: "range" },
+  { key: "LENGTH_EQ", code: 0x18, label: "length ==", operands: "single" },
+  { key: "LENGTH_GT", code: 0x19, label: "length >", operands: "single" },
+  { key: "LENGTH_LT", code: 0x1a, label: "length <", operands: "single" },
+  { key: "LENGTH_GTE", code: 0x1b, label: "length >=", operands: "single" },
+  { key: "LENGTH_LTE", code: 0x1c, label: "length <=", operands: "single" },
+  { key: "LENGTH_BETWEEN", code: 0x1d, label: "length between", operands: "range" },
 ] as const;
 
-/** Callcium policy operator codes. */
-export const Op: CodeMap<typeof OP_TABLE> & { readonly NOT: 0x80 } = { ...buildCodeMap(OP_TABLE), NOT: 0x80 };
+/** Callcium policy operator codes, with the NOT flag and the operand source fields. */
+export const Op = { ...buildCodeMap(OP_TABLE), NOT: 0x80, SOURCE_SHIFT: 5, COMPARISON_MASK: 0x1f } as const;
+
+/** A defined comparison code. */
+export type ComparisonCode = (typeof OP_TABLE)[number]["code"];
+
+const SOURCE_TABLE = [
+  { key: "CONSTANT", code: 0, labelSuffix: "" },
+  { key: "CONTEXT", code: 1, labelSuffix: " ctx" },
+] as const;
+
+/** Operand source: constant values, or a context property. */
+export const Source = buildCodeMap(SOURCE_TABLE);
+
+/** A defined operand source code. */
+export type SourceCode = (typeof SOURCE_TABLE)[number]["code"];
 
 /** Display metadata for an operator code. */
 export type OpInfo = { label: string; operands: Operands };
@@ -281,24 +331,44 @@ const opByCode: ReadonlyMap<number, OpInfo> = new Map<number, OpInfo>(
   OP_TABLE.map((entry) => [entry.code, { label: entry.label, operands: entry.operands }]),
 );
 
+const labelSuffixBySource: ReadonlyMap<number, string> = new Map<number, string>(
+  SOURCE_TABLE.map((entry) => [entry.code, entry.labelSuffix]),
+);
+
+/** Check whether a comparison is a defined comparison code. */
+export function isComparisonCode(code: number): code is ComparisonCode {
+  return opByCode.has(code);
+}
+
+/** Check whether a source is a defined operand source code. */
+export function isSourceCode(code: number): code is SourceCode {
+  return labelSuffixBySource.has(code);
+}
+
+/** The comparison bits of an operator code. */
+export function comparisonOf(opCode: number): number {
+  return opCode & Op.COMPARISON_MASK;
+}
+
+/** The operand source bits of an operator code. */
+export function sourceOf(opCode: number): number {
+  return (opCode & ~Op.NOT) >> Op.SOURCE_SHIFT;
+}
+
 /**
- * Map an operator code to its display label. Strips the NOT flag automatically.
- * @param code - Operator byte value (may include the NOT flag).
+ * Map an operator code to its display label. Strips the NOT flag automatically. A context source adds ` ctx`.
+ * @param code - Operator byte value (can include the NOT flag).
  * @returns Display metadata for the base operator.
  * @throws {CallciumError} If the base code is not a recognised operator.
  */
 export function lookupOp(code: number): OpInfo {
   const base = code & ~Op.NOT;
-  const info = opByCode.get(base);
-  if (!info)
+  const info = opByCode.get(comparisonOf(base));
+  const labelSuffix = labelSuffixBySource.get(sourceOf(base));
+  if (!info || labelSuffix === undefined)
     throw new CallciumError(
       "UNKNOWN_OPERATOR",
       `Unknown operator code ${formatCode(base, PolicyFormat.RULE_OPCODE_SIZE)}`,
     );
-  return info;
-}
-
-/** Operand count category for an operator code, or undefined when unrecognised. */
-export function operandsOf(opBase: number): Operands | undefined {
-  return opByCode.get(opBase)?.operands;
+  return { label: `${info.label}${labelSuffix}`, operands: info.operands };
 }

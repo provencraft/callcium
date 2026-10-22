@@ -1,0 +1,53 @@
+name = "callcium"
+defaultTargets = ["Callcium"]
+testDriver = "Tests"
+
+[leanOptions]
+autoImplicit = false
+relaxedAutoImplicit = false
+
+[[lean_lib]]
+name = "Callcium"
+
+# Executable checks and the axiom audit. The only library allowed `native_decide`.
+[[lean_lib]]
+name = "Tests"
+
+# The differential corpora's line formats, the PV-9 oracle and the check, outside the audited library.
+[[lean_lib]]
+name = "Corpus"
+
+# Writes the enforcement, encoding, storage and validation differential corpora with the model's verdicts.
+[[lean_exe]]
+name = "generate-corpus"
+root = "GenerateCorpus"
+
+# Checks an implementation's enforcement corpus against `Policy.outcome`.
+[[lean_exe]]
+name = "check-enforcement"
+root = "CheckEnforcement"
+
+# Checks an implementation's encoding corpus against `Policy.encode`.
+[[lean_exe]]
+name = "check-encoding"
+root = "CheckEncoding"
+
+# Checks an implementation's storage corpus against `Policy.validate`.
+[[lean_exe]]
+name = "check-storage"
+root = "CheckStorage"
+
+# Checks an implementation's validation corpus against the PV-9 oracle.
+[[lean_exe]]
+name = "check-validation"
+root = "CheckValidation"
+
+# Checks `decodeSolc` against a corpus of Solidity decoder readings.
+[[lean_exe]]
+name = "decoder-fidelity"
+root = "DecoderFidelity"
+
+# Runs the conformance vectors against the model.
+[[lean_exe]]
+name = "vectors"
+root = "Vectors"

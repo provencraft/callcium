@@ -7,9 +7,9 @@ description: "Protocol constants, enums, and lookup helpers."
 
 ### lookupOp
 
-Map an operator code to its display label. Strips the NOT flag automatically.
+Map an operator code to its display label. Strips the NOT flag automatically. A context source adds ` ctx`.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L290)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L364)
 
 ```ts
 function lookupOp(code: number): OpInfo;
@@ -19,7 +19,7 @@ function lookupOp(code: number): OpInfo;
 
 | Name | Type | Description |
 | --- | --- | --- |
-| `code` | `number` | Operator byte value (may include the NOT flag). |
+| `code` | `number` | Operator byte value (can include the NOT flag). |
 
 **Returns**
 
@@ -29,7 +29,7 @@ function lookupOp(code: number): OpInfo;
 
 Map a scope code to its display label.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L156)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L238)
 
 ```ts
 function lookupScope(code: number): ScopeInfo;
@@ -45,11 +45,31 @@ function lookupScope(code: number): ScopeInfo;
 
 `ScopeInfo` — Display metadata for the scope.
 
+### lookupQuantifier
+
+Map a loop quantifier code to its display label.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L277)
+
+```ts
+function lookupQuantifier(code: number): QuantifierInfo;
+```
+
+**Parameters**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `code` | `number` | Quantifier byte value. |
+
+**Returns**
+
+`QuantifierInfo` — Display metadata for the quantifier.
+
 ### lookupContextProperty
 
 Map a context property code to its display label and ABI type code.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L231)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L193)
 
 ```ts
 function lookupContextProperty(code: number): ContextPropertyInfo;
@@ -65,31 +85,11 @@ function lookupContextProperty(code: number): ContextPropertyInfo;
 
 `ContextPropertyInfo` — Display metadata including the ABI type code for the property value.
 
-### findContextProperty
-
-Look up a context property code in the assigned set.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L221)
-
-```ts
-function findContextProperty(code: number): ContextPropertyInfo | undefined;
-```
-
-**Parameters**
-
-| Name | Type | Description |
-| --- | --- | --- |
-| `code` | `number` | Context property ID. |
-
-**Returns**
-
-`ContextPropertyInfo | undefined` — Display metadata, or undefined when the ID names no assigned property.
-
 ### lookupTypeCode
 
 Map a raw type code byte to its ABI type label, structural category, and dynamism.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L368)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L267)
 
 ```ts
 function lookupTypeCode(code: number): TypeCodeInfo;
@@ -105,116 +105,106 @@ function lookupTypeCode(code: number): TypeCodeInfo;
 
 `TypeCodeInfo` — Label, type class, and whether the code alone implies ABI dynamism (false for tuples and static arrays).
 
-### isLengthOp
-
-Return true when the operator code (with or without NOT flag) is a LENGTH_* variant.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L74)
-
-```ts
-function isLengthOp(opCode: number): boolean;
-```
-
-**Parameters**
-
-| Name | Type | Description |
-| --- | --- | --- |
-| `opCode` | `number` | - |
-
-**Returns**
-
-`boolean`
-
-### isContextOp
-
-Return true when the operator code (with or without NOT flag) is a *_CTX variant.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L80)
-
-```ts
-function isContextOp(opCode: number): boolean;
-```
-
-**Parameters**
-
-| Name | Type | Description |
-| --- | --- | --- |
-| `opCode` | `number` | - |
-
-**Returns**
-
-`boolean`
-
 ## Types
 
 ### Op
 
-Callcium policy operator codes.
+Callcium policy operator codes, with the NOT flag and the operand source fields.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L275)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L311)
+
+### Source
+
+Operand source: constant values, or a context property.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L322)
 
 ### TypeCode
 
 ABI type code ranges and sentinel values for the descriptor format.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L167)
-
-### PolicyFormat
-
-Binary layout constants and normative limits for the Callcium policy format.
-
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L46)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L129)
 
 ### Scope
 
-Rule scope discriminant: context (EVM environment) vs. calldata (ABI payload).
+Rule scope discriminant: context (EVM environment), calldata (ABI payload) or loop (array elements).
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L141)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L215)
+
+### LoopQuantifier
+
+Loop quantifier: the body holds for every element (`ALL`) or for some element (`ANY`).
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L254)
 
 ### ContextProperty
 
 Well-known context property IDs for context-scope rules.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L201)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L163)
 
 ### Operands
 
-Operand count category for operator data validation.
+Operand count category of an operator.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L247)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L288)
 
 ### OpInfo
 
 Display metadata for an operator code.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L278)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L328)
 
 ### ScopeInfo
 
 Display metadata for a scope code.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L144)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L221)
+
+### QuantifierInfo
+
+Display metadata for a loop quantifier code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L260)
 
 ### ContextPropertyInfo
 
 Display metadata for a context property code.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L207)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L169)
+
+### ComparisonCode
+
+A defined comparison code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L314)
+
+### ScopeCode
+
+A defined scope code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L218)
+
+### QuantifierCode
+
+A defined loop quantifier code.
+
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/constants.ts#L257)
 
 ### TypeCodeInfo
 
 Display metadata for a descriptor type code.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L279)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L232)
 
 ### TypeClassInfo
 
 Structural classification without label.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L276)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L229)
 
 ### TypeClass
 
 Structural category for a descriptor type code.
 
-[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L273)
+[Git Source](https://github.com/provencraft/callcium/blob/main/packages/sdk/src/operators.ts#L226)

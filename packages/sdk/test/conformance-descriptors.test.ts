@@ -5,18 +5,16 @@ import { hexToBytes } from "../src/bytes";
 import { decodeDescriptor } from "../src/descriptor-coder";
 import { expectErrorCode, hex } from "./helpers";
 
-import type { CallciumErrorCode } from "../src";
+import type { CallciumErrorCode } from "../src/errors";
 
 ///////////////////////////////////////////////////////////////////////////
 // Vector types
 ///////////////////////////////////////////////////////////////////////////
 
 type VectorParam = {
-  index: number;
   typeCode: number;
   isDynamic: boolean;
   staticSize: number;
-  path: string;
 };
 
 type Vector = {
@@ -32,11 +30,11 @@ type Vector = {
 const vectors: Vector[] = rawVectors;
 
 ///////////////////////////////////////////////////////////////////////////
-// Test helpers
+// Helpers
 ///////////////////////////////////////////////////////////////////////////
 
 /** Vector error names are the canonical invariant names; SDK codes are their SCREAMING_SNAKE form. */
-const ERROR_MAP: Record<string, CallciumErrorCode> = {
+const errorMap: Record<string, CallciumErrorCode> = {
   MalformedHeader: "MALFORMED_HEADER",
   UnsupportedVersion: "UNSUPPORTED_VERSION",
   UnexpectedEnd: "UNEXPECTED_END",
@@ -51,33 +49,30 @@ const ERROR_MAP: Record<string, CallciumErrorCode> = {
 };
 
 ///////////////////////////////////////////////////////////////////////////
-// Conformance
+// Descriptor verdicts
 ///////////////////////////////////////////////////////////////////////////
 
-describe("Descriptor conformance vectors", () => {
+describe("Descriptor conformance vectors - decodeDescriptor", () => {
   for (const vector of vectors) {
     test(`${vector.id}: ${vector.description}`, () => {
+      const blob = hexToBytes(hex(vector.blob));
       if (vector.error === "") {
-        // Valid vector — decode and verify all param fields.
-        const result = decodeDescriptor(hexToBytes(hex(vector.blob))).descriptor;
-        expect(result.version).toBe(vector.version);
+        const result = decodeDescriptor(blob);
+        expect(result.version.value).toBe(vector.version);
         expect(result.params).toHaveLength(vector.params.length);
 
         for (let i = 0; i < vector.params.length; i++) {
           const expected = vector.params[i];
           const actual = result.params[i];
-          expect(actual.index).toBe(expected.index);
           expect(actual.typeCode).toBe(expected.typeCode);
           expect(actual.isDynamic).toBe(expected.isDynamic);
           expect(actual.staticSize).toBe(expected.staticSize);
-          expect(actual.path).toBe(expected.path);
         }
       } else {
-        // Error vector — expect CallciumError with mapped code.
-        const expectedCode = ERROR_MAP[vector.error];
+        const expectedCode = errorMap[vector.error];
         expect(expectedCode).toBeDefined();
 
-        expectErrorCode(() => decodeDescriptor(hexToBytes(hex(vector.blob))), expectedCode);
+        expectErrorCode(() => decodeDescriptor(blob), expectedCode);
       }
     });
   }

@@ -1,13 +1,13 @@
 import { concatBytes } from "@noble/hashes/utils.js";
 
 import { readU16 } from "./bytes";
-import { DescriptorFormat as DF, TypeCode } from "./constants";
+import { DescriptorFormat as DF } from "./constants";
 import { Descriptor, readNode } from "./descriptor";
 import { CallciumError } from "./errors";
-import { classifyTypeCode, lookupTypeCode } from "./operators";
+import { lookupTypeCode } from "./operators";
 import { address, array, bool, bytes, bytesN, function_, intN, string_, tuple, uintN } from "./type-desc";
 
-import type { DecodedParam, Hex } from "./types";
+import type { DecodedDescriptor, DecodedNode } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Splitting helpers
@@ -138,12 +138,19 @@ function parseBaseType(input: string, start: number, end: number): Uint8Array {
   if (segment.startsWith("(")) return parseTuple(input, start, end);
 
   // A prefix with no width after it spells no type, so it falls through to the unknown-type report rather than being
-  // read as a width that is not there.
-  if (segment.length > 4 && segment.startsWith("uint")) return uintN(parseUint(input, start + 4, end));
-  if (segment.length > 3 && segment.startsWith("int")) return intN(parseUint(input, start + 3, end));
-  if (segment.length > 5 && segment.startsWith("bytes")) return bytesN(parseUint(input, start + 5, end));
+  // read as a width that is not there. A width outside its type's range names no type either.
+  if (segment.length > 4 && segment.startsWith("uint")) {
+    const bits = parseUint(input, start + 4, end);
+    if (bits >= 8 && bits <= 256 && bits % 8 === 0) return uintN(bits);
+  } else if (segment.length > 3 && segment.startsWith("int")) {
+    const bits = parseUint(input, start + 3, end);
+    if (bits >= 8 && bits <= 256 && bits % 8 === 0) return intN(bits);
+  } else if (segment.length > 5 && segment.startsWith("bytes")) {
+    const length = parseUint(input, start + 5, end);
+    if (length >= 1 && length <= 32) return bytesN(length);
+  }
 
-  throw new CallciumError("UNKNOWN_TYPE", `Unrecognised type '${segment}'`);
+  throw new CallciumError("UNKNOWN_TYPE", `Unknown type '${segment}'`);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -197,7 +204,7 @@ function parseType(input: string, start: number, end: number): Uint8Array {
 /**
  * Encode a comma-separated list of ABI type strings into a binary descriptor.
  *
- * @param typesCsv - Comma-separated ABI type strings, e.g. `"address,uint256,(bool,bytes32)[],string"`.
+ * @param typesCsv - Comma-separated ABI type strings, for example `"address,uint256,(bool,bytes32)[],string"`.
  * @returns Binary descriptor bytes starting with the version+paramCount header.
  * @throws {CallciumError} With code `MALFORMED_TYPE_STRING` for malformed input.
  * @throws {CallciumError} With code `UNKNOWN_TYPE` for unrecognised type names.
@@ -229,75 +236,23 @@ function fromTypes(typesCsv: string): Uint8Array {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Inverse: descriptor bytes → type string
-///////////////////////////////////////////////////////////////////////////
-
-/** Reconstruct an ABI type string from a descriptor node at the given offset. */
-function nodeToTypeString(desc: Uint8Array, offset: number): string {
-  const { typeCode } = Descriptor.inspect(desc, offset);
-
-  if (typeCode === TypeCode.TUPLE) {
-    const fieldCount = Descriptor.tupleFieldCount(desc, offset);
-    const fieldTypes: string[] = [];
-    let fieldOffset = offset + DF.TUPLE_HEADER_SIZE;
-    for (let i = 0; i < fieldCount; i++) {
-      fieldTypes.push(nodeToTypeString(desc, fieldOffset));
-      fieldOffset += Descriptor.nodeLength(desc, fieldOffset);
-    }
-    return `(${fieldTypes.join(",")})`;
-  }
-
-  if (typeCode === TypeCode.STATIC_ARRAY) {
-    const length = Descriptor.staticArrayLength(desc, offset);
-    const elemType = nodeToTypeString(desc, Descriptor.arrayElementOffset(offset));
-    return `${elemType}[${length}]`;
-  }
-
-  if (typeCode === TypeCode.DYNAMIC_ARRAY) {
-    const elemType = nodeToTypeString(desc, Descriptor.arrayElementOffset(offset));
-    return `${elemType}[]`;
-  }
-
-  return lookupTypeCode(typeCode).label;
-}
-
-/**
- * Reconstruct a comma-separated list of ABI type strings from a binary descriptor.
- *
- * Inverse of `fromTypes`: `toTypes(fromTypes(s))` returns `s` for any valid input.
- *
- * @param desc - Binary descriptor bytes (with version+paramCount header).
- * @returns Comma-separated ABI type strings, e.g. `"address,uint256,(bool,bytes32)[]"`.
- * @throws {CallciumError} If the descriptor is malformed.
- */
-function toTypes(desc: Uint8Array): string {
-  const count = Descriptor.paramCount(desc);
-  const types: string[] = [];
-  let offset = DF.HEADER_SIZE;
-  for (let i = 0; i < count; i++) {
-    types.push(nodeToTypeString(desc, offset));
-    offset += Descriptor.nodeLength(desc, offset);
-  }
-  return types.join(",");
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Descriptor binary decoder
 ///////////////////////////////////////////////////////////////////////////
 
-/** Shape of a parsed descriptor node and the offset just past it. */
-type ParseResult = { typeCode: number; isDynamic: boolean; staticSize: number; next: number };
+/** A parsed descriptor node and the offset just past it. */
+type ParseResult = { node: DecodedNode; next: number };
 
-/** Recursively parse a single descriptor node starting at offset. */
-function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult {
+/** Recursively parse a single descriptor node starting at offset, its span shifted by `base`. */
+function parseNode(data: Uint8Array, offset: number, depth: number, base: number): ParseResult {
   const { typeCode: code, staticWords, nodeLength } = readNode(data, offset);
-  const info = classifyTypeCode(code);
+  const info = lookupTypeCode(code);
   const isDynamic = staticWords === 0;
   const staticSize = isDynamic ? 0 : staticWords * 32;
   const nodeEnd = offset + nodeLength;
+  const span = { start: base + offset, end: base + nodeEnd };
 
   if (info.typeClass === "elementary") {
-    return { typeCode: code, isDynamic, staticSize, next: nodeEnd };
+    return { node: { typeClass: "elementary", typeCode: code, isDynamic, staticSize, span }, next: nodeEnd };
   }
 
   // Only composites nest; a leaf below the deepest allowed composite is fine.
@@ -311,7 +266,7 @@ function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult
 
   if (info.typeClass === "tuple") {
     const fieldCountOffset = offset + DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE;
-    if (fieldCountOffset + 2 > data.length) {
+    if (fieldCountOffset + DF.TUPLE_FIELDCOUNT_SIZE > data.length) {
       throw new CallciumError("UNEXPECTED_END", "Incomplete tuple header", offset);
     }
     const fieldCount = readU16(data, fieldCountOffset);
@@ -326,17 +281,21 @@ function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult
       );
     }
 
+    const fields: DecodedNode[] = [];
     let cursor = offset + DF.TUPLE_HEADER_SIZE;
     for (let i = 0; i < fieldCount; i++) {
-      cursor = parseNode(data, cursor, depth + 1).next;
+      const field = parseNode(data, cursor, depth + 1, base);
+      fields.push(field.node);
+      cursor = field.next;
     }
 
-    return { typeCode: code, isDynamic, staticSize, next: nodeEnd };
+    return { node: { typeClass: "tuple", typeCode: code, isDynamic, staticSize, span, fields }, next: nodeEnd };
   }
 
+  const element = parseNode(data, Descriptor.arrayElementOffset(offset), depth + 1, base);
+
   if (info.typeClass === "staticArray") {
-    const elemResult = parseNode(data, Descriptor.arrayElementOffset(offset), depth + 1);
-    const lengthOffset = elemResult.next;
+    const lengthOffset = element.next;
     if (lengthOffset + DF.ARRAY_LENGTH_SIZE > data.length) {
       throw new CallciumError("UNEXPECTED_END", "Missing static array length suffix", offset);
     }
@@ -352,25 +311,36 @@ function parseNode(data: Uint8Array, offset: number, depth: number): ParseResult
       );
     }
 
-    return { typeCode: code, isDynamic, staticSize, next: nodeEnd };
+    const node: DecodedNode = {
+      typeClass: "staticArray",
+      typeCode: code,
+      isDynamic,
+      staticSize,
+      span,
+      length,
+      element: element.node,
+    };
+    return { node, next: nodeEnd };
   }
 
-  parseNode(data, Descriptor.arrayElementOffset(offset), depth + 1);
-  return { typeCode: code, isDynamic: true, staticSize: 0, next: nodeEnd };
+  const node: DecodedNode = {
+    typeClass: "dynamicArray",
+    typeCode: code,
+    isDynamic: true,
+    staticSize: 0,
+    span,
+    element: element.node,
+  };
+  return { node, next: nodeEnd };
 }
 
-/** Convert a zero-based param index to a BE16 hex path step. */
-function indexToPath(index: number): Hex {
-  return `0x${index.toString(16).padStart(4, "0")}`;
-}
-
-type DecodedDescriptor = {
-  version: number;
-  params: DecodedParam[];
-};
-
-/** Decode a binary descriptor blob, returning its structural representation. */
-export function decodeDescriptor(data: Uint8Array): { descriptor: DecodedDescriptor } {
+/**
+ * Decode a binary descriptor blob, returning its structural representation.
+ * @param data - The descriptor bytes.
+ * @param base - Byte offset of the descriptor in the blob its spans locate.
+ * @throws {CallciumError} When the descriptor breaks a well-formedness invariant.
+ */
+export function decodeDescriptor(data: Uint8Array, base = 0): DecodedDescriptor {
   if (data.length < 1) {
     throw new CallciumError("MALFORMED_HEADER", "Descriptor is empty");
   }
@@ -384,29 +354,21 @@ export function decodeDescriptor(data: Uint8Array): { descriptor: DecodedDescrip
     throw new CallciumError("MALFORMED_HEADER", "Descriptor too short for header");
   }
 
-  const params: DecodedParam[] = [];
+  const params: DecodedNode[] = [];
   let cursor: number = DF.HEADER_SIZE;
 
   while (cursor < data.length) {
-    const { typeCode, isDynamic, staticSize, next } = parseNode(data, cursor, 1);
+    const { node, next } = parseNode(data, cursor, 1, base);
 
     if (params.length === DF.MAX_PARAMS) {
       throw new CallciumError("TOO_MANY_PARAMS", `Descriptor exceeds the maximum of ${DF.MAX_PARAMS} top-level params`);
     }
 
-    params.push({
-      index: params.length,
-      typeCode,
-      isDynamic,
-      staticSize,
-      path: indexToPath(params.length),
-      span: { start: cursor, end: next },
-    });
-
+    params.push(node);
     cursor = next;
   }
 
-  const declaredCount = data[1]!;
+  const declaredCount = data[DF.HEADER_PARAMCOUNT_OFFSET]!;
   if (params.length !== declaredCount) {
     throw new CallciumError(
       "PARAM_COUNT_MISMATCH",
@@ -414,8 +376,69 @@ export function decodeDescriptor(data: Uint8Array): { descriptor: DecodedDescrip
     );
   }
 
-  return { descriptor: { version, params } };
+  return {
+    version: { value: version, span: { start: base, end: base + DF.HEADER_PARAMCOUNT_OFFSET } },
+    paramCount: {
+      value: declaredCount,
+      span: { start: base + DF.HEADER_PARAMCOUNT_OFFSET, end: base + DF.HEADER_SIZE },
+    },
+    params,
+    span: { start: base, end: base + data.length },
+  };
 }
 
-/** Encode and decode descriptors. */
-export const DescriptorCoder = { fromTypes, toTypes };
+///////////////////////////////////////////////////////////////////////////
+// Descriptor inspection
+///////////////////////////////////////////////////////////////////////////
+
+/**
+ * Decode a binary descriptor and check every composite node against its children.
+ * @param desc - The descriptor bytes.
+ * @param base - Byte offset of the descriptor in the blob its spans locate.
+ * @throws {CallciumError} If the descriptor is malformed, or a composite node disagrees with its children.
+ */
+export function inspectDescriptor(desc: Uint8Array, base = 0): DecodedDescriptor {
+  const decoded = decodeDescriptor(desc, base);
+  Descriptor.validateMeta(desc);
+  return decoded;
+}
+
+/**
+ * Inspect a binary descriptor: its header fields and its parameters as a tree of nodes, each with the bytes it spans.
+ * @param desc - Binary descriptor bytes (with version+paramCount header).
+ * @returns The decoded descriptor.
+ * @throws {CallciumError} If the descriptor is malformed, or a composite node disagrees with its children.
+ */
+function inspect(desc: Uint8Array): DecodedDescriptor {
+  return inspectDescriptor(desc);
+}
+
+/** Reconstruct the ABI type string of a decoded node. */
+function typeString(node: DecodedNode): string {
+  switch (node.typeClass) {
+    case "elementary":
+      return lookupTypeCode(node.typeCode).label;
+    case "tuple":
+      return `(${node.fields.map(typeString).join(",")})`;
+    case "staticArray":
+      return `${typeString(node.element)}[${node.length}]`;
+    case "dynamicArray":
+      return `${typeString(node.element)}[]`;
+    default:
+      return node satisfies never;
+  }
+}
+
+/**
+ * Reconstruct a comma-separated list of ABI type strings from a binary descriptor. `fromTypes(toTypes(desc))` returns
+ * `desc` for every descriptor `inspect` accepts.
+ * @param desc - Binary descriptor bytes (with version+paramCount header).
+ * @returns Comma-separated ABI type strings, for example `"address,uint256,(bool,bytes32)[]"`.
+ * @throws {CallciumError} If the descriptor is malformed, or a composite node disagrees with its children.
+ */
+function toTypes(desc: Uint8Array): string {
+  return inspect(desc).params.map(typeString).join(",");
+}
+
+/** Encode descriptors from type strings, inspect them and read their type strings back. */
+export const DescriptorCoder = { fromTypes, inspect, toTypes };

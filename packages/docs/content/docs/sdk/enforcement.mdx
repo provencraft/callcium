@@ -12,7 +12,7 @@ Two functions expose the enforcer:
 - `PolicyEnforcer.check(policy, callData, context?)` returns an `EnforceResult`. It never throws on a violation.
 - `PolicyEnforcer.enforce(policy, callData, context?)` throws `PolicyViolationError` when the data is invalid against the policy.
 
-Both throw `CallciumError` if the policy blob itself is structurally malformed. Only `enforce` throws on a violation.
+Both require a policy blob that passes storage validation, which `PolicyCoder.decode` runs. They throw `CallciumError` on a blob shorter than its fixed prefix or of an unsupported format version, on malformed hex, and on a context value that does not fit its property's type; on a blob that fails storage validation past its header, the result is undefined. Only `enforce` throws on a violation.
 
 ```ts
 import { PolicyEnforcer } from "@callcium/sdk";
@@ -37,32 +37,35 @@ PolicyEnforcer.enforce(policy, calldata);
 type EnforceResult = { ok: true; matchedGroup: number } | { ok: false; violations: Violation[] };
 ```
 
-- On pass, `matchedGroup` is the zero-based index of the constraint group that matched. A policy with a single group matches as group `0`; policies using `.or()` may match any of several groups. Group indices follow the policy's canonical group order — `build()` sorts groups by hash — not `.or()` authoring order.
-- On fail, `violations` contains one entry per failed group plus any pre-group failures (selector mismatch, malformed calldata).
+- On pass, `matchedGroup` is the zero-based index of the constraint group that matched. A policy with a single group matches as group `0`; policies using `.or()` may match any of several groups. Group indices follow the policy's normal form, which orders groups by their encoding, not `.or()` authoring order.
+- On fail, `violations` holds one entry per group evaluated, or the selector failure alone. A non-canonical value, a read past the end of the calldata, and an array longer than `MAX_QUANTIFIED_ARRAY_LENGTH` end the evaluation at the group they occur in.
 
 ## Violation
 
 `Violation` is a discriminated union on `code` — the per-variant field set is documented in the [Types reference](./reference/types). Common fields:
 
-| Field           | Type            | Description                                                                                                  |
-| --------------- | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| `code`          | `ViolationCode` | Discriminant: which failure occurred.                                                                        |
-| `group`         | `number`        | Group index. Absent on `MISSING_SELECTOR` and `SELECTOR_MISMATCH`.                                           |
-| `rule`          | `number`        | Rule index within the group. Same absences as `group`.                                                       |
-| `scope`         | `number`        | `Scope.CALLDATA` or `Scope.CONTEXT`. Present whenever `path` is.                                             |
-| `path`          | `Hex`           | Rule path being evaluated. Absent on selector-precheck failures.                                             |
-| `opCode`        | `number`        | Operator code (with `Op.NOT` bit intact). Present on `VALUE_MISMATCH`; diagnostic on calldata-nav failures.  |
-| `operandData`   | `Hex`           | Full untruncated rule operand. Same presence as `opCode`.                                                    |
-| `typeCode`      | `number`        | Leaf type code at the failing site.                                                                          |
-| `resolvedValue` | `Hex`           | Value loaded from calldata or context. For length ops and `QUANTIFIER_LIMIT_EXCEEDED`, a hex-encoded count.  |
-| `expectedValue` | `Hex`           | Expected value for selector-precheck failures (`SELECTOR_MISMATCH`).                                         |
-| `elementIndex`  | `number`        | Failing element for universal-quantifier failures. Absent for existential failures ("violated by all").      |
+| Field             | Type              | Description                                                                                                         |
+| ----------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `code`            | `ViolationCode`   | Discriminant: which failure occurred.                                                                               |
+| `group`           | `number`          | Group index. Absent on `MISSING_SELECTOR` and `SELECTOR_MISMATCH`.                                                  |
+| `rule`            | `number`          | Index of the root rule within the group: the test, or the loop of a body test. Same absences as `group`.           |
+| `scope`           | `ScopeCode`       | `Scope.CALLDATA`, `Scope.CONTEXT`, or `Scope.LOOP` for a failure at a loop's array. Present whenever `path` is.     |
+| `path`            | `Hex`             | Path of the failing rule: a context test's property ID, a loop's array path; a body test's path starts at the element. |
+| `operator`        | `DecodedOperator` | The test's parsed operator. Present on `VALUE_MISMATCH` and `NON_CANONICAL_VALUE`; absent where a context test's subject or a loop's array fails. |
+| `typeCode`        | `number`          | Type code at the failing site.                                                                                      |
+| `resolvedValue`   | `Hex`             | Value loaded from calldata or context. For length operators and `QUANTIFIER_LIMIT_EXCEEDED`, a hex-encoded count.   |
+| `resolvedOperand` | `Hex`             | Value of the context property a context operand names, on `VALUE_MISMATCH`.                                         |
+| `expectedValue`   | `Hex`             | Expected value for selector-precheck failures (`SELECTOR_MISMATCH`).                                                |
+| `bodyRule`        | `number`          | Position of the failing test in its loop's body. Absent for a root test.                                            |
+| `elementIndex`    | `number`          | Element the failing body test read. Absent for a root test.                                                         |
+
+`operator` carries the comparison, its negation, and its operands as stored: constants as 32-byte words of `operandType` in `values`, or the context property the operand names in `contextPropertyId`.
 
 Narrow on `code` to access variant-specific fields:
 
 ```ts
 if (violation.code === "VALUE_MISMATCH") {
-  // violation.opCode, violation.operandData, violation.typeCode are all present here.
+  // violation.operator, violation.typeCode, violation.resolvedValue are all present here.
 }
 ```
 
@@ -79,8 +82,8 @@ if (violation.code === "VALUE_MISMATCH") {
 | `CALLDATA_OUT_OF_BOUNDS`    | A rule targeted a byte range outside the calldata.                  |
 | `ARRAY_INDEX_OUT_OF_BOUNDS` | A rule indexed an array element that does not exist.                |
 | `MISSING_CONTEXT`           | The policy references a context property the caller did not supply. |
-| `QUANTIFIER_LIMIT_EXCEEDED` | An array quantifier exceeded the iteration safety limit.            |
-| `QUANTIFIER_EMPTY_ARRAY`    | `Quantifier.ALL` or `Quantifier.ANY` encountered an empty array.    |
+| `QUANTIFIER_LIMIT_EXCEEDED` | A loop's array is longer than `MAX_QUANTIFIED_ARRAY_LENGTH`.        |
+| `QUANTIFIER_NO_MATCH`       | No element satisfied an `ANY` loop's body, the empty array included. |
 
 `PolicyViolationError`, thrown by `enforce`, carries the same `Violation[]` on its `violations` property.
 

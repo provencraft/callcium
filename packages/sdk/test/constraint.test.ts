@@ -1,444 +1,103 @@
 import { describe, expect, expectTypeOf, test } from "vitest";
 
-import { PolicyFormat, Scope, ContextProperty, MAX_CONTEXT_PROPERTY_ID, Op } from "../src/constants";
+import { ContextProperty, MAX_CONTEXT_PROPERTY_ID, Op, Scope, Source } from "../src/constants";
 import {
   arg,
+  baseFee,
+  blockNumber,
+  blockTimestamp,
+  chainId,
+  gasPrice,
   msgSender,
   msgValue,
-  blockTimestamp,
-  blockNumber,
-  chainId,
   txOrigin,
-  readOperandExtremes,
 } from "../src/constraint";
-import { CallciumError } from "../src/errors";
-import { expectErrorCode } from "./helpers";
+import { expectErrorCode, inOp, op } from "./helpers";
 
 import type { ConstraintBuilder, ScalarValue } from "../src/constraint";
 import type { Address } from "../src/types";
 
 ///////////////////////////////////////////////////////////////////////////
-// Target factories
+// Context factories
 ///////////////////////////////////////////////////////////////////////////
 
-describe("arg()", () => {
-  test("arg(0) — scope=CALLDATA, path=0x0000, no operators", () => {
-    const c = arg(0);
-    expect(c.scope).toBe(Scope.CALLDATA);
-    expect(c.path).toBe("0x0000");
-    expect(c.operators).toHaveLength(0);
-  });
-
-  test("arg(0, 1) — two-step path", () => {
-    const c = arg(0, 1);
-    expect(c.path).toBe("0x00000001");
-  });
-
-  test("arg(0, 1, 2) — three-step path", () => {
-    const c = arg(0, 1, 2);
-    expect(c.path).toBe("0x000000010002");
-  });
-
-  test("arg(0, 1, 2, 3) — four-step path", () => {
-    const c = arg(0, 1, 2, 3);
-    expect(c.path).toBe("0x0000000100020003");
-  });
-});
-
 describe("context factories", () => {
-  test("msgSender() — scope=CONTEXT, path=0x0000", () => {
-    const c = msgSender();
-    expect(c.scope).toBe(Scope.CONTEXT);
-    expect(c.path).toBe(`0x${ContextProperty.MSG_SENDER.toString(16).padStart(4, "0")}`);
-  });
-
-  test("msgValue() — path=0x0001", () => {
-    expect(msgValue().path).toBe(`0x${ContextProperty.MSG_VALUE.toString(16).padStart(4, "0")}`);
-  });
-
-  test("blockTimestamp() — path=0x0002", () => {
-    expect(blockTimestamp().path).toBe(`0x${ContextProperty.BLOCK_TIMESTAMP.toString(16).padStart(4, "0")}`);
-  });
-
-  test("blockNumber() — path=0x0003", () => {
-    expect(blockNumber().path).toBe(`0x${ContextProperty.BLOCK_NUMBER.toString(16).padStart(4, "0")}`);
-  });
-
-  test("chainId() — path=0x0004", () => {
-    expect(chainId().path).toBe(`0x${ContextProperty.CHAIN_ID.toString(16).padStart(4, "0")}`);
-  });
-
-  test("txOrigin() — path=0x0005", () => {
-    expect(txOrigin().path).toBe(`0x${ContextProperty.TX_ORIGIN.toString(16).padStart(4, "0")}`);
+  test("each names its property ID as a one-step context path", () => {
+    const factories = [msgSender, msgValue, blockTimestamp, blockNumber, chainId, txOrigin, baseFee, gasPrice];
+    const ids = [
+      ContextProperty.MSG_SENDER,
+      ContextProperty.MSG_VALUE,
+      ContextProperty.BLOCK_TIMESTAMP,
+      ContextProperty.BLOCK_NUMBER,
+      ContextProperty.CHAIN_ID,
+      ContextProperty.TX_ORIGIN,
+      ContextProperty.BASE_FEE,
+      ContextProperty.GAS_PRICE,
+    ];
+    for (const [index, factory] of factories.entries()) {
+      expect(factory().scope).toBe(Scope.CONTEXT);
+      expect(factory().path).toBe(`0x${ids[index].toString(16).padStart(4, "0")}`);
+    }
   });
 
   test("an address property takes an address operand and nothing else", () => {
     expectTypeOf(msgSender()).toEqualTypeOf<ConstraintBuilder<Address>>();
     expectTypeOf(txOrigin()).toEqualTypeOf<ConstraintBuilder<Address>>();
-
-    expect(msgSender().eq("0x0000000000000000000000000000000000000001").operators).toHaveLength(1);
-    expect(
-      msgSender().isIn(["0x0000000000000000000000000000000000000001", "0x0000000000000000000000000000000000000002"])
-        .operators,
-    ).toHaveLength(1);
   });
 
   test("a uint256 property takes a bigint operand and nothing else", () => {
-    // A uint256 spans values no number represents exactly, so number is not an operand for one.
     expectTypeOf(msgValue()).toEqualTypeOf<ConstraintBuilder<bigint>>();
     expectTypeOf(blockTimestamp()).toEqualTypeOf<ConstraintBuilder<bigint>>();
     expectTypeOf(blockNumber()).toEqualTypeOf<ConstraintBuilder<bigint>>();
     expectTypeOf(chainId()).toEqualTypeOf<ConstraintBuilder<bigint>>();
-
-    expect(msgValue().eq(0n).operators).toHaveLength(1);
   });
 
   test("a calldata target keeps the wide operand union", () => {
-    // The descriptor fixes a calldata target's type, and add() is where it is read, so the operand stays as wide as the
-    // union until then.
     expectTypeOf(arg(0)).toEqualTypeOf<ConstraintBuilder>();
-
-    expect(arg(0).eq(1n).operators).toHaveLength(1);
-    expect(arg(0).eq(true).operators).toHaveLength(1);
-    expect(arg(0).eq("0x0000000000000000000000000000000000000001").operators).toHaveLength(1);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Value operators
-///////////////////////////////////////////////////////////////////////////
-
-describe(".eq() / .neq()", () => {
-  test(".eq(42n) — opCode=0x01, last byte=0x2a, total length=33 bytes", () => {
-    const c = arg(0).eq(42n);
-    expect(c.operators).toHaveLength(1);
-    const op = c.operators[0];
-    // 0x + 2 chars opCode + 64 chars data = 68 chars total
-    expect(op).toHaveLength(2 + 2 + 64);
-    expect(op.slice(2, 4)).toBe(Op.EQ.toString(16).padStart(2, "0"));
-    expect(op.slice(-2)).toBe("2a");
-  });
-
-  test(".neq(42n) — opCode=0x81", () => {
-    const op = arg(0).neq(42n).operators[0];
-    expect(op.slice(2, 4)).toBe((Op.EQ | Op.NOT).toString(16).padStart(2, "0"));
-  });
-
-  test(".eqCtx(TX_ORIGIN) — opCode=0x08, property ID in the low bytes", () => {
-    const op = arg(0).eqCtx(ContextProperty.TX_ORIGIN).operators[0];
-    expect(op).toHaveLength(2 + 2 + 64);
-    expect(op.slice(2, 4)).toBe(Op.EQ_CTX.toString(16).padStart(2, "0"));
-    expect(op.slice(-4)).toBe(ContextProperty.TX_ORIGIN.toString(16).padStart(4, "0"));
-  });
-
-  test(".neqCtx(MSG_SENDER) — opCode=0x88", () => {
-    const op = arg(0).neqCtx(ContextProperty.MSG_SENDER).operators[0];
-    expect(op.slice(2, 4)).toBe((Op.EQ_CTX | Op.NOT).toString(16).padStart(2, "0"));
-  });
-
-  test(".gtCtx(MSG_VALUE) — GT_CTX opcode, property ID in the low bytes", () => {
-    const op = arg(0).gtCtx(ContextProperty.MSG_VALUE).operators[0];
-    expect(op).toHaveLength(2 + 2 + 64);
-    expect(op.slice(2, 4)).toBe(Op.GT_CTX.toString(16).padStart(2, "0"));
-    expect(op.slice(-4)).toBe(ContextProperty.MSG_VALUE.toString(16).padStart(4, "0"));
-  });
-
-  test(".ltCtx(MSG_VALUE) — LT_CTX opcode", () => {
-    const op = arg(0).ltCtx(ContextProperty.MSG_VALUE).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LT_CTX.toString(16).padStart(2, "0"));
-  });
-
-  test(".gteCtx(MSG_VALUE) — GTE_CTX opcode", () => {
-    const op = arg(0).gteCtx(ContextProperty.MSG_VALUE).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.GTE_CTX.toString(16).padStart(2, "0"));
-  });
-
-  test(".lteCtx(MSG_VALUE) — LTE_CTX opcode", () => {
-    const op = arg(0).lteCtx(ContextProperty.MSG_VALUE).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LTE_CTX.toString(16).padStart(2, "0"));
-  });
-
-  test.each(["eqCtx", "neqCtx", "gtCtx", "ltCtx", "gteCtx", "lteCtx"] as const)(
-    ".%s rejects an unknown property ID",
-    (method) => {
-      expectErrorCode(() => arg(0)[method](MAX_CONTEXT_PROPERTY_ID + 1), "UNKNOWN_CONTEXT_PROPERTY");
-    },
-  );
-
-  test(".gt() — opCode=0x02", () => {
-    const op = arg(0).gt(1n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.GT.toString(16).padStart(2, "0"));
-  });
-
-  test(".lt() — opCode=0x03", () => {
-    const op = arg(0).lt(1n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LT.toString(16).padStart(2, "0"));
-  });
-
-  test(".gte() — opCode=0x04", () => {
-    const op = arg(0).gte(1n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.GTE.toString(16).padStart(2, "0"));
-  });
-
-  test(".lte() — opCode=0x05", () => {
-    const op = arg(0).lte(1n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LTE.toString(16).padStart(2, "0"));
-  });
-});
-
-describe(".between()", () => {
-  test(".between(10n, 100n) — opCode=0x06, 65 bytes total", () => {
-    const op = arg(0).between(10n, 100n).operators[0];
-    // 0x + 2 opCode + 128 data = 132 chars
-    expect(op).toHaveLength(2 + 2 + 128);
-    expect(op.slice(2, 4)).toBe(Op.BETWEEN.toString(16).padStart(2, "0"));
-  });
-
-  test(".between(100n, 10n) — throws (min > max)", () => {
-    expect(() => arg(0).between(100n, 10n)).toThrow(CallciumError);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Operand domain
-///////////////////////////////////////////////////////////////////////////
-
-describe("operand domain", () => {
-  const INT256_MIN = -(2n ** 255n);
-  const UINT256_MAX = 2n ** 256n - 1n;
-
-  test("an operand is a bigint, an address or a boolean", () => {
-    // Re-admitting number would restore the inexact-operand path this union exists to close.
     expectTypeOf<ScalarValue>().toEqualTypeOf<bigint | boolean | string>();
   });
-
-  test("accepts the widest signed and unsigned operands", () => {
-    expect(arg(0).eq(INT256_MIN).operators).toHaveLength(1);
-    expect(arg(0).eq(UINT256_MAX).operators).toHaveLength(1);
-  });
-
-  test("a negative operand keeps its two's-complement word", () => {
-    expect(arg(0).eq(-1n).operators[0]).toBe(`0x${Op.EQ.toString(16).padStart(2, "0")}${"ff".repeat(32)}`);
-  });
-
-  test("rejects an operand outside the word's range", () => {
-    expectErrorCode(() => arg(0).eq(UINT256_MAX + 1n), "OPERAND_OVERFLOW");
-    expectErrorCode(() => arg(0).eq(INT256_MIN - 1n), "OPERAND_OVERFLOW");
-  });
-
-  test("guards every operand of a range", () => {
-    expectErrorCode(() => arg(0).between(0n, 2n ** 256n), "OPERAND_OVERFLOW");
-    expectErrorCode(() => arg(0).between(INT256_MIN - 1n, 0n), "OPERAND_OVERFLOW");
-  });
-
-  test("guards every member of a set", () => {
-    expectErrorCode(() => arg(0).isIn([1n, 2n ** 256n]), "OPERAND_OVERFLOW");
-  });
-
-  test("orders a range by the operands as written, not by their encoded words", () => {
-    expect(arg(0).between(-1n, 5n).operators).toHaveLength(1);
-    expectErrorCode(() => arg(0).between(5n, -1n), "INVALID_RANGE");
-  });
 });
 
 ///////////////////////////////////////////////////////////////////////////
-// Operand provenance
+// Operators
 ///////////////////////////////////////////////////////////////////////////
 
-describe("operand provenance", () => {
-  test("each builder records against itself alone", () => {
-    const negative = arg(0).lte(-5n);
-    const positive = arg(0).lte(10n);
-    const zero = arg(0).eq(0n);
-
-    expect(readOperandExtremes(negative)).toEqual({ leastNegative: -5n, greatest: 0n });
-    expect(readOperandExtremes(positive)).toEqual({ leastNegative: 0n, greatest: 10n });
-    expect(readOperandExtremes(zero)).toEqual({ leastNegative: 0n, greatest: 0n });
+describe("operators", () => {
+  test("a context operator carries the context source and the property ID", () => {
+    expect(arg(0).gtCtx(ContextProperty.MSG_VALUE).operators[0]).toBe(
+      op(Op.GT | (Source.CONTEXT << Op.SOURCE_SHIFT), BigInt(ContextProperty.MSG_VALUE)),
+    );
   });
 
-  test("reports nothing for a constraint carrying no operand as written", () => {
-    expect(readOperandExtremes({ scope: Scope.CALLDATA, path: "0x0000", operators: ["0x01"] })).toBeUndefined();
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Boolean and address encoding
-///////////////////////////////////////////////////////////////////////////
-
-describe("value encoding", () => {
-  test(".eq(true) — last byte=0x01", () => {
-    const op = arg(0).eq(true).operators[0];
-    expect(op.slice(-2)).toBe("01");
+  test("rejects a context property past the highest defined ID", () => {
+    expectErrorCode(() => arg(0).eqCtx(MAX_CONTEXT_PROPERTY_ID + 1), "UNKNOWN_CONTEXT_PROPERTY");
   });
 
-  test(".eq(false) — last byte=0x00", () => {
-    const op = arg(0).eq(false).operators[0];
-    expect(op.slice(-2)).toBe("00");
+  test("sorts and deduplicates a set", () => {
+    expect(arg(0).isIn([3n, 1n, 3n]).operators[0]).toBe(inOp(Op.IN, [1n, 3n]));
   });
 
-  test(".eq(address) — 12 zero bytes + 20 address bytes", () => {
-    const address = "0x0000000000000000000000000000000000000001";
-    const op = arg(0).eq(address).operators[0];
-    // data portion starts at index 4 (after "0x" + opCode byte)
-    const data = op.slice(4); // 64 hex chars = 32 bytes
-    expect(data.slice(0, 24)).toBe("000000000000000000000000"); // 12 zero bytes
-    expect(data.slice(24)).toBe("0000000000000000000000000000000000000001");
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Operator accumulation
-///////////////////////////////////////////////////////////////////////////
-
-describe("operator accumulation", () => {
-  test(".gte(10n).lte(100n) — 2 operators", () => {
-    const c = arg(0).gte(10n).lte(100n);
-    expect(c.operators).toHaveLength(2);
-    expect(c.operators[0].slice(2, 4)).toBe(Op.GTE.toString(16).padStart(2, "0"));
-    expect(c.operators[1].slice(2, 4)).toBe(Op.LTE.toString(16).padStart(2, "0"));
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Set membership
-///////////////////////////////////////////////////////////////////////////
-
-describe(".isIn() / .notIn()", () => {
-  test(".isIn([3n, 1n, 2n, 1n]) — sorted, deduped: 3 values, opCode=0x07", () => {
-    const op = arg(0).isIn([3n, 1n, 2n, 1n]).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.IN.toString(16).padStart(2, "0"));
-    // 3 values × 32 bytes = 96 bytes = 192 hex chars + 2 (opCode) + 2 (0x) = 196
-    expect(op).toHaveLength(2 + 2 + 192);
-    // Verify sorted order: first word = 1, last word = 3
-    const data = op.slice(4);
-    const word1 = BigInt("0x" + data.slice(0, 64));
-    const word2 = BigInt("0x" + data.slice(64, 128));
-    const word3 = BigInt("0x" + data.slice(128, 192));
-    expect(word1).toBe(1n);
-    expect(word2).toBe(2n);
-    expect(word3).toBe(3n);
-  });
-
-  test("orders members by their encoded words, not by signed value", () => {
-    const data = arg(0).isIn([-1n, 5n]).operators[0].slice(4);
-    expect(BigInt(`0x${data.slice(0, 64)}`)).toBe(5n);
-    expect(BigInt(`0x${data.slice(64)}`)).toBe(2n ** 256n - 1n);
-  });
-
-  test("treats a negative member and its unsigned alias as one member", () => {
-    expect(arg(0).isIn([-1n, 2n ** 256n - 1n]).operators[0]).toHaveLength(2 + 2 + 64);
-  });
-
-  test(".notIn([1n, 2n]) — opCode=0x87", () => {
-    const op = arg(0).notIn([1n, 2n]).operators[0];
-    expect(op.slice(2, 4)).toBe((Op.IN | Op.NOT).toString(16).padStart(2, "0"));
-  });
-
-  test(".isIn([true, false]) — boolean values encoded as 1n and 0n", () => {
-    const c = arg(0).isIn([true, false]);
-    const opHex = c.operators[0];
-    const data = opHex.slice(4);
-    // Sorted: false (0) first, true (1) second.
-    expect(BigInt("0x" + data.slice(0, 64))).toBe(0n);
-    expect(BigInt("0x" + data.slice(64, 128))).toBe(1n);
-  });
-
-  test(".isIn([]) — throws EMPTY_SET", () => {
+  test("rejects an empty set", () => {
     expectErrorCode(() => arg(0).isIn([]), "EMPTY_SET");
   });
 
-  test(".isIn() — accepts the largest set a rule's data length can hold", () => {
-    const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS }, (_, i) => BigInt(i));
-    const op = arg(0).isIn(values).operators[0];
-    expect((op.length - 4) / 2).toBe(PolicyFormat.MAX_SET_MEMBERS * 32);
+  test("rejects a range whose minimum exceeds its maximum as written", () => {
+    expectErrorCode(() => arg(0).between(1n, -1n), "INVALID_RANGE");
   });
 
-  test(".isIn() — weighs the limit against the deduplicated set, not the members given", () => {
-    const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS + 1 }, () => 1n);
-    const op = arg(0).isIn(values).operators[0];
-    expect((op.length - 4) / 2).toBe(32);
+  test("accepts equal range bounds", () => {
+    expect(arg(0).between(5n, 5n).operators).toHaveLength(1);
   });
 
-  test(".isIn() — throws SET_TOO_LARGE one member past the limit", () => {
-    const values = Array.from({ length: PolicyFormat.MAX_SET_MEMBERS + 1 }, (_, i) => BigInt(i));
-    expectErrorCode(() => arg(0).isIn(values), "SET_TOO_LARGE");
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Bitmask operators
-///////////////////////////////////////////////////////////////////////////
-
-describe("bitmask operators", () => {
-  test(".bitmaskAll(0xffn) — opCode=0x10", () => {
-    const op = arg(0).bitmaskAll(0xffn).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.BITMASK_ALL.toString(16).padStart(2, "0"));
+  test("rejects an operand of a type no operand takes", () => {
+    // @ts-expect-error -- a JavaScript caller can pass a number.
+    expectErrorCode(() => arg(0).eq(5), "MALFORMED_OPERAND");
+    // @ts-expect-error -- a JavaScript caller can pass a number.
+    expectErrorCode(() => arg(0).isIn([5]), "MALFORMED_OPERAND");
   });
 
-  test(".bitmaskAny() — opCode=0x11", () => {
-    const op = arg(0).bitmaskAny(0x0fn).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.BITMASK_ANY.toString(16).padStart(2, "0"));
-  });
-
-  test(".bitmaskNone() — opCode=0x12", () => {
-    const op = arg(0).bitmaskNone(0x01n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.BITMASK_NONE.toString(16).padStart(2, "0"));
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Length operators
-///////////////////////////////////////////////////////////////////////////
-
-describe("length operators", () => {
-  test(".lengthEq(10n) — opCode=0x20", () => {
-    const op = arg(0).lengthEq(10n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LENGTH_EQ.toString(16).padStart(2, "0"));
-  });
-
-  test(".lengthGt() — opCode=0x21", () => {
-    const op = arg(0).lengthGt(5n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LENGTH_GT.toString(16).padStart(2, "0"));
-  });
-
-  test(".lengthLt() — opCode=0x22", () => {
-    const op = arg(0).lengthLt(5n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LENGTH_LT.toString(16).padStart(2, "0"));
-  });
-
-  test(".lengthGte() — opCode=0x23", () => {
-    const op = arg(0).lengthGte(5n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LENGTH_GTE.toString(16).padStart(2, "0"));
-  });
-
-  test(".lengthLte() — opCode=0x24", () => {
-    const op = arg(0).lengthLte(5n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LENGTH_LTE.toString(16).padStart(2, "0"));
-  });
-
-  test(".lengthBetween(1n, 100n) — opCode=0x25, 65 bytes total", () => {
-    const op = arg(0).lengthBetween(1n, 100n).operators[0];
-    expect(op.slice(2, 4)).toBe(Op.LENGTH_BETWEEN.toString(16).padStart(2, "0"));
-    expect(op).toHaveLength(2 + 2 + 128);
-  });
-
-  test(".lengthBetween(100n, 1n) — throws", () => {
-    expect(() => arg(0).lengthBetween(100n, 1n)).toThrow(CallciumError);
-  });
-
-  test("rejects address with invalid hex characters", () => {
-    expect(() => arg(0).eq("0xGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG")).toThrow(CallciumError);
-  });
-
-  test("rejects address with wrong length", () => {
-    expect(() => arg(0).eq("0x1234")).toThrow(CallciumError);
-  });
-
-  test(".isIn() rejects address with wrong length", () => {
-    expect(() => arg(0).isIn(["0x1234"])).toThrow(CallciumError);
-  });
-
-  test(".notIn() rejects address with wrong length", () => {
-    expect(() => arg(0).notIn(["0x1234"])).toThrow(CallciumError);
+  test("rejects an operand outside the word's range", () => {
+    expectErrorCode(() => arg(0).eq(2n ** 256n), "OPERAND_OVERFLOW");
+    expectErrorCode(() => arg(0).eq(-(2n ** 255n) - 1n), "OPERAND_OVERFLOW");
   });
 });

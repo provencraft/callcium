@@ -1,1169 +1,680 @@
-import { bigintToHex, bytesToHex, hexToBytes } from "./bytes";
+import { bigintToHex, bytesToHex, hexToBytes, readU16 } from "./bytes";
 import {
-  fieldMax,
-  findContextProperty,
+  comparisonOf,
+  isComparisonCode,
   MAX_CONTEXT_PROPERTY_ID,
   Op,
-  operandsOf,
-  PolicyFormat,
+  PolicyFormat as PF,
   Scope,
+  Source,
+  sourceOf,
   TypeCode,
 } from "./constants";
-import { Descriptor, type TypeInfo } from "./descriptor";
-import { decodeDescriptor } from "./descriptor-coder";
-import { CallciumError, type CallciumErrorCode } from "./errors";
+import { Descriptor } from "./descriptor";
+import { Hint } from "./hint";
 import {
-  canonicalize,
+  acceptsContextSource,
+  contextPropertyType,
+  hasCalldataLength,
   isLeftAligned,
   isSigned,
-  isContextOp,
-  isLengthOp,
-  isLengthValidType,
-  isElementary,
-  isValidOperatorData,
-  toOperatorBytes,
+  operandTypeOf,
+  operandWidth,
+  toBigInt,
 } from "./operators";
-import { Quantifier, isQuantifier, parsePathSteps } from "./path";
+import { parsePathSteps } from "./path";
+import { PolicyCoder, validatePolicy } from "./policy-coder";
 import * as ValidationIssue from "./validation-issue";
 
-import type { Constraint, Hex, Issue, IssueCode, PolicyData } from "./types";
+import type { BodyRule, Hex, Issue, IssueCode, LoopRule, Rule, RuleLocation } from "./types";
 
 ///////////////////////////////////////////////////////////////////////////
-// Internal types
+// Compatibility
 ///////////////////////////////////////////////////////////////////////////
 
-/** Codes a path walk raises when the path does not navigate the descriptor (PV-1). */
-const navigabilityCodes: ReadonlySet<CallciumErrorCode> = new Set<CallciumErrorCode>([
-  "PARAM_INDEX_OUT_OF_BOUNDS",
-  "TUPLE_FIELD_OUT_OF_BOUNDS",
-  "STATIC_ARRAY_INDEX_OUT_OF_BOUNDS",
-  "NOT_COMPOSITE",
-]);
-
-type BoundDomain = {
-  isSigned: boolean;
-  min: bigint;
-  max: bigint;
-  hasEq: boolean;
-  eq: bigint;
-  hasLower: boolean;
-  lower: bigint;
-  lowerInclusive: boolean;
-  hasUpper: boolean;
-  upper: bigint;
-  upperInclusive: boolean;
-  holes: bigint[];
-};
-
-type BitmaskDomain = {
-  mustBeOne: bigint;
-  mustBeZero: bigint;
-};
-
-type SetDomain = {
-  hasIn: boolean;
-  inValues: bigint[];
-  notInValues: bigint[];
-};
-
-type ConstraintContext = {
-  scope: number;
-  path: Hex;
-  /** Path steps of every constraint sharing this context. */
-  steps: number[];
-  typeInfo: TypeInfo;
-  numeric: BoundDomain;
-  bitmask: BitmaskDomain;
-  length: BoundDomain;
-  set: SetDomain;
-};
-
-///////////////////////////////////////////////////////////////////////////
-// Constants
-///////////////////////////////////////////////////////////////////////////
-
-/**
- * Maximum length value for dynamic types.
- */
-const LENGTH_MAX = 0xffffffffn;
-
-// Mask for reinterpreting uint256 as int256 (two's complement).
-const UINT256_MAX = (1n << 256n) - 1n;
-const INT256_SIGN_BIT = 1n << 255n;
-
-///////////////////////////////////////////////////////////////////////////
-// Signed-aware comparisons
-///////////////////////////////////////////////////////////////////////////
-
-/** Signed-aware difference of two raw uint256 values: negative if a<b, zero if equal, positive if a>b. */
-function signedCompare(a: bigint, b: bigint, signed: boolean): bigint {
-  if (!signed) return a - b;
-  const toSigned = (word: bigint) => (word >= INT256_SIGN_BIT ? word - (1n << 256n) : word);
-  return toSigned(a) - toSigned(b);
+/** Return true for a `uintN` type code. */
+function isUnsigned(typeCode: number): boolean {
+  return typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX;
 }
 
-/** True when a value lies outside the domain's physical bounds. */
-function isOutsideDomain(domain: BoundDomain, value: bigint): boolean {
-  return (
-    signedCompare(value, domain.min, domain.isSigned) < 0n || signedCompare(value, domain.max, domain.isSigned) > 0n
-  );
+/** Return true for a `uintN` or `intN` type code. */
+function isNumeric(typeCode: number): boolean {
+  return isUnsigned(typeCode) || (typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX);
 }
 
-///////////////////////////////////////////////////////////////////////////
-// Type classification
-///////////////////////////////////////////////////////////////////////////
-
-/** True for uint and int type codes. */
-function isNumericType(typeCode: number): boolean {
-  return (
-    (typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) ||
-    (typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX)
-  );
-}
-
-/** True for uint and bytes32 type codes. */
-function isBitmaskCompatible(typeCode: number): boolean {
-  return (typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) || typeCode === TypeCode.FIXED_BYTES_MIN + 31;
-}
-
-/** Physical domain limits for a type code (returned as raw uint256 bigints). */
-function getDomainLimits(typeCode: number): { min: bigint; max: bigint } {
-  if (typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) {
-    const bits = BigInt(typeCode - TypeCode.UINT_MIN + 1) * 8n;
-    return { min: 0n, max: bits === 256n ? UINT256_MAX : (1n << bits) - 1n };
+/** Return the code and message a constant comparison raises against its target type, or undefined when it applies. */
+function incompatibility(comparison: number, typeCode: number): { code: IssueCode; message: string } | undefined {
+  const isOrdering =
+    comparison === Op.GT ||
+    comparison === Op.LT ||
+    comparison === Op.GTE ||
+    comparison === Op.LTE ||
+    comparison === Op.BETWEEN;
+  if (isOrdering && !isNumeric(typeCode)) {
+    return { code: "NUMERIC_OP_ON_NON_NUMERIC", message: "Comparison operator used on non-numeric type" };
   }
-  if (typeCode >= TypeCode.INT_MIN && typeCode <= TypeCode.INT_MAX) {
-    const bits = BigInt(typeCode - TypeCode.INT_MIN + 1) * 8n;
-    if (bits === 256n) {
-      // int256: min = uint256(type(int256).min), max = uint256(type(int256).max).
-      return { min: INT256_SIGN_BIT, max: INT256_SIGN_BIT - 1n };
-    }
-    const half = 1n << (bits - 1n);
-    // Stored as raw uint256: min is two's complement of -(2^(bits-1)).
-    const max = half - 1n;
-    const min = (UINT256_MAX - half + 1n) & UINT256_MAX;
-    return { min, max };
+  if (comparison === Op.IN && typeCode === TypeCode.BOOL) {
+    return { code: "IN_ON_BOOL", message: "IN operator used on boolean type" };
   }
-  if (typeCode === TypeCode.BOOL) return { min: 0n, max: 1n };
-  if (typeCode === TypeCode.ADDRESS) return { min: 0n, max: (1n << 160n) - 1n };
-  return { min: 0n, max: UINT256_MAX };
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Operator classification
-///////////////////////////////////////////////////////////////////////////
-
-/** True if an operator code is in the value-operator range (unassigned codes included). */
-function isValueOp(opBase: number): boolean {
-  return opBase <= Op.BITMASK_NONE;
-}
-
-/** True for GT, LT, GTE, LTE, BETWEEN. */
-function isComparisonOp(opBase: number): boolean {
-  return opBase >= Op.GT && opBase <= Op.BETWEEN;
-}
-
-/** True for BITMASK_ALL, BITMASK_ANY, BITMASK_NONE. */
-function isBitmaskOp(opBase: number): boolean {
-  return opBase >= Op.BITMASK_ALL && opBase <= Op.BITMASK_NONE;
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Type compatibility check
-///////////////////////////////////////////////////////////////////////////
-
-/** Return the incompatibility reason, or null if the operator is allowed. */
-function checkCompatibility(opBase: number, typeInfo: TypeInfo): { code: IssueCode; message: string } | null {
-  const { typeCode, isDynamic, staticSize } = typeInfo;
-  if (isValueOp(opBase)) {
-    if (isDynamic || staticSize !== 32) {
-      return { code: "VALUE_OP_ON_DYNAMIC", message: "Value operator used on dynamic type" };
-    }
-    if (!isElementary(typeCode)) {
-      return { code: "VALUE_OP_ON_COMPOSITE", message: "Value operator used on composite type" };
-    }
-    if (isComparisonOp(opBase) && !isNumericType(typeCode)) {
-      return { code: "NUMERIC_OP_ON_NON_NUMERIC", message: "Comparison operator used on non-numeric type" };
-    }
-    if (isBitmaskOp(opBase) && !isBitmaskCompatible(typeCode)) {
-      return { code: "BITMASK_ON_INVALID", message: "Bitmask operator used on incompatible type" };
-    }
-    // IN on bool is degenerate: two values reduce every set to an equality, a tautology, or dead members.
-    if (opBase === Op.IN && typeCode === TypeCode.BOOL) {
-      return { code: "IN_ON_BOOL", message: "IN operator used on boolean type" };
-    }
-    // Context properties are addresses or uint256, so only those target classes can match, and an address is an
-    // identity rather than a magnitude, so it pairs under equality only.
-    if (
-      isContextOp(opBase) &&
-      !(typeCode >= TypeCode.UINT_MIN && typeCode <= TypeCode.UINT_MAX) &&
-      !(opBase === Op.EQ_CTX && typeCode === TypeCode.ADDRESS)
-    ) {
-      return { code: "CONTEXT_TYPE_MISMATCH", message: "Context reference operator used on incompatible type" };
-    }
-    return null;
+  const isMask = comparison === Op.BITMASK_ALL || comparison === Op.BITMASK_ANY || comparison === Op.BITMASK_NONE;
+  if (isMask && (typeCode === TypeCode.BOOL || typeCode === TypeCode.FUNCTION)) {
+    return { code: "BITMASK_ON_INVALID", message: "Bitmask operator used on incompatible type" };
   }
-  if (isLengthOp(opBase)) {
-    if (!isLengthValidType(typeCode)) {
-      return { code: "LENGTH_ON_STATIC", message: "Length operator used on non-dynamic type" };
-    }
-    return null;
-  }
-  return { code: "UNKNOWN_OPERATOR", message: "Unknown operator code" };
+  return undefined;
+}
+
+/** Return true when a context operand of `propertyType` pairs with a target of `typeCode` under `comparison`. */
+function pairsWithContext(comparison: number, typeCode: number, propertyType: number): boolean {
+  if (isUnsigned(typeCode)) return propertyType === TypeCode.UINT_MAX;
+  return comparison === Op.EQ && typeCode === TypeCode.ADDRESS && propertyType === TypeCode.ADDRESS;
 }
 
 /**
- * True if operator `opCode` is a defined operator allowed on a target with the given type info. Tolerates the NOT flag
- * on `opCode`.
+ * Determine whether the compatibility matrix admits an operator on a target type. A context operand is admitted on a
+ * target its comparison can pair with a context property. These targets are `uintN` under `EQ`, `GT`, `LT`, `GTE` and
+ * `LTE`, and `address` under `EQ`.
+ * @param opCode - The operator code, with or without the NOT flag.
+ * @param typeCode - The target's type code.
+ * @returns True when the operator applies to the target.
  */
-export function isOpAllowed(opCode: number, typeInfo: TypeInfo): boolean {
-  const opBase = opCode & ~Op.NOT;
-  return operandsOf(opBase) !== undefined && checkCompatibility(opBase, typeInfo) === null;
+export function isOpAllowed(opCode: number, typeCode: number): boolean {
+  const comparison = comparisonOf(opCode);
+  if (!isComparisonCode(comparison)) return false;
+  if (sourceOf(opCode) === Source.CONTEXT) {
+    if (!acceptsContextSource(comparison)) return false;
+    return isUnsigned(typeCode) || (comparison === Op.EQ && typeCode === TypeCode.ADDRESS);
+  }
+  if (sourceOf(opCode) !== Source.CONSTANT) return false;
+  return operandTypeOf(comparison, typeCode) !== undefined && incompatibility(comparison, typeCode) === undefined;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Payload reading
+// Rule checks
 ///////////////////////////////////////////////////////////////////////////
 
-/** Read a single uint256 from operator hex (bytes after the opcode byte). */
-function readValue(opHex: Hex): bigint {
-  return BigInt(`0x${opHex.slice(4)}`);
-}
-
-/** First payload word deviating from the canonical encoding for the type, with its canonical form, or null. */
-function findNonCanonicalWord(opHex: Hex, typeCode: number): { word: bigint; canonical: bigint } | null {
-  const body = opHex.slice(4);
-  for (let i = 0; i + 64 <= body.length; i += 64) {
-    const word = BigInt(`0x${body.slice(i, i + 64)}`);
-    const canonical = canonicalize(word, typeCode);
-    if (canonical !== word) return { word, canonical };
+/**
+ * Push the PV-5 and PV-6 issues of a test's operator against a target of `typeCode`.
+ * Return true when the operator raises none.
+ */
+function checkOperator(test: BodyRule, typeCode: number, location: RuleLocation, issues: Issue[]): boolean {
+  const operator = hexToBytes(test.operator);
+  const opCode = operator[0]!;
+  const comparison = comparisonOf(opCode);
+  if (sourceOf(opCode) === Source.CONTEXT) {
+    const propertyId = Number(toBigInt(operator, 1));
+    if (pairsWithContext(comparison, typeCode, contextPropertyType(propertyId))) return true;
+    issues.push(ValidationIssue.contextTypeMismatch(location, propertyId, typeCode));
+    return false;
   }
-  return null;
-}
 
-/** Read a pair of uint256 values from a BETWEEN operator. */
-function readPair(opHex: Hex): { low: bigint; high: bigint } {
-  const body = opHex.slice(4);
-  return {
-    low: BigInt(`0x${body.slice(0, 64)}`),
-    high: BigInt(`0x${body.slice(64, 128)}`),
-  };
-}
-
-/** Unpack an IN operator's payload into an array of bigint values. */
-function unpackSet(opHex: Hex): bigint[] {
-  const body = opHex.slice(4);
-  const count = body.length / 64;
-  const values: bigint[] = [];
-  for (let i = 0; i < count; i++) {
-    values.push(BigInt(`0x${body.slice(i * 64, (i + 1) * 64)}`));
+  const incompatible = incompatibility(comparison, typeCode);
+  if (incompatible !== undefined) {
+    issues.push(ValidationIssue.fromOpRule(incompatible.code, incompatible.message, location, opCode));
+    return false;
   }
-  return values;
-}
-
-/** True if every element is strictly greater than the previous. */
-function isStrictlyAscending(values: bigint[]): boolean {
-  for (let i = 1; i < values.length; i++) {
-    if (values[i]! <= values[i - 1]!) return false;
+  if (typeCode !== TypeCode.BOOL) return true;
+  for (let offset = 1; offset < operator.length; offset += 32) {
+    const value = toBigInt(operator, offset);
+    if (value > 1n) {
+      issues.push(ValidationIssue.outOfPhysicalBounds(location, bigintToHex(value)));
+      return false;
+    }
   }
   return true;
 }
 
-///////////////////////////////////////////////////////////////////////////
-// Opcode normalization
-///////////////////////////////////////////////////////////////////////////
-
-/** Convert LENGTH_* opcode to its core comparison equivalent. */
-function normalizeLengthOp(base: number): number {
-  if (base === Op.LENGTH_EQ) return Op.EQ;
-  if (base === Op.LENGTH_GT) return Op.GT;
-  if (base === Op.LENGTH_LT) return Op.LT;
-  if (base === Op.LENGTH_GTE) return Op.GTE;
-  if (base === Op.LENGTH_LTE) return Op.LTE;
-  return base;
-}
-
-/** Convert a negated bound opcode to its positive equivalent. */
-function negateBoundOp(base: number): number {
-  if (base === Op.GT) return Op.LTE;
-  if (base === Op.GTE) return Op.LT;
-  if (base === Op.LT) return Op.GTE;
-  if (base === Op.LTE) return Op.GT;
-  return base;
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Context initialization
-///////////////////////////////////////////////////////////////////////////
-
-/** Fresh bound domain with no constraints recorded yet. */
-function emptyBoundDomain(boundIsSigned: boolean, min: bigint, max: bigint): BoundDomain {
-  return {
-    isSigned: boundIsSigned,
-    min,
-    max,
-    hasEq: false,
-    eq: 0n,
-    hasLower: false,
-    lower: 0n,
-    lowerInclusive: false,
-    hasUpper: false,
-    upper: 0n,
-    upperInclusive: false,
-    holes: [],
-  };
-}
-
-/** Create a fresh constraint context with domain limits from the type. */
-function initContext(scope: number, path: Hex, steps: number[], typeInfo: TypeInfo): ConstraintContext {
-  const { min, max } = getDomainLimits(typeInfo.typeCode);
-  return {
-    scope,
-    path,
-    steps,
-    typeInfo,
-    numeric: emptyBoundDomain(isSigned(typeInfo.typeCode), min, max),
-    // Bits above the target's width are zero in every canonical value.
-    bitmask: { mustBeOne: 0n, mustBeZero: isBitmaskCompatible(typeInfo.typeCode) ? UINT256_MAX ^ max : 0n },
-    length: emptyBoundDomain(false, 0n, LENGTH_MAX),
-    set: {
-      hasIn: false,
-      inValues: [],
-      notInValues: [],
-    },
-  };
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Bound domain update
-///////////////////////////////////////////////////////////////////////////
-
-/** Narrow the numeric bound domain with an operator and emit issues on contradiction or redundancy. */
-function updateBound(
-  domain: BoundDomain,
-  base: number,
-  isNegated: boolean,
-  value: bigint,
-  isLength: boolean,
-  groupIndex: number,
-  constraintIndex: number,
+/**
+ * Push the issues of a test, from the arguments or, given `element`, from the loop element whose node lies there.
+ * Returns the test, or undefined when an issue leaves it without a target to analyze or its hint differs from its
+ * path's.
+ */
+function checkTest(
+  desc: Uint8Array,
+  test: BodyRule,
+  element: number | undefined,
+  location: RuleLocation,
   issues: Issue[],
-): void {
-  if (isNegated) {
-    if (base === Op.EQ) {
-      // A hole outside the type's domain excludes nothing.
-      if (isOutsideDomain(domain, value)) {
-        issues.push(ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-      }
-      if (domain.hasEq && domain.eq === value) {
-        issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-      }
-      let alreadyHole = false;
-      for (let j = 0; j < domain.holes.length; j++) {
-        if (domain.holes[j] === value) {
-          alreadyHole = true;
-          break;
-        }
-      }
-      if (!alreadyHole) {
-        domain.holes.push(value);
-      }
-    } else {
-      updateBound(domain, negateBoundOp(base), false, value, isLength, groupIndex, constraintIndex, issues);
+): BodyRule | undefined {
+  let typeCode: number;
+  let hintMatches = true;
+  if (test.scope === Scope.CONTEXT) {
+    typeCode = contextPropertyType(readU16(hexToBytes(test.path), 0));
+  } else {
+    const compiled = Hint.compileTest(desc, parsePathSteps(test.path), element);
+    if ("fault" in compiled) {
+      issues.push(ValidationIssue.unnavigablePath(location, compiled.stepIndex, compiled.bound));
+      return undefined;
     }
+    hintMatches = bytesToHex(compiled.hint) === test.hint;
+    if (!hintMatches) issues.push(ValidationIssue.hintMismatch(location));
+    typeCode = desc[compiled.node]!;
+  }
+  // A test whose hint differs from its path's has constants sized to the hint's type, so it leaves the analysis.
+  return checkOperator(test, typeCode, location, issues) && hintMatches ? test : undefined;
+}
+
+/** Return the declared length a loop's frame hint carries, or zero for a dynamic array. */
+function frameCount(hint: Uint8Array): number {
+  const hopCount = hint[0]!;
+  return readU16(hint, PF.HINT_HEADER_SIZE + hopCount * PF.HINT_HOP_SIZE + PF.HINT_FRAME_COUNT_OFFSET);
+}
+
+/**
+ * Push the issues of a loop and its body. Returns the loop without the body tests left without a target. The result is
+ * undefined when the loop's array path does not compile or no body test is left.
+ */
+function checkLoop(desc: Uint8Array, loop: LoopRule, location: RuleLocation, issues: Issue[]): LoopRule | undefined {
+  const compiled = Hint.compileLoop(desc, parsePathSteps(loop.path));
+  if ("fault" in compiled) {
+    issues.push(
+      compiled.fault === "NOT_ARRAY"
+        ? ValidationIssue.quantifierOnNonArray(location, compiled.bound)
+        : ValidationIssue.unnavigablePath(location, compiled.stepIndex, compiled.bound),
+    );
+    return undefined;
+  }
+  if (bytesToHex(compiled.hint) !== loop.hint) issues.push(ValidationIssue.hintMismatch(location));
+  const count = frameCount(compiled.hint);
+  if (count > PF.MAX_QUANTIFIED_ARRAY_LENGTH) {
+    issues.push(ValidationIssue.quantifierOverStaticLimit(location, count, PF.MAX_QUANTIFIED_ARRAY_LENGTH));
+  }
+
+  const body: BodyRule[] = [];
+  loop.body.forEach((test, bodyRuleIndex) => {
+    const testLocation = { ...location, bodyRuleIndex, scope: test.scope, path: test.path, operator: test.operator };
+    const kept = checkTest(desc, test, compiled.node, testLocation, issues);
+    if (kept !== undefined) body.push(kept);
+  });
+  return body.length === 0 ? undefined : { ...loop, body };
+}
+
+/** The identity of a loop within its group across normalization: its quantifier and its array path. */
+function loopKey(loop: LoopRule): string {
+  return `${loop.quantifier}:${loop.path}`;
+}
+
+/**
+ * Push a PV-8 issue for each loop of a group's normal form whose body contains no calldata test. Skip a loop if the
+ * group lost a test from a loop with the same quantifier and array path.
+ */
+function checkBodies(rules: Rule[], groupIndex: number, lost: ReadonlySet<string>, issues: Issue[]): void {
+  rules.forEach((rule, ruleIndex) => {
+    if (rule.scope !== Scope.LOOP || lost.has(loopKey(rule))) return;
+    if (rule.body.some((test) => test.scope === Scope.CALLDATA)) return;
+    issues.push(ValidationIssue.contextOnlyBody({ groupIndex, ruleIndex, scope: rule.scope, path: rule.path }));
+  });
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Subject analysis
+///////////////////////////////////////////////////////////////////////////
+
+/** The values of a subject as keys: `width`-bit patterns ordered unsigned, a signed one with its top bit flipped. */
+type Domain = {
+  width: number;
+  /** The greatest key. */
+  max: bigint;
+  /** The top bit of a signed type's pattern, zero otherwise. */
+  flip: bigint;
+  /** The bits below a left-aligned type's pattern in its word, zero otherwise. */
+  shift: bigint;
+};
+
+/** The relations of a subject to a context property's value: below it, equal to it, above it. */
+const LESS = 1;
+const EQUAL = 2;
+const GREATER = 4;
+const ANY_RELATION = LESS | EQUAL | GREATER;
+
+/** The sides of a subject's range a rule bounds. */
+const LOWER_SIDE = 1;
+const UPPER_SIDE = 2;
+
+/** A rule's condition on its subject's key. */
+type Literal =
+  /** Keys from `lower` to `upper`, none when `lower` exceeds `upper`. */
+  | { kind: "range"; negated: boolean; lower: bigint; upper: bigint }
+  /** The member keys. */
+  | { kind: "set"; negated: boolean; members: bigint[] }
+  /** Keys with every bit of `ones` set and every bit of `zeros` clear. */
+  | { kind: "bits"; negated: boolean; ones: bigint; zeros: bigint }
+  /** Keys in one of `relations` to the value of a context property. */
+  | { kind: "relation"; negated: boolean; property: number; relations: number };
+
+/** A rule on a subject: where it lies, its literal, the context properties it reads and the sides it bounds. */
+type SubjectRule = { location: RuleLocation; literal: Literal; reads: number; sides: number };
+
+/** The first `count` literals, the one at `flipped` negated, with their range and fixed bits folded. */
+type Conjunction = {
+  literals: readonly Literal[];
+  count: number;
+  flipped: number;
+  lower: bigint;
+  upper: bigint;
+  ones: bigint;
+  zeros: bigint;
+};
+
+/** Index of no literal. */
+const NO_LITERAL = -1;
+
+/** Return the domain of a subject of `typeCode`. A length compares as 256 bits. */
+function domainOf(typeCode: number): Domain {
+  const width = typeCode === TypeCode.BOOL ? 1 : 8 * (operandWidth(typeCode) ?? 32);
+  return {
+    width,
+    max: (1n << BigInt(width)) - 1n,
+    flip: isSigned(typeCode) ? 1n << BigInt(width - 1) : 0n,
+    shift: isLeftAligned(typeCode) ? BigInt(256 - width) : 0n,
+  };
+}
+
+/** Return the pattern a loaded word contains. */
+function patternOf(domain: Domain, word: bigint): bigint {
+  return (word >> domain.shift) & domain.max;
+}
+
+/** Return the word a key of a numeric or length subject loads from. */
+function wordOf(domain: Domain, key: bigint): bigint {
+  if (domain.flip === 0n) return key;
+  return BigInt.asUintN(256, BigInt.asIntN(domain.width, key ^ domain.flip));
+}
+
+/** Return the relations to a context property's value a comparison admits. */
+function relationsOf(comparison: number): number {
+  if (comparison === Op.EQ) return EQUAL;
+  if (comparison === Op.GT) return GREATER;
+  if (comparison === Op.LT) return LESS;
+  if (comparison === Op.GTE) return GREATER | EQUAL;
+  return LESS | EQUAL;
+}
+
+/** Return the range literal of the keys from `lower` to `upper`. */
+function range(lower: bigint, upper: bigint): Literal {
+  return { kind: "range", negated: false, lower, upper };
+}
+
+/**
+ * Return the literal of an operator on a subject, and the sides it bounds. `subjectProperty` is the context property a
+ * context test compares, which a context operand naming it equals.
+ */
+function literalOf(
+  domain: Domain,
+  operator: Hex,
+  subjectProperty: number | undefined,
+): { literal: Literal; sides: number } {
+  const bytes = hexToBytes(operator);
+  const opCode = bytes[0]!;
+  const negated = (opCode & Op.NOT) !== 0;
+  const comparison = comparisonOf(opCode);
+  const key = (index: number) => patternOf(domain, toBigInt(bytes, 1 + 32 * index)) ^ domain.flip;
+  let literal: Literal;
+  let sides = 0;
+
+  if (sourceOf(opCode) === Source.CONTEXT) {
+    const property = Number(toBigInt(bytes, 1));
+    const relations = relationsOf(comparison);
+    if (property === subjectProperty) {
+      literal = (relations & EQUAL) !== 0 ? range(0n, domain.max) : range(1n, 0n);
+    } else {
+      literal = { kind: "relation", negated: false, property, relations };
+    }
+  } else if (comparison === Op.EQ || comparison === Op.LENGTH_EQ) {
+    literal = { kind: "set", negated: false, members: [key(0)] };
+  } else if (comparison === Op.IN) {
+    const members: bigint[] = [];
+    for (let index = 0; 1 + 32 * index < bytes.length; index++) members.push(key(index));
+    literal = { kind: "set", negated: false, members };
+  } else if (comparison === Op.GT || comparison === Op.LENGTH_GT) {
+    literal = range(key(0) + 1n, domain.max);
+    sides = LOWER_SIDE;
+  } else if (comparison === Op.LT || comparison === Op.LENGTH_LT) {
+    literal = range(0n, key(0) - 1n);
+    sides = UPPER_SIDE;
+  } else if (comparison === Op.GTE || comparison === Op.LENGTH_GTE) {
+    literal = range(key(0), domain.max);
+    sides = LOWER_SIDE;
+  } else if (comparison === Op.LTE || comparison === Op.LENGTH_LTE) {
+    literal = range(0n, key(0));
+    sides = UPPER_SIDE;
+  } else if (comparison === Op.BETWEEN || comparison === Op.LENGTH_BETWEEN) {
+    literal = range(key(0), key(1));
+    sides = LOWER_SIDE | UPPER_SIDE;
+  } else {
+    // A mask's top bit asks the opposite of a signed key's top bit.
+    const mask = patternOf(domain, toBigInt(bytes, 1));
+    const set = mask & (domain.max ^ domain.flip);
+    const flipped = mask & domain.flip;
+    literal =
+      comparison === Op.BITMASK_ALL
+        ? { kind: "bits", negated: false, ones: set, zeros: flipped }
+        : { kind: "bits", negated: comparison === Op.BITMASK_ANY, ones: flipped, zeros: set };
+  }
+  return { literal: { ...literal, negated: literal.negated !== negated }, sides: negated ? 0 : sides };
+}
+
+/** Return true when the literal at `index` is negated in a conjunction. */
+function isNegated(conjunction: Conjunction, index: number): boolean {
+  return conjunction.literals[index]!.negated !== (index === conjunction.flipped);
+}
+
+/**
+ * Return true when some key and some context meet the first `count` literals, the literal at `flipped` negated. A
+ * context property each literal reads is present.
+ */
+function satisfiable(domain: Domain, literals: readonly Literal[], count: number, flipped: number): boolean {
+  const conjunction: Conjunction = { literals, count, flipped, lower: 0n, upper: domain.max, ones: 0n, zeros: 0n };
+  const relations = Array.from({ length: MAX_CONTEXT_PROPERTY_ID + 1 }, () => ANY_RELATION);
+  let firstSet: Extract<Literal, { kind: "set" }> | undefined;
+  for (let index = 0; index < count; index++) {
+    const literal = literals[index]!;
+    const negated = isNegated(conjunction, index);
+    if (literal.kind === "relation") {
+      relations[literal.property]! &= negated ? ANY_RELATION ^ literal.relations : literal.relations;
+    } else if (negated) {
+      continue;
+    } else if (literal.kind === "range") {
+      if (literal.lower > conjunction.lower) conjunction.lower = literal.lower;
+      if (literal.upper < conjunction.upper) conjunction.upper = literal.upper;
+    } else if (literal.kind === "bits") {
+      conjunction.ones |= literal.ones;
+      conjunction.zeros |= literal.zeros;
+    } else {
+      firstSet ??= literal;
+    }
+  }
+
+  // A context property's value lies anywhere in its type, so the relations left to it bound the subject's key.
+  for (let property = 0; property <= MAX_CONTEXT_PROPERTY_ID; property++) {
+    const held = relations[property]!;
+    if (held === 0) return false;
+    if (held === LESS) {
+      const propertyMax = domainOf(contextPropertyType(property)).max;
+      if (propertyMax - 1n < conjunction.upper) conjunction.upper = propertyMax - 1n;
+    }
+    if (held === GREATER && conjunction.lower < 1n) conjunction.lower = 1n;
+  }
+  if ((conjunction.ones & conjunction.zeros) !== 0n || conjunction.lower > conjunction.upper) return false;
+
+  if (firstSet !== undefined) return firstSet.members.some((key) => admits(conjunction, key));
+
+  // Each step passes one hole or one excluded key, so the walk takes at most one step per literal member.
+  let key = nextKey(conjunction, domain.max, conjunction.lower);
+  while (key !== undefined && key <= conjunction.upper) {
+    const end = excludedTo(conjunction, key);
+    if (end === undefined) return true;
+    if (end >= conjunction.upper) return false;
+    key = nextKey(conjunction, domain.max, end + 1n);
+  }
+  return false;
+}
+
+/** Return true when `key` meets every literal of a conjunction. */
+function admits(conjunction: Conjunction, key: bigint): boolean {
+  if (key < conjunction.lower || key > conjunction.upper || !meetsBits(conjunction, key)) return false;
+  for (let index = 0; index < conjunction.count; index++) {
+    const literal = conjunction.literals[index]!;
+    if (literal.kind === "set" && literal.members.includes(key) === isNegated(conjunction, index)) return false;
+  }
+  return excludedTo(conjunction, key) === undefined;
+}
+
+/**
+ * Return the greatest key the negated range or set of a conjunction that contains `key` excludes from `key` on, or
+ * undefined when none contains it.
+ */
+function excludedTo(conjunction: Conjunction, key: bigint): bigint | undefined {
+  for (let index = 0; index < conjunction.count; index++) {
+    const literal = conjunction.literals[index]!;
+    if (!isNegated(conjunction, index)) continue;
+    if (literal.kind === "range" && literal.lower <= key && key <= literal.upper) return literal.upper;
+    if (literal.kind === "set" && literal.members.includes(key)) return key;
+  }
+  return undefined;
+}
+
+/** Return true when `key` meets the fixed bits and every negated bits literal of a conjunction. */
+function meetsBits(conjunction: Conjunction, key: bigint): boolean {
+  if ((key & conjunction.ones) !== conjunction.ones || (key & conjunction.zeros) !== 0n) return false;
+  for (let index = 0; index < conjunction.count; index++) {
+    const literal = conjunction.literals[index]!;
+    if (literal.kind !== "bits" || !isNegated(conjunction, index)) continue;
+    if ((key & literal.ones) === literal.ones && (key & literal.zeros) === 0n) return false;
+  }
+  return true;
+}
+
+/**
+ * Return the least key from `from` up that meets the fixed bits and every negated bits literal. If `from` meets these
+ * conditions, the key is `from`. Otherwise the key sets the lowest clear bit of `from` that can be set and keeps the
+ * bits of `from` above that bit. The key completes the bits below that bit, least first.
+ */
+function nextKey(conjunction: Conjunction, max: bigint, from: bigint): bigint | undefined {
+  if (meetsBits(conjunction, from)) return from;
+  for (let bit = 1n; bit <= max; bit <<= 1n) {
+    if ((from & bit) !== 0n) continue;
+    let fixedBits = max ^ (bit - 1n);
+    let key = (from & fixedBits) | bit;
+    if (!completable(conjunction, max, fixedBits, key)) continue;
+    for (let lowBit = bit >> 1n; lowBit !== 0n; lowBit >>= 1n) {
+      fixedBits |= lowBit;
+      if (!completable(conjunction, max, fixedBits, key)) key |= lowBit;
+    }
+    return key;
+  }
+  return undefined;
+}
+
+/**
+ * Return true when some key whose bits in `fixedBits` are those of `key` meets the fixed bits and every negated bits
+ * literal.
+ */
+function completable(conjunction: Conjunction, max: bigint, fixedBits: bigint, key: bigint): boolean {
+  if ((key & conjunction.zeros) !== 0n || (conjunction.ones & fixedBits & ~key) !== 0n) return false;
+  const known = fixedBits | conjunction.ones | conjunction.zeros;
+  return solvable(conjunction, max, known, key | conjunction.ones);
+}
+
+/**
+ * Return true when some assignment of the bits outside `known` meets every negated bits literal, with the known bits as
+ * in `value`. Propagates the literals left with one free bit. Then branches on the free bits of the first literal left
+ * open. Each branch meets that literal, so the recursion runs at most one level per negated bits literal.
+ */
+function solvable(conjunction: Conjunction, max: bigint, known: bigint, value: bigint): boolean {
+  let openOnes = 0n;
+  let openZeros = 0n;
+  let index = 0;
+  while (index < conjunction.count) {
+    const literal = conjunction.literals[index++]!;
+    if (literal.kind !== "bits" || !isNegated(conjunction, index - 1)) continue;
+    if ((literal.ones & known & ~value) !== 0n || (literal.zeros & known & value) !== 0n) continue;
+    const ones = literal.ones & max & ~known;
+    const zeros = literal.zeros & max & ~known;
+    const free = ones | zeros;
+    if (free === 0n) return false;
+    if ((free & (free - 1n)) === 0n) {
+      known |= free;
+      value = ones === 0n ? value | free : value & ~free;
+      [openOnes, openZeros, index] = [0n, 0n, 0];
+    } else if ((openOnes | openZeros) === 0n) {
+      [openOnes, openZeros] = [ones, zeros];
+    }
+  }
+  if ((openOnes | openZeros) === 0n) return true;
+
+  // Each branch clears one free bit the literal wants set, or sets one it wants clear; a failed branch's bit then takes
+  // the other value.
+  for (let free = openOnes | openZeros; free !== 0n; free &= free - 1n) {
+    const bit = free & -free;
+    const meeting = (openOnes & bit) !== 0n ? value & ~bit : value | bit;
+    if (solvable(conjunction, max, known | bit, meeting)) return true;
+    known |= bit;
+    value = meeting ^ bit;
+  }
+  return false;
+}
+
+/**
+ * Push the PV-9 issues of the rules on one subject, in normal-form order. If the rules stop being satisfiable
+ * together, push one issue for the rule at which they stop, and nothing else. Otherwise, push an issue for each rule
+ * that holds for every value and context, and for each other rule the others imply. Then, among the rules not yet
+ * named, push an issue for each constant bound looser than the tightest on its side.
+ */
+function checkSubject(domain: Domain, isLength: boolean, rules: readonly SubjectRule[], issues: Issue[]): void {
+  const literals = rules.map((rule) => rule.literal);
+  for (let count = 1; count <= literals.length; count++) {
+    if (satisfiable(domain, literals, count, NO_LITERAL)) continue;
+    issues.push(ValidationIssue.contradictoryRule(rules[count - 1]!.location));
     return;
   }
 
-  // Vacuity checks.
-  if (base === Op.GTE && value === domain.min) {
-    issues.push(ValidationIssue.vacuousGte(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-  } else if (base === Op.LTE && value === domain.max) {
-    issues.push(ValidationIssue.vacuousLte(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-  }
-
-  // Physical bounds and impossibility.
-  if (isOutsideDomain(domain, value)) {
-    issues.push(ValidationIssue.outOfPhysicalBounds(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-  } else if (base === Op.GT && value === domain.max) {
-    issues.push(ValidationIssue.impossibleGt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-  } else if (base === Op.LT && value === domain.min) {
-    issues.push(ValidationIssue.impossibleLt(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-  }
-
-  let changedEq = false;
-  let changedLower = false;
-  let changedUpper = false;
-
-  // Equality handling.
-  if (base === Op.EQ) {
-    if (!domain.hasEq || domain.eq !== value) changedEq = true;
-    if (domain.hasEq) {
-      if (domain.eq !== value) {
-        issues.push(
-          ValidationIssue.conflictingEquality(
-            isLength,
-            groupIndex,
-            constraintIndex,
-            bigintToHex(domain.eq),
-            bigintToHex(value),
-          ),
-        );
-      }
+  const named = rules.map((rule, index) => {
+    if (rule.reads === 0 && !satisfiable(domain, [rule.literal], 1, 0)) {
+      issues.push(ValidationIssue.vacuousRule(rule.location));
+      return true;
     }
-    for (let j = 0; j < domain.holes.length; j++) {
-      if (domain.holes[j] === value) {
-        issues.push(ValidationIssue.eqNeqContradiction(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-      }
-    }
-    domain.hasEq = true;
-    domain.eq = value;
-  } else if (base === Op.GT || base === Op.GTE) {
-    const inclusive = base === Op.GTE;
-    if (domain.hasLower) {
-      let redundant = false;
-      let strictlyBetter = false;
-
-      if (signedCompare(value, domain.lower, domain.isSigned) < 0n) {
-        redundant = true;
-      } else if (value === domain.lower) {
-        if (domain.lowerInclusive) {
-          if (!inclusive) strictlyBetter = true;
-          else redundant = true;
-        } else {
-          if (!inclusive) redundant = true;
-        }
-      } else {
-        strictlyBetter = true;
-      }
-
-      if (redundant) {
-        issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-      }
-
-      if (strictlyBetter) {
-        issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(domain.lower)));
-        domain.lower = value;
-        domain.lowerInclusive = inclusive;
-        changedLower = true;
-      }
-    } else {
-      domain.hasLower = true;
-      domain.lower = value;
-      domain.lowerInclusive = inclusive;
-      changedLower = true;
-    }
-  } else if (base === Op.LT || base === Op.LTE) {
-    const inclusive = base === Op.LTE;
-    if (domain.hasUpper) {
-      let redundant = false;
-      let strictlyBetter = false;
-
-      if (signedCompare(value, domain.upper, domain.isSigned) > 0n) {
-        redundant = true;
-      } else if (value === domain.upper) {
-        if (domain.upperInclusive) {
-          if (!inclusive) strictlyBetter = true;
-          else redundant = true;
-        } else {
-          if (!inclusive) redundant = true;
-        }
-      } else {
-        strictlyBetter = true;
-      }
-
-      if (redundant) {
-        issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(value)));
-      }
-
-      if (strictlyBetter) {
-        issues.push(ValidationIssue.dominatedBound(isLength, groupIndex, constraintIndex, bigintToHex(domain.upper)));
-        domain.upper = value;
-        domain.upperInclusive = inclusive;
-        changedUpper = true;
-      }
-    } else {
-      domain.hasUpper = true;
-      domain.upper = value;
-      domain.upperInclusive = inclusive;
-      changedUpper = true;
-    }
-  }
-
-  // Cross-checks: equality vs lower bound.
-  if (changedEq || changedLower) {
-    if (domain.hasEq && domain.hasLower) {
-      const contradiction = domain.lowerInclusive
-        ? signedCompare(domain.eq, domain.lower, domain.isSigned) < 0n
-        : signedCompare(domain.eq, domain.lower, domain.isSigned) <= 0n;
-      if (contradiction) {
-        issues.push(
-          ValidationIssue.boundsExcludeEquality(
-            isLength,
-            groupIndex,
-            constraintIndex,
-            bigintToHex(domain.eq),
-            bigintToHex(domain.lower),
-          ),
-        );
-      } else {
-        issues.push(
-          ValidationIssue.redundantBound(
-            isLength,
-            groupIndex,
-            constraintIndex,
-            bigintToHex(domain.lower),
-            bigintToHex(domain.eq),
-          ),
-        );
-      }
-    }
-  }
-
-  // Cross-checks: equality vs upper bound.
-  if (changedEq || changedUpper) {
-    if (domain.hasEq && domain.hasUpper) {
-      const contradiction = domain.upperInclusive
-        ? signedCompare(domain.eq, domain.upper, domain.isSigned) > 0n
-        : signedCompare(domain.eq, domain.upper, domain.isSigned) >= 0n;
-      if (contradiction) {
-        issues.push(
-          ValidationIssue.boundsExcludeEquality(
-            isLength,
-            groupIndex,
-            constraintIndex,
-            bigintToHex(domain.eq),
-            bigintToHex(domain.upper),
-          ),
-        );
-      } else {
-        issues.push(
-          ValidationIssue.redundantBound(
-            isLength,
-            groupIndex,
-            constraintIndex,
-            bigintToHex(domain.upper),
-            bigintToHex(domain.eq),
-          ),
-        );
-      }
-    }
-  }
-
-  // Cross-check: lower vs upper bound.
-  if (changedLower || changedUpper) {
-    if (domain.hasLower && domain.hasUpper) {
-      const impossible =
-        signedCompare(domain.lower, domain.upper, domain.isSigned) > 0n ||
-        (domain.lower === domain.upper && (!domain.lowerInclusive || !domain.upperInclusive));
-      if (impossible) {
-        issues.push(
-          ValidationIssue.impossibleRange(
-            isLength,
-            groupIndex,
-            constraintIndex,
-            bigintToHex(domain.lower),
-            bigintToHex(domain.upper),
-          ),
-        );
-      }
-    }
-  }
+    let othersRead = 0;
+    rules.forEach((other, otherIndex) => {
+      if (otherIndex !== index) othersRead |= other.reads;
+    });
+    if ((rule.reads & ~othersRead) !== 0 || satisfiable(domain, literals, literals.length, index)) return false;
+    issues.push(ValidationIssue.redundantRule(rule.location));
+    return true;
+  });
+  checkBounds(domain, isLength, rules, named, issues);
 }
 
-///////////////////////////////////////////////////////////////////////////
-// Bitmask domain update
-///////////////////////////////////////////////////////////////////////////
-
-/** Update the bitmask domain and emit issues on contradiction or redundancy. */
-function updateBitmask(
-  ctx: ConstraintContext,
-  base: number,
-  isNegated: boolean,
-  mask: bigint,
-  groupIndex: number,
-  constraintIndex: number,
+/**
+ * Push an issue for each constant bound of a rule not in `named` looser than the tightest on its side among those
+ * rules.
+ */
+function checkBounds(
+  domain: Domain,
+  isLength: boolean,
+  rules: readonly SubjectRule[],
+  named: readonly boolean[],
   issues: Issue[],
 ): void {
-  if (isNegated) return;
-
-  if (base === Op.BITMASK_ALL) {
-    if ((ctx.bitmask.mustBeZero & mask) !== 0n) {
-      issues.push(
-        ValidationIssue.bitmaskContradiction(
-          groupIndex,
-          constraintIndex,
-          bigintToHex(mask),
-          bigintToHex(ctx.bitmask.mustBeZero),
-        ),
-      );
-    }
-    if ((ctx.bitmask.mustBeOne & mask) === mask) {
-      issues.push(
-        ValidationIssue.redundantBitmask(
-          groupIndex,
-          constraintIndex,
-          bigintToHex(mask),
-          bigintToHex(ctx.bitmask.mustBeOne),
-        ),
-      );
-    }
-    ctx.bitmask.mustBeOne |= mask;
-  } else if (base === Op.BITMASK_NONE) {
-    if ((ctx.bitmask.mustBeOne & mask) !== 0n) {
-      issues.push(
-        ValidationIssue.bitmaskContradiction(
-          groupIndex,
-          constraintIndex,
-          bigintToHex(mask),
-          bigintToHex(ctx.bitmask.mustBeOne),
-        ),
-      );
-    }
-    if ((ctx.bitmask.mustBeZero & mask) === mask) {
-      issues.push(
-        ValidationIssue.redundantBitmask(
-          groupIndex,
-          constraintIndex,
-          bigintToHex(mask),
-          bigintToHex(ctx.bitmask.mustBeZero),
-        ),
-      );
-    }
-    ctx.bitmask.mustBeZero |= mask;
-  } else if (base === Op.BITMASK_ANY) {
-    if (mask !== 0n && (ctx.bitmask.mustBeZero & mask) === mask) {
-      issues.push(
-        ValidationIssue.bitmaskAnyImpossible(
-          groupIndex,
-          constraintIndex,
-          bigintToHex(mask),
-          bigintToHex(ctx.bitmask.mustBeZero),
-        ),
-      );
-    }
-    if ((ctx.bitmask.mustBeOne & mask) !== 0n) {
-      issues.push(
-        ValidationIssue.redundantBitmask(
-          groupIndex,
-          constraintIndex,
-          bigintToHex(mask),
-          bigintToHex(ctx.bitmask.mustBeOne),
-        ),
-      );
-    }
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Set domain update
-///////////////////////////////////////////////////////////////////////////
-
-/** Emit an issue if the IN set has been fully excluded by NOT_IN or NEQ holes. */
-function checkSetEmpty(ctx: ConstraintContext, groupIndex: number, constraintIndex: number, issues: Issue[]): void {
-  if (!ctx.set.hasIn) return;
-
-  let possibleCount = 0;
-  const inCount = ctx.set.inValues.length;
-  for (let i = 0; i < inCount; i++) {
-    const value = ctx.set.inValues[i]!;
-    let forbidden = false;
-    for (let k = 0; k < ctx.numeric.holes.length; k++) {
-      if (ctx.numeric.holes[k] === value) {
-        forbidden = true;
-        break;
-      }
-    }
-    if (!forbidden) {
-      for (let k = 0; k < ctx.set.notInValues.length; k++) {
-        if (ctx.set.notInValues[k] === value) {
-          forbidden = true;
-          break;
-        }
-      }
-    }
-    if (!forbidden) possibleCount++;
-  }
-
-  if (possibleCount === 0) {
-    issues.push(ValidationIssue.setFullyExcluded(groupIndex, constraintIndex));
-  } else if (possibleCount < inCount) {
-    issues.push(
-      ValidationIssue.setPartiallyExcluded(groupIndex, constraintIndex, bigintToHex(BigInt(inCount - possibleCount))),
-    );
-  }
-}
-
-/** Update the set domain with IN or NOT_IN values and emit issues on contradiction or redundancy. */
-function updateSet(
-  ctx: ConstraintContext,
-  isNegated: boolean,
-  values: bigint[],
-  groupIndex: number,
-  constraintIndex: number,
-  issues: Issue[],
-): void {
-  // Physical bounds: a member outside the type's domain never occurs, so it matches and excludes nothing.
-  for (const value of values) {
-    if (isOutsideDomain(ctx.numeric, value)) {
-      issues.push(ValidationIssue.outOfPhysicalBounds(false, groupIndex, constraintIndex, bigintToHex(value)));
-    }
-  }
-
-  if (isNegated) {
-    for (const value of values) {
-      if (ctx.numeric.hasEq && ctx.numeric.eq === value) {
-        issues.push(ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, bigintToHex(value)));
-      }
-      if (ctx.set.hasIn) {
-        let inSet = false;
-        for (const existing of ctx.set.inValues) {
-          if (existing === value) {
-            inSet = true;
-            break;
-          }
-        }
-        if (inSet) {
-          issues.push(ValidationIssue.setReduction(groupIndex, constraintIndex, bigintToHex(value)));
-        }
-      }
-      ctx.set.notInValues.push(value);
-    }
-    checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
-  } else {
-    if (ctx.numeric.hasEq) {
-      let found = false;
-      for (const candidate of values) {
-        if (candidate === ctx.numeric.eq) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        issues.push(ValidationIssue.setExcludesEquality(groupIndex, constraintIndex, bigintToHex(ctx.numeric.eq)));
-      }
-    }
-
-    if (ctx.set.hasIn) {
-      const intersection: bigint[] = [];
-      for (const existing of ctx.set.inValues) {
-        for (const candidate of values) {
-          if (existing === candidate) {
-            intersection.push(existing);
-            break;
-          }
-        }
-      }
-
-      if (intersection.length === 0) {
-        issues.push(ValidationIssue.emptySetIntersection(groupIndex, constraintIndex));
-      } else if (intersection.length < values.length || intersection.length < ctx.set.inValues.length) {
-        issues.push(
-          ValidationIssue.setRedundancy(groupIndex, constraintIndex, bigintToHex(BigInt(intersection.length))),
-        );
-      }
-      ctx.set.inValues = intersection;
+  let tightestLower = 0n;
+  let tightestUpper = domain.max;
+  rules.forEach(({ literal, sides }, index) => {
+    if (named[index] || literal.kind !== "range") return;
+    if ((sides & LOWER_SIDE) !== 0 && literal.lower > tightestLower) tightestLower = literal.lower;
+    if ((sides & UPPER_SIDE) !== 0 && literal.upper < tightestUpper) tightestUpper = literal.upper;
+  });
+  rules.forEach(({ location, literal, sides }, index) => {
+    if (named[index] || literal.kind !== "range") return;
+    let bound: bigint;
+    let tightest: bigint;
+    if ((sides & LOWER_SIDE) !== 0 && literal.lower < tightestLower) {
+      [bound, tightest] = [literal.lower, tightestLower];
+    } else if ((sides & UPPER_SIDE) !== 0 && literal.upper > tightestUpper) {
+      [bound, tightest] = [literal.upper, tightestUpper];
     } else {
-      ctx.set.hasIn = true;
-      ctx.set.inValues = values;
-    }
-
-    checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Duplicate detection
-///////////////////////////////////////////////////////////////////////////
-
-/** Emit a warning if the constraint contains any identical operators. */
-function checkDuplicates(issues: Issue[], operators: Hex[], groupIndex: number, constraintIndex: number): void {
-  const seen = new Set<string>();
-  for (const op of operators) {
-    const key = op.toLowerCase();
-    if (seen.has(key)) {
-      issues.push(ValidationIssue.duplicateConstraint(groupIndex, constraintIndex));
       return;
     }
-    seen.add(key);
+    const [boundWord, tightestWord] = [bigintToHex(wordOf(domain, bound)), bigintToHex(wordOf(domain, tightest))];
+    issues.push(ValidationIssue.dominatedBound(isLength, location, boundWord, tightestWord));
+  });
+}
+
+/** Push the PV-9 issues of the tests of a group or a loop body, subject by subject in order of first appearance. */
+function checkSubjects(tests: readonly { test: BodyRule; location: RuleLocation }[], issues: Issue[]): void {
+  const subjects = new Map<string, { test: BodyRule; location: RuleLocation }[]>();
+  for (const entry of tests) {
+    const subject = `${entry.test.scope}:${entry.test.path}`;
+    const entries = subjects.get(subject);
+    if (entries === undefined) subjects.set(subject, [entry]);
+    else entries.push(entry);
+  }
+  for (const entries of subjects.values()) {
+    const { scope, path, hint } = entries[0]!.test;
+    const subjectProperty = scope === Scope.CONTEXT ? readU16(hexToBytes(path), 0) : undefined;
+    const typeCode = subjectProperty === undefined ? hexToBytes(hint!).at(-1)! : contextPropertyType(subjectProperty);
+    const domain = domainOf(typeCode);
+    const rules = entries.map(({ test, location }) => subjectRule(domain, test, location, subjectProperty));
+    checkSubject(domain, hasCalldataLength(typeCode), rules, issues);
+  }
+}
+
+/** Return a test as a rule on its subject, whose context property is `subjectProperty` for a context test. */
+function subjectRule(
+  domain: Domain,
+  test: BodyRule,
+  location: RuleLocation,
+  subjectProperty: number | undefined,
+): SubjectRule {
+  const { literal, sides } = literalOf(domain, test.operator, subjectProperty);
+  let reads = subjectProperty === undefined ? 0 : 1 << subjectProperty;
+  if (literal.kind === "relation") reads |= 1 << literal.property;
+  return { location, literal, reads, sides };
+}
+
+/** Push the PV-9 issues of a group's normal form: its tests and context tests, then each loop body apart. */
+function checkGroupSubjects(rules: Rule[], groupIndex: number, issues: Issue[]): void {
+  const tests: { test: BodyRule; location: RuleLocation }[] = [];
+  for (const [ruleIndex, rule] of rules.entries()) {
+    if (rule.scope === Scope.LOOP) continue;
+    tests.push({
+      test: rule,
+      location: { groupIndex, ruleIndex, scope: rule.scope, path: rule.path, operator: rule.operator },
+    });
+  }
+  checkSubjects(tests, issues);
+  for (const [ruleIndex, rule] of rules.entries()) {
+    if (rule.scope !== Scope.LOOP) continue;
+    const body = rule.body.map((test, bodyRuleIndex) => ({
+      test,
+      location: { groupIndex, ruleIndex, bodyRuleIndex, scope: test.scope, path: test.path, operator: test.operator },
+    }));
+    checkSubjects(body, issues);
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Fusible range detection
+// Validation
 ///////////////////////////////////////////////////////////////////////////
 
 /**
- * Report a lone unnegated gte/lte pair (value or length domain) as fusible into the corresponding single range
- * operator. Fires only for a satisfiable pair on a compatible type; contradictions and dominated bounds are already
- * reported by the domain checks.
+ * Validate a policy blob (PV-1 to PV-9). Storage validation runs first, since the descriptor check reads the descriptor
+ * before anything is decoded. Issues of PV-1 to PV-7 name a rule where the blob stores it. Issues of PV-8 and PV-9 name
+ * the group where the blob stores it and the rule's position in the normal form of that group. Only rules that raise no
+ * PV-2, PV-3, PV-5 or PV-6 issue and no PV-4 issue on a test enter the normal form. PV-8 skips a loop that lost a body
+ * test to such an issue.
+ * @param blob - A policy blob that passes storage validation.
+ * @returns Every issue found, or one issue alone when the descriptor is not valid.
+ * @throws {CallciumError} When the blob fails storage validation, or a group's normal form exceeds a format limit.
  */
-function checkFusibleRange(
-  ctx: ConstraintContext,
-  operators: Hex[],
-  groupIndex: number,
-  constraintIndex: number,
-  issues: Issue[],
-): void {
-  const numericPair = findLonePair(operators, Op.GTE, Op.LTE);
-  if (
-    numericPair &&
-    checkCompatibility(Op.GTE, ctx.typeInfo) === null &&
-    signedCompare(numericPair.low, numericPair.high, ctx.numeric.isSigned) <= 0n
-  ) {
-    issues.push(
-      ValidationIssue.fusibleRange(
-        false,
-        groupIndex,
-        constraintIndex,
-        bigintToHex(numericPair.low),
-        bigintToHex(numericPair.high),
-      ),
-    );
-  }
+function validate(blob: Hex): Issue[] {
+  validatePolicy(blob);
+  const bytes = hexToBytes(blob);
+  const desc = bytes.subarray(PF.DESC_OFFSET, PF.DESC_OFFSET + readU16(bytes, PF.DESC_LENGTH_OFFSET));
+  const invalid = Descriptor.tryValidateMeta(desc);
+  if (invalid !== undefined) return [ValidationIssue.invalidDescriptor(invalid.offset)];
 
-  const lengthPair = findLonePair(operators, Op.LENGTH_GTE, Op.LENGTH_LTE);
-  if (lengthPair && checkCompatibility(Op.LENGTH_GTE, ctx.typeInfo) === null && lengthPair.low <= lengthPair.high) {
-    issues.push(
-      ValidationIssue.fusibleRange(
-        true,
-        groupIndex,
-        constraintIndex,
-        bigintToHex(lengthPair.low),
-        bigintToHex(lengthPair.high),
-      ),
-    );
-  }
-}
-
-/** Check whether a payload length fits the `dataLength` field and matches the operator's arity. */
-function hasValidPayload(opBase: number, dataLength: number): boolean {
-  return dataLength <= fieldMax(PolicyFormat.RULE_DATALENGTH_SIZE) && isValidOperatorData(opBase, dataLength);
-}
-
-/** Return the operand pair when the operators contain exactly one of each unnegated bound opcode. */
-function findLonePair(operators: Hex[], lowerOp: number, upperOp: number): { low: bigint; high: bigint } | null {
-  let lowerCount = 0;
-  let upperCount = 0;
-  let low = 0n;
-  let high = 0n;
-
-  for (const opHex of operators) {
-    const opCode = parseInt(opHex.slice(2, 4), 16);
-    const dataLength = (opHex.length - 4) / 2;
-    if (!hasValidPayload(opCode & ~Op.NOT, dataLength)) continue;
-    if (opCode === lowerOp) {
-      lowerCount++;
-      low = readValue(opHex);
-    } else if (opCode === upperOp) {
-      upperCount++;
-      high = readValue(opHex);
-    }
-  }
-
-  return lowerCount === 1 && upperCount === 1 ? { low, high } : null;
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Constraint validation
-///////////////////////////////////////////////////////////////////////////
-
-/** Validate all operators on a single constraint against its domain context. */
-function validateConstraint(
-  ctx: ConstraintContext,
-  constraint: Constraint,
-  groupIndex: number,
-  constraintIndex: number,
-  issues: Issue[],
-): void {
-  const operators = constraint.operators;
-  const underAny = constraint.scope === Scope.CALLDATA && ctx.steps.includes(Quantifier.ANY);
-
-  for (const opHex of operators) {
-    // Every later read slices the hex, so the operator is established as bytes first.
-    const opBytes = toOperatorBytes(opHex);
-    const opCode = opBytes[0]!;
-    const base = opCode & ~Op.NOT;
-
-    // An unassigned opcode or mismatched payload size has no defined semantics to analyze.
-    const dataLength = opBytes.length - 1;
-    if (!hasValidPayload(base, dataLength)) {
-      issues.push(
-        ValidationIssue.fromOpRule(
-          "UNKNOWN_OPERATOR",
-          "Unknown operator code",
-          groupIndex,
-          constraintIndex,
-          bigintToHex(BigInt(opCode)),
-        ),
-      );
-      continue;
-    }
-
-    const isNegated = (opCode & Op.NOT) !== 0;
-
-    // A negated operator under any() is satisfied by a single decoy element.
-    if (underAny && isNegated) {
-      issues.push(ValidationIssue.negationUnderAny(groupIndex, constraintIndex, bigintToHex(BigInt(opCode))));
-    }
-
-    const incompatibility = checkCompatibility(base, ctx.typeInfo);
-    if (incompatibility) {
-      issues.push(
-        ValidationIssue.fromOpRule(
-          incompatibility.code,
-          incompatibility.message,
-          groupIndex,
-          constraintIndex,
-          bigintToHex(BigInt(opCode)),
-        ),
-      );
-      continue;
-    }
-
-    if (isContextOp(base)) {
-      // The operand names a context property, not a value: nothing to fold into a domain.
-      const ctxOperand = readValue(opHex);
-      const property = findContextProperty(Number(ctxOperand));
-      if (!property) {
-        issues.push(
-          ValidationIssue.unknownContextProperty(
-            groupIndex,
-            constraintIndex,
-            bigintToHex(ctxOperand),
-            bigintToHex(BigInt(MAX_CONTEXT_PROPERTY_ID)),
-          ),
-        );
-      } else {
-        // Compatibility has already narrowed the target to an address or unsigned type, so the pairing reduces to
-        // whether both sides are addresses.
-        const propertyIsAddress = property.typeCode === TypeCode.ADDRESS;
-        const targetIsAddress = ctx.typeInfo.typeCode === TypeCode.ADDRESS;
-        if (propertyIsAddress !== targetIsAddress) {
-          issues.push(
-            ValidationIssue.contextTypeMismatch(
-              groupIndex,
-              constraintIndex,
-              bigintToHex(ctxOperand),
-              bigintToHex(BigInt(ctx.typeInfo.typeCode)),
-            ),
-          );
-        }
-      }
-    } else if (isValueOp(base)) {
-      // An operand that breaks PC-1 never matches, since enforcement only admits canonical values, so the rule is
-      // unsatisfiable or vacuous; skip it. Numeric, address and bool operands are already covered by the domain limits.
-      const typeCode = ctx.typeInfo.typeCode;
-      if (isLeftAligned(typeCode)) {
-        const nonCanonical = findNonCanonicalWord(opHex, typeCode);
-        if (nonCanonical !== null) {
-          issues.push(
-            ValidationIssue.nonCanonicalOperand(
-              groupIndex,
-              constraintIndex,
-              bigintToHex(nonCanonical.word),
-              bigintToHex(nonCanonical.canonical),
-            ),
-          );
-          continue;
-        }
-      }
-
-      if (base >= Op.EQ && base <= Op.BETWEEN) {
-        if (base === Op.BETWEEN) {
-          // A negated range is a disjunction (value < low OR value > high); distributing the negation over the
-          // decomposed bounds would conjoin the complement halves into a spurious contradiction. Leave it un-analyzed,
-          // like a neq hole. Inverted bounds still surface: negating an empty range excludes nothing.
-          const { low, high } = readPair(opHex);
-          if (!isNegated) {
-            updateBound(ctx.numeric, Op.GTE, false, low, false, groupIndex, constraintIndex, issues);
-            updateBound(ctx.numeric, Op.LTE, false, high, false, groupIndex, constraintIndex, issues);
-          } else if (signedCompare(low, high, ctx.numeric.isSigned) > 0n) {
-            issues.push(
-              ValidationIssue.vacuousNegatedRange(
-                false,
-                groupIndex,
-                constraintIndex,
-                bigintToHex(low),
-                bigintToHex(high),
-              ),
-            );
-          }
-        } else {
-          const value = readValue(opHex);
-          const holesBefore = ctx.numeric.holes.length;
-          updateBound(ctx.numeric, base, isNegated, value, false, groupIndex, constraintIndex, issues);
-          if (ctx.numeric.holes.length > holesBefore) {
-            checkSetEmpty(ctx, groupIndex, constraintIndex, issues);
-          }
-        }
-      } else if (isBitmaskOp(base)) {
-        const mask = readValue(opHex);
-        updateBitmask(ctx, base, isNegated, mask, groupIndex, constraintIndex, issues);
-      } else if (base === Op.IN) {
-        const values = unpackSet(opHex);
-        if (!isStrictlyAscending(values)) {
-          issues.push(ValidationIssue.unsortedInSet(groupIndex, constraintIndex));
-        } else {
-          updateSet(ctx, isNegated, values, groupIndex, constraintIndex, issues);
-        }
-      }
-    } else if (isLengthOp(base)) {
-      if (base === Op.LENGTH_BETWEEN) {
-        // Same disjunction reasoning as the negated value-range above.
-        const { low, high } = readPair(opHex);
-        if (!isNegated) {
-          updateBound(ctx.length, Op.GTE, false, low, true, groupIndex, constraintIndex, issues);
-          updateBound(ctx.length, Op.LTE, false, high, true, groupIndex, constraintIndex, issues);
-        } else if (low > high) {
-          issues.push(
-            ValidationIssue.vacuousNegatedRange(true, groupIndex, constraintIndex, bigintToHex(low), bigintToHex(high)),
-          );
-        }
-      } else {
-        const value = readValue(opHex);
-        updateBound(ctx.length, normalizeLengthOp(base), isNegated, value, true, groupIndex, constraintIndex, issues);
-      }
-    }
-  }
-
-  checkDuplicates(issues, operators, groupIndex, constraintIndex);
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Group validation
-///////////////////////////////////////////////////////////////////////////
-
-/** Validate all constraints in a group, building per-path contexts for cross-constraint analysis. */
-function validateGroup(data: PolicyData, descBytes: Uint8Array, groupIndex: number, issues: Issue[]): void {
-  const constraints = data.groups[groupIndex]!;
-  const contexts: ConstraintContext[] = [];
-
-  for (let constraintIndex = 0; constraintIndex < constraints.length; constraintIndex++) {
-    const constraint = constraints[constraintIndex]!;
-    const normalizedPath: Hex = `0x${constraint.path.slice(2).toLowerCase()}`;
-
-    // Find existing context for this (scope, path) pair.
-    let ctx: ConstraintContext | undefined;
-    for (const existing of contexts) {
-      if (existing.scope === constraint.scope && existing.path === normalizedPath) {
-        ctx = existing;
-        break;
-      }
-    }
-
-    if (!ctx) {
-      const steps = parsePathSteps(constraint.path);
-      if (steps.length === 0) throw new CallciumError("EMPTY_PATH", "Path must have at least one step");
-      let typeInfo: TypeInfo;
-      if (constraint.scope === Scope.CALLDATA) {
-        // Compatibility issues against the limits the spec fixes (PWF-17, PV-7).
-        if (steps.length > PolicyFormat.MAX_PATH_DEPTH) {
-          issues.push(
-            ValidationIssue.pathDepthExceeded(
-              groupIndex,
-              constraintIndex,
-              bigintToHex(BigInt(steps.length)),
-              bigintToHex(BigInt(PolicyFormat.MAX_PATH_DEPTH)),
-            ),
-          );
-        }
-        let walk: ReturnType<typeof Descriptor.walkPath>;
-        try {
-          walk = Descriptor.walkPath(descBytes, steps);
-        } catch (error) {
-          // Navigability faults become issues; anything else propagates.
-          if (error instanceof CallciumError && navigabilityCodes.has(error.code)) {
-            issues.push(ValidationIssue.unnavigablePath(groupIndex, constraintIndex));
-            continue;
-          }
-          throw error;
-        }
-        // One array at a time carries a quantifier, so the element chain stays singular.
-        if (steps.filter(isQuantifier).length > 1) {
-          issues.push(ValidationIssue.nestedQuantifier(groupIndex, constraintIndex));
-          continue;
-        }
-        if (walk.quantifiedStaticLength > PolicyFormat.MAX_QUANTIFIED_ARRAY_LENGTH) {
-          issues.push(
-            ValidationIssue.quantifierOverStaticLimit(
-              groupIndex,
-              constraintIndex,
-              bigintToHex(BigInt(walk.quantifiedStaticLength)),
-              bigintToHex(BigInt(PolicyFormat.MAX_QUANTIFIED_ARRAY_LENGTH)),
-            ),
-          );
-        }
-        typeInfo = walk.typeInfo;
-      } else {
-        const ctxId = steps[0]!;
-        const property = findContextProperty(ctxId);
-        if (!property) {
-          // An unassigned ID declares no type, so the analysis proceeds over the widest unsigned domain and the warning
-          // carries the ID.
-          issues.push(
-            ValidationIssue.unknownContextProperty(
-              groupIndex,
-              constraintIndex,
-              bigintToHex(BigInt(ctxId)),
-              bigintToHex(BigInt(MAX_CONTEXT_PROPERTY_ID)),
-            ),
-          );
-        }
-        typeInfo = { typeCode: property?.typeCode ?? TypeCode.UINT_MAX, isDynamic: false, staticSize: 32 };
-      }
-      ctx = initContext(constraint.scope, normalizedPath, steps, typeInfo);
-      contexts.push(ctx);
-    }
-
-    // A carried hint must equal the compilation of its own path; constraints without an encoding carry none, an empty
-    // one carries nothing to compare, and the encoder compiles theirs from the same descriptor. Reaching here means the
-    // path navigates the descriptor and quantifies at most once, so only the PWF-17 depth check remains.
-    if (
-      constraint.scope === Scope.CALLDATA &&
-      constraint.hint !== undefined &&
-      constraint.hint !== "0x" &&
-      ctx.steps.length <= PolicyFormat.MAX_PATH_DEPTH
-    ) {
-      const compiled = bytesToHex(Descriptor.compileHint(descBytes, ctx.steps));
-      if (compiled !== constraint.hint.toLowerCase()) {
-        issues.push(ValidationIssue.hintMismatch(groupIndex, constraintIndex));
-      }
-    }
-
-    validateConstraint(ctx, constraint, groupIndex, constraintIndex, issues);
-
-    checkFusibleRange(ctx, constraint.operators, groupIndex, constraintIndex, issues);
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Public API
-///////////////////////////////////////////////////////////////////////////
-
-/**
- * Validate a policy for type mismatches, contradictions, redundancies, and vacuities.
- * @param data - The canonical policy data to validate.
- * @returns All validation issues found, ordered by group and constraint index.
- * @throws {CallciumError} If the descriptor is malformed; semantic validation is defined only over a well-formed one.
- * @throws {CallciumError} With `EMPTY_PATH` or `MALFORMED_PATH` for a path that is empty or not whole steps, and
- * `INVALID_HEX` or `INVALID_OPERATOR_BYTES` for an unreadable path or operator. Analysis is defined over canonical
- * data, so these reject the input rather than report an issue.
- */
-function validate(data: PolicyData): Issue[] {
-  const descBytes = hexToBytes(data.descriptor);
-  decodeDescriptor(descBytes);
-
+  const data = PolicyCoder.decode(blob);
   const issues: Issue[] = [];
-  for (let groupIndex = 0; groupIndex < data.groups.length; groupIndex++) {
-    if (data.groups[groupIndex]!.length === 0) {
-      issues.push(ValidationIssue.emptyGroup(groupIndex));
-      continue;
-    }
-    validateGroup(data, descBytes, groupIndex, issues);
-  }
-
+  data.groups.forEach((rules, groupIndex) => {
+    const kept: Rule[] = [];
+    const lost = new Set<string>();
+    rules.forEach((rule, ruleIndex) => {
+      if (rule.scope === Scope.LOOP) {
+        const loop = checkLoop(desc, rule, { groupIndex, ruleIndex, scope: rule.scope, path: rule.path }, issues);
+        if (loop === undefined || loop.body.length < rule.body.length) lost.add(loopKey(rule));
+        if (loop !== undefined) kept.push(loop);
+        return;
+      }
+      const location = { groupIndex, ruleIndex, scope: rule.scope, path: rule.path, operator: rule.operator };
+      const test = checkTest(desc, rule, undefined, location, issues);
+      if (test !== undefined) kept.push(test);
+    });
+    if (kept.length === 0) return;
+    const normal = PolicyCoder.decode(PolicyCoder.encode({ ...data, groups: [kept] })).groups[0]!;
+    checkBodies(normal, groupIndex, lost, issues);
+    checkGroupSubjects(normal, groupIndex, issues);
+  });
   return issues;
 }
 
-/** Semantic validation for policies. */
+/** Build-time validation of policy blobs. */
 export const PolicyValidator = { validate };

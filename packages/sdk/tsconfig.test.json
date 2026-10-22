@@ -5,5 +5,5 @@
     "rootDir": ".",
     "noUncheckedIndexedAccess": false
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts", "tools/**/*.ts", "vitest.config.ts"]
 }

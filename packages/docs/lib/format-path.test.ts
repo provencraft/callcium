@@ -1,4 +1,4 @@
-import { lookupQuantifier, Quantifier, TypeCode, type TypeInfo } from "@callcium/sdk";
+import { LoopQuantifier, lookupQuantifier, Quantifier, TypeCode } from "@callcium/sdk";
 import { describe, expect, it } from "vitest";
 import { formatPath } from "./format-path";
 import type { ParamNode } from "@/lib/policy-builder";
@@ -7,11 +7,9 @@ import type { ParamNode } from "@/lib/policy-builder";
 // Helpers
 ///////////////////////////////////////////////////////////////////////////
 
-const WORD: TypeInfo = { typeCode: TypeCode.UINT_MAX, isDynamic: false, staticSize: 32 };
-
 /** Build a ParamNode with leaf defaults, overridden per case. */
 function node(partial: Partial<ParamNode> & { index: number; type: string }): ParamNode {
-  return { name: null, typeInfo: WORD, children: null, element: null, ...partial };
+  return { name: null, typeCode: TypeCode.UINT_MAX, isDynamic: false, children: null, element: null, ...partial };
 }
 
 /** Params for `batchTransfer((address to, uint256 amount)[] items, bytes32 ref)`. */
@@ -27,7 +25,7 @@ function structArrayParams(): ParamNode[] {
   ];
 }
 
-const ALL = lookupQuantifier(Quantifier.ALL).label;
+const ALL = lookupQuantifier(LoopQuantifier.ALL).label;
 
 ///////////////////////////////////////////////////////////////////////////
 // Tests

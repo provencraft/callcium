@@ -3,31 +3,18 @@ pragma solidity ^0.8.28;
 
 import { Be16 } from "./Be16.sol";
 import { DescriptorFormat as DF } from "./DescriptorFormat.sol";
-import { Path } from "./Path.sol";
 import { TypeCode } from "./TypeCode.sol";
 import { TypeRule } from "./TypeRule.sol";
-import { LibBytes } from "solady/utils/LibBytes.sol";
+import { LibBytes } from "./vendor/solady/utils/LibBytes.sol";
 
 /// @title Descriptor
 /// @notice Validation and lightweight views for parameter descriptors.
 library Descriptor {
-    /// @notice Navigability fault detected while walking a path against a descriptor.
-    enum PathFault {
+    /// @notice Composite node metadata that disagrees with the node's children.
+    enum MetaFault {
         None,
-        ParamIndexOutOfBounds,
-        TupleFieldOutOfBounds,
-        StaticArrayIndexOutOfBounds,
-        NotComposite
-    }
-
-    /// @notice Minimal type view at a resolved descriptor node.
-    struct TypeInfo {
-        /// TypeCode at the node (elementary or composite).
-        uint8 code;
-        /// True if the type has dynamic ABI encoding.
-        bool isDynamic;
-        /// ABI head size in bytes; 0 if dynamic.
-        uint32 staticSize;
+        NodeLength,
+        StaticWords
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -83,6 +70,14 @@ library Descriptor {
     /// @notice Thrown when composite nesting exceeds the maximum depth.
     error NestingTooDeep(uint256 offset);
 
+    /// @notice Thrown when a composite node's length differs from the span of its children.
+    /// @param offset The offset of the node.
+    error NodeLengthMismatch(uint256 offset);
+
+    /// @notice Thrown when a composite node's static word count differs from its type's ABI head size.
+    /// @param offset The offset of the node.
+    error StaticWordsMismatch(uint256 offset);
+
     /*/////////////////////////////////////////////////////////////////////////
                                      FUNCTIONS
     /////////////////////////////////////////////////////////////////////////*/
@@ -124,31 +119,29 @@ library Descriptor {
         require(parsedCount == declaredCount, ParamCountMismatch(declaredCount, parsedCount));
     }
 
-    /// @notice Reads the type code and composite meta at `offset` without bounds checks.
-    /// @dev Caller must ensure `offset` starts a node within a validated descriptor. The meta fields are meaningful
-    /// only for composite codes; elementary codes carry none.
-    /// @param self The descriptor bytes.
-    /// @param offset Start offset of a type descriptor within `self`.
-    /// @return code The type code byte.
-    /// @return staticWords Static size in 32-byte words (0 means dynamic).
-    /// @return nodeLength Total bytes for this node's descriptor subtree.
-    function peekUnchecked(
-        bytes memory self,
-        uint256 offset
-    )
-        internal
-        pure
-        returns (uint8 code, uint16 staticWords, uint16 nodeLength)
-    {
-        uint256 word = uint256(LibBytes.load(self, offset));
-        // forge-lint: disable-next-line(unsafe-typecast)
-        code = uint8(word >> (256 - 8 * DF.TYPECODE_SIZE));
-        // forge-lint: disable-next-line(unsafe-typecast)
-        uint24 meta = uint24(word >> (256 - 8 * (DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE)));
-        // forge-lint: disable-next-line(unsafe-typecast)
-        staticWords = uint16(meta >> DF.META_STATIC_WORDS_SHIFT);
-        // forge-lint: disable-next-line(unsafe-typecast)
-        nodeLength = uint16(meta & DF.META_NODE_LENGTH_MASK);
+    /// @notice Validates every composite node's metadata against its children (DV-1, DV-2).
+    /// @dev The descriptor must be well-formed.
+    /// @param self The descriptor to validate.
+    function validateMeta(bytes memory self) internal pure {
+        (MetaFault fault, uint256 offset) = tryValidateMeta(self);
+        require(fault != MetaFault.NodeLength, NodeLengthMismatch(offset));
+        require(fault != MetaFault.StaticWords, StaticWordsMismatch(offset));
+    }
+
+    /// @notice Finds the first composite node whose metadata disagrees with its children (DV-1, DV-2).
+    /// @dev The descriptor must be well-formed. A node's children are checked before the node.
+    /// @param self The descriptor to check.
+    /// @return fault The disagreement, or none when every node agrees.
+    /// @return offset The offset of the node at fault, or zero when there is none.
+    function tryValidateMeta(bytes memory self) internal pure returns (MetaFault fault, uint256 offset) {
+        uint256 cursor = DF.HEADER_SIZE;
+        uint256 count = paramCount(self);
+        for (uint256 i = 0; i < count; ++i) {
+            uint256 span;
+            (fault, offset, span,) = _walkMeta(self, cursor);
+            if (fault != MetaFault.None) return (fault, offset);
+            cursor += span;
+        }
     }
 
     /// @notice Inspects type descriptor at offset. Returns code, dynamic/static info, and next offset.
@@ -170,7 +163,7 @@ library Descriptor {
 
         // One word covers the type code and, for composites, the meta after it.
         uint256 word = uint256(LibBytes.load(self, offset));
-        // forge-lint: disable-next-line(unsafe-typecast)
+        // forge-lint: disable-next-line(unsafe-typecast) wire-field slice: the type code.
         code = uint8(word >> (256 - 8 * DF.TYPECODE_SIZE));
 
         // Elementary types: no header, derive from type code.
@@ -184,11 +177,11 @@ library Descriptor {
         require(TypeRule.isComposite(code), UnknownTypeCode(code));
 
         require(offset + DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE <= self.length, UnexpectedEnd());
-        // forge-lint: disable-next-line(unsafe-typecast)
+        // forge-lint: disable-next-line(unsafe-typecast) wire-field slice: `meta`.
         uint24 meta = uint24(word >> (256 - 8 * (DF.TYPECODE_SIZE + DF.COMPOSITE_META_SIZE)));
-        // forge-lint: disable-next-line(unsafe-typecast)
+        // forge-lint: disable-next-line(unsafe-typecast) wire-field slice: the meta's static words.
         uint16 staticWords = uint16(meta >> DF.META_STATIC_WORDS_SHIFT);
-        // forge-lint: disable-next-line(unsafe-typecast)
+        // forge-lint: disable-next-line(unsafe-typecast) wire-field slice: the meta's node length.
         uint16 nodeLength = uint16(meta & DF.META_NODE_LENGTH_MASK);
 
         // Validate nodeLength covers at least the composite header.
@@ -201,30 +194,6 @@ library Descriptor {
         next = offset + nodeLength;
     }
 
-    /// @notice Returns the descriptor offset of the i-th top-level parameter.
-    /// @param self The descriptor bytes.
-    /// @param index Top-level parameter index.
-    /// @return startOffset Byte offset of the parameter's type descriptor.
-    function at(bytes memory self, uint256 index) internal pure returns (uint256 startOffset) {
-        uint256 count = paramCount(self);
-        require(index < count, ParamIndexOutOfBounds(index, count));
-        startOffset = DF.HEADER_SIZE;
-        for (uint256 i = 0; i < index; ++i) {
-            (,,, startOffset) = inspect(self, startOffset);
-        }
-    }
-
-    /// @notice Returns the descriptor offset of the i-th top-level parameter without bounds checks.
-    /// @param self The descriptor bytes.
-    /// @param index Top-level parameter index.
-    /// @return startOffset Byte offset of the parameter's type descriptor.
-    function atUnchecked(bytes memory self, uint256 index) internal pure returns (uint256 startOffset) {
-        startOffset = DF.HEADER_SIZE;
-        for (uint256 i = 0; i < index; ++i) {
-            (,,, startOffset) = inspect(self, startOffset);
-        }
-    }
-
     /// @notice Returns the field count for a tuple at `tupleOffset`.
     /// @param self The descriptor bytes.
     /// @param tupleOffset Offset of a tuple node within `self`.
@@ -232,31 +201,6 @@ library Descriptor {
     function tupleFieldCount(bytes memory self, uint256 tupleOffset) internal pure returns (uint16) {
         require(tupleOffset + DF.TUPLE_HEADER_SIZE <= self.length, UnexpectedEnd());
         return Be16.readUnchecked(self, tupleOffset + DF.TUPLE_FIELDCOUNT_OFFSET);
-    }
-
-    /// @notice Returns the descriptor offset of the `fieldIndex`-th tuple field.
-    /// @dev Does not perform bounds checks on `fieldIndex`.
-    /// @param self The descriptor bytes.
-    /// @param tupleOffset Offset of a tuple node within `self`.
-    /// @param fieldIndex Field index (0-based).
-    /// @return fieldDescOffset Byte offset of the field's type descriptor.
-    function tupleFieldOffset(
-        bytes memory self,
-        uint256 tupleOffset,
-        uint16 fieldIndex
-    )
-        internal
-        pure
-        returns (uint256 fieldDescOffset)
-    {
-        fieldDescOffset = tupleOffset + DF.TUPLE_HEADER_SIZE;
-        for (uint256 j = 0; j < fieldIndex; ++j) {
-            uint256 next;
-            (,,, next) = inspect(self, fieldDescOffset);
-            unchecked {
-                fieldDescOffset = next;
-            }
-        }
     }
 
     /// @notice Returns the fixed length for a static array node at `arrayOffset`.
@@ -271,115 +215,6 @@ library Descriptor {
         uint16 fixedLength = Be16.readUnchecked(self, elementDescEnd);
         require(fixedLength != 0, InvalidArrayLength(arrayOffset, fixedLength));
         return fixedLength;
-    }
-
-    /// @notice Returns the type info (type code + static/dynamic info) at path.
-    /// @dev The first path element is the argument index.
-    /// @param self The descriptor bytes.
-    /// @param path Path encoded as big-endian uint16 steps.
-    /// @return The type info at the resolved path.
-    function typeAt(bytes memory self, bytes memory path) internal pure returns (TypeInfo memory) {
-        (TypeInfo memory typeInfo,) = walkPath(self, path);
-        return typeInfo;
-    }
-
-    /// @notice Resolves the type at path and the declared length of the static array a quantifier step descends into.
-    /// @dev The length is zero when the path holds no quantifier step over a static array.
-    /// @param self The descriptor bytes.
-    /// @param path Path encoded as big-endian uint16 steps.
-    /// @return typeInfo The type info at the resolved path.
-    /// @return quantifiedStaticLength The declared static array length under the quantifier, or zero.
-    function walkPath(
-        bytes memory self,
-        bytes memory path
-    )
-        internal
-        pure
-        returns (TypeInfo memory typeInfo, uint256 quantifiedStaticLength)
-    {
-        PathFault fault;
-        uint256 faultValue1;
-        uint256 faultValue2;
-        (fault, faultValue1, faultValue2, typeInfo, quantifiedStaticLength) = tryWalkPath(self, path);
-        if (fault == PathFault.ParamIndexOutOfBounds) revert ParamIndexOutOfBounds(faultValue1, faultValue2);
-        if (fault == PathFault.TupleFieldOutOfBounds) revert TupleFieldOutOfBounds(faultValue1, faultValue2);
-        if (fault == PathFault.StaticArrayIndexOutOfBounds) {
-            revert StaticArrayIndexOutOfBounds(faultValue1, faultValue2);
-        }
-        // forge-lint: disable-next-line(unsafe-typecast)
-        if (fault == PathFault.NotComposite) revert NotComposite(uint8(faultValue1));
-    }
-
-    /// @notice Resolves the type at path, reporting navigability faults through the return value.
-    /// @dev Reverts on structural faults (unsupported version, malformed nodes); navigability faults are reported
-    /// through the fault return.
-    /// @param self The descriptor bytes.
-    /// @param path Path encoded as big-endian uint16 steps.
-    /// @return fault The navigability fault, or none on success.
-    /// @return faultValue1 The offending index or type code; zero on success.
-    /// @return faultValue2 The violated bound; zero when the fault carries none.
-    /// @return typeInfo The type info at the resolved path; zeroed on fault.
-    /// @return quantifiedStaticLength The declared static array length under the quantifier, or zero.
-    function tryWalkPath(
-        bytes memory self,
-        bytes memory path
-    )
-        internal
-        pure
-        returns (
-            PathFault fault,
-            uint256 faultValue1,
-            uint256 faultValue2,
-            TypeInfo memory typeInfo,
-            uint256 quantifiedStaticLength
-        )
-    {
-        // Validate descriptor version and resolve top-level argument.
-        uint8 formatVersion = version(self);
-        require(formatVersion == DF.VERSION, UnsupportedVersion(formatVersion));
-        uint256 argIndex = Path.atUnchecked(path, 0);
-        uint256 argCount = paramCount(self);
-        if (argIndex >= argCount) return (PathFault.ParamIndexOutOfBounds, argIndex, argCount, typeInfo, 0);
-        uint256 descOffset = atUnchecked(self, argIndex);
-
-        // Descend through subsequent path steps.
-        uint256 depth = Path.validate(path);
-        for (uint256 stepIndex = 1; stepIndex < depth; ++stepIndex) {
-            uint256 childIndex = Path.atUnchecked(path, stepIndex);
-            uint8 code = uint8(self[descOffset]);
-
-            if (code == TypeCode.TUPLE) {
-                uint256 fieldCount = tupleFieldCount(self, descOffset);
-                if (childIndex >= fieldCount) {
-                    return (PathFault.TupleFieldOutOfBounds, childIndex, fieldCount, typeInfo, quantifiedStaticLength);
-                }
-                // forge-lint: disable-next-line(unsafe-typecast)
-                descOffset = tupleFieldOffset(self, descOffset, uint16(childIndex));
-            } else if (code == TypeCode.STATIC_ARRAY) {
-                // Quantifier sentinels descend into the element type; only concrete indices are bounds-checked against
-                // the declared array length.
-                if (childIndex < Path.ANY) {
-                    uint256 arrayLength = staticArrayLength(self, descOffset);
-                    if (childIndex >= arrayLength) {
-                        // forgefmt: disable-next-item
-                        return (
-                            PathFault.StaticArrayIndexOutOfBounds, childIndex, arrayLength, typeInfo,
-                            quantifiedStaticLength
-                        );
-                    }
-                } else {
-                    quantifiedStaticLength = staticArrayLength(self, descOffset);
-                }
-                descOffset += DF.ARRAY_HEADER_SIZE;
-            } else if (code == TypeCode.DYNAMIC_ARRAY) {
-                descOffset += DF.ARRAY_HEADER_SIZE;
-            } else {
-                return (PathFault.NotComposite, code, 0, typeInfo, quantifiedStaticLength);
-            }
-        }
-
-        (uint8 finalCode, bool isDynamic, uint32 staticSize,) = inspect(self, descOffset);
-        typeInfo = TypeInfo({ code: finalCode, isDynamic: isDynamic, staticSize: staticSize });
     }
 
     /*/////////////////////////////////////////////////////////////////////////
@@ -410,5 +245,45 @@ library Descriptor {
         } else if (code == TypeCode.DYNAMIC_ARRAY) {
             _validateNode(self, offset + DF.ARRAY_HEADER_SIZE, depth + 1);
         }
+    }
+
+    /// @dev Walks the node at `offset` by the spans of its children. Returns the span and the static word count of the
+    /// node's type, or the first node whose metadata disagrees with its children.
+    function _walkMeta(
+        bytes memory self,
+        uint256 offset
+    )
+        private
+        pure
+        returns (MetaFault fault, uint256 faultOffset, uint256 span, uint256 staticWords)
+    {
+        (uint8 code, bool isDynamic, uint32 staticSize, uint256 next) = inspect(self, offset);
+        if (TypeRule.isElementary(code)) return (MetaFault.None, 0, DF.TYPECODE_SIZE, isDynamic ? 0 : 1);
+
+        uint256 childSpan;
+        uint256 childWords;
+        if (code == TypeCode.TUPLE) {
+            uint256 fieldCount = tupleFieldCount(self, offset);
+            span = DF.TUPLE_HEADER_SIZE;
+            bool hasDynamicField = false;
+            for (uint256 i = 0; i < fieldCount; ++i) {
+                (fault, faultOffset, childSpan, childWords) = _walkMeta(self, offset + span);
+                if (fault != MetaFault.None) return (fault, faultOffset, 0, 0);
+                span += childSpan;
+                staticWords += childWords;
+                if (childWords == 0) hasDynamicField = true;
+            }
+            if (hasDynamicField) staticWords = 0;
+        } else {
+            (fault, faultOffset, childSpan, childWords) = _walkMeta(self, offset + DF.ARRAY_HEADER_SIZE);
+            if (fault != MetaFault.None) return (fault, faultOffset, 0, 0);
+            span = DF.ARRAY_HEADER_SIZE + childSpan;
+            if (code == TypeCode.STATIC_ARRAY) {
+                staticWords = childWords * Be16.readUnchecked(self, offset + span);
+                span += DF.ARRAY_LENGTH_SIZE;
+            }
+        }
+        if (span != next - offset) return (MetaFault.NodeLength, offset, 0, 0);
+        if (staticWords != staticSize / 32) return (MetaFault.StaticWords, offset, 0, 0);
     }
 }

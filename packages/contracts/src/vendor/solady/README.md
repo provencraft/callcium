@@ -9,7 +9,6 @@ License: MIT (see `LICENSE`)
 | File | Upstream path |
 |---|---|
 | `utils/DynamicBufferLib.sol` | `src/utils/DynamicBufferLib.sol` |
-| `utils/EfficientHashLib.sol` | `src/utils/EfficientHashLib.sol` |
 | `utils/LibBytes.sol` | `src/utils/LibBytes.sol` |
 | `utils/LibSort.sol` | `src/utils/LibSort.sol` |
 | `utils/SSTORE2.sol` | `src/utils/SSTORE2.sol` |

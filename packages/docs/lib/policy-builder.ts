@@ -1,32 +1,36 @@
 import {
+  CallciumError,
   type ConstraintBuilder as SDKConstraintBuilder,
-  Descriptor,
+  type DecodedNode,
   DescriptorCoder,
   type Hex,
   type Issue,
   Op,
   type Operands,
   PolicyBuilder,
+  PolicyCoder,
+  PolicyValidator,
+  type Rule,
   type ScalarValue,
-  TypeCode,
-  type TypeInfo,
+  Scope,
+  Source,
   arg,
   baseFee,
   blockNumber,
   blockTimestamp,
   chainId,
   gasPrice,
-  isContextOp,
   isOpAllowed,
   lookupOp,
   lookupTypeCode,
   msgSender,
   msgValue,
+  parsePathSteps,
   txOrigin,
 } from "@callcium/sdk";
 import { type AbiFunction, parseAbiItem, toFunctionSignature } from "viem";
 import { formatError } from "./format-error";
-import { formatOpLabel } from "./format-path";
+import { contextPropertyId, formatOpLabel, loopSteps } from "./format-path";
 
 ///////////////////////////////////////////////////////////////////////////
 // Types
@@ -40,8 +44,10 @@ export type ParamNode = {
   type: string;
   /** Human-readable name from ABI, if available. */
   name: string | null;
-  /** Descriptor type info for operator compatibility queries. */
-  typeInfo: TypeInfo;
+  /** Descriptor type code, for operator compatibility queries. */
+  typeCode: number;
+  /** True when the type is dynamically encoded. */
+  isDynamic: boolean;
   /** Tuple field children (only for tuple types). */
   children: ParamNode[] | null;
   /** Array element type (only for array types). */
@@ -95,6 +101,9 @@ type OpMethod = {
 // The UI parses every numeric operand to a bigint before dispatch; this narrows the union it carries.
 const big = (value: ScalarValue) => value as bigint;
 
+/** The operator code comparing against a context property. */
+const contextOp = (comparison: number) => comparison | (Source.CONTEXT << Op.SOURCE_SHIFT);
+
 const OP_METHODS: readonly OpMethod[] = [
   { method: "eq", opCode: Op.EQ, apply: (b, v) => b.eq(v[0]) },
   { method: "neq", opCode: Op.EQ, negated: true, apply: (b, v) => b.neq(v[0]) },
@@ -105,12 +114,12 @@ const OP_METHODS: readonly OpMethod[] = [
   { method: "between", opCode: Op.BETWEEN, apply: (b, v) => b.between(big(v[0]), big(v[1])) },
   { method: "isIn", opCode: Op.IN, apply: (b, v) => b.isIn(v) },
   { method: "notIn", opCode: Op.IN, negated: true, apply: (b, v) => b.notIn(v) },
-  { method: "eqCtx", opCode: Op.EQ_CTX, apply: (b, v) => b.eqCtx(Number(v[0])) },
-  { method: "neqCtx", opCode: Op.EQ_CTX, negated: true, apply: (b, v) => b.neqCtx(Number(v[0])) },
-  { method: "gtCtx", opCode: Op.GT_CTX, apply: (b, v) => b.gtCtx(Number(v[0])) },
-  { method: "ltCtx", opCode: Op.LT_CTX, apply: (b, v) => b.ltCtx(Number(v[0])) },
-  { method: "gteCtx", opCode: Op.GTE_CTX, apply: (b, v) => b.gteCtx(Number(v[0])) },
-  { method: "lteCtx", opCode: Op.LTE_CTX, apply: (b, v) => b.lteCtx(Number(v[0])) },
+  { method: "eqCtx", opCode: contextOp(Op.EQ), apply: (b, v) => b.eqCtx(Number(v[0])) },
+  { method: "neqCtx", opCode: contextOp(Op.EQ), negated: true, apply: (b, v) => b.neqCtx(Number(v[0])) },
+  { method: "gtCtx", opCode: contextOp(Op.GT), apply: (b, v) => b.gtCtx(Number(v[0])) },
+  { method: "ltCtx", opCode: contextOp(Op.LT), apply: (b, v) => b.ltCtx(Number(v[0])) },
+  { method: "gteCtx", opCode: contextOp(Op.GTE), apply: (b, v) => b.gteCtx(Number(v[0])) },
+  { method: "lteCtx", opCode: contextOp(Op.LTE), apply: (b, v) => b.lteCtx(Number(v[0])) },
   { method: "bitmaskAll", opCode: Op.BITMASK_ALL, apply: (b, v) => b.bitmaskAll(big(v[0])) },
   { method: "bitmaskAny", opCode: Op.BITMASK_ANY, apply: (b, v) => b.bitmaskAny(big(v[0])) },
   { method: "bitmaskNone", opCode: Op.BITMASK_NONE, apply: (b, v) => b.bitmaskNone(big(v[0])) },
@@ -139,16 +148,22 @@ export function getOperatorLabel(method: string): string {
 /** True for the operator methods whose operand names a context property instead of a value. */
 export function isContextOperator(method: string): boolean {
   const entry = OP_METHODS.find((op) => op.method === method);
-  return entry !== undefined && isContextOp(entry.opCode);
+  return entry !== undefined && entry.opCode >> Op.SOURCE_SHIFT === Source.CONTEXT;
 }
 
-/** Return the available operator options for a given type. */
-export function getOperatorOptions(typeInfo: TypeInfo): OpOption[] {
-  return OP_METHODS.filter((op) => isOpAllowed(op.opCode, typeInfo)).map((op) => ({
+/** Return the available operator options for a target of the given type code. */
+export function getOperatorOptions(typeCode: number): OpOption[] {
+  return OP_METHODS.filter((op) => isOpAllowed(op.opCode, typeCode)).map((op) => ({
     value: op.method,
     label: formatOpLabel(op.opCode, op.negated ?? false),
   }));
 }
+
+/**
+ * A validation issue placed in the session: `groupIndex` is the session group, and `steps` the full path of the rule it
+ * names, a loop's quantifier step included; absent for an issue that names no rule.
+ */
+export type SessionIssue = Issue & { steps?: number[] };
 
 /** Immutable session state — every mutation returns a new session. */
 export type BuilderSession = {
@@ -163,7 +178,7 @@ export type BuilderSession = {
   /** Encoded policy hex, or null if there are errors or no constraints. */
   hex: Hex | null;
   /** Validation issues from PolicyValidator, of every severity. */
-  issues: Issue[];
+  issues: SessionIssue[];
   /** Structural and semantic errors (strings). */
   errors: string[];
   /** Parse error if the signature was invalid. */
@@ -189,91 +204,41 @@ const CONTEXT_FACTORIES = {
 // Descriptor tree walking
 ///////////////////////////////////////////////////////////////////////////
 
-/** Advance past a descriptor node and return the offset after it. */
-function skipNode(desc: Uint8Array, offset: number): number {
-  return offset + Descriptor.nodeLength(desc, offset);
-}
-
 /** A minimal name tree extracted from viem's ABI parameter. */
 type NameTree = { name: string | null; components?: NameTree[] };
 
-/** Walk a descriptor node and build a ParamNode tree. */
-function walkDescNode(desc: Uint8Array, offset: number, index: number, nameTree: NameTree | null): ParamNode {
-  const info = Descriptor.inspect(desc, offset);
-  const typeCode = info.typeCode;
-  const name = nameTree?.name ?? null;
+/** Build a ParamNode tree from a descriptor node. */
+function toParamNode(node: DecodedNode, index: number, nameTree: NameTree | null): ParamNode {
+  const base = { index, name: nameTree?.name ?? null, typeCode: node.typeCode, isDynamic: node.isDynamic };
+  // Array element inherits component names but not the array's own name.
+  const elementNameTree: NameTree | null = nameTree?.components
+    ? { name: null, components: nameTree.components }
+    : null;
 
-  if (typeCode === TypeCode.TUPLE) {
-    const fieldCount = Descriptor.tupleFieldCount(desc, offset);
-    const children: ParamNode[] = [];
-    let fieldOffset = Descriptor.tupleFieldOffset(desc, offset, 0);
-    for (let i = 0; i < fieldCount; i++) {
-      const childNameTree = nameTree?.components?.[i] ?? null;
-      children.push(walkDescNode(desc, fieldOffset, i, childNameTree));
-      fieldOffset = skipNode(desc, fieldOffset);
+  switch (node.typeClass) {
+    case "tuple":
+      return {
+        ...base,
+        type: "tuple",
+        children: node.fields.map((field, i) => toParamNode(field, i, nameTree?.components?.[i] ?? null)),
+        element: null,
+      };
+    case "staticArray": {
+      const element = toParamNode(node.element, 0, elementNameTree);
+      return { ...base, type: `${element.type}[${node.length}]`, children: null, element };
     }
-    return {
-      index,
-      type: "tuple",
-      name,
-      typeInfo: info,
-      children,
-      element: null,
-    };
+    case "dynamicArray": {
+      const element = toParamNode(node.element, 0, elementNameTree);
+      return { ...base, type: `${element.type}[]`, children: null, element };
+    }
+    case "elementary":
+      return { ...base, type: lookupTypeCode(node.typeCode).label, children: null, element: null };
   }
-
-  if (typeCode === TypeCode.STATIC_ARRAY) {
-    const length = Descriptor.staticArrayLength(desc, offset);
-    // Array element inherits component names but not the array's own name.
-    const elementNameTree: NameTree | null = nameTree?.components
-      ? { name: null, components: nameTree.components }
-      : null;
-    const element = walkDescNode(desc, Descriptor.arrayElementOffset(offset), 0, elementNameTree);
-    return {
-      index,
-      type: `${element.type}[${length}]`,
-      name,
-      typeInfo: info,
-      children: null,
-      element,
-    };
-  }
-
-  if (typeCode === TypeCode.DYNAMIC_ARRAY) {
-    const dynamicElementNameTree: NameTree | null = nameTree?.components
-      ? { name: null, components: nameTree.components }
-      : null;
-    const element = walkDescNode(desc, Descriptor.arrayElementOffset(offset), 0, dynamicElementNameTree);
-    return {
-      index,
-      type: `${element.type}[]`,
-      name,
-      typeInfo: info,
-      children: null,
-      element,
-    };
-  }
-
-  // Elementary type.
-  return {
-    index,
-    type: lookupTypeCode(typeCode).label,
-    name,
-    typeInfo: info,
-    children: null,
-    element: null,
-  };
 }
 
-/** Parse a descriptor into a list of ParamNode trees. */
-export function parseDescriptor(desc: Uint8Array, nameTrees: NameTree[] = []): ParamNode[] {
-  const count = Descriptor.paramCount(desc);
-  const params: ParamNode[] = [];
-  for (let i = 0; i < count; i++) {
-    const offset = Descriptor.paramOffset(desc, i);
-    params.push(walkDescNode(desc, offset, i, nameTrees[i] ?? null));
-  }
-  return params;
+/** Build one ParamNode tree per descriptor parameter. */
+export function toParamNodes(params: DecodedNode[], nameTrees: NameTree[] = []): ParamNode[] {
+  return params.map((param, i) => toParamNode(param, i, nameTrees[i] ?? null));
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -312,8 +277,48 @@ function buildSDKConstraint(config: ConstraintConfig): SDKConstraintBuilder {
 // Session rebuild
 ///////////////////////////////////////////////////////////////////////////
 
+/** A builder for the session's signature. */
+function newBuilder(session: BuilderSession): PolicyBuilder {
+  return session.isSelectorless ? PolicyBuilder.createRaw(session.signature) : PolicyBuilder.create(session.signature);
+}
+
+/** Add each constraint of `group` to `builder`, recording the ones it refuses in `errors`. */
+function addGroupConstraints(builder: PolicyBuilder, group: ConstraintGroup, errors: string[]): void {
+  for (const config of group.constraints) {
+    try {
+      builder.add(buildSDKConstraint(config));
+    } catch (e) {
+      errors.push(formatError(e));
+    }
+  }
+}
+
+/** The full path of the rule an issue names, a loop's quantifier step included. */
+function issueSteps(issue: Issue, rules: Rule[]): number[] | undefined {
+  if (issue.ruleIndex === undefined || issue.path === undefined) return undefined;
+  const rule = rules[issue.ruleIndex];
+  if (rule.scope !== Scope.LOOP) return parsePathSteps(issue.path);
+  const loop = loopSteps(rule.path, rule.quantifier);
+  // A body test's path starts at the element.
+  return issue.bodyRuleIndex === undefined ? loop : [...loop, ...parsePathSteps(issue.path)];
+}
+
+/** Validate one group of the session as a policy of its own. */
+function groupIssues(session: BuilderSession, groupIndex: number): SessionIssue[] {
+  try {
+    const builder = newBuilder(session);
+    addGroupConstraints(builder, session.groups[groupIndex], []);
+    const blob = builder.buildUnsafe();
+    const rules = PolicyCoder.decode(blob).groups[0];
+    return PolicyValidator.validate(blob).map((issue) => ({ ...issue, groupIndex, steps: issueSteps(issue, rules) }));
+  } catch (e) {
+    if (!(e instanceof CallciumError)) throw e;
+    return [];
+  }
+}
+
 /** Rebuild a PolicyBuilder from session state and return hex + issues. */
-function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; errors: string[] } {
+function rebuild(session: BuilderSession): { hex: Hex | null; issues: SessionIssue[]; errors: string[] } {
   const hasConstraints = session.groups.some((g) => g.constraints.length > 0);
   if (!hasConstraints || session.error !== undefined) {
     return { hex: null, issues: [], errors: [] };
@@ -323,9 +328,7 @@ function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; e
   let builder: PolicyBuilder;
 
   try {
-    builder = session.isSelectorless
-      ? PolicyBuilder.createRaw(session.signature)
-      : PolicyBuilder.create(session.signature);
+    builder = newBuilder(session);
   } catch (e) {
     return { hex: null, issues: [], errors: [formatError(e)] };
   }
@@ -339,28 +342,15 @@ function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; e
         continue;
       }
     }
-
-    for (const config of session.groups[gi].constraints) {
-      try {
-        const sdkConstraint = buildSDKConstraint(config);
-        builder.add(sdkConstraint);
-      } catch (e) {
-        errors.push(formatError(e));
-      }
-    }
+    addGroupConstraints(builder, session.groups[gi], errors);
   }
 
-  if (errors.length > 0) {
-    try {
-      const issues = builder.validate();
-      return { hex: null, issues, errors };
-    } catch {
-      return { hex: null, issues: [], errors };
-    }
-  }
+  // The policy's normal form sorts its groups and rules, so issue indices name no session position. Validation is
+  // group-local: each group validates alone, and its issues are placed by their group and path.
+  const issues = session.groups.flatMap((_, gi) => groupIssues(session, gi));
+  if (errors.length > 0) return { hex: null, issues, errors };
 
   try {
-    const issues = builder.validate();
     const hasErrors = issues.some((i) => i.severity === "error");
     // Strict build() rejects any issue; the exploratory builder still previews the encoding for warning/info-level
     // policies via the explicit escape hatch.
@@ -369,6 +359,18 @@ function rebuild(session: BuilderSession): { hex: Hex | null; issues: Issue[]; e
   } catch (e) {
     return { hex: null, issues: [], errors: [formatError(e)] };
   }
+}
+
+/** True when `issue` names a rule `config` adds: a test on its path, or the loop its path passes through. */
+export function issueMatches(issue: SessionIssue, config: ConstraintInput): boolean {
+  const { steps } = issue;
+  if (steps === undefined) return false;
+  if (config.scope === "context") {
+    return issue.scope === Scope.CONTEXT && steps[0] === contextPropertyId(config.contextProperty ?? "");
+  }
+  const path = config.path ?? [];
+  if (issue.scope === Scope.LOOP) return steps.every((step, i) => path[i] === step);
+  return issue.scope === Scope.CALLDATA && steps.length === path.length && steps.every((step, i) => path[i] === step);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -421,8 +423,7 @@ export function createSession(signature: string, options?: { selectorless?: bool
     const types = selectorless
       ? cleanSignature
       : cleanSignature.slice(cleanSignature.indexOf("(") + 1, cleanSignature.lastIndexOf(")"));
-    const desc = DescriptorCoder.fromTypes(types);
-    const params = parseDescriptor(desc, nameTrees);
+    const params = toParamNodes(DescriptorCoder.inspect(DescriptorCoder.fromTypes(types)).params, nameTrees);
 
     return {
       signature: cleanSignature,

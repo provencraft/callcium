@@ -32,8 +32,7 @@ const INCLUDED_CONTRACTS = [
 const INTERNAL_STRUCTS: Record<string, string[]> = {
   "PolicyBuilder.sol": ["PolicyDraft"],
   "PolicyManager.sol": ["PolicyManagerStorage"],
-  "PolicyEnforcer.sol": ["EvalState", "RuleView", "QParams", "QLoopState"],
-  "PolicyValidator.sol": ["BoundDomain", "BitmaskDomain", "SetDomain", "ConstraintContext", "ValidationState"],
+  "PolicyValidator.sol": ["Walk", "Domain", "Literal", "SubjectRule", "Conjunction"],
 };
 
 /** Page titles (used for frontmatter). Extracted from main file if not specified. */

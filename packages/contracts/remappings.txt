@@ -1,2 +1,1 @@
 forge-std/=dependencies/forge-std-1.16.2/src
-solady/=src/vendor/solady/

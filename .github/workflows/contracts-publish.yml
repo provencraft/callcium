@@ -26,16 +26,28 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: v1.8.1
+          version: v1.8.5
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
         run: forge soldeer install
 
+      - name: Check formatting
+        run: bun run fmt:check
+
+      - name: Lint
+        run: bun run lint
+
       - name: Build
-        run: forge build
+        run: bun run build
 
       - name: Test
-        run: forge test
+        run: bun run test
+
+      - name: Check floor compiler version
+        run: bun run build:floor
 
       - name: Read version from tag
         id: version

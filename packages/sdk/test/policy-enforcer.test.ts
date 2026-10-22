@@ -1,1211 +1,218 @@
 import { describe, expect, test } from "vitest";
 
-import {
-  PolicyEnforcer,
-  CallciumError,
-  PolicyViolationError,
-  PolicyBuilder,
-  PolicyCoder,
-  Quantifier,
-  Scope,
-  Op,
-  TypeCode,
-  arg,
-  msgSender,
-  msgValue,
-  blockTimestamp,
-  blockNumber,
-  chainId,
-  txOrigin,
-  bytesToHex,
-} from "../src";
-import { bigintToHex } from "../src/bytes";
-import { ContextProperty, PolicyFormat } from "../src/constants";
-import { DescriptorCoder } from "../src/descriptor-coder";
-import { applyOperator } from "../src/operators";
-import {
-  assertFailed,
-  assertPassed,
-  assertViolationCode,
-  expectErrorCode,
-  expectFirstViolation,
-  op,
-  wordHex,
-} from "./helpers";
+import rawVectors from "../../../spec/vectors/enforcement.json";
+import { bigintToHex, hexToBytes, toHex } from "../src/bytes";
+import { ContextProperty, Op, PolicyFormat as PF, Scope, Source, TypeCode } from "../src/constants";
+import { arg, msgSender } from "../src/constraint";
+import { PolicyViolationError } from "../src/errors";
+import { PolicyBuilder } from "../src/policy-builder";
+import { PolicyEnforcer } from "../src/policy-enforcer";
+import { assertFailed, assertPassed, expectErrorCode, expectFirstViolation, hex, vectorById, wordHex } from "./helpers";
 
-import type { Context, Hex, PolicyData } from "../src";
-
-///////////////////////////////////////////////////////////////////////////
-// Test policy blobs
-///////////////////////////////////////////////////////////////////////////
-
-// EQ rule: arg(0) == 42, selector 0x2fbebd38, descriptor uint256.
-const POLICY_EQ_UINT256 = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(42n)).build();
-
-// Selectorless: EQ rule arg(0) == 42.
-const POLICY_SELECTORLESS = PolicyBuilder.createRaw("uint256").add(arg(0).eq(42n)).build();
-
-// Two groups (OR): EQ(arg0,2) | EQ(arg0,1).
-const POLICY_MULTI_GROUP = PolicyBuilder.create("foo(uint256)").add(arg(0).eq(2n)).or().add(arg(0).eq(1n)).build();
-
-// Two calldata rules in one group: GT(0) AND LTE(100).
-const POLICY_TWO_CONSTRAINTS = PolicyBuilder.create("foo(uint256)").add(arg(0).gt(0n).lte(100n)).build();
-
-// Mixed scope: context msg.sender=address(1) AND calldata arg(0)=uint256(42).
-const POLICY_MIXED_SCOPE = PolicyBuilder.create("foo(uint256)")
-  .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
-  .add(arg(0).eq(42n))
-  .build();
+import type { Context, Hex } from "../src/types";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers
 ///////////////////////////////////////////////////////////////////////////
 
-const SELECTOR = "0x2fbebd38";
-
-/** Encode a single uint256 arg with selector prefix. */
-function encodeUint256(selector: Hex, value: bigint): Hex {
-  return `${selector}${wordHex(value)}`;
+/** The blob and calldata of the enforcement vector `id`. */
+function vector(id: string): { blob: Hex; callData: Hex } {
+  const found = vectorById(rawVectors, id);
+  return { blob: hex(found.blob), callData: hex(found.callData) };
 }
 
-/** Encode a raw uint256 without selector. */
-function encodeRawUint256(value: bigint): Hex {
-  return bigintToHex(value);
+/** The selector slot of `blob`. */
+function selectorOf(blob: Hex): Hex {
+  return toHex(hexToBytes(blob), PF.SELECTOR_OFFSET, PF.SELECTOR_OFFSET + PF.SELECTOR_SIZE);
 }
 
-/** Encode a selectorless calldata blob containing a single `bytes` argument. */
-function encodeBytesArg(dataHex: string): Hex {
-  const padded = dataHex.padEnd(64, "0");
-  return `0x${wordHex(32n)}${wordHex(BigInt(dataHex.length / 2))}${padded}`;
-}
-
-/** Encode a selectorless calldata blob containing a single dynamic uint256 array. */
-function encodeDynamicUint256Array(elements: bigint[]): Hex {
-  let body = wordHex(32n) + wordHex(BigInt(elements.length));
-  for (const elem of elements) body += wordHex(elem);
-  return `0x${body}`;
-}
-
-/** Encode a selectorless calldata blob containing a static uint256[3] array. */
-function encodeStaticUint256Array3(first: bigint, second: bigint, third: bigint): Hex {
-  return `0x${wordHex(first)}${wordHex(second)}${wordHex(third)}`;
-}
-
-/** Encode a selectorless calldata blob containing a dynamic int256 array. */
-function encodeDynamicInt256Array(elements: bigint[]): Hex {
-  return encodeDynamicUint256Array(elements.map((elem) => BigInt.asUintN(256, elem)));
-}
-
-/** Encode a selectorless calldata blob containing a dynamic bytes array; elements are hex bodies of at most 32 bytes. */
-function encodeDynamicBytesArray(elements: string[]): Hex {
-  let heads = "";
-  let tails = "";
-  const headSize = elements.length * 32;
-  for (const elem of elements) {
-    heads += wordHex(BigInt(headSize + tails.length / 2));
-    tails += wordHex(BigInt(elem.length / 2)) + elem.padEnd(64, "0");
-  }
-  return `0x${wordHex(32n)}${wordHex(BigInt(elements.length))}${heads}${tails}`;
-}
-
-/** Encode a selectorless calldata blob containing a static bytes[3] array; elements are hex bodies of at most 32 bytes. */
-function encodeStaticBytesArray3(elements: string[]): Hex {
-  let heads = "";
-  let tails = "";
-  const headSize = elements.length * 32;
-  for (const elem of elements) {
-    heads += wordHex(BigInt(headSize + tails.length / 2));
-    tails += wordHex(BigInt(elem.length / 2)) + elem.padEnd(64, "0");
-  }
-  return `0x${wordHex(32n)}${heads}${tails}`;
-}
-
-/** Encode selectorless calldata for (uint256,address)[] with given tuples. */
-function encodeTupleArray(tuples: Array<{ amount: bigint; address: bigint }>): Hex {
-  let body = wordHex(32n) + wordHex(BigInt(tuples.length));
-  for (const tuple of tuples) body += wordHex(tuple.amount) + wordHex(tuple.address);
-  return `0x${body}`;
-}
-
-/**
- * Build a selectorless policy blob from scratch, bypassing PolicyCoder.encode validation. Used only for the path-depth
- * test, where the structural change (33 path steps) cascades into rule and group size fields that can't be patched.
- */
-function craftPolicy(options: {
-  descriptor: string;
-  scope: number;
-  pathHex: string;
-  opCode: number;
-  dataHex: string;
-  /** Hint block; defaults to a hop-free block addressing a uint256 first argument. */
-  hintHex?: string;
-}): Hex {
-  const desc = options.descriptor;
-  const descLength = desc.length / 2;
-  const pathBytes = options.pathHex;
-  const depth = pathBytes.length / 4;
-  const dataBytes = options.dataHex;
-  const dataLength = dataBytes.length / 2;
-  const hintBytes = options.scope === Scope.CALLDATA ? (options.hintHex ?? "0000000000000020") : "";
-  const ruleSize = 7 + depth * 2 + hintBytes.length / 2 + dataLength;
-
-  const rule =
-    ruleSize.toString(16).padStart(4, "0") +
-    options.scope.toString(16).padStart(2, "0") +
-    depth.toString(16).padStart(2, "0") +
-    pathBytes +
-    hintBytes +
-    options.opCode.toString(16).padStart(2, "0") +
-    dataLength.toString(16).padStart(4, "0") +
-    dataBytes;
-
-  const group = "0001" + (rule.length / 2).toString(16).padStart(8, "0") + rule;
-  const headerByte = (PolicyFormat.VERSION | PolicyFormat.FLAG_NO_SELECTOR).toString(16).padStart(2, "0");
-  const header = headerByte + "00000000" + descLength.toString(16).padStart(4, "0") + desc + "01" + group;
-  return `0x${header}`;
-}
-
-/** Return the byte offset of the first rule's hint block within `policy`. */
-function hintOffset(policy: Hex): number {
-  return PolicyCoder.inspect(policy).groups[0].rules[0].hint!.span.start;
-}
-
-/** Overwrite bytes in a hex blob at a given byte offset. */
-function tamper(blob: Hex, byteOffset: number, replacement: string): Hex {
-  const hexOffset = 2 + byteOffset * 2;
-  return `0x${blob.slice(2, hexOffset)}${replacement}${blob.slice(hexOffset + replacement.length)}` as Hex;
-}
+const senderContext: Context = { msgSender: "0x0000000000000000000000000000000000000001" };
 
 ///////////////////////////////////////////////////////////////////////////
-// Basic enforcement
+// Entry
 ///////////////////////////////////////////////////////////////////////////
 
-describe("enforce", () => {
-  describe("basic EQ uint256", () => {
-    test("passes when callData matches", () => {
-      const callData = encodeUint256(SELECTOR, 42n);
-      const result = PolicyEnforcer.check(POLICY_EQ_UINT256, callData);
-      assertPassed(result);
-      expect(result.matchedGroup).toBe(0);
-    });
-
-    test("fails when callData does not match", () => {
-      const callData = encodeUint256(SELECTOR, 99n);
-      const result = PolicyEnforcer.check(POLICY_EQ_UINT256, callData);
-      const violation = expectFirstViolation(result, "VALUE_MISMATCH");
-      expect("resolvedOperand" in violation).toBe(false);
-    });
-
-    test("fails on selector mismatch", () => {
-      const callData = "0x11111111000000000000000000000000000000000000000000000000000000000000002a";
-      const result = PolicyEnforcer.check(POLICY_EQ_UINT256, callData);
-      const violation = expectFirstViolation(result, "SELECTOR_MISMATCH");
-      expect(violation.resolvedValue).toBe("0x11111111");
-    });
+describe("PolicyEnforcer.check entry", () => {
+  test("rejects an unsupported major version before its minor", () => {
+    const { blob, callData } = vector("multi-rule-and-fail");
+    const data = hexToBytes(blob);
+    data[0] = ((PF.MAJOR + 1) << PF.MAJOR_SHIFT) | ((PF.SUPPORTED_MINOR + 1) << PF.MINOR_SHIFT);
+    const raised = toHex(data, 0, data.length);
+    expectErrorCode(() => PolicyEnforcer.check(raised, callData), "UNSUPPORTED_VERSION");
   });
 
-  describe("selectorless policy", () => {
-    test("passes with matching raw callData", () => {
-      const callData = encodeRawUint256(42n);
-      const result = PolicyEnforcer.check(POLICY_SELECTORLESS, callData);
-      assertPassed(result);
-      expect(result.matchedGroup).toBe(0);
-    });
-
-    test("fails with non-matching raw callData", () => {
-      const callData = encodeRawUint256(99n);
-      const result = PolicyEnforcer.check(POLICY_SELECTORLESS, callData);
-      expectFirstViolation(result, "VALUE_MISMATCH");
-    });
-
-    test("does not require selector in callData", () => {
-      const callData = encodeRawUint256(42n);
-      const result = PolicyEnforcer.check(POLICY_SELECTORLESS, callData);
-      assertPassed(result);
-    });
-  });
-
-  describe("multi-group (OR semantics)", () => {
-    // Groups sort by hash, so the group holding each operand is derived from the built policy.
-    function groupIndexOf(operand: bigint): number {
-      return PolicyCoder.decode(POLICY_MULTI_GROUP).groups.findIndex((group) =>
-        group[0].operators[0].endsWith(wordHex(operand)),
-      );
-    }
-
-    test("passes when the eq(2) group matches", () => {
-      const callData = encodeUint256(SELECTOR, 2n);
-      const result = PolicyEnforcer.check(POLICY_MULTI_GROUP, callData);
-      assertPassed(result);
-      expect(result.matchedGroup).toBe(groupIndexOf(2n));
-    });
-
-    test("passes when the eq(1) group matches", () => {
-      const callData = encodeUint256(SELECTOR, 1n);
-      const result = PolicyEnforcer.check(POLICY_MULTI_GROUP, callData);
-      assertPassed(result);
-      expect(result.matchedGroup).toBe(groupIndexOf(1n));
-    });
-
-    test("fails when no group matches", () => {
-      const callData = encodeUint256(SELECTOR, 99n);
-      const result = PolicyEnforcer.check(POLICY_MULTI_GROUP, callData);
-      assertFailed(result);
-      expect(result.violations.length).toBe(2);
-      const first = result.violations[0];
-      const second = result.violations[1];
-      assertViolationCode(first, "VALUE_MISMATCH");
-      assertViolationCode(second, "VALUE_MISMATCH");
-      expect(first.group).toBe(0);
-      expect(second.group).toBe(1);
-    });
-  });
-
-  describe("two constraints in one group (AND semantics)", () => {
-    test("passes when both constraints are satisfied", () => {
-      const callData = encodeUint256(SELECTOR, 50n);
-      const result = PolicyEnforcer.check(POLICY_TWO_CONSTRAINTS, callData);
-      assertPassed(result);
-    });
-
-    test("fails when first constraint fails (value == 0)", () => {
-      const callData = encodeUint256(SELECTOR, 0n);
-      const result = PolicyEnforcer.check(POLICY_TWO_CONSTRAINTS, callData);
-      expectFirstViolation(result, "VALUE_MISMATCH");
-    });
-
-    test("fails when second constraint fails (value > 100)", () => {
-      const callData = encodeUint256(SELECTOR, 101n);
-      const result = PolicyEnforcer.check(POLICY_TWO_CONSTRAINTS, callData);
-      expectFirstViolation(result, "VALUE_MISMATCH");
-    });
-
-    test("passes at boundary (value == 100)", () => {
-      const callData = encodeUint256(SELECTOR, 100n);
-      const result = PolicyEnforcer.check(POLICY_TWO_CONSTRAINTS, callData);
-      assertPassed(result);
-    });
-
-    test("passes at boundary (value == 1)", () => {
-      const callData = encodeUint256(SELECTOR, 1n);
-      const result = PolicyEnforcer.check(POLICY_TWO_CONSTRAINTS, callData);
-      assertPassed(result);
-    });
-  });
-
-  describe("mixed scope (context + calldata)", () => {
-    test("passes when both context and calldata match", () => {
-      const callData = encodeUint256(SELECTOR, 42n);
-      const ctx: Context = { msgSender: "0x0000000000000000000000000000000000000001" };
-      const result = PolicyEnforcer.check(POLICY_MIXED_SCOPE, callData, ctx);
-      assertPassed(result);
-    });
-
-    test("fails when context is missing", () => {
-      const callData = encodeUint256(SELECTOR, 42n);
-      const result = PolicyEnforcer.check(POLICY_MIXED_SCOPE, callData);
-      const violation = expectFirstViolation(result, "MISSING_CONTEXT");
-      expect(violation.typeCode).toBe(TypeCode.ADDRESS);
-    });
-
-    test("fails when context does not match", () => {
-      const callData = encodeUint256(SELECTOR, 42n);
-      const ctx: Context = { msgSender: "0x0000000000000000000000000000000000000002" };
-      const result = PolicyEnforcer.check(POLICY_MIXED_SCOPE, callData, ctx);
-      expectFirstViolation(result, "VALUE_MISMATCH");
-    });
-
-    test("fails when calldata does not match", () => {
-      const callData = encodeUint256(SELECTOR, 99n);
-      const ctx: Context = { msgSender: "0x0000000000000000000000000000000000000001" };
-      const result = PolicyEnforcer.check(POLICY_MIXED_SCOPE, callData, ctx);
-      expectFirstViolation(result, "VALUE_MISMATCH");
-    });
-  });
-
-  describe("callData too short", () => {
-    test("fails when callData is shorter than required", () => {
-      const result = PolicyEnforcer.check(POLICY_EQ_UINT256, "0x2fbebd38");
-      expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
-    });
-
-    test("fails when selectorless callData is empty", () => {
-      const result = PolicyEnforcer.check(POLICY_SELECTORLESS, "0x");
-      expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
-    });
-
-    test("fails when callData too short for selector check", () => {
-      const result = PolicyEnforcer.check(POLICY_EQ_UINT256, "0x2fbe");
-      expectFirstViolation(result, "MISSING_SELECTOR");
-    });
+  test("rejects a minor version above the highest supported", () => {
+    const { blob, callData } = vector("multi-rule-and-fail");
+    const data = hexToBytes(blob);
+    data[0] = (PF.MAJOR << PF.MAJOR_SHIFT) | ((PF.SUPPORTED_MINOR + 1) << PF.MINOR_SHIFT);
+    const raised = toHex(data, 0, data.length);
+    expectErrorCode(() => PolicyEnforcer.check(raised, callData), "UNSUPPORTED_MINOR");
   });
 });
 
 ///////////////////////////////////////////////////////////////////////////
-// PolicyEnforcer.enforce() (throwing)
+// Violation fields
 ///////////////////////////////////////////////////////////////////////////
 
-describe("enforce (throwing)", () => {
-  test("does not throw when policy passes", () => {
-    const callData = encodeUint256(SELECTOR, 42n);
-    expect(() => PolicyEnforcer.enforce(POLICY_EQ_UINT256, callData)).not.toThrow();
-  });
-
-  test("throws PolicyViolationError when policy fails", () => {
-    const callData = encodeUint256(SELECTOR, 99n);
-    expect(() => PolicyEnforcer.enforce(POLICY_EQ_UINT256, callData)).toThrow(PolicyViolationError);
-  });
-
-  test("thrown error carries structured violations and a code-bearing message", () => {
-    const callData = encodeUint256(SELECTOR, 99n);
-    try {
-      PolicyEnforcer.enforce(POLICY_EQ_UINT256, callData);
-      expect.unreachable("should have thrown");
-    } catch (error) {
-      expect(error).toBeInstanceOf(PolicyViolationError);
-      if (error instanceof PolicyViolationError) {
-        expect(error.violations).toHaveLength(1);
-        expect(error.violations[0].code).toBe("VALUE_MISMATCH");
-        expect(error.message).toContain("VALUE_MISMATCH");
-      }
-    }
-  });
-
-  test("PolicyViolationError with empty violations carries fallback message", () => {
-    const error = new PolicyViolationError([]);
-    expect(error.message).toBe("Policy violation");
-    expect(error.violations).toHaveLength(0);
-  });
-
-  test("PolicyViolationError surfaces structured violation fields, not formatted text", () => {
-    const error = new PolicyViolationError([
-      {
-        code: "SELECTOR_MISMATCH",
-        resolvedValue: "0x12345678",
-        expectedValue: "0xabcdef00",
-      },
-    ]);
-    expect(error.violations[0]).toMatchObject({
-      code: "SELECTOR_MISMATCH",
-      resolvedValue: "0x12345678",
-      expectedValue: "0xabcdef00",
-    });
-    expect(error.message).toContain("SELECTOR_MISMATCH");
-  });
-
-  test("throws CallciumError for malformed policy", () => {
-    expect(() => PolicyEnforcer.enforce("0x01", "0x")).toThrow(CallciumError);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Unknown Operator
-///////////////////////////////////////////////////////////////////////////
-
-describe("applyOperator - unknown opcode", () => {
-  test("throws CallciumError for unrecognized base opcode", () => {
-    const operand = new Uint8Array(32);
-    expect(() => applyOperator(0x30, 42n, 32n, operand, TypeCode.UINT_MAX)).toThrow(CallciumError);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// LENGTH_* On Static Type
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - LENGTH_* on static type", () => {
-  // A static target resolves to a scalar word, which carries no declared length, so PWF-24 makes the pairing malformed.
-  // Decoding rejects it before evaluation, whatever the operand.
-  test("LENGTH_EQ on uint256 is rejected as a malformed policy", () => {
-    const data: PolicyData = {
-      isSelectorless: true,
-      selector: "0x00000000",
-      descriptor: bytesToHex(DescriptorCoder.fromTypes("uint256")),
-      groups: [[{ scope: Scope.CALLDATA, path: "0x0000", operators: [op(Op.LENGTH_EQ, 32n)] }]],
-    };
-    const policyHex = PolicyCoder.encode(data);
-    expectErrorCode(() => PolicyEnforcer.check(policyHex, encodeRawUint256(42n)), "OPERATOR_TARGET_MISMATCH");
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Quantifier Edge Cases
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - quantifier edge cases", () => {
-  test("ANY on empty dynamic array fails with QUANTIFIER_EMPTY_ARRAY", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ANY).eq(1n)).build();
-    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([]));
-    expectFirstViolation(result, "QUANTIFIER_EMPTY_ARRAY");
-  });
-
-  test("ALL on empty dynamic array passes (vacuously true)", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gt(0n)).build();
-    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([]));
+describe("PolicyEnforcer.check violation fields", () => {
+  test("a pass names the group that matched", () => {
+    const { blob, callData } = vector("group-local-value-mismatch-multi-group");
+    const result = PolicyEnforcer.check(blob, callData);
     assertPassed(result);
+    expect(result.matchedGroup).toBe(1);
   });
 
-  test("ALL on static array passes when all elements satisfy the rule", () => {
-    const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ALL).gt(0n)).build();
-    const result = PolicyEnforcer.check(policy, encodeStaticUint256Array3(10n, 20n, 30n));
-    assertPassed(result);
-  });
-
-  test("ALL on static array fails when one element does not satisfy the rule", () => {
-    const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ALL).gt(0n)).build();
-    const result = PolicyEnforcer.check(policy, encodeStaticUint256Array3(10n, 20n, 0n));
-    expectFirstViolation(result, "VALUE_MISMATCH");
-  });
-
-  test("ANY on static array passes when one element matches", () => {
-    const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ANY).eq(42n)).build();
-    const result = PolicyEnforcer.check(policy, encodeStaticUint256Array3(1n, 42n, 99n));
-    assertPassed(result);
-  });
-
-  test("ANY on static array fails when no element matches", () => {
-    const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ANY).eq(42n)).build();
-    const result = PolicyEnforcer.check(policy, encodeStaticUint256Array3(1n, 2n, 3n));
-    expectFirstViolation(result, "VALUE_MISMATCH");
-  });
-
-  test("ANY short-circuits on first matching element", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ANY).eq(7n)).build();
-    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([7n, 100n, 200n]));
-    assertPassed(result);
-  });
-
-  test("NOT under ALL binds per element, not to the aggregate", () => {
-    // ALL neq(1) over [1, 2]: element 1 fails 1 != 1, so ALL rejects. Binding the aggregate, !(ALL eq 1), would accept.
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).neq(1n)).build();
-    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n]));
-    expectFirstViolation(result, "VALUE_MISMATCH");
-  });
-
-  test("NOT under ANY binds per element, not to the aggregate", () => {
-    // ANY neq(1) over [1, 2]: element 2 satisfies 2 != 1, so ANY accepts. Aggregate binding would compute !(ANY eq 1)
-    // and wrongly reject. buildUnsafe: strict build rejects any().neq() as an authoring anti-pattern.
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ANY).neq(1n)).buildUnsafe();
-    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n]));
-    assertPassed(result);
-  });
-
-  test("composed strict ALL (lengthGt(0) + ALL) fails on an empty array", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]")
-      .add(arg(0).lengthGt(0n))
-      .add(arg(0, Quantifier.ALL).gt(0n))
-      .build();
-    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([]));
-    expectFirstViolation(result, "VALUE_MISMATCH");
-  });
-
-  test("ALL on non-empty dynamic array fails when one element does not satisfy the rule", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gt(0n)).build();
-    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([5n, 0n]));
-    expectFirstViolation(result, "VALUE_MISMATCH");
-  });
-
-  test("ANY on dynamic array fails when no element matches", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ANY).eq(999n)).build();
-    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n]));
-    const violation = expectFirstViolation(result, "VALUE_MISMATCH");
-    expect(violation.elementIndex).toBeUndefined();
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Quantified operator coverage
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - quantified value operators", () => {
-  test("ALL lt passes and rejects an element at the bound", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lt(4n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n])));
-
-    const failing = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lt(3n)).build();
-    expectFirstViolation(PolicyEnforcer.check(failing, encodeDynamicUint256Array([1n, 2n, 3n])), "VALUE_MISMATCH");
-  });
-
-  test("ALL gte passes and rejects an element below the bound", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gte(1n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n])));
-
-    const failing = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gte(2n)).build();
-    expectFirstViolation(PolicyEnforcer.check(failing, encodeDynamicUint256Array([1n, 2n, 3n])), "VALUE_MISMATCH");
-  });
-
-  test("ALL lte passes and rejects an element above the bound", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lte(3n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n])));
-
-    const failing = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).lte(2n)).build();
-    expectFirstViolation(PolicyEnforcer.check(failing, encodeDynamicUint256Array([1n, 2n, 3n])), "VALUE_MISMATCH");
-  });
-
-  test("ALL between passes and rejects an element outside the range", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).between(1n, 3n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n, 3n])));
-
-    const failing = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).between(2n, 3n)).build();
-    expectFirstViolation(PolicyEnforcer.check(failing, encodeDynamicUint256Array([1n, 2n, 3n])), "VALUE_MISMATCH");
-  });
-
-  test("ALL isIn passes and rejects an element outside the set", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]")
-      .add(arg(0, Quantifier.ALL).isIn([10n, 20n, 30n]))
-      .build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([10n, 30n])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([10n, 11n])), "VALUE_MISMATCH");
-  });
-
-  test("ALL notIn passes and rejects an element inside the set", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]")
-      .add(arg(0, Quantifier.ALL).notIn([10n, 20n, 30n]))
-      .build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 2n])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([1n, 10n])), "VALUE_MISMATCH");
-  });
-
-  test("ALL bitmaskAll passes and rejects an element missing a bit", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).bitmaskAll(0x0fn)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0x0fn, 0xffn])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0x0fn, 0x07n])), "VALUE_MISMATCH");
-  });
-
-  test("ALL bitmaskAny passes and rejects an element with no mask bit", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).bitmaskAny(0x0fn)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0x01n, 0x08n])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0x01n, 0xf0n])), "VALUE_MISMATCH");
-  });
-
-  test("ALL bitmaskNone passes and rejects an element with a mask bit", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).bitmaskNone(0x0fn)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0xf0n, 0x10n])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicUint256Array([0xf0n, 0x01n])), "VALUE_MISMATCH");
-  });
-});
-
-describe("enforce - quantified length operators", () => {
-  test("ALL lengthGt passes and rejects an element at the bound", () => {
-    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthGt(1n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aaaa", "bbbbbb"])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aaaa", "bb"])), "VALUE_MISMATCH");
-  });
-
-  test("ALL lengthLt passes and rejects an element at the bound", () => {
-    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthLt(3n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbb"])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbbbb"])), "VALUE_MISMATCH");
-  });
-
-  test("ALL lengthGte passes and rejects a shorter element", () => {
-    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthGte(2n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aaaa", "bbbbbb"])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aaaa", "bb"])), "VALUE_MISMATCH");
-  });
-
-  test("ALL lengthLte passes and rejects a longer element", () => {
-    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthLte(2n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbb"])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbbbb"])), "VALUE_MISMATCH");
-  });
-
-  test("ALL lengthBetween passes and rejects an element outside the range", () => {
-    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthBetween(1n, 2n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbb"])));
-
-    expectFirstViolation(PolicyEnforcer.check(policy, encodeDynamicBytesArray(["aa", "bbbbbb"])), "VALUE_MISMATCH");
-  });
-});
-
-describe("enforce - quantified signed ordering", () => {
-  test("ALL lt: negative elements are less than a positive bound", () => {
-    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).lt(1n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-2n, -1n])));
-  });
-
-  test("ALL gt: elements above a negative bound", () => {
-    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).gt(-200n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-100n, 1n])));
-  });
-
-  test("ALL gte: negative bound inclusive", () => {
-    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).gte(-42n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-42n, 0n])));
-  });
-
-  test("ALL lte: negative bound inclusive", () => {
-    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).lte(-42n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-100n, -42n])));
-  });
-
-  test("ALL between: negative range", () => {
-    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).between(-100n, -50n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-75n, -60n])));
-  });
-
-  test("ALL between: range crossing zero", () => {
-    const policy = PolicyBuilder.createRaw("int256[]").add(arg(0, Quantifier.ALL).between(-50n, 50n)).build();
-    assertPassed(PolicyEnforcer.check(policy, encodeDynamicInt256Array([-10n, 0n, 10n])));
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Quantifier With Suffix Path (array of tuples)
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - quantifier with suffix path", () => {
-  test("ALL with suffix path passes when all elements satisfy", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,address)[]")
-      .add(arg(0, Quantifier.ALL, 0).gt(0n))
-      .build();
-    const callData = encodeTupleArray([
-      { amount: 10n, address: 1n },
-      { amount: 20n, address: 2n },
-    ]);
-    expect(PolicyEnforcer.check(policy, callData).ok).toBe(true);
-  });
-
-  test("ALL with suffix path fails when one element does not satisfy", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,address)[]")
-      .add(arg(0, Quantifier.ALL, 0).gt(0n))
-      .build();
-    const callData = encodeTupleArray([
-      { amount: 10n, address: 1n },
-      { amount: 0n, address: 2n },
-    ]);
-    const result = PolicyEnforcer.check(policy, callData);
-    const violation = expectFirstViolation(result, "VALUE_MISMATCH");
-    expect(violation.scope).toBe(Scope.CALLDATA);
-    expect(violation.elementIndex).toBe(1);
-    expect(violation.typeCode).toBe(TypeCode.UINT_MAX);
-    expect(violation.resolvedValue).toBe(bigintToHex(0n));
-  });
-
-  test("ANY with suffix path passes when one element satisfies", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,address)[]")
-      .add(arg(0, Quantifier.ANY, 0).eq(42n))
-      .build();
-    const callData = encodeTupleArray([
-      { amount: 1n, address: 1n },
-      { amount: 42n, address: 2n },
-    ]);
-    expect(PolicyEnforcer.check(policy, callData).ok).toBe(true);
-  });
-
-  test("ANY with suffix path fails when no element satisfies", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,address)[]")
-      .add(arg(0, Quantifier.ANY, 0).eq(42n))
-      .build();
-    const callData = encodeTupleArray([
-      { amount: 1n, address: 1n },
-      { amount: 2n, address: 2n },
-    ]);
-    const result = PolicyEnforcer.check(policy, callData);
-    expectFirstViolation(result, "VALUE_MISMATCH");
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Quantifier Limit & Truncated Calldata
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - quantifier limit exceeded", () => {
-  test("fails with QUANTIFIER_LIMIT_EXCEEDED for array > 256 elements", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).gt(0n)).build();
-    const elems = Array.from({ length: 257 }, (_, i) => BigInt(i + 1));
-    const result = PolicyEnforcer.check(policy, encodeDynamicUint256Array(elems));
-    expectFirstViolation(result, "QUANTIFIER_LIMIT_EXCEEDED");
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Navigation Failure IN Leaf Evaluation
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - navigation failure", () => {
-  test("LENGTH_EQ on dynamic bytes with truncated calldata reports error", () => {
-    const policy = PolicyBuilder.createRaw("bytes").add(arg(0).lengthEq(10n)).build();
-    // Offset pointing beyond calldata.
-    const callData: Hex = `0x${wordHex(999n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
+  test("a failed test names its group, rule, value and operator", () => {
+    const { blob, callData } = vector("multi-group-or-fail-all");
+    const result = PolicyEnforcer.check(blob, callData);
     assertFailed(result);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Static Array Of Dynamic Elements
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - static array of dynamic elements", () => {
-  test("indexing into a fixed-count array of dynamic elements resolves the correct element", () => {
-    // bytes[3] is a static-count array, so its hop carries no HINT_META_DYNAMIC_ARRAY flag, unlike a bytes[] hop. This
-    // distinguishes chainResolve's two hop branches.
-    const policy = PolicyBuilder.createRaw("bytes[3]").add(arg(0, 1).lengthEq(2n)).build();
-    const callData = encodeStaticBytesArray3(["aa", "bbbb", "cc"]);
-    const result = PolicyEnforcer.check(policy, callData);
-    assertPassed(result);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Quantifier Error Paths (element resolution, suffix descent, leaf error)
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - quantifier element resolution failures", () => {
-  test("ALL fails when an element read runs past truncated calldata (static array)", () => {
-    const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ALL).gt(0n)).build();
-    // Only 64 bytes — static array expects 96 bytes (3 * 32). Element 2 will fail.
-    const callData: Hex = `0x${wordHex(1n)}${wordHex(2n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    const violation = expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
-    expect(violation.elementIndex).toBe(2);
-    expect(violation.typeCode).toBe(TypeCode.UINT_MAX);
-  });
-
-  test("an abort under ANY rejects the policy instead of falling through to a later group", () => {
-    // CALLDATA_OUT_OF_BOUNDS aborts evaluation, so the passing second group is never consulted. The Solidity enforcer
-    // reverts on the same input.
-    const policy = PolicyBuilder.createRaw("uint256[],uint256")
-      .add(arg(0, Quantifier.ANY).eq(7n))
-      .or()
-      .add(arg(1).eq(5n))
-      .build();
-    // The array claims two elements but supplies one.
-    const callData: Hex = `0x${wordHex(64n)}${wordHex(5n)}${wordHex(2n)}${wordHex(1n)}`;
-
-    expectFirstViolation(PolicyEnforcer.check(policy, callData), "CALLDATA_OUT_OF_BOUNDS");
-  });
-
-  test("ANY aborts when an element read runs past truncated calldata", () => {
-    const policy = PolicyBuilder.createRaw("uint256[3]").add(arg(0, Quantifier.ANY).eq(999n)).build();
-    // Only 64 bytes for 3-element static array.
-    const callData: Hex = `0x${wordHex(1n)}${wordHex(2n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
-  });
-
-  test("ALL with suffix: an out-of-bounds inner array index causes a violation", () => {
-    // (uint256[],uint256)[]: the suffix descends into each element's uint256[] field.
-    const policy = PolicyBuilder.createRaw("(uint256[],uint256)[]")
-      .add(arg(0, Quantifier.ALL, 0, 0).eq(42n))
-      .build();
-    // One element whose field0 offset is 0, so the inner uint256[] reads a length of 0 and index 0 is out of bounds.
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(0n)}${wordHex(9999n)}${wordHex(42n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    const violation = expectFirstViolation(result, "ARRAY_INDEX_OUT_OF_BOUNDS");
-    expect(violation.elementIndex).toBe(0);
-    expect(violation.typeCode).toBe(TypeCode.UINT_MAX);
-  });
-
-  test("ANY with suffix: an out-of-bounds inner array index aborts", () => {
-    const policy = PolicyBuilder.createRaw("(uint256[],uint256)[]")
-      .add(arg(0, Quantifier.ANY, 0, 0).eq(42n))
-      .build();
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(0n)}${wordHex(9999n)}${wordHex(42n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    const violation = expectFirstViolation(result, "ARRAY_INDEX_OUT_OF_BOUNDS");
-    expect(violation.elementIndex).toBe(0);
-  });
-
-  test("ALL with suffix: post-descend leaf-load failure surfaces underlying read code", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,uint256)[]")
-      .add(arg(0, Quantifier.ALL, 1).gt(0n))
-      .build();
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(42n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    const violation = expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
-    expect(violation.elementIndex).toBe(0);
-    expect(violation.typeCode).toBeDefined();
-    expect(violation.opCode).toBeDefined();
-    expect(violation.operandData).toBeDefined();
-  });
-});
-
-describe("enforce - quantifier deep error paths", () => {
-  test("ALL with no suffix: leaf error on element causes failure", () => {
-    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).lengthEq(5n)).build();
-    // bytes[] with 1 element whose internal offset is invalid.
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(9999n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    assertFailed(result);
-  });
-
-  test("ANY with no suffix: leaf error on an element aborts", () => {
-    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ANY).lengthEq(5n)).build();
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(9999n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
-  });
-
-  test("ALL with suffix path: an element's bytes offset past calldata causes a violation", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,bytes)[]")
-      .add(arg(0, Quantifier.ALL, 1).lengthEq(5n))
-      .build();
-    // Element with bogus bytes offset.
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(0n)}${wordHex(42n)}${wordHex(9999n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    assertFailed(result);
-  });
-
-  test("ANY with suffix path: an element's bytes offset past calldata aborts", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,bytes)[]")
-      .add(arg(0, Quantifier.ANY, 1).lengthEq(5n))
-      .build();
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(0n)}${wordHex(42n)}${wordHex(9999n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Array Shape Failure (malformed dynamic array)
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - arrayShape failure", () => {
-  test("fails when dynamic array offset points beyond calldata", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).eq(1n)).build();
-    const callData: Hex = `0x${wordHex(9999n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    assertFailed(result);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Quantifier Element Resolution Failure (truncated elements)
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - quantifier element failure paths", () => {
-  test("ALL fails when element resolution fails (truncated calldata)", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,uint256)[]")
-      .add(arg(0, Quantifier.ALL, 1).eq(42n))
-      .build();
-    // Claims 2 elements but only provides partial data.
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(2n)}${wordHex(42n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    assertFailed(result);
-  });
-
-  test("ANY passes when a later element matches", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,uint256)[]")
-      .add(arg(0, Quantifier.ANY, 1).eq(42n))
-      .build();
-    // 2 elements — both complete, second has field(1) = 42.
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(2n)}${wordHex(1n)}${wordHex(1n)}${wordHex(99n)}${wordHex(42n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    assertPassed(result);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Tampered Policy Blobs (attack surface testing)
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - tampered policy blobs (attack surface testing)", () => {
-  test("path depth > MAX_PATH_DEPTH (33 steps) throws PATH_TOO_DEEP", () => {
-    // Requires craftPolicy because adding 33 path steps changes rule size structurally.
-    const policy = craftPolicy({
-      descriptor: "020120",
+    const violation = result.violations[1];
+    expect(violation).toEqual({
+      code: "VALUE_MISMATCH",
+      group: 1,
+      rule: 0,
       scope: Scope.CALLDATA,
-      pathHex: "0000".repeat(33),
-      opCode: Op.EQ,
-      dataHex: "00".repeat(32),
+      path: "0x0000",
+      operator: {
+        opCode: Op.EQ,
+        comparison: Op.EQ,
+        negated: false,
+        operandType: TypeCode.UINT_MAX,
+        source: Source.CONSTANT,
+        values: [bigintToHex(2n)],
+      },
+      typeCode: TypeCode.UINT_MAX,
+      resolvedValue: bigintToHex(99n),
     });
-    const error = expectErrorCode(() => PolicyEnforcer.check(policy, `0x${"00".repeat(32)}`), "PATH_TOO_DEEP");
-    expect(error.message).toContain("exceeds maximum");
   });
 
-  test("unknown context property ID throws UNKNOWN_CONTEXT_PROPERTY", () => {
-    // Start from a valid context policy, then tamper the property ID bytes.
-    const validPolicy = PolicyBuilder.createRaw("uint256")
-      .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
-      .build();
-    // Tamper: overwrite the 2-byte path from 0x0000 to 0xFFFF.
-    const descLength = 3; // "020120" = 3 bytes.
-    const pathOffset = 1 + 4 + 2 + descLength + 1 + 6 + 2 + 1 + 1;
-    const tamperedPolicy = tamper(validPolicy, pathOffset, "ffff");
-    const error = expectErrorCode(
-      () => PolicyEnforcer.check(tamperedPolicy, `0x${"00".repeat(32)}`),
-      "UNKNOWN_CONTEXT_PROPERTY",
-    );
-    expect(error.message).toContain("ffff");
+  test("a failed body test names its position in the body and the element", () => {
+    const { blob } = vector("quantifier-body-context-pass");
+    // [1, 0]: the second element fails the body's second test, `> 0`.
+    const callData = hex(`${selectorOf(blob)}${wordHex(0x20n)}${wordHex(2n)}${wordHex(1n)}${wordHex(0n)}`);
+    const violation = expectFirstViolation(PolicyEnforcer.check(blob, callData, senderContext), "VALUE_MISMATCH");
+    expect(violation).toMatchObject({ group: 0, rule: 0, bodyRule: 1, elementIndex: 1, path: "0x" });
   });
 
-  test("a dynamic array offset past calldata fails navigation", () => {
-    // Valid policy for uint256[] targeting index 1.
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, 1).eq(0n)).build();
-    // Feed calldata where the dynamic array's base pointer is beyond bounds.
-    const callData: Hex = `0x${wordHex(9999n)}`;
-    const result = PolicyEnforcer.check(policy, callData);
-    const violation = expectFirstViolation(result, "CALLDATA_OUT_OF_BOUNDS");
-    expect(violation.scope).toBe(Scope.CALLDATA);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Context With Numeric Properties
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - context numeric properties", () => {
-  test("context msgValue check passes with matching value", () => {
-    const policy = PolicyBuilder.createRaw("uint256").add(msgValue().lte(1000n)).add(arg(0).eq(42n)).build();
-    const result = PolicyEnforcer.check(policy, encodeRawUint256(42n), { msgValue: 500n });
-    assertPassed(result);
-  });
-
-  test("context msgValue check fails when value exceeds limit", () => {
-    const policy = PolicyBuilder.createRaw("uint256").add(msgValue().lte(100n)).add(arg(0).eq(42n)).build();
-    const result = PolicyEnforcer.check(policy, encodeRawUint256(42n), { msgValue: 200n });
-    const violation = expectFirstViolation(result, "VALUE_MISMATCH");
-    expect(violation.resolvedValue).toBeDefined();
-  });
-
-  test("context blockTimestamp check works", () => {
-    const policy = PolicyBuilder.createRaw("uint256").add(blockTimestamp().gte(1000n)).add(arg(0).eq(42n)).build();
-    const result = PolicyEnforcer.check(policy, encodeRawUint256(42n), { blockTimestamp: 2000n });
-    assertPassed(result);
-  });
-
-  test("context blockNumber check works", () => {
-    const policy = PolicyBuilder.createRaw("uint256").add(blockNumber().eq(12345n)).add(arg(0).eq(42n)).build();
-    const result = PolicyEnforcer.check(policy, encodeRawUint256(42n), { blockNumber: 12345n });
-    assertPassed(result);
-  });
-
-  test("context chainId check works", () => {
-    const policy = PolicyBuilder.createRaw("uint256").add(chainId().eq(1n)).add(arg(0).eq(42n)).build();
-    const result = PolicyEnforcer.check(policy, encodeRawUint256(42n), { chainId: 1n });
-    assertPassed(result);
-  });
-
-  test("rejects a context value outside the range a 32-byte word represents", () => {
-    const policy = PolicyBuilder.createRaw("uint256").add(msgValue().lte(1000n)).add(arg(0).eq(42n)).build();
-    const callData = encodeRawUint256(42n);
-    expectErrorCode(() => PolicyEnforcer.check(policy, callData, { msgValue: -1n }), "CONTEXT_VALUE_OVERFLOW");
-    expectErrorCode(() => PolicyEnforcer.check(policy, callData, { msgValue: 2n ** 256n }), "CONTEXT_VALUE_OVERFLOW");
-  });
-
-  test("context txOrigin check works", () => {
-    const policy = PolicyBuilder.createRaw("uint256")
-      .add(txOrigin().eq("0x0000000000000000000000000000000000000001"))
-      .add(arg(0).eq(42n))
-      .build();
-    const result = PolicyEnforcer.check(policy, encodeRawUint256(42n), {
-      txOrigin: "0x0000000000000000000000000000000000000001",
-    });
-    assertPassed(result);
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Value operator on non-scalar target
-///////////////////////////////////////////////////////////////////////////
-
-describe("PolicyEnforcer - value operator on non-scalar target", () => {
-  // A dynamic target resolves to a declared length, which only a LENGTH_* operator reads, so PWF-24 makes the pairing
-  // malformed and decoding rejects it before evaluation.
-  test("rejects a value op on a dynamic target", () => {
-    // buildUnsafe: strict build rejects value operators on dynamic targets.
-    const policy = PolicyBuilder.createRaw("bytes").add(arg(0).eq(0n)).buildUnsafe();
-    expectErrorCode(() => PolicyEnforcer.check(policy, encodeBytesArg("1122")), "OPERATOR_TARGET_MISMATCH");
-  });
-
-  test("rejects a value op on a dynamic array element", () => {
-    const policy = PolicyBuilder.createRaw("bytes[]").add(arg(0, Quantifier.ALL).eq(0n)).buildUnsafe();
-    // bytes[] with one 2-byte element: outer offset, length 1, element offset, element.
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(1n)}${wordHex(32n)}${wordHex(2n)}${"1122".padEnd(64, "0")}`;
-    expectErrorCode(() => PolicyEnforcer.check(policy, callData), "OPERATOR_TARGET_MISMATCH");
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Hint dispatch
-///////////////////////////////////////////////////////////////////////////
-
-// A calldata rule resolves its target through its compiled hint; path bytes are not consulted at evaluation time.
-// Rewriting a stored hint therefore changes what the rule reads.
-
-describe("enforce - hint dispatch", () => {
-  test("a concrete hint addresses the target", () => {
-    const policy = PolicyBuilder.createRaw("uint256,uint256").add(arg(0).eq(1n)).build();
-    // Re-point the target delta at the second argument while the path still names the first.
-    const tampered = tamper(policy, hintOffset(policy) + PolicyFormat.HINT_HEADER_SIZE, "00000020");
-
-    assertPassed(PolicyEnforcer.check(tampered, `0x${wordHex(9n)}${wordHex(1n)}`));
-  });
-
-  test("path bytes do not address the target", () => {
-    const policy = PolicyBuilder.createRaw("uint256,uint256").add(arg(0).eq(1n)).build();
-    // Re-point the path at the second argument; the hint still addresses the first.
-    const pathOffset = PolicyCoder.inspect(policy).groups[0].rules[0].path.span.start;
-    const tampered = tamper(policy, pathOffset, "0001");
-
-    assertPassed(PolicyEnforcer.check(tampered, `0x${wordHex(1n)}${wordHex(9n)}`));
-    assertFailed(PolicyEnforcer.check(tampered, `0x${wordHex(9n)}${wordHex(1n)}`));
-  });
-
-  test("a quantified hint rejects an oversized array pointer", () => {
-    const policy = PolicyBuilder.createRaw("uint256[]").add(arg(0, Quantifier.ALL).eq(1n)).build();
-    // The array head word is far beyond calldata, so the read fails instead of wrapping.
-    const callData: Hex = `0x${wordHex(2n ** 200n)}${wordHex(1n)}`;
-
-    expectFirstViolation(PolicyEnforcer.check(policy, callData), "CALLDATA_OUT_OF_BOUNDS");
-  });
-
-  test("a quantified hint addresses the element field", () => {
-    const policy = PolicyBuilder.createRaw("(uint256,uint256)[]")
-      .add(arg(0, Quantifier.ALL, 0).eq(1n))
-      .build();
-    // Re-point the target delta at the second field of each element.
-    const targetDeltaOffset =
-      hintOffset(policy) +
-      PolicyFormat.HINT_HEADER_SIZE +
-      PolicyFormat.HINT_HOP_SIZE +
-      PolicyFormat.HINT_FRAME_PREFIX_SIZE +
-      PolicyFormat.HINT_HEADER_SIZE;
-    const tampered = tamper(policy, targetDeltaOffset, "00000020");
-
-    const callData: Hex = `0x${wordHex(32n)}${wordHex(2n)}${wordHex(9n)}${wordHex(1n)}${wordHex(9n)}${wordHex(1n)}`;
-    assertPassed(PolicyEnforcer.check(tampered, callData));
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Context reference operator (EQ_CTX)
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - EQ_CTX operator", () => {
-  const ADDRESS_1: Context["msgSender"] = "0x0000000000000000000000000000000000000001";
-  const ADDRESS_2: Context["msgSender"] = "0x0000000000000000000000000000000000000002";
-  const ADDRESS_SELECTOR = "0xfdf80bda";
-
-  const POLICY_EQ_CTX_SENDER = PolicyBuilder.create("foo(address)")
-    .add(arg(0).eqCtx(ContextProperty.MSG_SENDER))
-    .build();
-  const POLICY_NEQ_CTX_SENDER = PolicyBuilder.create("foo(address)")
-    .add(arg(0).neqCtx(ContextProperty.MSG_SENDER))
-    .build();
-  const POLICY_SENDER_IS_ORIGIN = PolicyBuilder.create("foo(uint256)")
-    .add(msgSender().eqCtx(ContextProperty.TX_ORIGIN))
-    .build();
-  const POLICY_ALL_EQ_CTX = PolicyBuilder.create("foo(address[])")
-    .add(arg(0, Quantifier.ALL).eqCtx(ContextProperty.MSG_SENDER))
-    .build();
-  const POLICY_ANY_EQ_CTX = PolicyBuilder.create("foo(address[])")
-    .add(arg(0, Quantifier.ANY).eqCtx(ContextProperty.MSG_SENDER))
-    .build();
-
-  function encodeSingleElementArrayArg(address: string): Hex {
-    return `0x13cb49d4${wordHex(32n)}${wordHex(1n)}${"00".repeat(12)}${address.slice(2)}`;
-  }
-
-  function encodeAddressArg(address: string): Hex {
-    return `${ADDRESS_SELECTOR}${"00".repeat(12)}${address.slice(2)}`;
-  }
-
-  test("passes when the argument equals msg.sender", () => {
-    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDRESS_1), { msgSender: ADDRESS_1 });
-    assertPassed(result);
-  });
-
-  test("fails with VALUE_MISMATCH when the argument differs from msg.sender", () => {
-    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDRESS_1), { msgSender: ADDRESS_2 });
-    const violation = expectFirstViolation(result, "VALUE_MISMATCH");
-    expect(violation.opCode).toBe(Op.EQ_CTX);
-    expect(violation.resolvedValue).toBe(bigintToHex(1n));
-    expect(violation.resolvedOperand).toBe(bigintToHex(2n));
-  });
-
-  test("negated form passes when the argument differs from msg.sender", () => {
-    const result = PolicyEnforcer.check(POLICY_NEQ_CTX_SENDER, encodeAddressArg(ADDRESS_1), { msgSender: ADDRESS_2 });
-    assertPassed(result);
-  });
-
-  test("fails with MISSING_CONTEXT when the referenced property is absent", () => {
-    const result = PolicyEnforcer.check(POLICY_EQ_CTX_SENDER, encodeAddressArg(ADDRESS_1), {});
-    const violation = expectFirstViolation(result, "MISSING_CONTEXT");
-    expect(violation.typeCode).toBe(TypeCode.ADDRESS);
-    expect(violation.scope).toBe(Scope.CALLDATA);
-  });
-
-  test("context subject: passes when msg.sender equals tx.origin", () => {
-    const callData = encodeUint256(SELECTOR, 42n);
-    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, {
-      msgSender: ADDRESS_1,
-      txOrigin: ADDRESS_1,
-    });
-    assertPassed(result);
-  });
-
-  test("context subject: fails when tx.origin differs", () => {
-    const callData = encodeUint256(SELECTOR, 42n);
-    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, {
-      msgSender: ADDRESS_1,
-      txOrigin: ADDRESS_2,
-    });
-    const violation = expectFirstViolation(result, "VALUE_MISMATCH");
-    expect(violation.resolvedValue).toBe(bigintToHex(1n));
-    expect(violation.resolvedOperand).toBe(bigintToHex(2n));
-  });
-
-  test("context subject: missing operand property reports MISSING_CONTEXT", () => {
-    const callData = encodeUint256(SELECTOR, 42n);
-    const result = PolicyEnforcer.check(POLICY_SENDER_IS_ORIGIN, callData, { msgSender: ADDRESS_1 });
-    const violation = expectFirstViolation(result, "MISSING_CONTEXT");
-    expect(violation.typeCode).toBe(TypeCode.ADDRESS);
-  });
-
-  test("quantified: missing context reports MISSING_CONTEXT without an element index", () => {
-    const result = PolicyEnforcer.check(POLICY_ALL_EQ_CTX, encodeSingleElementArrayArg(ADDRESS_1));
-    const violation = expectFirstViolation(result, "MISSING_CONTEXT");
-    expect("elementIndex" in violation).toBe(false);
-  });
-
-  test("quantified ANY: aggregate failure carries the resolved operand without a resolved value", () => {
-    const result = PolicyEnforcer.check(POLICY_ANY_EQ_CTX, encodeSingleElementArrayArg(ADDRESS_1), {
-      msgSender: ADDRESS_2,
-    });
-    const violation = expectFirstViolation(result, "VALUE_MISMATCH");
-    expect("resolvedValue" in violation).toBe(false);
-    expect(violation.resolvedOperand).toBe(bigintToHex(2n));
-  });
-
-  test("rejects a tampered operand above the property range at decode", () => {
-    const tampered: Hex = `0x${POLICY_EQ_CTX_SENDER.slice(2, -4)}ffff`;
-    expectErrorCode(
-      () => PolicyEnforcer.check(tampered, encodeAddressArg(ADDRESS_1), { msgSender: ADDRESS_1 }),
-      "UNKNOWN_CONTEXT_PROPERTY",
-    );
-  });
-});
-
-///////////////////////////////////////////////////////////////////////////
-// Ordering context reference operators (GT_CTX, LT_CTX, GTE_CTX, LTE_CTX)
-///////////////////////////////////////////////////////////////////////////
-
-describe("enforce - ordering context reference operators", () => {
-  const POLICY_LTE_CTX_VALUE = PolicyBuilder.create("foo(uint256)")
-    .add(arg(0).lteCtx(ContextProperty.MSG_VALUE))
-    .build();
-
-  test("passes when the argument is at most msg.value", () => {
-    assertPassed(PolicyEnforcer.check(POLICY_LTE_CTX_VALUE, encodeUint256(SELECTOR, 42n), { msgValue: 42n }));
-  });
-
-  test("fails with VALUE_MISMATCH carrying the resolved operand when the argument exceeds msg.value", () => {
-    const result = PolicyEnforcer.check(POLICY_LTE_CTX_VALUE, encodeUint256(SELECTOR, 43n), { msgValue: 42n });
-    const violation = expectFirstViolation(result, "VALUE_MISMATCH");
-    expect(violation.opCode).toBe(Op.LTE_CTX);
-    expect(violation.resolvedValue).toBe(bigintToHex(43n));
+  test("a failed test against a context operand carries the operand's value", () => {
+    const { blob, callData } = vector("gt-ctx-value-fail");
+    const violation = expectFirstViolation(PolicyEnforcer.check(blob, callData, { msgValue: 42n }), "VALUE_MISMATCH");
     expect(violation.resolvedOperand).toBe(bigintToHex(42n));
+  });
+
+  test("a mismatched selector carries both selectors", () => {
+    const { blob, callData } = vector("selector-mismatch");
+    const violation = expectFirstViolation(PolicyEnforcer.check(blob, callData), "SELECTOR_MISMATCH");
+    expect(violation).toEqual({
+      code: "SELECTOR_MISMATCH",
+      expectedValue: selectorOf(blob),
+      resolvedValue: toHex(hexToBytes(callData), 0, PF.SELECTOR_SIZE),
+    });
+  });
+
+  test("an ANY loop without a match names the loop rule and no element or test", () => {
+    const { blob, callData } = vector("eq-ctx-any-fail");
+    const violation = expectFirstViolation(PolicyEnforcer.check(blob, callData, senderContext), "QUANTIFIER_NO_MATCH");
+    expect(violation).toEqual({ code: "QUANTIFIER_NO_MATCH", group: 0, rule: 0, scope: Scope.LOOP, path: "0x0000" });
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Missing context
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyEnforcer.check missing context", () => {
+  test("an absent subject names the property's type and no operator", () => {
+    const { blob, callData } = vector("context-sender-pass");
+    const violation = expectFirstViolation(PolicyEnforcer.check(blob, callData), "MISSING_CONTEXT");
+    expect(violation).toEqual({
+      code: "MISSING_CONTEXT",
+      group: 0,
+      rule: 0,
+      scope: Scope.CONTEXT,
+      path: "0x0000",
+      typeCode: TypeCode.ADDRESS,
+    });
+  });
+
+  test("an absent operand names the operator and the operand property's type", () => {
+    const { blob, callData } = vector("eq-ctx-value-pass");
+    const violation = expectFirstViolation(PolicyEnforcer.check(blob, callData), "MISSING_CONTEXT");
+    expect(violation).toMatchObject({
+      scope: Scope.CALLDATA,
+      operator: {
+        opCode: Op.EQ | (Source.CONTEXT << Op.SOURCE_SHIFT),
+        comparison: Op.EQ,
+        negated: false,
+        operandType: TypeCode.UINT_MAX,
+        source: Source.CONTEXT,
+        contextPropertyId: ContextProperty.MSG_VALUE,
+      },
+      typeCode: TypeCode.UINT_MAX,
+    });
+  });
+
+  test("an absent operand of a context test names the operator and the operand property's type", () => {
+    const { blob, callData } = vector("eq-ctx-context-subject-pass");
+    const violation = expectFirstViolation(PolicyEnforcer.check(blob, callData, senderContext), "MISSING_CONTEXT");
+    expect(violation).toMatchObject({
+      scope: Scope.CONTEXT,
+      operator: { comparison: Op.EQ, source: Source.CONTEXT, contextPropertyId: ContextProperty.TX_ORIGIN },
+      typeCode: TypeCode.ADDRESS,
+    });
+  });
+
+  test("an absent property fails its group and the next group still passes", () => {
+    const blob = PolicyBuilder.create("foo(uint256)")
+      .add(msgSender().eq("0x0000000000000000000000000000000000000001"))
+      .or()
+      .add(arg(0).eq(1n))
+      .build();
+    const callData = hex(`${selectorOf(blob)}${wordHex(1n)}`);
+    const result = PolicyEnforcer.check(blob, callData);
+    assertPassed(result);
+    expect(result.matchedGroup).toBe(1);
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Context values
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyEnforcer.check context values", () => {
+  test("rejects an integer outside a 32-byte word", () => {
+    const { blob, callData } = vector("eq-ctx-value-pass");
+    expectErrorCode(() => PolicyEnforcer.check(blob, callData, { msgValue: -1n }), "CONTEXT_VALUE_OVERFLOW");
+    expectErrorCode(() => PolicyEnforcer.check(blob, callData, { msgValue: 2n ** 256n }), "CONTEXT_VALUE_OVERFLOW");
+  });
+
+  test("rejects a value not of its property's type", () => {
+    const { blob, callData } = vector("eq-ctx-value-pass");
+    const numberValue: Context = JSON.parse('{ "msgValue": 42 }');
+    const numberSender: Context = JSON.parse('{ "msgSender": 1 }');
+    expectErrorCode(() => PolicyEnforcer.check(blob, callData, numberValue), "MALFORMED_CONTEXT_VALUE");
+    expectErrorCode(() => PolicyEnforcer.check(blob, callData, numberSender), "MALFORMED_CONTEXT_VALUE");
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// enforce
+///////////////////////////////////////////////////////////////////////////
+
+describe("PolicyEnforcer.enforce", () => {
+  test("throws the violations check reports", () => {
+    const { blob, callData } = vector("multi-group-or-fail-all");
+    const result = PolicyEnforcer.check(blob, callData);
+    assertFailed(result);
+    let thrown: unknown;
+    try {
+      PolicyEnforcer.enforce(blob, callData);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(PolicyViolationError);
+    if (!(thrown instanceof PolicyViolationError)) return;
+    expect(thrown.violations).toEqual(result.violations);
+    expect(thrown.message).toBe("Policy violation: VALUE_MISMATCH at group 0 rule 0");
   });
 });

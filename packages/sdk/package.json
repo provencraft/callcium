@@ -43,7 +43,9 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json",
-    "typedoc": "typedoc"
+    "typedoc": "typedoc",
+    "replay": "bun tools/replay.ts",
+    "differential": "bun tools/differential.ts"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0"

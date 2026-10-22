@@ -8,7 +8,7 @@ A policy is a set of constraint groups. All constraints in a group must pass for
 ## Targeting arguments
 
 Constraints target values by path. `arg(n)` selects the zero-indexed parameter `n` of the function.\
-`arg(n, field)` descends into a struct, selecting field `field` of the value at position `n`. Paths nest up to four steps deep using the same indexed syntax.
+`arg(n, field)` descends into a struct, selecting field `field` of the value at position `n`. Paths nest up to `MAX_PATH_DEPTH` steps deep using the same indexed syntax.
 
 ```ts
 import { arg } from "@callcium/sdk";
@@ -22,7 +22,7 @@ Array quantifiers and deeper nested access are covered in [Array Constraints](./
 
 ## Equality and comparison
 
-`eq` and `neq` test exact equality. Both accept the 32-byte static types: `uint*`, `int*`, `address`, `bytes32`, `bool`. For boolean parameters, `eq(true)` and `eq(false)` are the only operators; there is no dedicated boolean operator.
+`eq` and `neq` test exact equality. Both accept the static elementary types: `uint*`, `int*`, `address`, `bool`, `bytes1` to `bytes32`, `function`. For boolean parameters, `eq` and `neq` are the only operators; there is no dedicated boolean operator.
 
 Address values are passed as `0x`-prefixed strings; numeric and `bytesN` values as `bigint`.
 
@@ -53,7 +53,7 @@ const policy = PolicyBuilder
 
 `isIn` requires the value to match one element in a set. `notIn` requires it to match none.
 
-**Type restriction:** accepts arrays of 32-byte static values: addresses (`0x`-prefixed strings), and `uint*`/`int*`/`bytes*` (as `bigint`). The builder sorts and deduplicates the set automatically. The set must have at least one element and no more than 2,047.
+**Type restriction:** accepts arrays of static values: addresses (`0x`-prefixed strings), and `uint*`/`int*`/`bytes*` (as `bigint`). The builder sorts and deduplicates the set automatically. The set must have at least one element, and its operands must fit the rule's data length field (PWF-20), so a narrower operand type admits a larger set.
 
 Allowlists (`isIn`) are the safer default over denylists (`notIn`). An allowlist is bounded and exhaustive; a denylist can be bypassed by values not yet anticipated.
 
@@ -88,9 +88,9 @@ const policy = PolicyBuilder
 
 ## Bitmask operators
 
-`bitmaskAll`, `bitmaskAny`, and `bitmaskNone` check specific bits in an integer value.
+`bitmaskAll`, `bitmaskAny`, and `bitmaskNone` check specific bits in a value.
 
-**Type restriction:** valid for `uint*` and `bytes32` parameters only.
+**Type restriction:** valid for `uint*`, `int*`, `address`, and `bytes1` to `bytes32` parameters.
 
 | Operator            | Semantics                                                 |
 | ------------------- | --------------------------------------------------------- |
@@ -115,7 +115,7 @@ const policy = PolicyBuilder
 
 ## Length constraints
 
-`lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, and `lengthBetween` constrain the byte length of a dynamic value.
+`lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, and `lengthBetween` constrain the length of a dynamic value: the bytes of a `bytes` or `string` value, the elements of a dynamic array.
 
 **Type restriction:** valid for `bytes`, `string`, and dynamic array parameters only. Not valid for static arrays.
 
@@ -195,7 +195,7 @@ Address properties (`MSG_SENDER`, `TX_ORIGIN`) pair with `address` arguments; ui
 
 ## Array quantifiers
 
-`Quantifier.ALL` and `Quantifier.ANY` apply a constraint across all elements of an array parameter:
+`Quantifier.ALL` and `Quantifier.ANY` apply a constraint across the elements of an array parameter:
 
 ```ts
 import { PolicyBuilder, Quantifier, arg } from "@callcium/sdk";
@@ -208,7 +208,7 @@ const policy = PolicyBuilder
   .build();
 ```
 
-Full quantifier semantics, empty-array behavior, and nested path patterns are in [Array Constraints](./building-policies/array-constraints).
+Constraints with the same quantifier over the same array form one loop: under `ANY`, one element satisfies all of them. Full quantifier semantics, empty-array behavior, and nested path patterns are in [Array Constraints](./building-policies/array-constraints).
 
 ## OR groups
 
@@ -237,19 +237,19 @@ The data is valid where either (spender is in the set and amount is within the c
 
 ## Building safely
 
-`build()` validates the policy's internal logic (type compatibility and structural consistency) and throws `CallciumError("VALIDATION_ERROR")` on the first error-severity issue. It does not check whether any specific data satisfies the policy; that is the enforcer's role.
+`build()` validates the policy's internal logic (type compatibility and structural consistency) and throws a `ValidationError` carrying every issue it finds, of any severity. It does not check whether any specific data satisfies the policy; that is the enforcer's role.
 
 For all issues without throwing, call `.validate()` instead. It returns an `Issue[]` covering errors, warnings, and suggestions. Issue types and severity levels are covered in [Policy Validation](./policy-validation).
 
 ## Operator compatibility
 
-| Operator family | Operators                                                                     | Valid argument types                                                     |
-| --------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Equality        | `eq`, `neq`                                                                   | All 32-byte static types (`address`, `uint*`, `int*`, `bytes32`, `bool`) |
-| Context reference | `eqCtx`, `neqCtx`, `gtCtx`, `ltCtx`, `gteCtx`, `lteCtx`                     | `address` for address properties (`eqCtx`, `neqCtx`); `uint*` for uint256 properties |
-| Comparison      | `gt`, `lt`, `gte`, `lte`, `between`                                           | `uint*`, `int*`                                                          |
-| Set membership  | `isIn`, `notIn`                                                               | `address`, `uint*`, `int*`, `bytes32`                                    |
-| Bitmask         | `bitmaskAll`, `bitmaskAny`, `bitmaskNone`                                     | `uint*`, `bytes32`                                                       |
-| Length          | `lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, `lengthBetween` | `bytes`, `string`, dynamic arrays                                        |
+| Operator family   | Operators                                                                     | Valid argument types                                                                  |
+| ----------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Equality          | `eq`, `neq`                                                                   | `address`, `bool`, `uint*`, `int*`, `bytes1` to `bytes32`, `function`                 |
+| Context reference | `eqCtx`, `neqCtx`, `gtCtx`, `ltCtx`, `gteCtx`, `lteCtx`                       | `address` for address properties (`eqCtx`, `neqCtx`); `uint*` for uint256 properties |
+| Comparison        | `gt`, `lt`, `gte`, `lte`, `between`                                           | `uint*`, `int*`                                                                       |
+| Set membership    | `isIn`, `notIn`                                                               | `address`, `uint*`, `int*`, `bytes1` to `bytes32`, `function`                         |
+| Bitmask           | `bitmaskAll`, `bitmaskAny`, `bitmaskNone`                                     | `address`, `uint*`, `int*`, `bytes1` to `bytes32`                                     |
+| Length            | `lengthEq`, `lengthGt`, `lengthLt`, `lengthGte`, `lengthLte`, `lengthBetween` | `bytes`, `string`, dynamic arrays                                                     |
 
-`build()` enforces these restrictions and throws `CallciumError("VALIDATION_ERROR")` on the first error-severity issue, carrying only that issue's `message`. For the full list of issues across all severities, call `.validate()` (see [Policy Validation](./policy-validation)).
+`build()` enforces these restrictions and throws a `ValidationError` carrying every issue it finds. For the issues without throwing, call `.validate()` (see [Policy Validation](./policy-validation)).

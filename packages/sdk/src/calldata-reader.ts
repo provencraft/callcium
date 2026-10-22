@@ -35,9 +35,9 @@ export function readLength(callData: Uint8Array, head: number): ReadResult<bigin
 /**
  * Read an ABI offset from a 32-byte slot.
  *
- * A number cannot hold a 256-bit word, so the high 28 bytes must be zero for the narrowing to be lossless; a wider
- * value is rejected as out of bounds, which is the verdict a bounds comparison over the full word reaches for any
- * offset that far past the end of calldata.
+ * A number cannot represent a 256-bit word, so the high 28 bytes must be zero for the narrowing to be lossless.
+ * A wider value is rejected as out of bounds. A bounds comparison over the full word reaches the same verdict for
+ * any offset that far past the end of calldata.
  */
 export function readPointer(callData: Uint8Array, head: number): ReadResult<number> {
   const word = loadWord(callData, head);

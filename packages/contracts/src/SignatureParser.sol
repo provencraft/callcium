@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { LibBytes } from "solady/utils/LibBytes.sol";
+import { LibBytes } from "./vendor/solady/utils/LibBytes.sol";
 
 /// @title SignatureParser
 /// @notice Parses strict Solidity-style function signatures and computes the selector.
@@ -28,28 +28,9 @@ library SignatureParser {
                                     FUNCTIONS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Parses a function signature and returns selector, name, and the raw types CSV.
-    /// @param signature The full signature string, e.g., "transfer(address,uint256)".
-    /// @return selector The 4-byte function selector computed as bytes4(keccak256(signature)).
-    /// @return name The function name substring before '('.
-    /// @return typesCsv The comma-separated types.
-    function parse(string memory signature)
-        internal
-        pure
-        returns (bytes4 selector, string memory name, string memory typesCsv)
-    {
-        bytes memory signatureBytes = bytes(signature);
-        uint256 openParenIndex = _scanAndValidate(signatureBytes);
-
-        name = string(LibBytes.slice(signatureBytes, 0, openParenIndex));
-        typesCsv = string(LibBytes.slice(signatureBytes, openParenIndex + 1, signatureBytes.length - 1));
-        // forge-lint: disable-next-line(unsafe-typecast) selector derivation truncates by definition.
-        selector = bytes4(keccak256(signatureBytes));
-    }
-
     /// @notice Parses a function signature and returns selector and the raw types CSV.
-    /// @dev Strict mode as in `parse(...)`: no whitespace, name(types), name validity.
-    /// @param signature The full signature string, e.g., "transfer(address,uint256)".
+    /// @dev Strict: no whitespace, name(types), name validity.
+    /// @param signature The full signature string, for example "transfer(address,uint256)".
     /// @return selector The 4-byte function selector computed as bytes4(keccak256(signature)).
     /// @return typesCsv The comma-separated types.
     function parseSelectorAndTypes(string memory signature)
@@ -61,7 +42,7 @@ library SignatureParser {
         uint256 openParenIndex = _scanAndValidate(signatureBytes);
 
         typesCsv = string(LibBytes.slice(signatureBytes, openParenIndex + 1, signatureBytes.length - 1));
-        // forge-lint: disable-next-line(unsafe-typecast) selector derivation truncates by definition.
+        // forge-lint: disable-next-line(unsafe-typecast) wire-field slice: the selector, the hash's first four bytes.
         selector = bytes4(keccak256(signatureBytes));
     }
 
@@ -91,7 +72,7 @@ library SignatureParser {
         require(found && signatureBytes[signatureLength - 1] == ")", MalformedSignature());
 
         uint256 nameLength = openParenIndex;
-        require(nameLength != 0, InvalidFunctionName());
+        // An empty name leaves '(' first, which the first-character check rejects.
         bytes1 firstChar = signatureBytes[0];
         require(_isAlpha(firstChar) || firstChar == "_", InvalidFunctionName());
         for (uint256 i = 1; i < nameLength; ++i) {

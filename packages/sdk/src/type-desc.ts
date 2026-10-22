@@ -42,11 +42,11 @@ export function function_(): Uint8Array {
 /**
  * Build a descriptor node for `uintN`.
  * @param bits - Bit width, 8–256 in steps of 8.
- * @throws {CallciumError} With code `UNKNOWN_TYPE` if bits is out of range or not a multiple of 8.
+ * @throws {CallciumError} With code `INVALID_UINT_BITS` if bits is out of range or not a multiple of 8.
  */
 export function uintN(bits: number): Uint8Array {
   if (bits < 8 || bits > 256 || bits % 8 !== 0) {
-    throw new CallciumError("UNKNOWN_TYPE", `Invalid uintN bits: ${bits}. Must be 8–256 in steps of 8`);
+    throw new CallciumError("INVALID_UINT_BITS", `Invalid uint width ${bits}`);
   }
   return new Uint8Array([TypeCode.UINT_MIN + (bits / 8 - 1)]);
 }
@@ -54,11 +54,11 @@ export function uintN(bits: number): Uint8Array {
 /**
  * Build a descriptor node for `intN`.
  * @param bits - Bit width, 8–256 in steps of 8.
- * @throws {CallciumError} With code `UNKNOWN_TYPE` if bits is out of range or not a multiple of 8.
+ * @throws {CallciumError} With code `INVALID_INT_BITS` if bits is out of range or not a multiple of 8.
  */
 export function intN(bits: number): Uint8Array {
   if (bits < 8 || bits > 256 || bits % 8 !== 0) {
-    throw new CallciumError("UNKNOWN_TYPE", `Invalid intN bits: ${bits}. Must be 8–256 in steps of 8`);
+    throw new CallciumError("INVALID_INT_BITS", `Invalid int width ${bits}`);
   }
   return new Uint8Array([TypeCode.INT_MIN + (bits / 8 - 1)]);
 }
@@ -76,11 +76,11 @@ export function string_(): Uint8Array {
 /**
  * Build a descriptor node for `bytesN`.
  * @param length - Byte width, 1–32.
- * @throws {CallciumError} With code `UNKNOWN_TYPE` if length is out of range.
+ * @throws {CallciumError} With code `INVALID_BYTES_LENGTH` if length is out of range.
  */
 export function bytesN(length: number): Uint8Array {
   if (length < 1 || length > 32) {
-    throw new CallciumError("UNKNOWN_TYPE", `Invalid bytesN size: ${length}. Must be 1–32`);
+    throw new CallciumError("INVALID_BYTES_LENGTH", `Invalid bytes length ${length}`);
   }
   return new Uint8Array([TypeCode.FIXED_BYTES_MIN + (length - 1)]);
 }

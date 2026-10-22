@@ -99,7 +99,7 @@ export function Enforcer() {
         <MonoTextarea
           id="enforcer-policy-hex"
           rows={3}
-          placeholder="0x01095ea7b3..."
+          placeholder="0x60095ea7b3..."
           value={policyInput}
           onChange={(e) => setPolicyInput(e.target.value)}
         />
@@ -238,7 +238,7 @@ function ResultDisplay({ result }: { result: EnforceOutput }) {
         <Icon className={cn("size-5 shrink-0", config.iconClass)} />
         <span className="font-semibold">{config.label}</span>
         {result.matchedGroup !== undefined && <span>Matched group {result.matchedGroup + 1}</span>}
-        {items[0] && <span>{formatViolation(items[0], result.params)}</span>}
+        {items[0] && <span className="font-mono">{formatViolation(items[0], result.policy)}</span>}
       </div>
     );
   }
@@ -254,7 +254,7 @@ function ResultDisplay({ result }: { result: EnforceOutput }) {
           // oxlint-disable-next-line react/no-array-index-key
           <div key={i} className="py-1.5">
             {isMultiGroup && "group" in v && <span className="mr-2 font-semibold">Group {v.group + 1}</span>}
-            <span>{formatViolation(v, result.params)}</span>
+            <span className="font-mono">{formatViolation(v, result.policy)}</span>
           </div>
         ))}
       </div>

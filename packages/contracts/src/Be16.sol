@@ -11,15 +11,6 @@ library Be16 {
                                      FUNCTIONS
     /////////////////////////////////////////////////////////////////////////*/
 
-    /// @notice Reads a big-endian uint16 from memory at the given offset.
-    /// @param data The byte buffer to read from.
-    /// @param offset The byte offset to start reading.
-    /// @return value The decoded uint16.
-    function read(bytes memory data, uint256 offset) internal pure returns (uint16) {
-        require(offset + 2 <= data.length, OutOfBounds());
-        return readUnchecked(data, offset);
-    }
-
     /// @notice Reads a big-endian uint16 without bounds checks.
     /// @dev Caller must ensure `offset + 2 <= data.length`.
     /// @param data The byte buffer to read from.
@@ -38,19 +29,6 @@ library Be16 {
     /// @param value The uint16 value to encode.
     function write(bytes memory data, uint256 offset, uint16 value) internal pure {
         require(offset + 2 <= data.length, OutOfBounds());
-        assembly ("memory-safe") {
-            let ptr := add(add(data, 32), offset)
-            mstore8(ptr, shr(8, value))
-            mstore8(add(ptr, 1), and(value, 0xff))
-        }
-    }
-
-    /// @notice Writes a big-endian uint16 without bounds checks.
-    /// @dev Caller must ensure `offset + 2 <= data.length`.
-    /// @param data The byte buffer to write to.
-    /// @param offset The byte offset to start writing.
-    /// @param value The uint16 value to encode.
-    function writeUnchecked(bytes memory data, uint256 offset, uint16 value) internal pure {
         assembly ("memory-safe") {
             let ptr := add(add(data, 32), offset)
             mstore8(ptr, shr(8, value))
