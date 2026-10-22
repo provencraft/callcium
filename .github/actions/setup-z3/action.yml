@@ -1,0 +1,15 @@
+name: Set up Z3
+description: Installs Z3 from its GitHub release and adds it to PATH.
+
+# apt's Z3 version changes with the runner's Ubuntu release; the release zip pins one version.
+runs:
+  using: composite
+  steps:
+    - name: Install Z3
+      shell: bash
+      working-directory: ${{ runner.temp }}
+      run: |
+        curl -fsSL -o z3.zip https://github.com/Z3Prover/z3/releases/download/z3-4.16.0/z3-4.16.0-x64-glibc-2.39.zip
+        echo "7288c49a5bd6dbafd7b0b0d1f65956b91672da24b08f09242919af159be3418e  z3.zip" | sha256sum --check
+        unzip -q z3.zip
+        echo "$PWD/z3-4.16.0-x64-glibc-2.39/bin" >> "$GITHUB_PATH"

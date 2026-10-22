@@ -1,12 +1,13 @@
+# Standard `**`: it also matches files directly under a package, such as `package.json`.
+glob_matcher: doublestar
+
 pre-commit:
   commands:
-    # Contracts
     forge-fmt:
       root: "packages/contracts/"
       glob: "packages/contracts/{src,test}/**/*.sol"
       run: forge fmt --check {staged_files}
 
-    # SDK
     sdk-fmt:
       root: "packages/sdk/"
       glob: "packages/sdk/**/*.{ts,json,md}"
@@ -18,11 +19,11 @@ pre-commit:
       run: bunx oxlint {staged_files}
 
     sdk-typecheck:
-      root: "packages/sdk/"
-      glob: "packages/sdk/**/*.ts"
-      run: bun run typecheck
+      glob:
+        - "packages/sdk/**/*.{ts,json}"
+        - "bun.lock"
+      run: bun run --cwd packages/sdk typecheck
 
-    # Docs
     docs-fmt:
       root: "packages/docs/"
       glob: "packages/docs/**/*.{ts,tsx,mjs,css,json,md}"
@@ -36,13 +37,13 @@ pre-commit:
       run: bunx oxlint {staged_files}
 
     docs-typecheck:
-      root: "packages/docs/"
-      glob: "packages/docs/**/*.{ts,tsx}"
-      run: bun run types:check
+      glob:
+        - "packages/docs/**/*.{ts,tsx,mjs,json}"
+        - "bun.lock"
+      run: bun run --cwd packages/docs typecheck
 
     docs-sync-solidity:
       glob:
-        - "packages/contracts/src/*.sol"
         - "packages/contracts/src/**/*.sol"
         - "packages/contracts/foundry.toml"
         - "packages/docs/tools/sync-reference.ts"
@@ -51,7 +52,6 @@ pre-commit:
 
     docs-sync-sdk:
       glob:
-        - "packages/sdk/src/*.ts"
         - "packages/sdk/src/**/*.ts"
         - "packages/sdk/typedoc.json"
         - "packages/docs/tools/sync-sdk-reference.ts"
@@ -59,7 +59,6 @@ pre-commit:
 
     docs-sync-specs:
       glob:
-        - "spec/*.md"
         - "spec/**/*.md"
         - "packages/docs/tools/sync-specs.ts"
       run: bun run --cwd packages/docs sync:specs && git add "packages/docs/content/docs/(protocol)/specifications"

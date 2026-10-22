@@ -21,7 +21,7 @@ jobs:
       FOUNDRY_PROFILE: release
       SOLDEER_API_TOKEN: ${{ secrets.SOLDEER_API_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -42,6 +42,9 @@ jobs:
 
       - name: Build
         run: bun run build
+
+      - name: Install Z3
+        uses: ./.github/actions/setup-z3
 
       - name: Test
         run: bun run test

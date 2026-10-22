@@ -21,6 +21,11 @@ fs_permissions = [
     { access = "read-write", path = "./out/storage.txt" },
     { access = "read-write", path = "./out/validation.txt" },
 ]
+# Harnesses expose `check` entry points, which symbolic mode would run as proofs.
+no_match_path = "test/harnesses/*"
+
+[profile.default.symbolic]
+enabled = true
 
 # Compile-checks the library at the minimum supported compiler version.
 [profile.floor]

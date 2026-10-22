@@ -1,7 +1,7 @@
 name: CI
 
-# The run ID seeds the differential corpus, the decoder-fidelity corpus and the Forge fuzz runs, so a failure reproduces
-# from this name.
+# The run ID seeds the differential corpus, its mutations, the decoder-fidelity corpus and the Forge fuzz runs, so a
+# failure reproduces from this name.
 run-name: CI (seed ${{ github.run_id }})
 
 on:
@@ -36,7 +36,7 @@ jobs:
       run:
         working-directory: packages/contracts
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -51,19 +51,16 @@ jobs:
 
       - name: Check Forge formatting
         run: bun run fmt:check
-        id: fmt
 
       - name: Lint
         run: bun run lint
-        id: lint
 
       - name: Run Forge build
         run: bun run build
-        id: build
 
       # The replay tests read it from here.
       - name: Download the differential corpus
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: differential-corpus
           path: spec/lean/corpus
@@ -72,29 +69,30 @@ jobs:
         run: bun run corpus:mutants
 
       - name: Upload the mutated differential corpus
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: differential-mutants
           path: spec/lean/corpus/enforcement-mutants.txt
           if-no-files-found: error
 
+      - name: Install Z3
+        uses: ./.github/actions/setup-z3
+
       - name: Run Forge tests
         run: bun run test -vvv
-        id: test
 
       - name: Write the decoder-fidelity corpus
         run: bun run corpus:decoder-fidelity ${{ inputs.decoder_fidelity_cases || '512' }}
 
-      # The floor step below rebuilds into `out/`, which holds this corpus.
       - name: Upload the decoder-fidelity corpus
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: decoder-fidelity-corpus
           path: packages/contracts/out/decoder-fidelity.txt
           if-no-files-found: error
 
       - name: Upload the Forge replay
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: forge-replay
           path: |
@@ -104,33 +102,19 @@ jobs:
             packages/contracts/out/validation.txt
           if-no-files-found: error
 
-      # Ubuntu's apt ships Z3 4.8.12; the release zip pins the version the proofs are run with locally.
-      - name: Install Z3
-        working-directory: ${{ runner.temp }}
-        run: |
-          curl -fsSL -o z3.zip https://github.com/Z3Prover/z3/releases/download/z3-4.16.0/z3-4.16.0-x64-glibc-2.39.zip
-          echo "7288c49a5bd6dbafd7b0b0d1f65956b91672da24b08f09242919af159be3418e  z3.zip" | sha256sum --check
-          unzip -q z3.zip
-          echo "$PWD/z3-4.16.0-x64-glibc-2.39/bin" >> "$GITHUB_PATH"
-
-      - name: Prove the prove_ tests symbolically
-        run: bun run prove
-        id: prove
-
       # Last: the floor profile forces a full rebuild into the shared out directory,
       # so every step above would otherwise recompile under the ci profile.
       - name: Check floor compiler version
         run: bun run build:floor
-        id: floor
 
   docs:
     name: Docs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -149,10 +133,9 @@ jobs:
         working-directory: packages/docs
         run: bun run fmt:check
 
-      # Ahead of lint and tests: this generates the MDX collections they import.
       - name: Type check docs
         working-directory: packages/docs
-        run: bun run types:check
+        run: bun run typecheck
 
       - name: Lint docs
         working-directory: packages/docs
@@ -170,7 +153,7 @@ jobs:
     name: Lean
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Building Tests runs the axiom audit; --wfail makes a `sorry` warning fatal.
       - name: Build and check the Lean model
@@ -189,7 +172,7 @@ jobs:
     name: Corpus
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # No GitHub cache: the Lean job saves the proof build under the same key.
       - name: Build the corpus generator
@@ -200,13 +183,12 @@ jobs:
           test: false
           use-github-cache: false
 
-      # Exits nonzero when a coverage count is zero, so a corpus that misses one is never uploaded.
       - name: Generate the differential corpus
         working-directory: spec/lean
         run: lake exe generate-corpus ${{ github.run_id }} 1000 corpus
 
       - name: Upload the differential corpus
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: differential-corpus
           path: spec/lean/corpus/
@@ -217,7 +199,7 @@ jobs:
     needs: [corpus, forge, sdk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build the checkers
         uses: leanprover/lean-action@v1
@@ -228,7 +210,7 @@ jobs:
           use-github-cache: false
 
       - name: Download the decoder-fidelity corpus
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: decoder-fidelity-corpus
           path: spec/lean/decoder-fidelity
@@ -239,19 +221,19 @@ jobs:
         run: (ulimit -v 8000000; .lake/build/bin/decoder-fidelity decoder-fidelity/decoder-fidelity.txt)
 
       - name: Download the differential corpus
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: differential-corpus
           path: spec/lean/corpus
 
       - name: Download the Forge replay
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: forge-replay
           path: spec/lean/replay/forge
 
       - name: Download the SDK replay
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: sdk-replay
           path: spec/lean/replay/sdk
@@ -293,10 +275,10 @@ jobs:
     needs: [corpus, forge]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -327,13 +309,13 @@ jobs:
         run: bun run test
 
       - name: Download the differential corpus
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: differential-corpus
           path: spec/lean/corpus
 
       - name: Download the mutated differential corpus
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: differential-mutants
           path: spec/lean/corpus
@@ -343,7 +325,7 @@ jobs:
         run: bun run replay
 
       - name: Upload the SDK replay
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sdk-replay
           path: |
