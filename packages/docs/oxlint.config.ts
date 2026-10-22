@@ -33,5 +33,6 @@ export default defineConfig({
     "react/react-in-jsx-scope": "off",
     "typescript/no-unsafe-type-assertion": "off",
     "typescript/consistent-return": "off",
+    "no-underscore-dangle": ["error", { allow: ["function_"] }],
   },
 });

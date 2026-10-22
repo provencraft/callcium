@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
 export type Lang = "solidity" | "typescript";
@@ -17,25 +17,31 @@ function isLang(value: string | null): value is Lang {
   return value === "solidity" || value === "typescript";
 }
 
+const listeners = new Set<() => void>();
+
+// The storage event reaches other tabs only; listeners cover this one.
+function subscribe(onChange: () => void) {
+  listeners.add(onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    listeners.delete(onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function readLang(): Lang {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return isLang(stored) ? stored : "solidity";
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  // Default to Solidity for a deterministic SSR render; the stored choice is applied after mount (a brief
-  // Solidity-first paint is acceptable).
-  const [lang, setLangState] = useState<Lang>("solidity");
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (isLang(stored)) setLangState(stored);
-
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === STORAGE_KEY && isLang(event.newValue)) setLangState(event.newValue);
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  // The server snapshot is Solidity for a deterministic SSR render; the stored choice is applied after hydration (a
+  // brief Solidity-first paint is acceptable).
+  const lang = useSyncExternalStore(subscribe, readLang, (): Lang => "solidity");
 
   const setLang = useCallback((next: Lang) => {
-    setLangState(next);
     localStorage.setItem(STORAGE_KEY, next);
+    for (const listener of listeners) listener();
   }, []);
 
   return <LanguageContext.Provider value={{ lang, setLang }}>{children}</LanguageContext.Provider>;

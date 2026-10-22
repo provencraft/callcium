@@ -18,15 +18,15 @@ function resolveIcon(icon: string): ReactElement | undefined {
   console.warn(`[icons-plugin] Unknown icon: ${icon}.`);
 }
 
+function replace<T extends { icon?: unknown }>(node: T): T {
+  if (typeof node.icon === "string") {
+    (node as { icon: unknown }).icon = resolveIcon(node.icon);
+  }
+  return node;
+}
+
 /** Fumadocs source plugin that rewrites `icon` strings in the page tree into React elements. */
 export function iconsPlugin() {
-  const replace = <T extends { icon?: unknown }>(node: T): T => {
-    if (typeof node.icon === "string") {
-      (node as { icon: unknown }).icon = resolveIcon(node.icon);
-    }
-    return node;
-  };
-
   return {
     name: "callcium:icons",
     transformPageTree: {

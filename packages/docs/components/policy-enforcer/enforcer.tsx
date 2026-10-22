@@ -5,7 +5,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui
 import { ChevronDown, ArrowRight, ShieldCheck, ShieldX, ShieldQuestion } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Context, Hex } from "@callcium/sdk";
 import { ErrorBox } from "@/components/ui/error-box";
 import { MonoInput } from "@/components/ui/mono-input";
@@ -44,15 +44,10 @@ const CONTEXT_PLACEHOLDERS: Record<string, string> = {
 
 export function Enforcer() {
   const searchParams = useSearchParams();
-  const [policyInput, setPolicyInput] = useState("");
+  const [policyInput, setPolicyInput] = useState(() => searchParams.get("policy") ?? "");
   const [calldataInput, setCalldataInput] = useState("");
   const [contextOpen, setContextOpen] = useState(false);
   const [ctxValues, setCtxValues] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const policyHex = searchParams.get("policy");
-    if (policyHex) setPolicyInput(policyHex);
-  }, [searchParams]);
 
   const debouncedPolicy = useDebounce(policyInput, 300);
   const debouncedCalldata = useDebounce(calldataInput, 300);
@@ -69,7 +64,7 @@ export function Enforcer() {
         if (parsed !== undefined) ctx[property.contextKey] = parsed;
       }
     }
-    return Object.keys(ctx).length > 0 ? (ctx as Context) : undefined;
+    return Object.keys(ctx).length > 0 ? ctx : undefined;
   }, [ctxValues]);
 
   const result = useMemo((): EnforceOutput | null => {

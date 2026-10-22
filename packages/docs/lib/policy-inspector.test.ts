@@ -22,20 +22,20 @@ const policy = (id: string) => vectorBlob(policyVectors, id);
 const enforcement = (id: string) => vectorBlob(enforcementVectors, id);
 const validation = (id: string) => vectorBlob(validationVectors, id);
 
-function _explain(blob: Hex, abi?: Abi) {
+function explain(blob: Hex, abi?: Abi) {
   return explainPolicy(PolicyCoder.inspect(blob), abi ? { abi } : undefined);
 }
 
 /** The root test at `index` of the first group. */
-function _test(blob: Hex, index = 0): ExplainedTest {
-  const rule = _explain(blob).groups[0].rules[index];
+function rootTest(blob: Hex, index = 0): ExplainedTest {
+  const rule = explain(blob).groups[0].rules[index];
   if ("body" in rule) throw new Error("Root test expected");
   return rule;
 }
 
 /** The first rule of the first group, a loop. */
-function _loop(blob: Hex): ExplainedLoop {
-  const rule = _explain(blob).groups[0].rules[0];
+function firstLoop(blob: Hex): ExplainedLoop {
+  const rule = explain(blob).groups[0].rules[0];
   if (!("body" in rule)) throw new Error("Loop expected");
   return rule;
 }
@@ -58,16 +58,16 @@ describe("operand decoding", () => {
 
   for (const [label, blob, expected] of cases) {
     it(`decodes ${label}`, () => {
-      expect(_test(blob).operands).toEqual(expected);
+      expect(rootTest(blob).operands).toEqual(expected);
     });
   }
 
   it("decodes a bytes1 operand as its left-aligned byte", () => {
-    expect(_test(validation("left-aligned-contradiction"), 1).operands).toEqual(["0x80"]);
+    expect(rootTest(validation("left-aligned-contradiction"), 1).operands).toEqual(["0x80"]);
   });
 
   it("decodes bytes32", () => {
-    const [operand] = _test(validation("numeric-op-on-bytes32")).operands;
+    const [operand] = rootTest(validation("numeric-op-on-bytes32")).operands;
     expect(operand).toMatch(/^0x/);
     expect(operand).toHaveLength(66); // "0x" + 64 hex chars.
   });
@@ -79,44 +79,44 @@ describe("operand decoding", () => {
 
 describe("operator types", () => {
   it("decodes IN with multiple operands", () => {
-    const test = _test(enforcement("in-pass"));
+    const test = rootTest(enforcement("in-pass"));
     expect(test.operator).toBe("in");
     expect(test.operands).toEqual(["10", "20", "30"]);
   });
 
   it("decodes BETWEEN with two operands", () => {
-    const test = _test(policy("calldata-between-uint256"));
+    const test = rootTest(policy("calldata-between-uint256"));
     expect(test.operator).toBe("between");
     expect(test.operands).toEqual(["10", "100"]);
   });
 
   it("decodes negated operator", () => {
-    const test = _test(policy("calldata-not-eq"));
+    const test = rootTest(policy("calldata-not-eq"));
     expect(test.operator).toBe("!=");
     expect(test.negated).toBe(true);
     expect(test.operands).toEqual(["42"]);
   });
 
   it("decodes negated GT", () => {
-    const test = _test(enforcement("not-gt-ctx-value-pass"));
+    const test = rootTest(enforcement("not-gt-ctx-value-pass"));
     expect(test.operator).toBe("not > ctx");
     expect(test.negated).toBe(true);
   });
 
   it("decodes length operator with decimal operands", () => {
-    const test = _test(policy("calldata-length-eq-bytes"));
+    const test = rootTest(policy("calldata-length-eq-bytes"));
     expect(test.operator).toBe("length ==");
     expect(test.operands).toEqual(["5"]);
   });
 
   it("decodes a context operand", () => {
-    const test = _test(policy("calldata-eq-context-sender"));
+    const test = rootTest(policy("calldata-eq-context-sender"));
     expect(test.operator).toBe("== ctx");
     expect(test.operands).toEqual(["msg.sender"]);
   });
 
   it("decodes a negated context operand", () => {
-    const test = _test(enforcement("eq-ctx-negated-pass"));
+    const test = rootTest(enforcement("eq-ctx-negated-pass"));
     expect(test.operator).toBe("!= ctx");
     expect(test.negated).toBe(true);
     expect(test.operands).toEqual(["msg.sender"]);
@@ -129,7 +129,7 @@ describe("operator types", () => {
 
 describe("scope and path resolution", () => {
   it("labels calldata scope with positional arg", () => {
-    const test = _test(validation("ordering-ops-on-address"), 1);
+    const test = rootTest(validation("ordering-ops-on-address"), 1);
     expect(test.scope).toBe("calldata");
     expect(test.pathLabel).toBe("arg(1)");
     expect(test.targetType).toBe("address");
@@ -146,7 +146,7 @@ describe("scope and path resolution", () => {
 
   for (const [blob, label, type] of contextCases) {
     it(`resolves ${label} as ${type}`, () => {
-      const test = _test(blob);
+      const test = rootTest(blob);
       expect(test.scope).toBe("context");
       expect(test.pathLabel).toBe(label);
       expect(test.targetType).toBe(type);
@@ -154,19 +154,19 @@ describe("scope and path resolution", () => {
   }
 
   it("resolves tuple field path", () => {
-    const test = _test(enforcement("tuple-field-pass"));
+    const test = rootTest(enforcement("tuple-field-pass"));
     expect(test.pathLabel).toBe("arg(0).field(1)");
     expect(test.targetType).toBe("address");
   });
 
   it("resolves dynamic array element path", () => {
-    const test = _test(enforcement("group-local-array-index-multi-group"));
+    const test = rootTest(enforcement("group-local-array-index-multi-group"));
     expect(test.pathLabel).toBe("arg(0)[5]");
     expect(test.targetType).toBe("uint256");
   });
 
   it("heads a loop's body with its array and quantifier, labelling each body test from the element", () => {
-    const loop = _loop(policy("loop-any-two-tests"));
+    const loop = firstLoop(policy("loop-any-two-tests"));
     expect(loop.pathLabel).toBe("arg(0)[any]");
     expect(loop.body.map((test) => [test.pathLabel, test.operator, test.targetType])).toEqual([
       [".field(0)", "==", "address"],
@@ -181,13 +181,13 @@ describe("scope and path resolution", () => {
 
 describe("structure", () => {
   it("handles multiple groups", () => {
-    const { groups } = _explain(policy("two-groups"));
+    const { groups } = explain(policy("two-groups"));
     expect(groups).toHaveLength(2);
     expect(groups.map((group) => (group.rules[0] as ExplainedTest).operands[0])).toEqual(["1", "2"]);
   });
 
   it("handles context and calldata tests in one group", () => {
-    const { rules } = _explain(policy("context-and-calldata")).groups[0];
+    const { rules } = explain(policy("context-and-calldata")).groups[0];
     expect(rules.map((rule) => [(rule as ExplainedTest).scope, rule.pathLabel])).toEqual([
       ["context", "msg.sender"],
       ["calldata", "arg(0)"],
@@ -196,11 +196,11 @@ describe("structure", () => {
 
   it("handles multiple tests on one path", () => {
     const blob = enforcement("multi-rule-and-pass");
-    expect([_test(blob, 0).operator, _test(blob, 1).operator]).toEqual([">", "<="]);
+    expect([rootTest(blob, 0).operator, rootTest(blob, 1).operator]).toEqual([">", "<="]);
   });
 
   it("reports params from descriptor", () => {
-    const { params } = _explain(validation("unnavigable-path-beside-numeric-op"));
+    const { params } = explain(validation("unnavigable-path-beside-numeric-op"));
     expect(params.map((p) => p.type)).toEqual(["tuple", "address"]);
     expect(params.every((p) => p.name === null)).toBe(true);
   });
@@ -212,7 +212,7 @@ describe("structure", () => {
 
 describe("selectorless", () => {
   it("reports isSelectorless and null function name", () => {
-    const explained = _explain(policy("selectorless"));
+    const explained = explain(policy("selectorless"));
     expect(explained.isSelectorless).toBe(true);
     expect(explained.functionName).toBeNull();
   });
@@ -242,32 +242,32 @@ describe("ABI enrichment", () => {
   const blob = enforcement("group-order-from-blob");
 
   it("resolves function name from ABI", () => {
-    expect(_explain(blob, abi).functionName).toBe("foo");
+    expect(explain(blob, abi).functionName).toBe("foo");
   });
 
   it("resolves param names from ABI", () => {
-    const { params } = _explain(blob, abi);
+    const { params } = explain(blob, abi);
     expect(params.map((p) => p.name)).toEqual(["amount", "decimals"]);
   });
 
   it("uses ABI param names in path labels", () => {
-    expect(_explain(blob, abi).groups[0].rules[0].pathLabel).toBe("decimals");
+    expect(explain(blob, abi).groups[0].rules[0].pathLabel).toBe("decimals");
   });
 
   it("uses ABI component names in struct field labels", () => {
     const structAbi = parseAbi(["function foo((uint256 amount, address recipient) order)"]);
-    expect(_explain(enforcement("tuple-field-pass"), structAbi).groups[0].rules[0].pathLabel).toBe("order.recipient");
+    expect(explain(enforcement("tuple-field-pass"), structAbi).groups[0].rules[0].pathLabel).toBe("order.recipient");
   });
 
   it("falls back to positional labels when ABI does not match", () => {
-    const explained = _explain(policy("calldata-eq-uint256"), abi);
+    const explained = explain(policy("calldata-eq-uint256"), abi);
     expect(explained.functionName).toBeNull();
     expect(explained.params[0].name).toBeNull();
     expect(explained.groups[0].rules[0].pathLabel).toBe("arg(0)");
   });
 
   it("ignores ABI for selectorless policies", () => {
-    const explained = _explain(policy("selectorless"), abi);
+    const explained = explain(policy("selectorless"), abi);
     expect(explained.functionName).toBeNull();
     expect(explained.params[0].name).toBeNull();
   });

@@ -90,17 +90,11 @@ function tryDecode(hex: string, abi: Abi | undefined): DecodeResult | null {
 
 export function Inspector() {
   const searchParams = useSearchParams();
-  const [hexInput, setHexInput] = useState("");
+  const [hexInput, setHexInput] = useState(() => searchParams.get("policy") ?? "");
   const [abiInput, setAbiInput] = useState("");
   const [abiOpen, setAbiOpen] = useState(false);
-  const [lookedUpName, setLookedUpName] = useState<string | null>(null);
-  const [lookingUp, setLookingUp] = useState(false);
+  const [lookup, setLookup] = useState<{ selector: string; name: string | null } | null>(null);
   const [inspectMode, setInspectMode] = useState(false);
-
-  useEffect(() => {
-    const policyHex = searchParams.get("policy");
-    if (policyHex) setHexInput(policyHex);
-  }, [searchParams]);
 
   const debouncedHex = useDebounce(hexInput, 300);
   const abi = useMemo(() => {
@@ -115,20 +109,18 @@ export function Inspector() {
     result?.ok && !result.explained.functionName && !result.explained.isSelectorless ? result.explained.selector : null;
 
   useEffect(() => {
-    setLookedUpName(null);
-    setLookingUp(false);
     if (!lookupSelector) return;
 
     const controller = new AbortController();
-    setLookingUp(true);
     void lookup4byte(lookupSelector, controller.signal).then((name) => {
-      if (!controller.signal.aborted) {
-        setLookedUpName(name);
-        setLookingUp(false);
-      }
+      if (!controller.signal.aborted) setLookup({ selector: lookupSelector, name });
     });
     return () => controller.abort();
   }, [lookupSelector]);
+
+  const lookupSettled = lookup?.selector === lookupSelector;
+  const lookedUpName = lookupSettled ? lookup.name : null;
+  const lookingUp = lookupSelector !== null && !lookupSettled;
 
   const resolvedName = result?.ok && result.explained.functionName ? result.explained.functionName : lookedUpName;
 

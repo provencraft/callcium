@@ -65,7 +65,7 @@ describe("checkPolicy", () => {
       .add(msgSender().eq(sender))
       .build();
     const result = checkPolicy(policyWithContext, encodeApprove(spender, 1000n), {
-      msgSender: sender as `0x${string}`,
+      msgSender: sender,
     });
     expect(result.status).toBe("pass");
   });
@@ -80,7 +80,7 @@ describe("checkPolicy", () => {
   });
 
   it("returns error for invalid policy hex", () => {
-    const result = checkPolicy("0x11111111" as Hex, "0x00000000" as Hex);
+    const result = checkPolicy("0x11111111", "0x00000000");
     expect(result.status).toBe("error");
   });
 

@@ -63,14 +63,36 @@ const QUANTIFIER_OPTIONS = [
 ] as const;
 
 ///////////////////////////////////////////////////////////////////////////
+// Shared policy link
+///////////////////////////////////////////////////////////////////////////
+
+/** The builder input a `policy` link describes, or null when the link carries no policy that decodes. */
+function readPolicyLink(policyHex: string | null) {
+  if (!policyHex) return null;
+  try {
+    const decoded = PolicyCoder.decode(policyHex as Hex);
+    const types = descriptorToTypes(hexToBytes(decoded.descriptor));
+    if (decoded.isSelectorless) return { types, signature: types, selectorless: true, selector: null };
+    return { types, signature: `unknown(${types})`, selectorless: false, selector: decoded.selector };
+  } catch (e) {
+    // An invalid policy in the link leaves the builder empty.
+    if (!(e instanceof CallciumError)) throw e;
+    return null;
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////
 // Main component
 ///////////////////////////////////////////////////////////////////////////
 
 export function Builder() {
   const searchParams = useSearchParams();
-  const [session, setSession] = useState<BuilderSession | null>(null);
-  const [signatureInput, setSignatureInput] = useState("");
-  const [isSelectorless, setIsSelectorless] = useState(false);
+  const [link] = useState(() => readPolicyLink(searchParams.get("policy")));
+  const [session, setSession] = useState<BuilderSession | null>(() =>
+    link ? createSession(link.signature, { selectorless: link.selectorless }) : null,
+  );
+  const [signatureInput, setSignatureInput] = useState(link?.signature ?? "");
+  const [isSelectorless, setIsSelectorless] = useState(link?.selectorless ?? false);
   const [copied, setCopied] = useState(false);
   const [activeExample, setActiveExample] = useState<BuilderExample | null>(null);
   const [exampleDropdownOpen, setExampleDropdownOpen] = useState(false);
@@ -88,43 +110,25 @@ export function Builder() {
 
   const debouncedSignature = useDebounce(signatureInput, 300);
 
-  useEffect(() => {
+  // The session follows the debounced signature unless an example owns it.
+  const sessionKey = `${debouncedSignature}\n${isSelectorless}\n${activeExample?.name ?? ""}`;
+  const [syncedKey, setSyncedKey] = useState(sessionKey);
+  if (sessionKey !== syncedKey) {
+    setSyncedKey(sessionKey);
     const signature = debouncedSignature.trim();
-    if (!signature || activeExample) return;
-    const s = createSession(signature, { selectorless: isSelectorless });
-    setSession(s);
-  }, [debouncedSignature, isSelectorless, activeExample]);
+    if (signature && !activeExample) setSession(createSession(signature, { selectorless: isSelectorless }));
+  }
 
-  // Load from query param on mount — replay pattern.
+  // A link to a function-bound policy names its function by selector; resolve the name once.
   useEffect(() => {
-    const policyHex = searchParams.get("policy");
-    if (!policyHex) return;
-    try {
-      const decoded = PolicyCoder.decode(policyHex as Hex);
-      const desc = hexToBytes(decoded.descriptor);
-      const types = descriptorToTypes(desc);
-      if (decoded.isSelectorless) {
-        setSignatureInput(types);
-        setIsSelectorless(true);
-        setSession(createSession(types, { selectorless: true }));
-      } else {
-        // Use types immediately, then look up the function name async.
-        const fallbackSignature = `unknown(${types})`;
-        setSignatureInput(fallbackSignature);
-        setSession(createSession(fallbackSignature));
-        void lookup4byte(decoded.selector).then((name) => {
-          if (name) {
-            const signature = `${name}(${types})`;
-            setSignatureInput(signature);
-            setSession(createSession(signature));
-          }
-        });
-      }
-    } catch (e) {
-      // An invalid policy in the link leaves the builder empty.
-      if (!(e instanceof CallciumError)) throw e;
-    }
-  }, [searchParams]);
+    if (!link?.selector) return;
+    void lookup4byte(link.selector).then((name) => {
+      if (!name) return;
+      const signature = `${name}(${link.types})`;
+      setSignatureInput(signature);
+      setSession(createSession(signature));
+    });
+  }, [link]);
 
   useEffect(() => {
     if (!exampleDropdownOpen) return;
@@ -172,12 +176,13 @@ export function Builder() {
     setSession(null);
   }, []);
 
+  const sessionHex = session?.hex;
   const handleCopy = useCallback(() => {
-    if (!session?.hex) return;
-    void navigator.clipboard.writeText(session.hex);
+    if (!sessionHex) return;
+    void navigator.clipboard.writeText(sessionHex);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
-  }, [session?.hex]);
+  }, [sessionHex]);
 
   const handleAddConstraint = useCallback(
     (groupIndex: number, config: ConstraintInput) => {
