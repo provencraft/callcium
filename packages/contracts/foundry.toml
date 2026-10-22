@@ -12,6 +12,7 @@ optimizer_runs = 10_000
 via_ir = true
 isolate = true
 ast = true
+deny = "warnings"
 fs_permissions = [
     { access = "read", path = "../../spec/vectors/" },
     { access = "read-write", path = "../../spec/lean/corpus/" },
