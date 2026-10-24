@@ -18,7 +18,7 @@ inductive Verdict where
   | abort
   deriving Repr, DecidableEq
 
-/-- Evaluates `items` in order. `ALL` returns the first verdict other than pass, and pass when there is none; `ANY`
+/-- Evaluates `items` in order. `ALL` returns the first verdict other than pass, and pass when there is none. `ANY`
 returns the first verdict other than fail, and fail when there is none. -/
 def Quantifier.evaluate {Item : Type} (evaluate : Item → Verdict) : Quantifier → List Item → Verdict
   | .all, [] => .pass
@@ -50,7 +50,7 @@ mutual
           Group.evaluateValues ctx (⟨element, some position⟩ :: stack) body) elements.zipIdx
       | _ => .fail
 
-  /-- The first verdict other than pass, in rule order; pass when every rule passes. -/
+  /-- The first verdict other than pass, in rule order. Pass when every rule passes. -/
   def Group.evaluateValues (ctx : Context) (stack : Stack) : Group → Verdict
     | [] => .pass
     | rule :: rules =>
@@ -59,7 +59,7 @@ mutual
       | verdict => verdict
 end
 
-/-- The first verdict other than fail, in group order; fail when every group fails. -/
+/-- The first verdict other than fail, in group order. Fail when every group fails. -/
 def Formula.evaluateValues (ctx : Context) (stack : Stack) : Formula → Verdict
   | [] => .fail
   | group :: groups =>

@@ -3,10 +3,11 @@ import Callcium.Abi.Value
 /-!
 # ABI encoder
 
-`AbiType.encode` writes a value of a type in the canonical ABI encoding: a word for a word type, a length word and the
-bytes zero-padded to whole words for `bytes` and `string`, and for a tuple or an array its components' heads followed
-by their tails. A static component's head is its encoding; a dynamic component's head is the offset of its encoding,
-placed among the tails, from the start of the heads. A dynamic array opens with its length.
+`AbiType.encode` writes a value of a type in the canonical ABI encoding. The encoding of a word type is one word. The
+encoding of `bytes` and `string` is a length word and the bytes zero-padded to whole words. The encoding of a tuple or
+an array is its components' heads followed by their tails. A static component's head is its encoding. A dynamic
+component's head is the offset of its encoding, placed among the tails, from the start of the heads. A dynamic array
+starts with its length.
 -/
 
 namespace Callcium

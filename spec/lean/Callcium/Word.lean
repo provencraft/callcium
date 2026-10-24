@@ -73,8 +73,8 @@ inductive WordType where
 def Word.signExtendFrom (width : ByteWidth) (word : Word) : Word :=
   (word.setWidth width.bits).signExtend 256
 
-/-- Whether `word` is the canonical encoding of a value of the type: no bits above a right-aligned value, none below a
-left-aligned one, and a signed value equal to its sign extension. -/
+/-- Whether `word` is the canonical encoding of a value of the type. The word has no bits above a right-aligned value.
+It has no bits below a left-aligned one. A signed value equals its sign extension. -/
 def WordType.isCanonical : WordType → Word → Bool
   | .uint width, word => word >>> width.bits == 0
   | .int width, word => word.signExtendFrom width == word
@@ -83,8 +83,8 @@ def WordType.isCanonical : WordType → Word → Bool
   | .function, word => word <<< 192 == 0
   | .fixedBytes width, word => word <<< width.bits == 0
 
-/-- Solidity's cleanup of a word to the type, `cleanup_t_<type>`: a low mask for unsigned integers and addresses, a high
-mask for fixed bytes and function pointers, sign extension for signed integers, and `iszero(iszero(word))` for `bool`.
+/-- Solidity's cleanup of a word to the type, `cleanup_t_<type>`. Unsigned integers and addresses take a low mask. Fixed
+bytes and function pointers take a high mask. Signed integers take sign extension. `bool` takes `iszero(iszero(word))`.
 -/
 def WordType.cleanup : WordType → Word → Word
   | .uint width, word => word &&& BitVec.ofNat 256 (2 ^ width.bits - 1)
@@ -94,8 +94,8 @@ def WordType.cleanup : WordType → Word → Word
   | .function, word => word &&& (BitVec.allOnes 256 <<< 64)
   | .fixedBytes width, word => word &&& (BitVec.allOnes 256 <<< (256 - width.bits))
 
-/-- Whether Solidity's ABI decoder accepts `word` as a value of the type, `validator_revert_t_<type>`: the word equals
-its cleanup. -/
+/-- Whether Solidity's ABI decoder accepts `word` as a value of the type, `validator_revert_t_<type>`. The decoder
+accepts the word when it equals its cleanup. -/
 def WordType.solcAcceptsWord (wordType : WordType) (word : Word) : Bool :=
   wordType.cleanup word == word
 

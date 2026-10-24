@@ -6,10 +6,10 @@ import Callcium.Descriptor.Codec
 # Wire format
 
 The byte layout of a policy blob in format v3: `header | selector | descLength | desc | groupCount | groups`. The header
-byte carries `major` in bits 7–5, `minor` in bits 4–1 and `FLAG_NO_SELECTOR` in bit 0. A root group is
-`ruleCount | groupSize | rules`. A rule is `ruleSize | scope | payload`, with a payload per `scope`: a context test, a
-calldata test with its hint, or a loop with its hint and a body of tests. An operator is `opCode | dataLength | data`,
-and a constant is as wide as its operand type. Multi-byte fields are big-endian.
+byte carries `major` in bits 7–5, `minor` in bits 4–1 and `FLAG_NO_SELECTOR` in bit 0. A root group is `ruleCount |
+groupSize | rules`. A rule is `ruleSize | scope | payload`. Its payload depends on `scope`: a context test, a calldata
+test with its hint, or a loop with its hint and a body of tests. An operator is `opCode | dataLength | data`, and a
+constant is as wide as its operand type. Multi-byte fields are big-endian.
 
 `CompiledRule` is a rule as the blob carries it, with its hints and loaded operands. `CompiledRule.write` writes one,
 and `CompiledRule.sizeFree` gives the bytes the canonical order compares: the rule's bytes with every `ruleSize`
@@ -62,7 +62,7 @@ def SOURCE_CONTEXT : Nat := 1
 
 /-- `opCode` bit 7: the result is negated. -/
 def NOT_FLAG : Nat := 0x80
-/-- The position of `source` in `opCode`; `comparison` fills the bits below it. -/
+/-- The position of `source` in `opCode`. `comparison` fills the bits below it. -/
 def SOURCE_SHIFT : Nat := 5
 
 /-- A hop `index` naming a plain hop. -/
@@ -75,7 +75,7 @@ def MAX_HOP_COUNT : Nat := 2 ^ 6 - 1
 def META_ELEMENT_DYNAMIC : Nat := 0x8000
 /-- Meta word bit 14: the array is dynamic. -/
 def META_DYNAMIC_ARRAY : Nat := 0x4000
-/-- One past the largest `strideWords`, which fills meta word bits 11–0; bits 13–12 are reserved. -/
+/-- One past the largest `strideWords`, which fills meta word bits 11–0. Bits 13–12 are reserved. -/
 def META_STRIDE_LIMIT : Nat := 0x1000
 
 /-! ## Codes -/
@@ -99,7 +99,7 @@ def Comparison.code : Comparison → UInt8
   | .lengthLte => 0x1C
   | .lengthBetween => 0x1D
 
-/-- The comparison a `comparison` value names; none for `0x00` and the reserved values. -/
+/-- The comparison a `comparison` value names. None for `0x00` and the reserved values. -/
 def Comparison.ofCode? (code : Nat) : Option Comparison :=
   [Comparison.eq, .gt, .lt, .gte, .lte, .between, .in_, .bitmaskAll, .bitmaskAny, .bitmaskNone, .lengthEq, .lengthGt,
     .lengthLt, .lengthGte, .lengthLte, .lengthBetween].find? (·.code.toNat == code)
@@ -109,7 +109,7 @@ def Comparison.isLength : Comparison → Bool
   | .lengthEq | .lengthGt | .lengthLt | .lengthGte | .lengthLte | .lengthBetween => true
   | _ => false
 
-/-- How many values a constant operand holds; none for `IN`, which holds one or more. -/
+/-- How many values a constant operand contains. None for `IN`, which contains one or more. -/
 def Comparison.arity : Comparison → Option Nat
   | .between | .lengthBetween => some 2
   | .in_ => none
@@ -120,7 +120,7 @@ def Quantifier.code : Quantifier → UInt8
   | .all => 0x01
   | .any => 0x02
 
-/-- The quantifier a `quantifier` value names; none for `0x00` and the reserved values. -/
+/-- The quantifier a `quantifier` value names. None for `0x00` and the reserved values. -/
 def Quantifier.ofCode? (code : UInt8) : Option Quantifier :=
   if code = Quantifier.all.code then some .all else if code = Quantifier.any.code then some .any else none
 
@@ -142,13 +142,13 @@ def LENGTH_TYPE : WordType := .uint ⟨3⟩
 def contextPropertyType (property : PropertyId) : WordType :=
   if property = CTX_MSG_SENDER ∨ property = CTX_TX_ORIGIN then .address else .uint ⟨31⟩
 
-/-- Whether a value of type code `code` opens with a length word: `bytes`, `string` and dynamic arrays. -/
+/-- Whether a value of type code `code` starts with a length word: `bytes`, `string` and dynamic arrays. -/
 def hasCalldataLength (code : UInt8) : Bool :=
   code = TypeCode.BYTES ∨ code = TypeCode.STRING ∨ code = TypeCode.DYNAMIC_ARRAY
 
-/-- The type a comparison's constants take against a target of type code `code`: a length comparison applies to a
-type with a calldata length and compares as `LENGTH_TYPE`; any other comparison applies to a word type and compares as
-it. None where the comparison does not apply. -/
+/-- The type a comparison's constants take against a target of type code `code`. A length comparison applies to a type
+with a calldata length, and it compares as `LENGTH_TYPE`. Any other comparison applies to a word type and compares as
+that type. None where the comparison does not apply. -/
 def operandType (comparison : Comparison) (code : UInt8) : Option WordType :=
   if comparison.isLength then
     if hasCalldataLength code then some LENGTH_TYPE else none
@@ -192,14 +192,14 @@ def ArrayMeta.word (array : ArrayMeta) : Nat :=
 def ArrayMeta.ofWordMasked (word : Nat) : ArrayMeta :=
   ⟨word / META_DYNAMIC_ARRAY % 2 = 1, word / META_ELEMENT_DYNAMIC % 2 = 1, word % META_STRIDE_LIMIT⟩
 
-/-- The array a 16-bit meta word describes; none when a reserved bit is set. -/
+/-- The array a 16-bit meta word describes. None when a reserved bit is set. -/
 def ArrayMeta.ofWord? (word : Nat) : Option ArrayMeta :=
   if word % META_DYNAMIC_ARRAY < META_STRIDE_LIMIT then some (.ofWordMasked word) else none
 
 /-! ## Compiled rules -/
 
-/-- A test's hint as the blob carries it: the hops, the target's offset from the last base, the target's meta word when
-it is a dynamic array, and its type code. -/
+/-- A test's hint as the blob carries it. It contains the hops, the target's offset from the last base, the target's
+meta word when it is a dynamic array, and its type code. -/
 structure TestHint where
   /-- The hops, in order. -/
   hops : List Hop
@@ -211,14 +211,14 @@ structure TestHint where
   typeCode : UInt8
   deriving Repr, DecidableEq
 
-/-- A loop's hint as the blob carries it: the hops, the array's offset from the last base, its declared length or 0 for
-a dynamic array, and its meta word. -/
+/-- A loop's hint as the blob carries it. It contains the hops, the array's offset from the last base, its declared
+length or 0 for a dynamic array, and its meta word. -/
 structure FrameHint where
   /-- The hops, in order. -/
   hops : List Hop
   /-- The array's offset from the last base. -/
   arrayDelta : Nat
-  /-- A static array's declared length; 0 for a dynamic array. -/
+  /-- A static array's declared length, or 0 for a dynamic array. -/
   count : Nat
   /-- The array's meta word. -/
   array : ArrayMeta
@@ -244,7 +244,7 @@ inductive CompiledTest where
   | test (path : Path) (hint : TestHint) (operator : Operator)
   deriving Repr, DecidableEq
 
-/-- A rule as the blob carries it. A loop's body holds no loop. -/
+/-- A rule as the blob carries it. A loop's body contains no loop. -/
 inductive CompiledRule where
   /-- A test or a context test. -/
   | test (compiled : CompiledTest)
@@ -254,7 +254,7 @@ inductive CompiledRule where
 
 /-- A policy as the blob carries it: its selector, none when selectorless, its descriptor and its groups. -/
 structure CompiledPolicy where
-  /-- The function selector; none for a policy over raw ABI-encoded arguments. -/
+  /-- The function selector. None for a policy over raw ABI-encoded arguments. -/
   selector : Option UInt32
   /-- The embedded descriptor. -/
   desc : Bytes
@@ -278,8 +278,8 @@ def CompiledPolicy.formula (policy : CompiledPolicy) : Formula :=
 
 /-! ## Writing -/
 
-/-- A hop: `delta (4) | index (2) | meta (2)`. A plain hop carries `HINT_NO_INDEX` and meta 0, an element hop delta
-0. -/
+/-- A hop: `delta (4) | index (2) | meta (2)`. A plain hop carries `HINT_NO_INDEX` and meta 0. An element hop carries a
+delta of 0 and its own index. -/
 def Hop.write : Hop → Bytes
   | .plain delta => beBytes 4 delta ++ beBytes 2 HINT_NO_INDEX ++ beBytes 2 0
   | .element index array => beBytes 4 0 ++ beBytes 2 index ++ beBytes 2 array.word
@@ -307,8 +307,8 @@ def Operator.opCode (operator : Operator) : UInt8 :=
   UInt8.ofNat (operator.negated.toNat * NOT_FLAG + operator.operand.source * 2 ^ SOURCE_SHIFT +
     operator.comparison.code.toNat)
 
-/-- The operator's data against a target of type code `code`: each constant as wide as its operand type, or the context
-property's 2-byte ID. -/
+/-- The operator's data against a target of type code `code`. Each constant is as wide as its operand type, and a
+context property contributes its 2-byte ID. -/
 def Operator.data (operator : Operator) (code : UInt8) : Bytes :=
   match operator.operand, operandType operator.comparison code with
   | .constant values, some wordType => values.flatMap wordType.narrow
@@ -367,8 +367,8 @@ def writeGroup (rules : List CompiledRule) : Bytes :=
 def Policy.header (selectorless : Bool) : UInt8 :=
   UInt8.ofNat (MAJOR * 2 ^ MAJOR_SHIFT + MINOR * 2 ^ MINOR_SHIFT + if selectorless then FLAG_NO_SELECTOR else 0)
 
-/-- The blob: `header | selector (SELECTOR_SIZE) | descLength (2) | desc | groupCount (1) | groups`, the selector slot
-zero when selectorless. -/
+/-- The blob: `header | selector (SELECTOR_SIZE) | descLength (2) | desc | groupCount (1) | groups`. The selector slot
+is zero when selectorless. -/
 def CompiledPolicy.write (policy : CompiledPolicy) : Bytes :=
   Policy.header policy.selector.isNone :: beBytes Policy.SELECTOR_SIZE ((policy.selector.map UInt32.toNat).getD 0) ++
     beBytes 2 policy.desc.length ++ policy.desc ++ UInt8.ofNat policy.groups.length :: policy.groups.flatMap writeGroup

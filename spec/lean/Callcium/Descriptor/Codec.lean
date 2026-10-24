@@ -3,9 +3,9 @@ import Callcium.Descriptor.Format
 /-!
 # Descriptor codec
 
-`Descriptor.encode` writes a type list as a descriptor. `Descriptor.decode` reads one back by walking each node's
-children, and rejects a composite node whose metadata disagrees with what the walk finds: a `nodeLength` other than
-its span (DV-1) or a `staticWords` other than its type's (DV-2).
+`Descriptor.encode` writes a type list as a descriptor. `Descriptor.decode` reads a descriptor by walking each node's
+children. It rejects a composite node whose metadata disagrees with what the walk finds. Such metadata has a
+`nodeLength` other than its span (DV-1) or a `staticWords` other than its type's (DV-2).
 -/
 
 namespace Callcium
@@ -14,7 +14,7 @@ open Descriptor
 
 /-! ## Encoding -/
 
-/-- The code and metadata opening a composite node. -/
+/-- The code and metadata that start a composite node. -/
 def AbiType.compositeHeader (code : UInt8) (abiType : AbiType) : Bytes :=
   code :: compositeMeta abiType.staticWords abiType.nodeLength
 
@@ -42,13 +42,13 @@ def Descriptor.encode (types : List AbiType) : Bytes :=
 
 /-! ## Decoding -/
 
-/-- A decoded composite node, kept when its metadata bytes hold its type's `staticWords` and its span. -/
+/-- A decoded composite node, kept when its metadata bytes encode its type's `staticWords` and its span. -/
 def Descriptor.checkMeta (abiType : AbiType) (span : Nat) (high middle low : UInt8) : Option (AbiType × Nat) :=
   if metaFields high middle low = (abiType.staticWords, span) then some (abiType, span) else none
 
 mutual
-  /-- The type of the node opening `bytes` and the node's span, walking its children; none for an unknown code, a
-  node cut short, or metadata that disagrees with the walk. -/
+  /-- The type of the node that starts `bytes` and the node's span, walking its children. It is none for an unknown
+  code, a node cut short, or metadata that disagrees with the walk. -/
   def Descriptor.decodeNode : Bytes → Option (AbiType × Nat)
     | [] => none
     | code :: rest =>
@@ -106,8 +106,8 @@ mutual
         exact Prod.Lex.right _ (by omega)
 end
 
-/-- The parameter types a descriptor describes; none unless its version is `VERSION` and its body is exactly
-`paramCount` nodes. -/
+/-- The parameter types a descriptor describes. It is none unless its version is `VERSION`
+and its body is exactly `paramCount` nodes. -/
 def Descriptor.decode : Bytes → Option (List AbiType)
   | version :: count :: body =>
     if version = VERSION then

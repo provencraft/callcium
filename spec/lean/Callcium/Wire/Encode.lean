@@ -3,25 +3,25 @@ import Callcium.Wire.Validate
 /-!
 # Wire encoding
 
-`Policy.encode` writes a formula over a signature as a blob: it normalizes the formula, compiles every path into its
-hint against the signature's parameter types (`Rule.compile`), and writes the result in the formula's order, which
-over one signature is the order of the rules' size-free bytes. `Policy.WellFormed` is what the encoder needs: a
-well-formed formula whose normal form compiles against the signature and fits the wire's field widths.
-`Policy.decode` reads the formula back from a blob that passes storage validation.
+`Policy.encode` writes a formula over a signature as a blob. It normalizes the formula, and it compiles every path into
+its hint against the signature's parameter types (`Rule.compile`). It writes the result in the formula's order. Over one
+signature, that order is the order of the rules' size-free bytes. `Policy.WellFormed` is what the encoder needs: a
+well-formed formula whose normal form compiles against the signature and fits the wire's field widths. `Policy.decode`
+reads the formula back from a blob that passes storage validation.
 -/
 
 namespace Callcium
 
 /-- A function signature: its selector, none for a policy over raw ABI-encoded arguments, and its parameter types. -/
 structure Signature where
-  /-- The function selector; none for raw ABI-encoded arguments. -/
+  /-- The function selector. None for raw ABI-encoded arguments. -/
   selector : Option UInt32
   /-- The parameter types. -/
   params : List AbiType
 
 /-! ## Compilation -/
 
-/-- Whether the operator compares a target of type code `code`: its comparison applies to the type, and every constant
+/-- Whether the operator compares a target of type code `code`. Its comparison applies to the type, and every constant
 is a value of the operand type. -/
 def Operator.compares (operator : Operator) (code : UInt8) : Bool :=
   match operandType operator.comparison code, operator.operand with
@@ -29,8 +29,8 @@ def Operator.compares (operator : Operator) (code : UInt8) : Bool :=
   | some _, .context _ => true
   | none, _ => false
 
-/-- The test with its hint compiled from a starting point of type `start`; none when its path does not compile or its
-operator does not compare the target. A loop is no test. -/
+/-- The test with its hint compiled from a starting point of type `start`. The result is none when its path does not
+compile or its operator does not compare the target. A loop is no test. -/
 def Rule.compileTest (start : AbiType) : Rule → Option CompiledTest
   | .contextTest property operator =>
     if operator.compares (contextPropertyType property).code then some (.contextTest property operator) else none
@@ -39,8 +39,8 @@ def Rule.compileTest (start : AbiType) : Rule → Option CompiledTest
       if operator.compares hint.target.code then some (.test path hint.wire operator) else none
   | .loop .. => none
 
-/-- The rule with its hints compiled from a starting point of type `start`; a loop's body compiles from its element
-type and holds tests only. -/
+/-- The rule with its hints compiled from a starting point of type `start`. A loop's body compiles from its element type
+and contains tests only. -/
 def Rule.compile (start : AbiType) : Rule → Option CompiledRule
   | .loop quantifier arrayPath body =>
     (start.compileLoop? arrayPath).bind fun hint =>
@@ -54,8 +54,8 @@ def CompiledPolicy.compile (signature : Signature) (formula : Formula) : Option 
 
 /-! ## Field widths -/
 
-/-- Whether a hop fits its fields: a delta below 2^32; a fixed index below `PATH_MARKER_BASE` and a stride within its 12
-bits. -/
+/-- Whether a hop fits its fields. A delta is below 2^32. A fixed index is below `PATH_MARKER_BASE`, and a stride is
+within its 12 bits. -/
 def Hop.fits : Hop → Bool
   | .plain delta => delta < 2 ^ 32
   | .element index array => index < PATH_MARKER_BASE && array.strideWords < META_STRIDE_LIMIT
@@ -76,8 +76,8 @@ def FrameHint.fits (hint : FrameHint) : Bool :=
 def Path.fits (path : Path) : Bool :=
   path.length < 2 ^ 8 && path.all (· < 2 ^ 16)
 
-/-- Whether an operator against a target of type code `code` fits: a context property ID in 2 bytes, data within
-`dataLength`. -/
+/-- Whether an operator against a target of type code `code` fits. A context property ID is in 2 bytes, and its data
+fits the 2-byte `dataLength`. -/
 def Operator.fits (operator : Operator) (code : UInt8) : Bool :=
   (match operator.operand with
     | .context property => property < 2 ^ 16
@@ -113,13 +113,13 @@ def CompiledPolicy.fits (policy : CompiledPolicy) : Bool :=
 def ascendingBytes {Item : Type} (bytes : Item → Bytes) (items : List Item) : Bool :=
   decide (items.Pairwise fun item other => bytes item < bytes other)
 
-/-- Whether a loop's body tests ascend strictly by their size-free bytes; a test holds no body. -/
+/-- Whether a loop's body tests ascend strictly by their size-free bytes. A test has no body. -/
 def CompiledRule.ordered : CompiledRule → Bool
   | .test _ => true
   | .loop _ _ _ body => ascendingBytes CompiledTest.sizeFree body
 
-/-- Whether the policy's rules and groups are in canonical order: the rules of every group and every loop body
-strictly ascending by their size-free bytes, and the groups by the concatenation of their rules' size-free bytes. -/
+/-- Whether the policy's rules and groups are in canonical order. The rules of every group and every loop body ascend
+strictly by their size-free bytes. The groups ascend by the concatenation of their rules' size-free bytes. -/
 def CompiledPolicy.ordered (policy : CompiledPolicy) : Bool :=
   ascendingBytes (·.flatMap CompiledRule.sizeFree) policy.groups &&
     policy.groups.all fun rules => ascendingBytes CompiledRule.sizeFree rules && rules.all CompiledRule.ordered
@@ -128,9 +128,10 @@ def CompiledPolicy.ordered (policy : CompiledPolicy) : Bool :=
 
 namespace Policy
 
-/-- What the encoder takes: a well-formed formula, a signature a descriptor describes, and a normal form that compiles
-against it and fits the wire's field widths. Domain analysis, the types a bitmask applies to and the pairing of a
-context operand's type with its subject's lie outside: no theorem of the wire needs them. -/
+/-- What the encoder takes: a well-formed formula, and a signature a descriptor describes. The formula's normal form
+compiles against the signature and fits the wire's field widths. Domain analysis, the types a bitmask applies to and the
+pairing of a context operand's type with its subject's lie outside this definition. No theorem of the wire needs them.
+-/
 def WellFormed (signature : Signature) (formula : Formula) : Prop :=
   formula.WellFormed ∧ Descriptor.withinLimits signature.params = true ∧
     ((CompiledPolicy.compile signature (normalize formula)).map CompiledPolicy.fits) = some true
@@ -138,11 +139,12 @@ def WellFormed (signature : Signature) (formula : Formula) : Prop :=
 instance (signature : Signature) : DecidablePred (WellFormed signature) :=
   fun _ => inferInstanceAs (Decidable (_ ∧ _ ∧ _))
 
-/-- The blob of a formula over a signature: its normal form, compiled and written; empty when it does not compile. -/
+/-- The blob of a formula over a signature: its normal form, compiled and written. It is empty when it does not compile.
+-/
 def encode (signature : Signature) (formula : Formula) : Bytes :=
   ((CompiledPolicy.compile signature (normalize formula)).map CompiledPolicy.write).getD []
 
-/-- The formula a blob states; none unless it passes storage validation. -/
+/-- The formula a blob states. None unless it passes storage validation. -/
 def decode (blob : Bytes) : Option Formula :=
   (parse blob).map CompiledPolicy.formula
 

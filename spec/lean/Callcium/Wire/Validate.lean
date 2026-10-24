@@ -4,14 +4,15 @@ import Callcium.Descriptor.Validate
 /-!
 # Wire validation
 
-`Policy.parse` reads a blob into a `CompiledPolicy` and checks every storage-time invariant (PWF) on the way: the
-header's major and minor, a zero selector slot when selectorless, a well-formed descriptor, framing and sizes that fill
-exactly at every level, known `scope`, `quantifier`, `source` and `comparison` values, hint headers and hops without
-reserved state, an operand data length the operand type's width fixes, an ascending `IN` set, context sources only on
-`EQ`, `GT`, `LT`, `GTE` and `LTE`, defined context property IDs, a comparison family matching the target type, no
-reserved path-step marker, path depth within `MAX_PATH_DEPTH` across the loop, a nonempty root path, and a nonempty
-body without loops. `Policy.validate` is whether it succeeds. Hint recompilation and the canonical order are build-time
-and builder concerns, outside it.
+`Policy.parse` reads a blob into a `CompiledPolicy` and checks every storage-time invariant (PWF) on the way. It checks
+the header's `major` and `minor`, and a zero selector slot when the blob is selectorless. It checks that the descriptor
+is well-formed, and that framing and sizes fill exactly at every level. It checks known `scope`, `quantifier`, `source`
+and `comparison` values, and hint headers and hops without reserved state. It checks the operand data length that the
+operand type's width determines. It checks an ascending `IN` set, and that context sources appear only on `EQ`, `GT`,
+`LT`, `GTE` and `LTE`. It checks that context property IDs are defined, and that a comparison family matches the target
+type. It checks that no reserved path-step marker appears, and that path depth stays within `MAX_PATH_DEPTH` across the
+loop. It checks a nonempty root path, and a nonempty body without loops. `Policy.validate` is whether it succeeds. Hint
+recompilation and the canonical order are build-time and builder concerns, outside it.
 -/
 
 namespace Callcium
@@ -41,7 +42,7 @@ def field (size : Nat) : Reader Nat :=
 def require (condition : Bool) : Reader Unit :=
   if condition then pure () else failure
 
-/-- The value an option holds; fails on none. -/
+/-- The value of an option. It fails on `none`. -/
 def some? {Item : Type} (option : Option Item) : Reader Item :=
   match option with
   | some item => pure item
@@ -68,8 +69,8 @@ open Reader
 
 /-! ## Hints -/
 
-/-- A hop. A plain hop carries meta 0, an element hop delta 0, a fixed index below `PATH_MARKER_BASE` and a meta word
-without reserved bits; indices from `PATH_MARKER_BASE` up to `HINT_NO_INDEX` are reserved. -/
+/-- A hop. A plain hop carries meta 0. An element hop carries delta 0, a fixed index below `PATH_MARKER_BASE` and a meta
+word without reserved bits. Indices from `PATH_MARKER_BASE` up to `HINT_NO_INDEX` are reserved. -/
 def Hop.read : Reader Hop := do
   let delta ← field 4
   let index ← field 2
@@ -120,8 +121,8 @@ def readPath : Reader Path := do
 
 /-- An operator against a target of type code `code`. Its comparison applies to the type (`operandType`). Constants
 fill `dataLength` at the operand type's width, as many as the comparison takes, and an `IN` set ascends strictly as
-loaded words compared unsigned. A context source applies to `EQ`, `GT`, `LT`, `GTE` and `LTE` only, and names a defined
-property. -/
+loaded words compared unsigned. A context source applies to `EQ`, `GT`, `LT`, `GTE` and `LTE` only, and it
+names a defined property. -/
 def Operator.read (code : UInt8) : Reader Operator := do
   let opCode := (← byte).toNat
   let negated := decide (opCode / NOT_FLAG = 1)
@@ -142,7 +143,7 @@ def Operator.read (code : UInt8) : Reader Operator := do
     pure ⟨negated, comparison, .context property⟩
   else failure
 
-/-- A test or a context test after its `scope` byte, `outerDepth` path steps below the arguments; at the root a calldata
+/-- A test or a context test after its `scope` byte, `outerDepth` path steps below the arguments. At the root, a calldata
 test's path is nonempty. A context test's path is one step, its property ID. -/
 def CompiledTest.readScoped (root : Bool) (outerDepth : Nat) (scope : UInt8) : Reader CompiledTest := do
   if scope = SCOPE_CONTEXT then
@@ -191,8 +192,8 @@ def readGroup : Reader (List CompiledRule) := do
 
 /-! ## Policies -/
 
-/-- The policy a blob carries: `major` is `MAJOR` and `minor` is `MINOR`, a selectorless blob's selector slot is zero,
-the descriptor is well-formed (PWF-7), and one or more groups fill the rest. -/
+/-- The policy a blob carries. The header's `major` is `MAJOR` and its `minor` is `MINOR`. A selectorless blob's
+selector slot is zero. The descriptor is well-formed (PWF-7), and one or more groups fill the rest. -/
 def Policy.read : Reader CompiledPolicy := do
   let header := (← byte).toNat
   require (header >>> MAJOR_SHIFT = MAJOR && (header >>> MINOR_SHIFT) &&& MINOR_MASK = MINOR)
@@ -206,7 +207,7 @@ def Policy.read : Reader CompiledPolicy := do
   let groups ← many readGroup groupCount
   pure ⟨if selectorless then none else some (UInt32.ofNat selector), desc, groups⟩
 
-/-- The policy the blob carries, read to its last byte; none unless the blob passes storage validation. -/
+/-- The policy the blob carries, read to its last byte, or none unless the blob passes storage validation. -/
 def Policy.parse (blob : Bytes) : Option CompiledPolicy :=
   match Policy.read blob with
   | some (policy, []) => some policy

@@ -4,8 +4,8 @@ import Callcium.Theorems.Wire
 /-!
 # The enforcer's view of stored blobs
 
-On every blob storage validation accepts, the enforcer's reader `Policy.load` reads the policy `Policy.parse` does:
-every field it reads lies within the blob and reads as the format defines it. This is the blob half of theorem 5.
+On every blob storage validation accepts, the enforcer's reader `Policy.load` reads the policy `Policy.parse` does.
+Every field it reads lies within the blob and reads as the format defines it. This is the blob half of theorem 5.
 -/
 
 namespace Callcium

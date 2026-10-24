@@ -1,8 +1,8 @@
 import Callcium
 import Lean
 
--- Every declaration of the `Callcium` library rests on Lean's three standard axioms only, so the library holds no
--- `sorry` and no `native_decide`.
+-- Every declaration of the `Callcium` library rests on Lean's three standard axioms only. No declaration uses
+-- `sorry` or `native_decide`.
 open Lean Elab Command in
 run_cmd do
   let env ← getEnv
@@ -29,14 +29,14 @@ def wellFormed (formula : Formula) : Bool := decide (Formula.WellFormed formula)
 
 def senderIs (value : Nat) : Rule := .contextTest CTX_MSG_SENDER ⟨false, .eq, .constant [word value]⟩
 
--- `ALL` loops over one array join; `ANY` loops and loops over other arrays stay apart.
+-- `ALL` loops over one array join. `ANY` loops and loops over other arrays stay apart.
 #guard normalize [[.loop .all [0] [compare [0] .eq [1]], .loop .all [0] [compare [1] .eq [2]]]] ==
   [[.loop .all [0] (sortRules [compare [0] .eq [1], compare [1] .eq [2]])]]
 #guard ((normalize JointBinding.perRule).head?.map List.length) == some 2
 #guard ((normalize [[.loop .all [0] [compare [] .eq [1]], .loop .all [1] [compare [] .eq [1]]]]).head?.map
   List.length) == some 2
 
--- A rule both joined bodies hold appears once; a repeated rule or group adds nothing.
+-- A rule that both joined bodies contain appears once. A repeated rule or group adds nothing.
 #guard normalize [[.loop .all [0] [compare [0] .eq [1], compare [1] .eq [2]],
     .loop .all [0] [compare [0] .eq [1], compare [2] .eq [3]]]] ==
   [[.loop .all [0] (sortRules [compare [0] .eq [1], compare [1] .eq [2], compare [2] .eq [3]])]]
@@ -60,7 +60,7 @@ def senderIs (value : Nat) : Rule := .contextTest CTX_MSG_SENDER ⟨false, .eq, 
 #guard wellFormed [[.loop .all [0] [compare [] .gte [1]]]]
 #guard wellFormed [[compare [0] .in_ [1, 2]]]
 
--- A lone range pair fuses, also once loops join and after a NOT rewrite; more than one bound on a side stays.
+-- A lone range pair fuses, also once loops join and after a NOT rewrite. More than one bound on a side stays.
 #guard normalize [[compare [0] .gte [1], compare [0] .lte [9]]] == [[compare [0] .between [1, 9]]]
 #guard normalize [[compare [0] .lengthGte [1], compare [0] .lengthLte [9]]] == [[compare [0] .lengthBetween [1, 9]]]
 #guard normalize [[.loop .all [0] [compare [] .gte [1]], .loop .all [0] [compare [] .lte [9]]]] ==
@@ -75,8 +75,8 @@ def senderIs (value : Nat) : Rule := .contextTest CTX_MSG_SENDER ⟨false, .eq, 
 #guard normalize [[.test [0] ⟨true, .in_, .constant [word 5]⟩]] == [[.test [0] ⟨true, .eq, .constant [word 5]⟩]]
 #guard wellFormed [[compare [0] .in_ [1]]]
 
--- Context tests leave an `ANY` body that reads the element, and may then fuse at the root; under `ALL` they stay
--- beside a test. A body of context tests alone is rejected under either quantifier.
+-- A context test in an `ANY` body moves to the root, where a root test on the same property fuses with it. Under `ALL`,
+-- context tests stay in the body beside a test. A body of context tests alone is rejected under either quantifier.
 #guard normalize [[.loop .any [0] [senderIs 1, compare [] .eq [1]]]] ==
   [sortRules [senderIs 1, .loop .any [0] [compare [] .eq [1]]]]
 #guard normalize [[.contextTest CTX_MSG_VALUE ⟨false, .gte, .constant [word 5]⟩,
@@ -105,7 +105,7 @@ def senderIs (value : Nat) : Rule := .contextTest CTX_MSG_SENDER ⟨false, .eq, 
 
 /-! ## Evaluation -/
 
--- The tests of an `ANY` body read one element; read rule by rule, the decoy passes.
+-- The tests of an `ANY` body read one element. Read rule by rule, the decoy passes.
 #guard JointBinding.joint.evaluateValues JointBinding.noContext JointBinding.decoy == .fail
 #guard JointBinding.perRule.evaluateValues JointBinding.noContext JointBinding.decoy == .pass
 
@@ -117,7 +117,7 @@ def failsThenAbortsThenHolds : Formula :=
 #guard failsThenAbortsThenHolds.evaluateValues JointBinding.noContext overLimit == .abort
 #guard failsThenAbortsThenHolds.holds JointBinding.noContext overLimit
 
--- A path past an array's end fails its group; a later group decides.
+-- A path past an array's end fails its group. A later group determines the outcome.
 def pastEndThenHolds : Formula := [[compare [0, longArray.length] .eq [0]], [compare [0] .lengthGt [0]]]
 #guard pastEndThenHolds.evaluateValues JointBinding.noContext overLimit == .pass
 
@@ -133,12 +133,12 @@ def width (bytes : Nat) (fits : bytes - 1 < 32 := by omega) : ByteWidth := ⟨�
 #guard WordType.bool.isCanonical 1
 #guard !WordType.bool.isCanonical 2
 
--- A signed value is its own sign extension: `int8` holds -128 as `0xff…80`, not `0x80`.
+-- A signed value is its own sign extension: `int8` represents -128 as `0xff…80`, not `0x80`.
 #guard (WordType.int (width 1)).isCanonical (BitVec.ofInt 256 (-128))
 #guard (WordType.int (width 1)).isCanonical 0x7f
 #guard !(WordType.int (width 1)).isCanonical 0x80
 
--- No bits below a left-aligned value; a function pointer is left-aligned as `bytes24`.
+-- No bits below a left-aligned value. A function pointer is left-aligned as `bytes24`.
 #guard (WordType.fixedBytes (width 1)).isCanonical (0xab <<< 248)
 #guard !(WordType.fixedBytes (width 1)).isCanonical 1
 #guard WordType.function.isCanonical (BitVec.ofNat 256 (2 ^ 192 - 1) <<< 64)
@@ -303,7 +303,7 @@ def kEncoding : Bytes := hex (
 -- Only `intN` reads as signed.
 #guard [WordType.uint (width 32), .address, .bool, .function, .fixedBytes (width 32)].all (!·.signed)
 
--- No arguments: the selector alone; data shorter than the selector is not canonical.
+-- No arguments: the selector alone. Data shorter than the selector is not canonical.
 #guard (AbiType.tuple []).decodeStrict selector 4 == some (.list [])
 #guard (AbiType.tuple []).decodeStrict [0, 0] 4 == none
 
@@ -324,8 +324,9 @@ def gap : Bytes := beBytes WORD_SIZE 0x40 ++ beBytes WORD_SIZE 0 ++ beBytes WORD
   .list [.bytes [0xaa, 0, 0]]
 
 -- `f(bytes[] calldata a)` returning `a[0]`, the onchain table of the SolidCore wrap design: `a`'s tail at 132, one
--- element whose offset word sits at 164, the end of the calldata at 196. An offset of 2^256 - 128 wraps to 36 and
--- reads `0xaabb`; 2^255 lands past the end and reads empty; 0x20 forward reads the bytes appended there.
+-- element whose offset word sits at 164, the end of the calldata at 196. An offset of 2^256 - 128 wraps to 36 and reads
+-- `0xaabb`. An offset of 2^255 lands past the end and reads empty. A forward offset of 0x20 reads the bytes appended at
+-- the end of the calldata.
 def wrapping (offset : Nat) : Bytes :=
   selector ++ beBytes WORD_SIZE 0x80 ++ beBytes WORD_SIZE 2 ++ 0xaa :: 0xbb :: List.replicate 30 0 ++
     beBytes WORD_SIZE 0 ++ beBytes WORD_SIZE 1 ++ beBytes WORD_SIZE offset
@@ -386,12 +387,12 @@ def shared : Bytes :=
   beBytes WORD_SIZE 0x40 ++ beBytes WORD_SIZE 0x40 ++ beBytes WORD_SIZE 1 ++ 0xaa :: List.replicate 31 0
 #guard resolves [.bytes, .bytes] shared 0 [0] == some 0x40 && resolves [.bytes, .bytes] shared 0 [1] == some 0x40
 
--- A fixed index past a dynamic array's length fails the group; past a static array's, the path does not compile.
+-- A fixed index past a dynamic array's length fails the group. Past a static array's length, the path does not compile.
 #guard faults fTypes (selector ++ fEncoding) 4 [1, 2] == some .arrayIndexOutOfBounds
 #guard ((AbiType.tuple hTypes).compile? [1, 2]).isNone
 
--- A word read past the end of the calldata, or an offset that passes it, aborts: here where `decodeSolc` wraps to the
--- start of `bytes` or reads past the end.
+-- A word read past the end of the calldata, or an offset that passes it, aborts. In these cases `decodeSolc` wraps to
+-- the start of `bytes` or reads past the end of the calldata.
 #guard faults fTypes ((selector ++ fEncoding).take 100) 4 [3] == some .calldataOutOfBounds
 #guard faults [.dynamicArray .bytes] (wrapping (2 ^ 256 - 128)) 4 [0, 0] == some .calldataOutOfBounds
 #guard faults [.dynamicArray .bytes] (wrapping (2 ^ 255)) 4 [0, 0] == some .calldataOutOfBounds
@@ -422,8 +423,8 @@ def shared : Bytes :=
 #guard (((AbiType.tuple kTypes).compileLoop? [0]).map fun loop => (loop.count, loop.array)) ==
   some (2, ⟨false, true, 1⟩)
 
--- A static array of no elements has no loop hint, since a `count` of 0 states a dynamic array; neither has a value
--- that is not an array.
+-- A static array of no elements has no loop hint, since a `count` of 0 states a dynamic array. A value that is not an
+-- array has no loop hint either.
 #guard ((AbiType.tuple [.staticArray uint256 0]).compileLoop? [0]).isNone
 #guard ((AbiType.tuple fTypes).compileLoop? [3]).isNone
 
@@ -434,7 +435,7 @@ def treasurySignature : Signature := ⟨some 0x5d1e0f3a, [.dynamicArray (.tuple 
 def compiledPolicy (signature : Signature) (formula : Formula) : CompiledPolicy :=
   (CompiledPolicy.compile signature (normalize formula)).getD ⟨none, [], []⟩
 
--- The treasury policy encodes, passes storage, and decodes to its normal form; its loop rule takes 112 bytes: a 24-byte
+-- The treasury policy encodes, passes storage, and decodes to its normal form. Its loop rule takes 112 bytes: a 24-byte
 -- loop header, a 2-byte body `ruleCount`, and tests of 37 and 49 bytes.
 #guard decide (Policy.WellFormed treasurySignature JointBinding.joint)
 #guard Policy.validate (Policy.encode treasurySignature JointBinding.joint)
@@ -468,7 +469,7 @@ def stores (content : Bytes) : Bool := Policy.validate (oneRule content)
   CompiledPolicy.write ⟨some 0, oneWordDesc, [[.test (.test [0] wordHint eqOne)]]⟩
 #guard stores (calldataTest [0] wordHint eqOne)
 
--- Header: major `MAJOR`, minor `MINOR`, a zero selector slot when selectorless; no trailing byte.
+-- Header: major `MAJOR`, minor `MINOR`, a zero selector slot when selectorless. A trailing byte is not valid.
 #guard !Policy.validate ((oneRule (calldataTest [0] wordHint eqOne)).set 0
   (UInt8.ofNat ((Policy.MAJOR + 1) * 2 ^ Policy.MAJOR_SHIFT)))
 #guard !Policy.validate ((oneRule (calldataTest [0] wordHint eqOne)).set 0
@@ -477,8 +478,8 @@ def stores (content : Bytes) : Bool := Policy.validate (oneRule content)
 #guard !Policy.validate (((oneRule (calldataTest [0] wordHint eqOne)).set 0 (Policy.header true)).set 4 1)
 #guard !Policy.validate (oneRule (calldataTest [0] wordHint eqOne) ++ [0])
 
--- The descriptor is well-formed; groups are one or more, each one or more rules that fill `groupSize` exactly, each
--- rule filling its `ruleSize` exactly.
+-- The descriptor is well-formed. Groups are one or more, each one or more rules that fill `groupSize` exactly. Each
+-- rule fills its `ruleSize` exactly.
 #guard !Policy.validate (Policy.header false :: beBytes 4 0 ++ beBytes 2 2 ++ [Descriptor.VERSION, 1] ++ 1 ::
   groupOf 1 (frameRule (calldataTest [0] wordHint eqOne)))
 #guard !Policy.validate (blobOf 0 [])
@@ -487,7 +488,7 @@ def oneTestRule : Bytes := frameRule (calldataTest [0] wordHint eqOne)
 #guard !Policy.validate (blobOf 1 (beBytes 2 1 ++ beBytes 4 (oneTestRule.length + 1) ++ oneTestRule ++ [0]))
 #guard !stores (calldataTest [0] wordHint eqOne ++ [0])
 
--- Scopes: `0x03` and up are reserved; a context test's path is one step naming a defined property.
+-- Scopes: `0x03` and up are reserved. A context test's path is one step naming a defined property.
 #guard !stores (3 :: (calldataTest [0] wordHint eqOne).tail)
 #guard stores (CompiledTest.contextTest CTX_MAX eqOne).sizeFree
 #guard !stores (CompiledTest.contextTest (CTX_MAX + 1) eqOne).sizeFree
@@ -544,8 +545,8 @@ def oneHop (delta index metaWord : Nat) : Bytes :=
 #guard stores (calldataTest [0] ⟨[], 0, none, WordType.bool.code⟩ ⟨false, .bitmaskAll, .constant [word 1]⟩)
 #guard stores (calldataTest [0] ⟨[], 0, none, WordType.address.code⟩ ⟨false, .eq, .context CTX_MSG_VALUE⟩)
 
--- Loops: a known quantifier, a nonempty array path, a nonempty body, and no loop in a body; a body test's path may
--- be empty and counts toward `MAX_PATH_DEPTH` with the array path.
+-- Loops: a known quantifier, a nonempty array path, a nonempty body, and no loop in a body. A body test's path accepts
+-- the empty path, and counts toward `MAX_PATH_DEPTH` with the array path.
 def frame : FrameHint := ⟨[.plain 0], 0, 0, ⟨true, false, 1⟩⟩
 def bodyTest (path : Path) : CompiledTest := .test path wordHint eqOne
 def loopRule (quantifier : Quantifier) (arrayPath : Path) (body : List CompiledTest) : Bytes :=
@@ -560,7 +561,8 @@ def loopRule (quantifier : Quantifier) (arrayPath : Path) (body : List CompiledT
 #guard !stores ((CompiledRule.loop .all [0] frame [bodyTest []]).content fun _ =>
   frameRule (loopRule .all [0] [bodyTest []]))
 
--- The encoder lays rules, groups and loop bodies out in ascending size-free byte order; reordered, they are not.
+-- The encoder arranges rules, groups and loop bodies in ascending size-free byte order. A policy with any of them
+-- reordered is not in that order.
 def orderedFormula : Formula :=
   [[.loop .all [0] [compare [1] .gte [7], compare [0] .eq [3]], senderIs 5], [compare [0, 1, 1] .lte [9]],
     [.loop .any [0] [compare [1] .eq [2]]]]
@@ -622,7 +624,8 @@ def arraySignature : Signature := ⟨none, [.dynamicArray uint256]⟩
 #guard Policy.outcome (Policy.encode arraySignature longerThanOne) (declaredLength 2 (List.replicate WORD_SIZE 0))
   JointBinding.noContext == .abort .calldataOutOfBounds
 
--- A fixed index past a dynamic array's end fails its group; a later group decides. The faulting group sorts first.
+-- A fixed index past a dynamic array's end fails its group. A later group determines the outcome. The faulting group
+-- sorts first, so it is evaluated first.
 def twoArrays : Signature := ⟨none, [.dynamicArray uint256, .dynamicArray uint256]⟩
 def pastEndThenPasses : Formula := [[compare [0, 1] .eq [0]], [compare [1, 1] .eq [2]]]
 #guard (normalize pastEndThenPasses).head? == some [compare [0, 1] .eq [0]]

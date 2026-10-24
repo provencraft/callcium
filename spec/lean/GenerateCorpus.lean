@@ -4,36 +4,43 @@ import Lean.Data.Json
 /-!
 # Corpus generator
 
-Writes the corpora of the enforcement, encoding, storage and validation differential checks, with the model's verdicts
-(`Corpus`).
+Writes the corpora of the enforcement, encoding, storage and validation differential checks. Each corpus carries the
+model's verdicts, as `Corpus` defines them.
 
 - Enforcement: random signatures, arguments and formulas within the core. Each formula is built from its signature's
-  types, so it is well-formed and encodes (`Policy.WellFormed`); a case that is not stops the run. The blob is
-  `Policy.encode`, the calldata the canonical encoding of the arguments (`AbiType.encode`), and a context that holds
-  every property within the EVM's bounds. Operands lean on the values the arguments hold, so tests both pass and
-  fail.
-- Encoding: every enforcement formula respelled the ways normalization undoes (a negated comparison with a positive
-  form, a one-member set, a context pair with the higher ID as subject, an `ALL` loop split in two, a context test moved
-  into an `ANY` body, a range split into its bounds, a repeated rule or group, the order reversed), written compiled but
-  not normalized, followed by `Policy.encode` of that formula. A respelling that is not well formed keeps the formula.
+  types, so it is well-formed and encodes (`Policy.WellFormed`). A case that is not well-formed or does not encode stops
+  the run. The blob is `Policy.encode`. The calldata is the canonical encoding of the arguments (`AbiType.encode`). The
+  context contains every property within the EVM's bounds. Operands lean on the values the arguments contain, so tests
+  both pass and fail.
+- Encoding: every enforcement formula respelled in the ways normalization undoes. The respellings are:
+  - a negated comparison with a positive form.
+  - a one-member set.
+  - a context pair with the higher ID as subject.
+  - an `ALL` loop split in two.
+  - a context test moved into an `ANY` body.
+  - a range split into its bounds.
+  - a repeated rule or group.
+  - the order reversed.
+  The respelled formula is written compiled but not normalized, followed by `Policy.encode` of that formula. A
+  respelling that is not well formed keeps the formula.
 - Storage: every enforcement blob and every blob of `spec/vectors/policies.json`, each followed by mutants.
-- Validation: random tests on an 8-bit subject (`uint8`, `int8`, `bytes1` or `bool`), one or two parameters or the
-  elements of an array a loop walks, with the comparisons PV-5 admits on the type; constants near a few values per
-  case, masks of one to three bits, and on `uint8` context operands from one or two properties. The blob is
-  `Policy.encode`, followed by its PV-9 issues (`validationIssues?`); a case with a contradiction is kept
-  `CONTRADICTIONS_KEPT` percent of the time, and there are `VALIDATION_CASES_PER_CASE` cases for each enforcement
-  case.
+- Validation: random tests on an 8-bit subject, which is `uint8`, `int8`, `bytes1` or `bool`. The subject is one or two
+  parameters or the elements of an array a loop walks. The comparisons are those that PV-5 admits on the type. Constants
+  sit near a few values per case, masks have one to three bits, and on `uint8`, context operands come from one or two
+  properties. The blob is `Policy.encode`, followed by its PV-9 issues (`validationIssues?`). A case with a
+  contradiction is kept `CONTRADICTIONS_KEPT` percent of the time. There are `VALIDATION_CASES_PER_CASE` validation
+  cases per enforcement case.
 
-The tier-B coverage of Phase B's harvest is counted over the enforcement corpus, and so are verdicts; each rewrite of
-normalization is counted over the encoding corpus, and each PV-9 issue over the validation corpus. The run exits
-nonzero when any count is zero. From `spec/lean`:
+The tier-B coverage of Phase B's harvest is counted over the enforcement corpus. Verdicts are counted over the
+enforcement corpus too. Each rewrite of normalization is counted over the encoding corpus. Each PV-9 issue is counted
+over the validation corpus. The run exits nonzero when any count is zero. The commands below run from `spec/lean`.
 
 ```
 lake exe generate-corpus <seed> <cases> <directory> [<policies.json>]
 ```
 
 Writes `<directory>/enforcement.txt`, `<directory>/encoding.txt`, `<directory>/storage.txt` and
-`<directory>/validation.txt`; the same seed and count give the same corpora.
+`<directory>/validation.txt`. The same seed and count give the same corpora.
 -/
 
 open Callcium Callcium.Corpus Lean
@@ -113,7 +120,7 @@ def wordOf : WordType → Draw Word
 def byteString : Draw (List UInt8) := do
   listOf (← oneOf [0, 1, 4, 31, 32, 33, ← natBetween 0 70]) byte
 
-/-- A value of the type; 6 percent of dynamic arrays of words are one element past `MAX_QUANTIFIED_ARRAY_LENGTH`. -/
+/-- A value of the type. 6 percent of dynamic arrays of words are one element past `MAX_QUANTIFIED_ARRAY_LENGTH`. -/
 partial def valueOf : AbiType → Draw Value
   | .word wordType => return .word (← wordOf wordType) wordType.signed
   | .bytes | .string => .bytes <$> byteString
@@ -207,13 +214,13 @@ def lengthOperator (subject : Option Value) : Draw Operator := do
   let values := if ← percent 80 then values.mergeSort (·.toNat ≤ ·.toNat) else values
   return ⟨← percent 25, comparison, .constant values⟩
 
-/-- An operator comparing a target of the type, near the value `subject` holds there. -/
+/-- An operator comparing a target of the type, near the value `subject` has there. -/
 def operatorOn (target : AbiType) (subject : Option Value) : Draw Operator :=
   match target with
   | .word wordType => wordOperator wordType (match subject with | some (.word bits _) => some bits | _ => none)
   | _ => lengthOperator subject
 
-/-- A test at a path within a value of type `start`; `subject` gives the value at a path, where a value exists. -/
+/-- A test at a path within a value of type `start`. `subject` gives the value at a path, where a value exists. -/
 def testOf (start : AbiType) (subject : Path → Draw (Option Value)) : Draw Rule := do
   let (path, target) ← oneOf (targets start)
   return .test path (← operatorOn target (← subject path))
@@ -412,8 +419,8 @@ def respellOperator (operator : Operator) : Draw Operator := do
   | _, _, .eq, .constant [_] => if ← percent 40 then return { operator with comparison := .in_ } else return operator
   | _, _, _, _ => return operator
 
-/-- A test respelled: its operator respelled, a context pair with the higher ID as subject, a range as its two
-bounds. -/
+/-- A test respelled: its operator respelled, a context pair with the higher ID as subject, and a range split into its
+lower and upper bounds. -/
 def respellTest (rule : Rule) : Draw (List Rule) := do
   match rule with
   | .test path ⟨false, .between, .constant [lower, upper]⟩ =>
@@ -451,8 +458,8 @@ def respellLoop (quantifier : Quantifier) (arrayPath : Path) (body : List Rule) 
     return [.loop .all arrayPath (body.take cut), .loop .all arrayPath (body.drop cut)]
   return [.loop quantifier arrayPath body]
 
-/-- A group respelled: its rules respelled, a root context test moved into an `ANY` body that reads the element, the
-rules shuffled. -/
+/-- A group respelled: its rules respelled, a root context test moved into an `ANY` body that reads the element. The
+rules are shuffled in random order. -/
 def respellGroup (group : Group) : Draw Group := do
   let mut rules := []
   for rule in group do
@@ -551,8 +558,8 @@ def comparisonsOn : WordType → List Comparison
 def uintProperties : List PropertyId :=
   (List.range (CTX_MAX + 1)).filter (contextPropertyType · != .address)
 
-/-- The word of one of `validationTypes` whose byte is `pattern`: its low byte, sign extended for `int8`, its high byte
-for `bytes1`, and its low bit for `bool`. -/
+/-- The word of one of `validationTypes` whose byte is `pattern`. Its low byte is `pattern`, sign extended for `int8`.
+For `bytes1`, its high byte is `pattern`. For `bool`, its low bit is the low bit of `pattern`. -/
 def wordOfPattern (wordType : WordType) (pattern : Nat) : Word :=
   match wordType with
   | .int width => Word.signExtendFrom width (BitVec.ofNat 256 pattern)
@@ -560,9 +567,9 @@ def wordOfPattern (wordType : WordType) (pattern : Nat) : Word :=
   | .bool => BitVec.ofNat 256 (pattern % 2)
   | _ => BitVec.ofNat 256 pattern
 
-/-- An operator among `comparisons` on a target of one of `validationTypes`, negated `negations` percent of the time:
-constants at or next to a byte of `pool`, masks of one to three bits, and on `uintN` a context operand among
-`properties` for 40 percent of `EQ` to `LTE`. -/
+/-- An operator among `comparisons` on a target of one of `validationTypes`, negated `negations` percent of the time.
+Its operand is a constant at or next to a byte of `pool`, or a mask of one to three bits. On `uintN`, the operand is a
+context operand among `properties` for 40 percent of `EQ` to `LTE`. -/
 def validationOperator (wordType : WordType) (comparisons : List Comparison) (negations : Nat) (pool : List Nat)
     (properties : List PropertyId) : Draw Operator := do
   let constant : Draw Word := do
@@ -583,9 +590,9 @@ def validationOperator (wordType : WordType) (comparisons : List Comparison) (ne
       else pure (.constant [← constant])
   return ⟨← percent negations, comparison, operand⟩
 
-/-- A validation case: a type among `validationTypes` as one parameter, two, or the element of an array a loop walks,
-and one or two groups of one to eight tests on it. A quarter of the cases not on `bool` hold five to eight bitmask
-tests, half negated, which the mask search needs. -/
+/-- A validation case uses a type among `validationTypes` as one parameter, two, or the element of an array a loop
+walks. It has one or two groups of one to eight tests on it. A quarter of the cases not on `bool` contain five to eight
+bitmask tests, half negated, which the mask search needs. -/
 def validationCaseOf : Draw (Signature × Formula) := do
   let wordType ← oneOf validationTypes
   let pool ← listOf 3 (oneOf [0, 1, 127, 128, 254, 255, ← natBetween 0 255, ← natBetween 0 255])

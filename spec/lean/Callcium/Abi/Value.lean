@@ -14,7 +14,7 @@ abbrev Path := List Nat
 
 /-- A decoded value, with types erased except for the signedness comparisons need. -/
 inductive Value where
-  /-- A static elementary value as its 32-byte word; `signed` orders it as two's complement. -/
+  /-- A static elementary value as its 32-byte word. `signed` orders it as two's complement. -/
   | word (bits : Word) (signed : Bool)
   /-- A `bytes` or `string` value. -/
   | bytes (data : List UInt8)

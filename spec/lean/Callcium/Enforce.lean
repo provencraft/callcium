@@ -6,14 +6,14 @@ import Callcium.Abi.DecodeStrict
 # Enforcement
 
 `Policy.enforce` is the byte-level evaluator: the verdict the enforcer reaches on a stored blob, calldata and the call's
-context. At entry it checks the format version. It reads the blob through `Policy.load`, which reads every field the
-format defines where the format places it and checks none of the storage invariants: it fails only where a
-field has no reading, a read past its region or a value outside every defined one. It evaluates the loaded policy in
-the order `Formula.evaluateValues` fixes: groups in order, rules in order, elements in index order, each with the
-short-circuits of `Quantifier.evaluate`. Within a test the checks run as the enforcer runs them: the hint resolves, the
-word at the target loads, a declared length's payload must lie within the calldata or a word must be canonical for its
-type, and the operator compares. Every calldata read goes through `loadWord`, which faults instead of reading past the
-end.
+context. At entry it checks the format version. It reads the blob through `Policy.load`. `Policy.load` reads every field
+the format defines where the format places it, and it checks none of the storage invariants. It fails only where a field
+has no reading, a read past its region or a value outside every defined one. It evaluates the loaded policy in the order
+that `Formula.evaluateValues` determines. Groups run in order, rules run in order, and elements run in index order. Each
+quantifier applies the short-circuits of `Quantifier.evaluate`. Within a test, the checks run as the enforcer runs them.
+The hint resolves. The word at the target loads. A declared length's payload must lie within the calldata, or a word
+must be canonical for its type. Then the operator compares. Every calldata read goes through `loadWord`, which faults
+instead of reading past the end.
 
 `Policy.outcome` names why an evaluation aborts, and `Trace.steps` counts the rules and tests it evaluates.
 -/
@@ -71,7 +71,7 @@ structure Trace where
   steps : Nat
   deriving Repr
 
-/-- Runs `items` in order as `Quantifier.evaluate` does, adding up the steps of the items it runs. -/
+/-- Runs `items` in order as `Quantifier.evaluate` does, and sums the steps of the items it runs. -/
 def Quantifier.run {Item : Type} (run : Item → Trace) : Quantifier → List Item → Trace
   | .all, [] => ⟨.pass, 0⟩
   | .any, [] => ⟨.fail, 0⟩
@@ -92,8 +92,8 @@ def Quantifier.run {Item : Type} (run : Item → Trace) : Quantifier → List It
 
 /-! ## Comparisons on lengths -/
 
-/-- The comparison's result on a value of `length` elements or bytes, as `Comparison.apply` gives it on such a value:
-none for a comparison that reads a word. -/
+/-- The comparison's result on a value of `length` elements or bytes, as `Comparison.apply` gives it on such a value.
+The result is none for a comparison that reads a word. -/
 def Comparison.applyLength : Comparison → Nat → List Word → Option Bool
   | .lengthEq, length, [value] => some (length == value.toNat)
   | .lengthGt, length, [bound] => some (bound.toNat < length)
@@ -133,15 +133,15 @@ def FrameHint.resolveElement (hint : FrameHint) (data : Bytes) (elements positio
 
 /-! ## Evaluation -/
 
-/-- The bytes per item a target's declared length counts: an element's head for a dynamic array, one for `bytes` and
-`string`. -/
+/-- The bytes per item a target's declared length counts. It is an element's head for a dynamic array. It is one byte
+for `bytes` and `string`. -/
 def TestHint.payloadStride (hint : TestHint) : Nat :=
   match hint.targetMeta with
   | some array => WORD_SIZE * array.strideWords
   | none => 1
 
-/-- The outcome of a test whose target starts at `target`. A target with a calldata length compares its length, whose
-payload must lie within the calldata; any other target compares its word, which must be canonical for its type. -/
+/-- The outcome of a test whose target starts at `target`. A target with a calldata length compares its length, and its
+payload must lie within the calldata. Any other target compares its word, which must be canonical for its type. -/
 def TestHint.compare (hint : TestHint) (operator : Operator) (ctx : Context) (data : Bytes) (target : Nat) :
     Outcome :=
   match loadWord data target with
@@ -219,8 +219,8 @@ end Reader
 
 open Reader
 
-/-- A hop: a plain hop where the index is `HINT_NO_INDEX`, an element hop at any other index, its meta word read with
-the reserved bits ignored. -/
+/-- A hop: a plain hop where the index is `HINT_NO_INDEX`, and an element hop at any other index. Its meta word is read
+with the reserved bits ignored. -/
 def Hop.load : Reader Hop := do
   let delta ← field 4
   let index ← field 2
@@ -232,7 +232,7 @@ def loadHops : Reader (List Hop) := do
   let hopCount := (← byte).toNat
   many Hop.load hopCount
 
-/-- A test's hint; the target meta word is read for a dynamic array only. -/
+/-- A test's hint. The target meta word is read for a dynamic array only. -/
 def TestHint.load : Reader TestHint := do
   let hops ← loadHops
   let targetDelta ← field 4
@@ -253,8 +253,8 @@ def loadPath : Reader Path := do
   let depth := (← byte).toNat
   many (field 2) depth
 
-/-- An operator against a target of type code `code`. Constants are as wide as the operand type, as many as the
-comparison takes whatever `dataLength` states, and for `IN` as many as `dataLength` holds; a context source names a
+/-- An operator against a target of type code `code`. Constants are as wide as the operand type. A comparison with a
+fixed arity takes that many constants. `IN` takes as many constants as fit in `dataLength`. A context source names a
 property in 2 bytes. -/
 def Operator.load (code : UInt8) : Reader Operator := do
   let opCode := (← byte).toNat
@@ -313,8 +313,8 @@ def loadGroup : Reader (List CompiledRule) := do
   let groupSize ← field 4
   within groupSize (many CompiledRule.load ruleCount)
 
-/-- The policy as the enforcer reads it: the selector unless the header flags it absent, the descriptor's length to
-pass it, and as many groups as `groupCount` states. -/
+/-- The policy as the enforcer reads it. The selector is kept unless the header flags it absent. It reads the
+descriptor's length, then takes the descriptor's bytes. It reads as many groups as `groupCount` states. -/
 def Policy.loadPolicy : Reader CompiledPolicy := do
   let header := (← byte).toNat
   let selector ← field Policy.SELECTOR_SIZE
@@ -324,7 +324,7 @@ def Policy.loadPolicy : Reader CompiledPolicy := do
   let selectorless := header &&& Policy.FLAG_NO_SELECTOR = Policy.FLAG_NO_SELECTOR
   pure ⟨if selectorless then none else some (UInt32.ofNat selector), desc, groups⟩
 
-/-- The policy as the enforcer reads it from `blob`; none where a field has no reading. -/
+/-- The policy as the enforcer reads it from `blob`. The result is none where a field has no reading. -/
 def Policy.load (blob : Bytes) : Option CompiledPolicy :=
   (Policy.loadPolicy blob).map (·.1)
 
@@ -332,13 +332,13 @@ def Policy.load (blob : Bytes) : Option CompiledPolicy :=
 
 namespace Policy
 
-/-- Whether the enforcer evaluates a blob whose header byte is `header`: `major` is `MAJOR` and `minor` at most
-`MINOR`. -/
+/-- Whether the enforcer evaluates a blob whose header byte is `header`. It does when `major` equals `MAJOR` and `minor`
+is at most `MINOR`. -/
 def supports (header : UInt8) : Bool :=
   header.toNat >>> MAJOR_SHIFT = MAJOR && (header.toNat >>> MINOR_SHIFT) &&& MINOR_MASK ≤ MINOR
 
-/-- The enforcer on a blob, calldata and the call's context: an unsupported format version or a blob it cannot read
-aborts, otherwise the loaded policy decides. -/
+/-- The enforcer on a blob, calldata and the call's context. An unsupported format version or a blob it cannot read
+aborts. Otherwise, the loaded policy decides. -/
 def run (blob data : Bytes) (ctx : Context) : Trace :=
   match blob.head?.filter supports, load blob with
   | some _, some policy => policy.run data ctx
@@ -374,7 +374,7 @@ def CompiledPolicy.workBound (policy : CompiledPolicy) : Nat :=
 def Signature.decodeSolc (signature : Signature) (data : Bytes) : Value :=
   (AbiType.tuple signature.params).decodeSolc data (Policy.argumentsStart signature.selector)
 
-/-- The arguments whose canonical encoding `data` holds after the signature's selector; none for any other data. -/
+/-- The arguments whose canonical encoding is `data` after the signature's selector. Otherwise, the result is none. -/
 def Signature.decodeStrict (signature : Signature) (data : Bytes) : Option Value :=
   if signature.selector.all fun selector =>
       data.take Policy.SELECTOR_SIZE = beBytes Policy.SELECTOR_SIZE selector.toNat then

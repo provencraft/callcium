@@ -6,31 +6,30 @@ import Lean.Data.Json
 
 Runs the conformance vectors against the model.
 
-- A descriptor vector agrees when `Descriptor.wellFormed` accepts its blob exactly when its `error` is empty; validity
+- A descriptor vector agrees when `Descriptor.wellFormed` accepts its blob exactly when its `error` is empty. Validity
   and decoding are no tier's check.
-- A storage vector agrees when `Policy.validate` accepts its blob exactly when its `error` is empty, and an accepted
-  blob is `canonical` exactly when encoding the formula it decodes to, over the signature it embeds, gives back the
-  blob.
+- A storage vector agrees when `Policy.validate` accepts its blob exactly when its `error` is empty. An accepted blob is
+  `canonical` exactly when encoding the formula it decodes to, over the signature it embeds, reproduces the blob.
 - An encoding vector agrees when storage accepts its `input` and encoding the formula it decodes to, over the signature
-  it embeds, gives its `expected` blob; an empty `expected` is the encoder refusing the formula.
-- An enforcement vector agrees when `Policy.outcome` on its calldata and context is its `expected` verdict, or the
-  abort its `expectedError` names, on a blob that passes storage validation; or, for an `integrityError` vector, when
-  storage rejects the blob and enforcement aborts without a violation code. Its `context` sets every
-  property the policy reads, zero included. Group-local codes reach the model as the fail verdict, so of `violations`
-  only the shape is checked: one group-local code per group on a fail, none otherwise.
-- A validation vector that expects PV-9 issues or none agrees when the PV-9 oracle reads its blob and gives its issues
-  (`validationIssues?`); one with a blob that is not canonical or that the oracle does not read, or that expects an
-  issue of another invariant, is skipped, and the run fails when every one is.
+  it embeds, gives its `expected` blob. An empty `expected` means the encoder refuses the formula.
+- An enforcement vector agrees when `Policy.outcome` on its calldata and context is its `expected` verdict, or the abort
+  its `expectedError` names. Such a vector's blob passes storage validation. An `integrityError` vector agrees when
+  storage rejects the blob and enforcement aborts without a violation code. Its `context` sets every property the policy
+  reads, zero included. Group-local codes reach the model as the fail verdict. Of `violations`, only the shape is
+  checked: one group-local code per group on a fail, none otherwise.
+- A validation vector that expects PV-9 issues, or none, agrees when the PV-9 oracle reads its blob and gives its issues
+  (`validationIssues?`). The vector is skipped when its blob is not canonical, when the oracle does not read it, or when
+  it expects another invariant's issue. The run fails when every vector is skipped.
 
-From `spec/lean`:
+Run the vectors from `spec/lean` with this command.
 
 ```
 lake exe vectors
 ```
 
 The five paths default to `spec/vectors/descriptors.json`, `spec/vectors/policies.json`, `spec/vectors/encoding.json`,
-`spec/vectors/enforcement.json` and `spec/vectors/validation.json`. Exits nonzero on any disagreement, unreadable
-vector or empty file.
+`spec/vectors/enforcement.json` and `spec/vectors/validation.json`. The executable exits nonzero on any disagreement,
+unreadable vector, or empty file.
 -/
 
 open Callcium Callcium.Corpus Lean
@@ -115,8 +114,8 @@ def expectedOutcome (vector : Json) : Except String Outcome := do
     throw "integrityError is false"
   | _ => throw s!"expects {present}, not one outcome"
 
-/-- None when the vector's `violations` fits its outcome, else what does not: a fail lists one group-local code per
-group, since every group failed, and no other outcome lists any. -/
+/-- None when the vector's `violations` fits its outcome. Otherwise the result names what does not fit. A fail lists one
+group-local code per group, since every group failed. No other outcome lists any. -/
 def checkViolations (vector : Json) (expected : Outcome) (groupCount : Nat) : Except String (Option String) := do
   let codes ← match (vector.getObjVal? "violations").toOption with
     | some field => some <$> fromJson? (α := Array String) field
@@ -153,8 +152,9 @@ def checkEnforcement (vector : Json) : Except String (Option String) := do
 def pv9Codes : List String :=
   ["CONTRADICTORY_RULE", "REDUNDANT_RULE", "VACUOUS_RULE", "DOMINATED_BOUND", "DOMINATED_LENGTH_BOUND"]
 
-/-- The issues the oracle finds on a validation vector's blob and those the vector expects, as corpus lines spell them;
-none when the vector expects an issue of another invariant, or its blob is not canonical or not one the oracle reads.
+/-- The issues the oracle finds on a validation vector's blob, and those the vector expects, as corpus lines spell them.
+The result is none when the vector expects another invariant's issue, or when its blob is not canonical or the oracle
+does not read it.
 -/
 def validationVerdicts? (vector : Json) : Except String (Option (String × String)) := do
   let issues ← (← vector.getObjValAs? (Array Json) "issues").toList.mapM fun issue =>
@@ -174,8 +174,8 @@ def checkValidation (vector : Json) : Except String (Option String) := do
 
 /-! ## Files -/
 
-/-- Runs `check` on every vector in the file at `path`, printing each disagreement; the number of vectors and of
-failures. -/
+/-- Runs `check` on every vector in the file at `path`. It prints each disagreement and returns the number of vectors
+and the number of failures. -/
 def runFile (path : String) (check : Json → Except String (Option String)) : IO (Nat × Nat) := do
   let vectors ← IO.ofExcept ((Json.parse (← IO.FS.readFile path)).bind Json.getArr?)
   let mut failures := 0
@@ -195,8 +195,8 @@ def runFile (path : String) (check : Json → Except String (Option String)) : I
   IO.println s!"{path}: {vectors.size} vectors, {failures} failing"
   return (vectors.size, failures)
 
-/-- Checks the descriptor, storage, encoding, enforcement and validation vector files, at the given paths or the
-defaults. -/
+/-- Checks the descriptor, storage, encoding, enforcement and validation vector files at the given paths. Without
+arguments, it checks the default paths. -/
 def main (args : List String) : IO UInt32 := do
   let defaults := ["../vectors/descriptors.json", "../vectors/policies.json", "../vectors/encoding.json",
     "../vectors/enforcement.json", "../vectors/validation.json"]

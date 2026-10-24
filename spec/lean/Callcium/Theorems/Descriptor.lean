@@ -975,8 +975,8 @@ theorem Descriptor.encodeNode_at {desc : Bytes} {offset : Nat} (isValid : valid 
         simp_all [fun wordType => (WordType.code_ne_staticArray wordType).symm,
           fun wordType => (WordType.code_ne_dynamicArray wordType).symm]
 
-/-- Theorem 14: on a valid descriptor, skipping a node by its `nodeLength` and walking its children end at the same
-byte. -/
+/-- Theorem 14: on a valid descriptor, skipping a node by its `nodeLength` and walking its children end at the same byte
+offset in the encoding. -/
 theorem Descriptor.skipNode_eq_walkNode {desc : Bytes} {offset : Nat} (isValid : valid desc = true)
     (reached : NodeAt desc offset) : skipNode (desc.drop offset) = walkNode (desc.drop offset) := by
   obtain ⟨abiType, rest, fits, nodeIs⟩ := encodeNode_at isValid reached

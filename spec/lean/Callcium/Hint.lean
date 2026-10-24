@@ -3,12 +3,11 @@ import Callcium.Abi.DecodeSolc
 /-!
 # Hints
 
-A hint addresses a value in calldata without the descriptor: a chain of hops, each crossing one dynamic boundary, then
-a fixed delta. `AbiType.compile?` compiles a path within a type into a test's hint, and
-`AbiType.compileLoop?` an array path into a loop's hint. `Hint.resolve`, `LoopHint.resolveArray` and
-`LoopHint.resolveElement` follow them through calldata from where the starting point's encoding starts. Positions add
-modulo 2^256, as the enforcer's unchecked arithmetic does; a word read must lie within the calldata, and an offset word
-must not carry its base past the end.
+A hint addresses a value in calldata without the descriptor. It is a chain of hops, each crossing one dynamic boundary,
+then a fixed delta. `AbiType.compile?` compiles a path within a type into a test's hint, and `AbiType.compileLoop?` an
+array path into a loop's hint. `Hint.resolve`, `LoopHint.resolveArray` and `LoopHint.resolveElement` follow them through
+calldata from where the starting point's encoding starts. Positions add modulo 2^256, as the enforcer's unchecked
+arithmetic does. A word read must lie within the calldata. An offset word must not carry its base past the end.
 -/
 
 namespace Callcium
@@ -53,7 +52,7 @@ structure LoopHint where
   hops : List Hop
   /-- The array's offset from the last base. -/
   arrayDelta : Nat
-  /-- A static array's declared length; 0 for a dynamic array. -/
+  /-- A static array's declared length, or 0 for a dynamic array. -/
   count : Nat
   /-- The array's meta word. -/
   array : ArrayMeta
@@ -67,10 +66,10 @@ structure LoopHint where
 def enter (needed : Bool) (delta : Nat) : List Hop × Nat :=
   if needed then ([.plain delta], 0) else ([], delta)
 
-/-- Walks `path` within a value of the type: the hops it emits, the delta past their last base, whether the chain ends
-inside the node reached, and that node's type. `delta` and `entered` describe the type's own node on arrival: entered,
-its encoding starts at the base; otherwise its head lies `delta` past the base. None when a step leaves the type or
-passes a static array's length. -/
+/-- Walks `path` within a value of the type. It yields the hops it emits, the delta past their last base, whether the
+chain ends inside the node reached, and that node's type. `delta` and `entered` describe the type's own node on arrival.
+When `entered` is true, its encoding starts at the base. Otherwise its head lies `delta` past the base. None when a step
+leaves the type or passes a static array's length. -/
 def AbiType.walk : AbiType → Path → Nat → Bool → Option (List Hop × Nat × Bool × AbiType)
   | abiType, [], delta, entered => some ([], delta, entered, abiType)
   | abiType@(.tuple fields), step :: steps, delta, entered =>
@@ -94,16 +93,16 @@ def AbiType.walk : AbiType → Path → Nat → Bool → Option (List Hop × Nat
       fun (hops, rest) => (entry ++ .element step (.of element true) :: hops, rest)
   | _, _ :: _, _, _ => none
 
-/-- The hint of a test at `path` within a value of the type. A dynamic target is entered, so the hint ends where its
-encoding starts. -/
+/-- The hint of a test at `path` within a value of the type. A dynamic target is entered, so the hint ends at the start
+of the target's encoding. -/
 def AbiType.compile? (abiType : AbiType) (path : Path) : Option Hint :=
   (abiType.walk path 0 true).map fun (hops, delta, entered, target) =>
     let (entry, delta) := enter (target.isDynamic && !entered) delta
     ⟨hops ++ entry, delta, target⟩
 
-/-- The hint of a loop over the array at `arrayPath` within a value of the type; none unless the path reaches an array.
-A static array's `count` is its declared length and a `count` of 0 states a dynamic array, so a static array of no
-elements has no hint. -/
+/-- The hint of a loop over the array at `arrayPath` within a value of the type. The result is none unless the path
+reaches an array. A static array's `count` is its declared length. A `count` of 0 states a dynamic array. So a static
+array of no elements has no hint. -/
 def AbiType.compileLoop? (abiType : AbiType) (arrayPath : Path) : Option LoopHint :=
   match abiType.walk arrayPath 0 true with
   | some (hops, delta, entered, array@(.staticArray element length)) =>
@@ -126,17 +125,17 @@ inductive Fault where
   | arrayIndexOutOfBounds
   deriving Repr, DecidableEq
 
-/-- The word at `position`; a fault unless it lies within `data`. -/
+/-- The word at `position`, or a fault when it does not lie within `data`. -/
 def loadWord (data : Bytes) (position : Nat) : Except Fault Word :=
   if position + WORD_SIZE ≤ data.length then .ok (readWord data position) else .error .calldataOutOfBounds
 
-/-- `base` advanced by the offset word at `head`; a fault when that passes the end of `data`. -/
+/-- `base` advanced by the offset word at `head`. A fault when that passes the end of `data`. -/
 def follow (data : Bytes) (base head : Nat) : Except Fault Nat := do
   let offset := (← loadWord data head).toNat
   if base + offset ≤ data.length then pure (advance base offset) else throw .calldataOutOfBounds
 
-/-- Where element `index` of the array starts, its elements starting at `elements`: its head `index` strides on, and
-for a dynamic element where the offset word there points. -/
+/-- Where element `index` of the array starts, its elements starting at `elements`. Its head lies `index` strides past
+`elements`. For a dynamic element, the element starts where the offset word in that head points. -/
 def ArrayMeta.elementAt (array : ArrayMeta) (data : Bytes) (elements index : Nat) : Except Fault Nat :=
   let slot := advance elements (index * (WORD_SIZE * array.strideWords))
   if array.elementDynamic then follow data elements slot else pure slot

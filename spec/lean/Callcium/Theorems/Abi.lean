@@ -256,8 +256,7 @@ theorem AbiType.decodeElements_eq (element : AbiType) (data : Bytes) (base head 
   | zero => simp [decodeElements, AbiType.decodeFields]
   | succ count rest => simp [decodeElements, AbiType.decodeFields, List.replicate_succ, rest]
 
-/-- Fields decode to the values whose components' heads lie at `head` and whose tails lie at `tailOffset` past
-`base`. -/
+/-- Fields decode to the values whose components have heads at `head` and tails at `tailOffset` past `base`. -/
 theorem AbiType.decodeFields_encode {types : List AbiType} {values : List Value}
     (decodes : ∀ abiType ∈ types, ∀ {value : Value} (before after : Bytes), abiType.admits value = true →
       (before ++ abiType.encode value ++ after).length < 2 ^ 256 →

@@ -71,8 +71,8 @@ theorem any_swap {First Second : Type} (firsts : List First) (seconds : List Sec
   exact ⟨fun ⟨first, isFirst, second, isSecond, holding⟩ => ⟨second, isSecond, first, isFirst, holding⟩,
     fun ⟨second, isSecond, first, isFirst, holding⟩ => ⟨first, isFirst, second, isSecond, holding⟩⟩
 
-/-- Under `ANY` a body that is one OR splits into root alternatives, `∃i.(P ∨ Q) ≡ ∃i.P ∨ ∃i.Q`, so canonical form
-rejects it. -/
+/-- Under `ANY` a body that is one OR splits into root alternatives, `∃i.(P ∨ Q) ≡ ∃i.P ∨ ∃i.Q`. Canonical form rejects
+any body of this shape. -/
 theorem any_or_splits (ctx : Context) (stack : Stack) (arrayPath : Path) (groups : Formula) :
     (Rule.loop .any arrayPath [.or groups]).holds ctx stack =
       groups.any fun group => (Rule.loop .any arrayPath group).holds ctx stack := by
@@ -86,9 +86,9 @@ theorem any_or_splits (ctx : Context) (stack : Stack) (arrayPath : Path) (groups
 
 /-! ## Nested loops: the fee rule
 
-`fill((address maker, (address recipient, uint256 amount)[] fees)[] orders)`: every order pays the fee recipient. A
-loop inside a body is a core rule; only `Formula.WellFormed` rejects it. Theorems 15, 16, 21 and 34 carry no
-well-formedness hypothesis, so the evaluator already covers the shape.
+`fill((address maker, (address recipient, uint256 amount)[] fees)[] orders)`: every order pays the fee recipient. A loop
+inside a body is a core rule. Only `Formula.WellFormed` rejects it. Theorems 15, 16, 21 and 34 carry no well-formedness
+hypothesis, so the evaluator already covers the shape.
 -/
 
 /-- An order: its maker and its fees. -/
@@ -135,7 +135,7 @@ theorem fromIsNotTo_rejects :
 /-! ## Outer tests and `Same`: parallel arrays
 
 `execute(address[] targets, uint256[] values)`: for every `i`, `targets[i]` is allowlisted or `values[i] == 0`. The body
-reads `values[i]` with an outer test one starting point out, indexed by `Same 0`, the loop's position. A shorter
+reads `values[i]` with an outer test one starting point away, indexed by `Same 0`, the loop's position. A shorter
 `values` leaves `values[i]` unresolved: the test fails, a group-local fault.
 -/
 
@@ -152,7 +152,7 @@ theorem allowlistedOrNoValue_rejects :
     Formula.holds noContext (args [.list [address treasury, address outsider], .list [uint 0, uint 7]])
       allowlistedOrNoValue = false := by decide
 
-/-- Under `ANY` a rule that reads no position moves out as a conjunct, `∃i.(P ∧ Q(i)) ≡ P ∧ ∃i.Q(i)`, so canonical
+/-- Under `ANY` a rule that reads no position leaves the loop as a conjunct, `∃i.(P ∧ Q(i)) ≡ P ∧ ∃i.Q(i)`. Canonical
 form rejects it there. -/
 theorem any_moves_out (ctx : Context) (stack : Stack) (arrayPath : Path) (rule : Rule) (group : Group)
     (held : Bool) (independent : ∀ point, rule.holds ctx (point :: stack) = held) :
@@ -162,8 +162,8 @@ theorem any_moves_out (ctx : Context) (stack : Stack) (arrayPath : Path) (rule :
   split <;> simp [Quantifier.holds, independent]
   cases held <;> simp
 
-/-- Under `ALL` an OR group that reads no position moves out as a root alternative, `∀i.(P ∨ Q(i)) ≡ P ∨ ∀i.Q(i)`, so
-canonical form rejects it. -/
+/-- Under `ALL` an OR group that reads no position leaves the loop as a root alternative, `∀i.(P ∨ Q(i)) ≡ P ∨ ∀i.Q(i)`.
+Canonical form rejects such a group. -/
 theorem all_moves_out (ctx : Context) (stack : Stack) (arrayPath : Path) (elements : List Value)
     (found : read stack 0 arrayPath = some (.list elements)) (outer : Group) (groups : Formula) (held : Bool)
     (independent : ∀ point, Group.holds ctx (point :: stack) outer = held) :
@@ -175,7 +175,7 @@ theorem all_moves_out (ctx : Context) (stack : Stack) (arrayPath : Path) (elemen
   cases held <;> simp [Function.comp_def]
 
 /-- An `ALL` body that reads no position holds exactly when its rules do or the array is empty, `∀i.P ≡ P ∨ (array
-empty)`, so canonical form rejects it: the author writes the two root groups. -/
+empty)`. Canonical form rejects it. The author writes the two root groups instead. -/
 theorem all_independent_body (ctx : Context) (stack : Stack) (arrayPath : Path) (elements : List Value)
     (found : read stack 0 arrayPath = some (.list elements)) (body : Group) (held : Bool)
     (independent : ∀ point, Group.holds ctx (point :: stack) body = held) :
@@ -184,7 +184,7 @@ theorem all_independent_body (ctx : Context) (stack : Stack) (arrayPath : Path) 
   simp only [Rule.holds, found, Quantifier.holds, List.all_map, Function.comp_def, Group.holds_eq, independent]
   cases held <;> cases elements <;> simp
 
-/-- Beside a rule that reads the position, a rule that reads none stays inside `ALL`: an empty array passes the loop
+/-- Beside a rule that reads the position, a rule that reads none stays inside `ALL`. An empty array passes the loop
 whatever the outer rule says, `∀i.(P ∧ Q(i)) ≢ P ∧ ∀i.Q(i)`. A context test is such a rule. -/
 theorem all_keeps_conjunct :
     let senderIsTreasury : Callcium.Rule := .contextTest CTX_MSG_SENDER ⟨false, .eq, .constant [treasury]⟩
@@ -236,7 +236,7 @@ sum past `2²⁵⁶` compares above every operand rather than wrapping.
 def sending (value : Nat) : Context := fun property => if property = CTX_MSG_VALUE then some (BitVec.ofNat 256 value)
   else none
 
-/-- The amounts add up to at most `msg.value`. -/
+/-- The amounts sum to at most `msg.value`. -/
 def coveredByValue : Formula :=
   [[.aggregate (.sum ⟨false, .core .lte, .core (.context CTX_MSG_VALUE)⟩) [0] [1]]]
 

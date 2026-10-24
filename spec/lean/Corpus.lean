@@ -5,20 +5,20 @@ import Std.Data.HashMap
 # Differential corpora
 
 The line formats the differential checks share, and the check that runs over them. `generate-corpus` writes a corpus
-with the model's verdicts; an implementation replays it and writes the same lines with its own verdicts; a checker
+with the model's verdicts. An implementation replays it and writes the same lines with its own verdicts. A checker
 recomputes the model's verdict on every line the implementation wrote.
 
 - Enforcement: `id blob callData context outcome`. `context` lists the context properties from `CTX_MSG_SENDER` to
   `CTX_MAX`, comma separated, each a 32-byte word or `-` where the call does not provide it. `outcome` is `pass`,
   `fail`, the violation code of an abort, or `integrity` for an abort that carries no code.
-- Encoding: `id blob encoded`, `blob` a policy written in any spelling and `encoded` the blob the encoder gives for the
-  formula it states, over the signature it embeds; `0x` where the encoder refuses the formula.
+- Encoding: `id blob encoded`. `blob` is a policy written in any spelling. `encoded` is the blob that the encoder gives
+  for the formula the policy states, over the signature the policy embeds. `0x` marks a formula the encoder refuses.
 - Storage: `id blob verdict`, `verdict` being `accept` or `reject`.
-- Validation: `id blob issues`, `issues` the PV-9 issues of a canonical blob as `CODE@g.r`, or `CODE@g.r.b` for a test
-  in a loop's body, comma separated in any order, or `-` for none.
+- Validation: `id blob issues`. `issues` lists the PV-9 issues of a canonical blob as `CODE@g.r`, or as `CODE@g.r.b` for
+  a test in a loop's body. The items are comma separated in any order, or `-` marks none.
 
-Hex fields are `0x`-prefixed and lowercase. An implementation may rewrite a line's calldata and context, and may write
-several lines per `id`; it never rewrites the blob.
+Hex fields are `0x`-prefixed and lowercase. An implementation can rewrite a line's calldata and context, and can write
+several lines per `id`. It never rewrites the blob.
 -/
 
 namespace Callcium
@@ -33,7 +33,7 @@ def hexDigit (value : Nat) : Char :=
 def hexOf (bytes : Bytes) : String :=
   bytes.foldl (fun text byte => (text.push (hexDigit (byte.toNat / 16))).push (hexDigit (byte.toNat % 16))) "0x"
 
-/-- The violation code of an abort; none for a blob the enforcer does not evaluate, which carries no code. -/
+/-- The violation code of an abort, or none for a blob the enforcer does not evaluate, which carries no code. -/
 def Abort.code? : Abort → Option String
   | .missingSelector => some "MISSING_SELECTOR"
   | .selectorMismatch => some "SELECTOR_MISMATCH"
@@ -77,7 +77,7 @@ def contextField (context : Context) : String :=
     | some word => hexOf (beBytes WORD_SIZE word.toNat)
     | none => "-")
 
-/-- The context a corpus field spells; none unless it holds one field per property up to `CTX_MAX`. -/
+/-- The context a corpus field spells, or none unless the field contains one item per property up to `CTX_MAX`. -/
 def parseContext (field : String) : Option Context := do
   let words ← (field.splitOn ",").mapM fun entry =>
     if entry == "-" then some none else (parseHex entry).map fun bytes => some (BitVec.ofNat 256 (beNat bytes))
@@ -86,8 +86,8 @@ def parseContext (field : String) : Option Context := do
 
 /-! ## Encoding -/
 
-/-- `Policy.encode` of the formula the blob states, over the signature it embeds: empty where the encoder refuses the
-formula, none unless the blob passes storage validation and its descriptor decodes. -/
+/-- `Policy.encode` of the formula the blob states, over the signature the blob embeds. The result is empty where the
+encoder refuses the formula. The result is none unless the blob passes storage validation and its descriptor decodes. -/
 def reencode (blob : Bytes) : Option Bytes := do
   let policy ← Policy.parse blob
   let params ← Descriptor.decode policy.desc
@@ -95,8 +95,8 @@ def reencode (blob : Bytes) : Option Bytes := do
 
 /-! ## Validation -/
 
-/-- A PV-9 issue: its code, the indices of the test it names (group, rule, and the test within a loop's body), and the
-test's operator. -/
+/-- A PV-9 issue has a code, the indices of the test it names (group, rule, and the test's position within a loop's
+body), and its operator. -/
 structure Issue where
   code : String
   location : List Nat
@@ -110,7 +110,7 @@ def Issue.key (issue : Issue) : String :=
 def issuesField (issues : List Issue) : String :=
   if issues.isEmpty then "-" else ",".intercalate (issues.map Issue.key)
 
-/-- Every value of an 8-bit type in ascending order, two's complement for `int8`; none for any other type. -/
+/-- Every value of an 8-bit type in ascending order, two's complement for `int8`, or none for any other type. -/
 def valuesOf? : WordType → Option (List Word)
   | .uint width => if width.index = 0 then some ((List.range 256).map (BitVec.ofNat 256)) else none
   | .int width =>
@@ -125,8 +125,8 @@ def valuesOf? : WordType → Option (List Word)
 them. A context operand compares by order or equality (PWF-22), so these stand for every context. -/
 def contextClasses : List (Option Word) := none :: (List.range 257).map (some ∘ BitVec.ofNat 256)
 
-/-- A test on a subject: its operator, its location, the property its operand reads, and whether it holds at each value
-of the subject and each context class; a test reading no property has absence as its one class. -/
+/-- A test on a subject. It records its operator, its location, the property its operand reads, and whether it holds at
+each value of the subject and each context class. A test reading no property has absence as its one class. -/
 structure Literal where
   operator : Operator
   location : List Nat
@@ -161,9 +161,10 @@ def boundSides : Operator → Bool × Bool
   | ⟨false, .between, .constant _⟩ => (true, true)
   | _ => (false, false)
 
-/-- The PV-9 issues of the tests on one subject, in normal-form order: the test at which they first become unsatisfiable
-together; otherwise each test that holds for every value and context, each other test the rest imply, then each bound
-among the tests not yet named that is looser than the tightest on its side. -/
+/-- The PV-9 issues of the tests on one subject, in normal-form order. If the tests become unsatisfiable together, the
+issue is the test at which they first do so. Otherwise, the issues are three groups. The first group is each test that
+holds for every value and context. The second group is each other test that the rest imply. The third group is each
+bound among the tests not yet named that is looser than the tightest on its side. -/
 def subjectIssues (valueCount : Nat) (literals : List Literal) : List Issue :=
   let issue (code : String) (literal : Literal) : Issue := ⟨code, literal.location, literal.operator⟩
   let contradiction := (List.range literals.length).find? fun index =>
@@ -188,9 +189,9 @@ def subjectIssues (valueCount : Nat) (literals : List Literal) : List Issue :=
       (lower && lowest literal < tightestLower) || (upper && tightestUpper < highest literal)
     named.filterMap id ++ dominated.map (issue "DOMINATED_BOUND")
 
-/-- The PV-9 issues of the tests of one rule list, each with its location, subject by subject; none for a context test,
-a subject of any type but `uint8`, `int8`, `bytes1` and `bool`, or a context operand on a signed or non-integer
-subject. -/
+/-- The PV-9 issues of the tests of one rule list, each with its location, subject by subject. The result is none for a
+context test. It is also none for a subject of any type but `uint8`, `int8`, `bytes1` and `bool`. It is also none for a
+context operand on a signed or non-integer subject. -/
 def testIssues? (tests : List (CompiledTest × List Nat)) : Option (List Issue) := do
   let entries ← tests.mapM fun
     | (.test path hint operator, location) => some (path, hint, operator, location)
@@ -205,8 +206,8 @@ def testIssues? (tests : List (CompiledTest × List Nat)) : Option (List Issue) 
       (onPath.map fun (_, _, operator, location) => Literal.of values wordType.signed operator location)
   return issues.flatten
 
-/-- The PV-9 issues of a policy, group by group, its root tests and each loop's body apart; none where `testIssues?`
-gives none. -/
+/-- The PV-9 issues of a policy, group by group, with each group's root tests and each loop's body apart. The result is
+none where `testIssues?` gives none. -/
 def validationIssues? (policy : CompiledPolicy) : Option (List Issue) := do
   let groups ← policy.groups.zipIdx.mapM fun (rules, group) => do
     let root := rules.zipIdx.filterMap fun
@@ -228,7 +229,7 @@ def canonicalVerdict (verdict : String) : String :=
 def fieldsOf (line : String) : List String :=
   (line.splitOn " ").filter (!·.isEmpty)
 
-/-- The blobs of a corpus by `id`, from lines of `fieldCount` fields; none for an unreadable line. -/
+/-- The blobs of a corpus by `id`, from lines of `fieldCount` fields. The result is none for an unreadable line. -/
 def blobsOf (lines : List String) (fieldCount : Nat) : Option (Std.HashMap String Bytes) :=
   lines.foldlM (init := {}) fun blobs line => do
     let fields := fieldsOf line
@@ -239,11 +240,11 @@ def blobsOf (lines : List String) (fieldCount : Nat) : Option (Std.HashMap Strin
 def readLines (path : String) : IO (List String) :=
   return ((← IO.FS.readFile path).splitOn "\n").filter (!·.trimAscii.isEmpty)
 
-/-- Checks the implementation's corpus at `implementation` against the generated one at `generated`. Every line holds
-`fieldCount` fields, names a generated `id` and its blob, and ends in the verdict `recompute` gives on its fields
-between `id` and the verdict, its comma-separated items in any order; every generated `id` has a line. Prints the
-first five disagreements and a tally; exits nonzero on any disagreement, unreadable line, missing `id` or empty
-corpus. -/
+/-- Checks the implementation's corpus at `implementation` against the generated one at `generated`. Every line contains
+`fieldCount` fields. Each line names a generated `id` and its blob. Each line ends in the verdict that `recompute` gives
+on its fields between `id` and the verdict, with its comma-separated items in any order. Every generated `id` has a
+line. Prints the first five disagreements and a tally. Exits nonzero on any disagreement, unreadable line, missing `id`,
+or an empty corpus. -/
 def check (fieldCount : Nat) (recompute : List String → Option String) (args : List String) : IO UInt32 := do
   let [generated, implementation] := args | do
     IO.eprintln "usage: <generated corpus> <implementation corpus>"

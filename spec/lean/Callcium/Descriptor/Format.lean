@@ -3,10 +3,10 @@ import Callcium.Abi.Type
 /-!
 # Descriptor format
 
-The byte layout of descriptor v2 as `spec/descriptor-v2.md` defines it: type codes, the fields of a composite node,
-the length of a type's node, and the limits. A descriptor is `version | paramCount | params`; an elementary node is its
-type code; a composite node opens with its code and three metadata bytes, `staticWords` in the high 12 bits and
-`nodeLength` in the low 12.
+The byte layout of descriptor v2 as `spec/descriptor-v2.md` defines it. It covers the type codes, the fields of a
+composite node, the length of a type's node, and the limits. A descriptor is `version | paramCount | params`. An
+elementary node is its type code. A composite node starts with its code and three metadata bytes: `staticWords` in the
+high 12 bits and `nodeLength` in the low 12.
 -/
 
 namespace Callcium
@@ -36,7 +36,7 @@ def MAX_STATIC_WORDS : Nat := 2 ^ 12 - 1
 /-- The longest static array (DWF-6). -/
 def MAX_STATIC_ARRAY_LENGTH : Nat := 2 ^ 12 - 1
 
-/-- The most fields a tuple holds (DWF-5): as many one-byte nodes as fit a node of `MAX_NODE_LENGTH` bytes. -/
+/-- The most fields a tuple contains (DWF-5): as many one-byte nodes as fit a node of `MAX_NODE_LENGTH` bytes. -/
 def MAX_TUPLE_FIELDS : Nat := MAX_NODE_LENGTH - TUPLE_HEADER_SIZE
 
 /-- The deepest a composite node nests, counted from its parameter's node, inclusive (DWF-7). -/
@@ -49,9 +49,9 @@ end Descriptor
 
 namespace TypeCode
 
-/-- `uint8`; `uintN` is `N / 8`. -/
+/-- `uint8`. `uintN` is `N / 8`. -/
 def UINT8 : UInt8 := 0x01
-/-- `int8`; `intN` is `0x20 + N / 8`. -/
+/-- `int8`. `intN` is `0x20 + N / 8`. -/
 def INT8 : UInt8 := 0x21
 /-- `address`. -/
 def ADDRESS : UInt8 := 0x41
@@ -59,7 +59,7 @@ def ADDRESS : UInt8 := 0x41
 def BOOL : UInt8 := 0x42
 /-- An external function pointer. -/
 def FUNCTION : UInt8 := 0x43
-/-- `bytes1`; `bytesN` is `0x4F + N`. -/
+/-- `bytes1`. `bytesN` is `0x4F + N`. -/
 def BYTES1 : UInt8 := 0x50
 /-- `bytes`. -/
 def BYTES : UInt8 := 0x70
@@ -136,7 +136,7 @@ def AbiType.metaFits (abiType : AbiType) : Bool :=
   abiType.nodeLength ≤ MAX_NODE_LENGTH && abiType.staticWords ≤ MAX_STATIC_WORDS
 
 mutual
-  /-- Whether every node of the type fits: a tuple has 1 to `MAX_TUPLE_FIELDS` fields (DWF-5), a static array 1 to
+  /-- Whether every node of the type fits. A tuple has 1 to `MAX_TUPLE_FIELDS` fields (DWF-5), a static array 1 to
   `MAX_STATIC_ARRAY_LENGTH` elements (DWF-6), and every composite node fits its metadata fields. -/
   def AbiType.fits : AbiType → Bool
     | .word _ | .bytes | .string => true
@@ -166,8 +166,8 @@ mutual
     | field :: fields => field.withinDepth depth && AbiType.allWithinDepth depth fields
 end
 
-/-- Whether a descriptor can describe the types: at most `MAX_PARAMS` of them, each fitting and within depth from its
-parameter's node. -/
+/-- Whether a descriptor can describe the types: at most `MAX_PARAMS` of them, each fitting and within depth counted
+from the node of its parameter. -/
 def Descriptor.withinLimits (types : List AbiType) : Bool :=
   types.length ≤ MAX_PARAMS && types.all fun abiType => abiType.fits && abiType.withinDepth 1
 

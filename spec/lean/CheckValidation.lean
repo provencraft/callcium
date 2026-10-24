@@ -4,8 +4,8 @@ import Corpus
 # Validation differential check
 
 Recomputes the PV-9 issues on every line of an implementation's validation corpus, by enumeration over the values of
-each subject (`validationIssues?`), and compares them with the issues the implementation wrote (`Corpus.check`). From
-`spec/lean`:
+each subject (`validationIssues?`). It compares them with the issues the implementation wrote (`Corpus.check`). Run the
+executable from the `spec/lean` directory.
 
 ```
 lake exe check-validation <generated corpus> <implementation corpus>

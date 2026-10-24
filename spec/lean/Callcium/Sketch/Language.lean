@@ -3,12 +3,12 @@ import Callcium.Theorems.Normalize
 /-!
 # Extension sketches: language
 
-Non-normative. The planned extensions of design Appendix A at the value level, as one language that adds cases to the
-core and keeps the meaning of the core's (`ofCore_holds`). `Same` takes path steps from the marker range the core
-reserves; OR inside loops is a rule of its own. Nested loops need no new case: the core already denotes them, and only
+Non-normative. The planned extensions of design Appendix A at the value level form one language. It adds cases to the
+core and keeps the core's meaning (`ofCore_holds`). `Same` takes path steps from the marker range the core reserves. OR
+inside loops is a rule of its own. Nested loops need no new case, because the core already denotes them. Only
 `Formula.WellFormed` rejects them. Validation, canonical form and evaluation arrive with each extension in Phase C.
 
-Not sketched: hash tests take the shape of prefix tests with keccak-256 as the projection; extended comparisons
+Not sketched: hash tests take the shape of prefix tests with keccak-256 as the projection. Extended comparisons
 (`comparison = 0x1F`) and expression operands (`source = 11`) have no value-level content yet.
 -/
 
@@ -19,12 +19,12 @@ namespace Callcium.Sketch
 /-- The number of `Same` markers: steps from `PATH_MARKER_BASE` up to it name the positions of the enclosing loops. -/
 def SAME_LEVELS : Nat := 16
 
-/-- The path step `Same level`: the position of the loop `level` starting points out. -/
+/-- The path step `Same level`: the position of the loop that lies `level` starting points away. -/
 def same (level : Nat) : Nat := PATH_MARKER_BASE + level
 
-/-- The value at `path` from `value`. A step below `PATH_MARKER_BASE` is a field or element index; `Same level` reads
-the position of `stack[level]`, counted from the rule's current starting point whichever starting point the path
-starts from; other markers lead nowhere. -/
+/-- The value at `path` from `value`. A step below `PATH_MARKER_BASE` is a field or element index. `Same level` reads
+the position of `stack[level]`, counted from the rule's current starting point, whichever starting point the path starts
+from. Other markers lead nowhere. -/
 def navigate (stack : Stack) : Value → Path → Option Value
   | value, [] => some value
   | .list items, step :: steps =>
@@ -35,7 +35,7 @@ def navigate (stack : Stack) : Value → Path → Option Value
     index.bind fun index => items[index]?.bind (navigate stack · steps)
   | _, _ :: _ => none
 
-/-- The value at `path` from the starting point `up` levels out. -/
+/-- The value at `path` from the starting point `up` levels away. -/
 def read (stack : Stack) (up : Nat) (path : Path) : Option Value :=
   stack[up]?.bind (navigate stack ·.value path)
 
@@ -49,7 +49,7 @@ def leftAligned (bytes : List UInt8) : Word :=
 inductive Comparison where
   | core (comparison : Callcium.Comparison)
   /-- The core comparison on the first `width` bytes of a `bytes` or `string` value, left-aligned. `width` is the
-  operand's width, `bytesN`; values erase it, so the sketch carries it here. -/
+  operand's width, `bytesN`. Values erase it, so the sketch carries it here. -/
   | prefix_ (width : Nat) (comparison : Callcium.Comparison)
   deriving Repr, DecidableEq
 
@@ -64,7 +64,7 @@ def Comparison.apply : Comparison → Value → List Word → Option Bool
 /-- An operand: a core one, or a reference (`source = 10`). -/
 inductive Operand where
   | core (operand : Callcium.Operand)
-  /-- The word at `path` from the starting point `up` levels out. -/
+  /-- The word at `path` from the starting point `up` levels away. -/
   | reference (up : Nat) (path : Path)
   deriving Repr, DecidableEq
 
@@ -121,12 +121,12 @@ inductive Quantifier where
   | count (operator : Operator)
   deriving Repr, DecidableEq
 
-/-- An aggregate over the values an array's elements hold at one path (scope `0x03`). -/
+/-- An aggregate over the values at one path in an array's elements (scope `0x03`). -/
 inductive Aggregate where
   /-- The sum over naturals of `uintN` values, compared. -/
   | sum (operator : Operator)
   | distinct
-  /-- Ascending; `strict` excludes equal neighbours. -/
+  /-- Ascending. `strict` excludes equal neighbours. -/
   | sorted (strict : Bool)
   deriving Repr, DecidableEq
 
@@ -138,14 +138,14 @@ inductive Rule where
   | contextTest (property : PropertyId) (operator : Operator)
   /-- The body over each element of the array at `arrayPath`. -/
   | loop (quantifier : Quantifier) (arrayPath : Path) (body : List Rule)
-  /-- The value at `path` from the starting point `up` levels out, compared (scope `0x04`). -/
+  /-- The value at `path` from the starting point `up` levels away, compared (scope `0x04`). -/
   | outerTest (up : Nat) (path : Path) (operator : Operator)
   /-- The values at `elemPath` in each element of the array at `arrayPath`, aggregated (scope `0x03`). Each element is
   pushed as a starting point at its position, so `Same` level 0 in `elemPath` reads that position. -/
   | aggregate (aggregate : Aggregate) (arrayPath elemPath : Path)
-  /-- The body over the arguments the `bytes` at `path` decode to (scope `0x05`), pushed as a starting point without a
-  position: `up` and `Same` count across it. The sketch decodes `fieldCount` unsigned words after an optional selector;
-  the descriptor and the ABI decoder arrive with M2. -/
+  /-- The body over the arguments that the `bytes` at `path` decode to (scope `0x05`). The body pushes them as a
+  starting point without a position, so `up` and `Same` count across it. The sketch decodes `fieldCount` unsigned words
+  after an optional selector. The descriptor and the ABI decoder arrive with M2. -/
   | decode (selector : Option (List UInt8)) (fieldCount : Nat) (path : Path) (body : List Rule)
   /-- Some group holds: OR inside a loop body (a reserved scope). -/
   | or (groups : List (List Rule))
@@ -159,12 +159,12 @@ abbrev Formula := List Group
 
 /-! ## Denotation -/
 
-/-- The word a value holds, if it is one. -/
+/-- The word of a value, if the value is a word. -/
 def Value.word? : Value → Option Word
   | .word bits _ => some bits
   | _ => none
 
-/-- Whether `next` may follow `prev` in ascending order. -/
+/-- Whether `next` ascends from `prev`, strictly when `strict` is true. -/
 def ascends (strict : Bool) : Value → Value → Bool
   | .word prev signed, .word next _ => if strict then lessThan signed prev next else !(lessThan signed next prev)
   | _, _ => false
@@ -238,9 +238,10 @@ end
 /-! ## Work -/
 
 mutual
-  /-- The design's work bound, with every array at `MAX_QUANTIFIED_ARRAY_LENGTH` elements: a test costs one, plus one
-  per reference; a loop costs its body once per element; `DISTINCT` costs one per pair of elements, other aggregates
-  one per element; a decode costs one plus its body, a placeholder until `MAX_WORK` is set; an OR costs its groups. -/
+  /-- The design's work bound, with every array at `MAX_QUANTIFIED_ARRAY_LENGTH` elements. A test costs one, plus one
+  per reference. A loop costs its body once per element. `DISTINCT` costs one per pair of elements, and other aggregates
+  cost one per element. A decode costs one plus its body. That cost is a placeholder until `MAX_WORK` is set. An OR
+  costs the work of its groups. -/
   def Rule.work : Rule → Nat
     | .test _ operator | .outerTest _ _ operator | .contextTest _ operator =>
       match operator.operand with
@@ -288,13 +289,13 @@ mutual
 end
 
 mutual
-  /-- Whether every path of the core rule holds indices only, as `Formula.WellFormed` requires. -/
+  /-- Whether every path of the core rule consists of indices only, as `Formula.WellFormed` requires. -/
   def Rule.coreIndicesOnly : Callcium.Rule → Bool
     | .test path _ => path.indicesOnly
     | .contextTest .. => true
     | .loop _ arrayPath body => arrayPath.indicesOnly && Group.coreIndicesOnly body
 
-  /-- Whether every path of every rule holds indices only. -/
+  /-- Whether every path of every rule consists of indices only. -/
   def Group.coreIndicesOnly : Callcium.Group → Bool
     | [] => true
     | rule :: rules => Rule.coreIndicesOnly rule && Group.coreIndicesOnly rules
@@ -360,7 +361,7 @@ theorem Rule.ofCore_holds (rule : Callcium.Rule) :
     cases quantifier <;> simp only [Quantifier.ofCore, Quantifier.holds, List.all_map, List.any_map,
       Function.comp_def, id, Group.ofCore_holds body bodyPreserved _ _ indices.2]
 
-/-- A core formula whose paths hold indices only keeps its meaning in the extended language. -/
+/-- A core formula whose paths consist of indices only keeps its meaning in the extended language. -/
 theorem ofCore_holds (formula : Callcium.Formula) (ctx : Context) (stack : Stack)
     (indices : formula.all Group.coreIndicesOnly = true) :
     Formula.holds ctx stack (formula.map Group.ofCore) = Callcium.Formula.holds ctx stack formula := by

@@ -408,7 +408,7 @@ theorem Rule.lonePartner?_eq_none_of_length {rules : List Rule} {rule : Rule} {s
     exact absurd ⟨by simp [sideBounds], by simp [oppositeBounds]⟩ notLone
   · rfl
 
-/-- The pair a lone bound belongs to: each side holds one rule, the rule itself on its own side. -/
+/-- The pair a lone bound belongs to: each side contains one rule, the rule itself on its own side. -/
 theorem Rule.lone_spec {rules : List Rule} {rule partner : Rule} (isMember : rule ∈ rules)
     (lone : rule.lonePartner? rules = some partner) :
     ∃ (subject : Subject) (length lower : Bool) (bound other : Word), rule.bound? = some ((subject, length, lower), bound) ∧
@@ -511,8 +511,8 @@ theorem fuseRanges_of_noLonePair {rules : List Rule} (noLone : Group.noLonePair 
   simp only [Group.noLonePair, List.all_eq_true, Option.isNone_iff_eq_none] at noLone
   exact filterMap_of_forall_some fun rule isMember => Rule.fused_of_lonePartner?_none (noLone rule isMember)
 
-/-- On a list without repeats, a side keeps its bounds through fusing unless it belongs to a lone pair, which fusing
-removes. -/
+/-- On a list without repeats, a side keeps its bounds through fusing unless it belongs to a lone pair, and fusing
+removes that lone pair. -/
 theorem mem_boundsOn_fuseRanges {rules : List Rule} {side : BoundSide} {rule : Rule} :
     rule ∈ boundsOn (fuseRanges rules) side ↔ rule ∈ boundsOn rules side ∧ rule.lonePartner? rules = none := by
   simp only [mem_boundsOn]
@@ -1363,7 +1363,7 @@ theorem bodiesOn_filter {arrayPath other : Path} (different : other ≠ arrayPat
         · exact absurd (Rule.joinsOn_unique otherJoins joins) different
       simp_all [bodiesOn]
 
-/-- What `joinLoops` emits: every rule that is not a joinable loop, and one loop per joinable array whose body is the
+/-- `joinLoops` emits every rule that is not a joinable loop, and one loop per joinable array. That loop's body is the
 canonical union of the bodies over it. -/
 theorem mem_joinLoops {rules : List Rule} {rule : Rule} :
     rule ∈ joinLoops rules ↔ (rule ∈ rules ∧ rule.joinable? = none) ∨

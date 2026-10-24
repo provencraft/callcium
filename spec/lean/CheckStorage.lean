@@ -4,7 +4,7 @@ import Corpus
 # Storage differential check
 
 Recomputes `Policy.validate` on every line of an implementation's storage corpus and compares it with the verdict the
-implementation wrote (`Corpus.check`). From `spec/lean`:
+implementation wrote (`Corpus.check`). Run the executable from the `spec/lean` directory.
 
 ```
 lake exe check-storage <generated corpus> <implementation corpus>

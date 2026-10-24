@@ -4,7 +4,7 @@ import Callcium.Word
 # ABI types
 
 The ABI type language: word types, `bytes`, `string`, static and dynamic arrays, and tuples. `AbiType.staticWords` is
-a type's head size in words when it is static, 0 when it is dynamic; `AbiType.headSize` is its head size in bytes.
+a type's head size in words when it is static, 0 when it is dynamic. `AbiType.headSize` is its head size in bytes.
 -/
 
 namespace Callcium
@@ -52,8 +52,8 @@ decreasing_by
   omega
 
 mutual
-  /-- Whether the type is dynamic: `bytes`, `string`, a dynamic array, or a static array or tuple holding a dynamic
-  type. -/
+  /-- Whether the type is dynamic: `bytes`, `string`, a dynamic array, or a static array or tuple that contains a
+  dynamic type as a member. -/
   def AbiType.isDynamic : AbiType → Bool
     | .word _ => false
     | .bytes | .string | .dynamicArray _ => true

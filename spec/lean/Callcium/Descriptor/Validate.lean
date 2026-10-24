@@ -4,10 +4,10 @@ import Callcium.Descriptor.Codec
 # Descriptor validation
 
 `Descriptor.wellFormed` is well-formedness (DWF-1 to DWF-8). It reads nodes by `nodeLength`: a node's span is its
-`nodeLength`, each sibling starts where the previous node's `nodeLength` ends, and a static array's length suffix
-follows its element's `nodeLength`. `Descriptor.valid` adds validity (DV-1, DV-2): the descriptor decodes, so
-every composite node's metadata agrees with the walk of its children. `Descriptor.encode?` is the builder: it rejects a
-type list outside the limits instead of encoding it.
+`nodeLength`. Each sibling starts where the previous node's `nodeLength` ends. A static array's length suffix follows
+its element's `nodeLength`. `Descriptor.valid` adds validity (DV-1, DV-2): the descriptor decodes, so every composite
+node's metadata agrees with the walk of its children. `Descriptor.encode?` is the builder: it rejects a type list
+outside the limits instead of encoding it.
 -/
 
 namespace Callcium
@@ -28,9 +28,9 @@ def isComposite (code : UInt8) : Bool :=
 def headerSize (code : UInt8) : Nat :=
   if code = TypeCode.TUPLE then TUPLE_HEADER_SIZE else ARRAY_HEADER_SIZE
 
-/-- The span of the node opening `bytes` by its `nodeLength`, one byte for an elementary node; none for an unknown code
-(DWF-3) or a composite whose metadata is cut short, whose `nodeLength` is below its header, or whose span leaves
-`bytes` (DWF-4). -/
+/-- The span of the node that starts `bytes` by its `nodeLength`. An elementary node spans one byte. It is none for an
+unknown code (DWF-3). It is also none for a composite whose metadata is cut short, whose `nodeLength` is below its
+header, or whose span leaves `bytes` (DWF-4). -/
 def skipNode : Bytes → Option Nat
   | [] => none
   | code :: rest =>
@@ -43,20 +43,20 @@ def skipNode : Bytes → Option Nat
       | _ => none
     else none
 
-/-- The total span of `count` consecutive nodes opening `bytes`, each skipped by its `nodeLength`. -/
+/-- The total span of `count` consecutive nodes that start `bytes`, each skipped by its `nodeLength`. -/
 def skipNodes : Nat → Bytes → Option Nat
   | 0, _ => some 0
   | count + 1, bytes => (skipNode bytes).bind fun span => (skipNodes count (bytes.drop span)).map (span + ·)
 
-/-- The span of the node opening `bytes` by structural walk: its header, its children back to back and, for a static
+/-- The structural-walk span of the node that starts `bytes`: its header, its children back to back and, for a static
 array, the length suffix. -/
 def walkNode (bytes : Bytes) : Option Nat :=
   (decodeNode bytes).map (·.2)
 
 mutual
-  /-- The span of the well-formed node opening `bytes` at nesting `depth`, by its `nodeLength`. Its children are
-  well-formed at `depth + 1`; a tuple has 1 to `MAX_TUPLE_FIELDS` fields (DWF-5), a static array 1 to
-  `MAX_STATIC_ARRAY_LENGTH` elements (DWF-6), and a composite node sits at most `MAX_NESTING_DEPTH` deep (DWF-7). -/
+  /-- The span of the well-formed node that starts `bytes` at nesting `depth`, by its `nodeLength`. Its children are
+  well-formed at `depth + 1`. A tuple has 1 to `MAX_TUPLE_FIELDS` fields (DWF-5), and a static array has 1 to
+  `MAX_STATIC_ARRAY_LENGTH` elements (DWF-6). A composite node sits at most `MAX_NESTING_DEPTH` deep (DWF-7). -/
   def checkNode (depth : Nat) : Bytes → Option Nat
     | [] => none
     | bytes@(code :: rest) =>
@@ -93,8 +93,8 @@ mutual
         else some span
   termination_by bytes => (bytes.length, 0)
 
-  /-- The total span of `count` well-formed nodes at nesting `depth`, each starting where the previous node's
-  `nodeLength` ends. -/
+  /-- The total span of `count` well-formed nodes at nesting `depth`. Each node starts at the position where the
+  previous node's `nodeLength` ends. -/
   def checkNodes (depth : Nat) : Nat → Bytes → Option Nat
     | 0, _ => some 0
     | count + 1, bytes =>
@@ -122,13 +122,13 @@ def wellFormed : Bytes → Bool
 def valid (desc : Bytes) : Bool :=
   wellFormed desc && (decode desc).isSome
 
-/-- The descriptor the builder produces for the types, or none where it rejects them: a node that does not fit, more
-than `MAX_PARAMS` parameters, or a descriptor that is not well-formed. -/
+/-- The descriptor the builder produces for the types. It is none where the builder rejects them: a node that does not
+fit, more than `MAX_PARAMS` parameters, or a descriptor that is not well-formed. -/
 def encode? (types : List AbiType) : Option Bytes :=
   if types.length ≤ MAX_PARAMS ∧ types.all (·.fits) ∧ wellFormed (encode types) then some (encode types) else none
 
-/-- The `staticWords` of the node opening `bytes`: 1 for a static elementary node, 0 for `bytes` and `string`, and its
-metadata field for a composite node; none for an unknown code or metadata cut short. -/
+/-- The `staticWords` of the node that starts `bytes` is 1 for a static elementary node and 0 for `bytes` and `string`.
+For a composite node, it is its metadata field. It is none for an unknown code or metadata cut short. -/
 def nodeStaticWords : Bytes → Option Nat
   | [] => none
   | code :: rest =>

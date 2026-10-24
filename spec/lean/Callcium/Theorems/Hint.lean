@@ -5,14 +5,19 @@ import Callcium.Theorems.Descriptor
 /-!
 # Hints
 
-Theorem 3: wherever a compiled hint resolves, on any calldata, it ends where `decodeSolc` places the value at the path
-(`AbiType.locate`), so what the enforcer reads there is what the decoder decodes; wherever it stops at a fixed index
-past a dynamic array's length, `decodeSolc` places no value there. A loop's hint yields the array's elements as
-`decodeSolc` reads them, so the body's hints resolve from each element by the same theorem. Theorem 24: on canonical
-calldata, the hint of a path the value holds resolves to that value's canonical encoding, the hint of a path it does not
-hold stops at the index past the array's length, and a loop's hint yields every element at its canonical encoding.
-Theorem 14 at path level: on a valid descriptor, repeated `skipNode` finds a parameter or a tuple's field where the
-structural walk does.
+Theorem 3: wherever a compiled hint resolves on any calldata, it ends where `decodeSolc` places the value at the path
+(`AbiType.locate`). The enforcer therefore reads what the decoder decodes there. Wherever a compiled hint stops at a
+fixed index past a dynamic array's length, `decodeSolc` places no value there.
+
+A loop's hint yields the array's elements as `decodeSolc` reads them. The body's hints therefore resolve from each
+element by the same theorem.
+
+Theorem 24: on canonical calldata, the hint of a path the value has resolves to that value's canonical encoding. The
+hint of a path the value does not have stops at the index past the array's length. A loop's hint yields every element at
+the start of its canonical encoding.
+
+Theorem 14 at path level: on a valid descriptor, repeated `skipNode` finds a parameter or a tuple's field at the
+position the structural walk finds.
 -/
 
 namespace Callcium
@@ -203,8 +208,8 @@ theorem AbiType.isDynamic_of_field {fields : List AbiType} {step : Nat} {field :
   simp only [AbiType.isDynamic, AbiType.anyDynamic_eq_false_iff] at static
   exact static field (List.mem_of_getElem? fieldAt)
 
-/-- Entering a node when it is dynamic and not yet entered leaves it `delta` past the new base, with no delta left
-for a dynamic node. -/
+/-- Entering a node that is dynamic and not yet entered leaves it `delta` past the new base. For a dynamic node, no
+delta is left over. -/
 theorem AbiType.locate_enter {abiType : AbiType} {data : Bytes} {entered : Bool} {delta base middle position : Nat}
     (inRange : base < 2 ^ 256)
     (stands : if entered then delta = 0 ∧ position = base
@@ -236,8 +241,8 @@ theorem AbiType.locate_enter {abiType : AbiType} {data : Bytes} {entered : Bool}
       subst resolved
       simp [enter, inRange, stands, AbiType.componentStart_of_static dynamic]
 
-/-- A field of a tuple that starts `delta` past `middle`, with no delta left when the tuple is dynamic, starts where
-`decodeSolc` places a component whose head lies past the heads before it. -/
+/-- A field of a tuple that starts `delta` past `middle` starts where `decodeSolc` places a component whose head lies
+past the heads before it. When the tuple is dynamic, no delta is left. -/
 theorem AbiType.componentStart_field {fields : List AbiType} {step : Nat} {field : AbiType}
     (fieldAt : fields[step]? = some field) {data : Bytes} {middle delta position : Nat}
     (middleInRange : middle < 2 ^ 256) (positionIs : position = advance middle delta)
@@ -256,9 +261,9 @@ theorem AbiType.componentStart_field {fields : List AbiType} {step : Nat} {field
     rw [AbiType.componentStart_of_static fieldDynamic, AbiType.componentStart_of_static fieldDynamic, positionIs,
       advance_advance]
 
-/-- Each step of the walk keeps the chain where `locate` is: entered, the node's encoding starts at the base and no
-delta is pending; otherwise the node starts where `decodeSolc` places a component whose head lies `delta` past the
-base. -/
+/-- Each step of the walk keeps the chain where `locate` is. Either the node is entered, its encoding starts at the
+base, and no delta is pending. Otherwise the node starts where `decodeSolc` places a component whose head lies `delta`
+past the current base. -/
 theorem AbiType.locate_walk {data : Bytes} {path : Path} :
     ∀ {abiType : AbiType} {delta : Nat} {entered : Bool} {hops : List Hop} {finalDelta : Nat} {finalEntered : Bool}
       {found : AbiType} {base finalBase position : Nat},
@@ -355,8 +360,8 @@ theorem AbiType.locate_walk {data : Bytes} {path : Path} :
           advance_zero (elementAt_lt hopped), elementAt_componentStart hopped,
           AbiType.componentStart_of_static elementDynamic]
 
-/-- A walk whose hops stop at a fixed index past a dynamic array's length leaves the value: `locate` finds nothing
-at the path. -/
+/-- A walk whose hops stop at a fixed index past a dynamic array's length leaves the value. `locate` then finds no value
+at the path it walks. -/
 theorem AbiType.locate_walk_fault {data : Bytes} {path : Path} :
     ∀ {abiType : AbiType} {delta : Nat} {entered : Bool} {hops : List Hop} {finalDelta : Nat} {finalEntered : Bool}
       {found : AbiType} {base position : Nat},
@@ -478,8 +483,8 @@ theorem AbiType.locate_walk_fault {data : Bytes} {path : Path} :
               advance_zero (elementAt_lt hopped), elementAt_componentStart hopped,
               AbiType.componentStart_of_static elementDynamic]
 
-/-- Theorem 3: wherever a compiled hint resolves, on any calldata, it ends where `decodeSolc` places the value at the
-path. -/
+/-- Theorem 3: wherever a compiled hint resolves, on any calldata, it ends at the position where `decodeSolc` places the
+value at the path. -/
 theorem AbiType.locate_compile? {abiType : AbiType} {path : Path} {hint : Hint}
     (compiled : abiType.compile? path = some hint) {data : Bytes} {start offset : Nat} (inRange : start < 2 ^ 256)
     (resolved : hint.resolve data start = .ok offset) :
@@ -501,8 +506,8 @@ theorem AbiType.decodeSolc_at_compile? {abiType : AbiType} {path : Path} {hint :
   rw [AbiType.decodeSolc_at abiType data inRange, AbiType.locate_compile? compiled inRange resolved]
   rfl
 
-/-- Theorem 3, a fault: wherever a compiled hint stops at a fixed index past a dynamic array's length, on any
-calldata, `decodeSolc` places no value at the path. -/
+/-- Theorem 3, a fault. Wherever a compiled hint stops at a fixed index past a dynamic array's length, on any calldata,
+`decodeSolc` places no value at the path. -/
 theorem AbiType.locate_compile?_fault {abiType : AbiType} {path : Path} {hint : Hint}
     (compiled : abiType.compile? path = some hint) {data : Bytes} {start : Nat} (inRange : start < 2 ^ 256)
     (faulted : hint.resolve data start = .error .arrayIndexOutOfBounds) : abiType.locate data start path = none := by
@@ -518,8 +523,8 @@ theorem AbiType.locate_compile?_fault {abiType : AbiType} {path : Path} {hint : 
     rw [resolveHops_append_of_ok walkedChain] at chain
     exact absurd chain resolveHops_enter_ne_arrayIndex
 
-/-- Theorem 3 as values, a fault: a test whose hint stops at a fixed index past a dynamic array's length reads no
-value. -/
+/-- Theorem 3 as values, a fault. A test whose hint stops at a fixed index past a dynamic array's length reads no value
+at the path it checks. -/
 theorem AbiType.decodeSolc_at_compile?_fault {abiType : AbiType} {path : Path} {hint : Hint}
     (compiled : abiType.compile? path = some hint) {data : Bytes} {start : Nat} (inRange : start < 2 ^ 256)
     (faulted : hint.resolve data start = .error .arrayIndexOutOfBounds) :
@@ -557,8 +562,8 @@ theorem LoopHint.resolveArray_eq_ok {loop : LoopHint} {data : Bytes} {start elem
       exact ⟨_, ⟨within, rfl⟩, rfl, rfl⟩
   · simp [pure, Except.pure, eq_comm]
 
-/-- A loop's hint yields the array's elements as `decodeSolc` reads them: as many as the array at the path holds,
-each starting where `decodeSolc` reads it. Theorem 3 from each element follows. -/
+/-- A loop's hint yields the array's elements as `decodeSolc` reads them. It yields as many elements as the array at the
+path has, each starting where `decodeSolc` reads it. Theorem 3 from each element follows. -/
 theorem AbiType.decodeSolc_at_compileLoop? {abiType : AbiType} {arrayPath : Path} {loop : LoopHint}
     (compiled : abiType.compileLoop? arrayPath = some loop) {data : Bytes} {start elements count : Nat}
     (inRange : start < 2 ^ 256) (resolved : loop.resolveArray data start = .ok (elements, count)) :
@@ -610,8 +615,8 @@ theorem AbiType.decodeSolc_at_compileLoop? {abiType : AbiType} {arrayPath : Path
       simp [below]
     | word | bytes | string | tuple => simp [AbiType.compileLoop?, walked] at compiled
 
-/-- A loop's hint stops at a fixed index past a dynamic array's length only within its hops: the frame reads no index.
--/
+/-- A loop's hint stops at a fixed index past a dynamic array's length only within its hops. The frame reads no index
+past the array's length. -/
 theorem LoopHint.resolveHops_of_resolveArray {loop : LoopHint} {data : Bytes} {start : Nat}
     (faulted : loop.resolveArray data start = .error .arrayIndexOutOfBounds) :
     resolveHops data loop.hops start = .error .arrayIndexOutOfBounds := by
@@ -626,8 +631,8 @@ theorem LoopHint.resolveHops_of_resolveArray {loop : LoopHint} {data : Bytes} {s
       · simp [loadWord, within] at faulted
     · simp [pure, Except.pure] at faulted
 
-/-- Theorem 3 from a loop, a fault: wherever a loop's hint stops at a fixed index past a dynamic array's length, on
-any calldata, `decodeSolc` places no value at the array path. -/
+/-- Theorem 3 from a loop, a fault. Wherever a loop's hint stops at a fixed index past a dynamic array's length, on any
+calldata, `decodeSolc` places no value at the array path. -/
 theorem AbiType.decodeSolc_at_compileLoop?_fault {abiType : AbiType} {arrayPath : Path} {loop : LoopHint}
     (compiled : abiType.compileLoop? arrayPath = some loop) {data : Bytes} {start : Nat} (inRange : start < 2 ^ 256)
     (faulted : loop.resolveArray data start = .error .arrayIndexOutOfBounds) :
@@ -679,8 +684,8 @@ theorem AbiType.decodeSolc_at_compileLoop?_fault {abiType : AbiType} {arrayPath 
 
 /-! ## Canonical layout -/
 
-/-- Component `index` among the heads and tails: a static one's encoding among the heads, past the heads before it; a
-dynamic one's offset word there, pointing `tail` bytes into the tails, where its encoding lies. -/
+/-- Component `index` among the heads and tails: a static one's encoding is among the heads, past the heads before it. A
+dynamic one has an offset word there, pointing `tail` bytes into the tails, where its encoding lies. -/
 theorem headsAndTails_component {components : List (Bool × Bytes)} {index : Nat} {dynamic : Bool} {encoding : Bytes}
     (componentAt : components[index]? = some (dynamic, encoding)) (tailOffset : Nat) :
     if dynamic then ∃ tail,
@@ -788,8 +793,8 @@ theorem AbiType.length_eq_of_admitsAll {types : List AbiType} {values : List Val
       simp only [AbiType.admitsAll, Bool.and_eq_true] at admitted
       simp [rest admitted.2]
 
-/-- In the encoding of admitted components, component `index`: a static one's encoding past the heads before it; a
-dynamic one's offset word there, holding where its encoding lies. -/
+/-- In the encoding of admitted components, component `index` is a static one's encoding past the heads before it. A
+dynamic component has an offset word there, holding where its encoding lies. -/
 theorem AbiType.joinComponents_component {types : List AbiType} {values : List Value}
     (admitted : AbiType.admitsAll types values = true) {index : Nat} {abiType : AbiType} {value : Value}
     (typeAt : types[index]? = some abiType) (valueAt : values[index]? = some value) :
@@ -839,7 +844,7 @@ theorem placed_end {data piece : Bytes} {position : Nat}
   obtain ⟨before, after, rfl, rfl⟩ := placed
   simp
 
-/-- The word a placed offset word holds. -/
+/-- The value of a placed offset word. -/
 theorem readWord_placed {data : Bytes} (fits : data.length < 2 ^ 256) {position value : Nat}
     (placed : ∃ before after, data = before ++ beBytes WORD_SIZE value ++ after ∧ before.length = position)
     (valueFits : value < 2 ^ 256) : (readWord data position).toNat = value := by
@@ -890,8 +895,8 @@ theorem elementAt_placed {element : AbiType} (dynamicArray : Bool) {items : List
     simp only [dynamic, Bool.false_eq_true, ↓reduceIte]
     rw [advance_of_lt (by omega)]
 
-/-- On canonical data, entering a node when needed resolves, and leaves the node `delta` past the new base with no
-delta left for a dynamic node. -/
+/-- On canonical data, entering a node when needed resolves. The node then lies `delta` past the new base, with no delta
+left for a dynamic node. -/
 theorem AbiType.resolveHops_enter_placed {abiType : AbiType} {data : Bytes} (fits : data.length < 2 ^ 256)
     {entered : Bool} {delta base position : Nat} (inRange : base < 2 ^ 256) (inside : position ≤ data.length)
     (stands : if entered then delta = 0 ∧ position = base
@@ -920,9 +925,10 @@ theorem AbiType.resolveHops_enter_placed {abiType : AbiType} {data : Bytes} (fit
       simp only [dynamic, Bool.false_eq_true, ↓reduceIte] at stands
       exact ⟨base, by simp [resolveHops_enter], inRange, by simp [enter, stands], by simp⟩
 
-/-- On canonical data, each step of the walk resolves, and keeps the chain where the component's encoding lies:
-entered, at the base; otherwise its head `delta` past the base, holding for a dynamic component the offset from the base
-to its encoding. Along a path the value does not hold, the hops stop at a fixed index past a dynamic array's length. -/
+/-- On canonical data, each step of the walk resolves. Each step keeps the chain where the component's encoding lies.
+Either the component is entered, at the base, or its head lies `delta` past the base. For a dynamic component, the head
+has the offset from the base to its encoding. Along a path the value does not have, the hops stop at a fixed index past
+a dynamic array's length. -/
 theorem AbiType.resolveHops_walk {data : Bytes} (fits : data.length < 2 ^ 256) {path : Path} :
     ∀ {abiType : AbiType} {delta : Nat} {entered : Bool} {hops : List Hop} {finalDelta : Nat} {finalEntered : Bool}
       {found : AbiType} {base position : Nat} {value : Value},
@@ -1105,8 +1111,8 @@ theorem AbiType.resolveHops_walk {data : Bytes} (fits : data.length < 2 ^ 256) {
 
 /-! ## Theorem 24 -/
 
-/-- Theorem 24: on canonical calldata, the compiled hint of a path the value holds resolves to where that value's
-canonical encoding lies. -/
+/-- Theorem 24: on canonical calldata, the compiled hint of a path the value has resolves to the place where that
+value's canonical encoding lies. -/
 theorem AbiType.resolve_compile?_ok {abiType : AbiType} {data : Bytes} {start : Nat} {value : Value}
     (canonical : abiType.decodeStrict data start = some value) {path : Path} {targetValue : Value}
     (present : value.at path = some targetValue) {hint : Hint} (compiled : abiType.compile? path = some hint) :
@@ -1125,8 +1131,8 @@ theorem AbiType.resolve_compile?_ok {abiType : AbiType} {data : Bytes} {start : 
     ⟨targetAdmits, fits, targetPlaced⟩⟩
   exact Except.map_eq_ok.mpr ⟨final, resolveHops_append.mpr ⟨base, chain, entry⟩, positionIs.symm⟩
 
-/-- Theorem 24, a path the value does not hold: on canonical calldata, its compiled hint stops at a fixed index past a
-dynamic array's length, never at a read past the end of the calldata. -/
+/-- Theorem 24, a path the value does not have. On canonical calldata, its compiled hint stops at a fixed index past a
+dynamic array's length. It never reads past the end of the calldata. -/
 theorem AbiType.resolve_compile?_absent {abiType : AbiType} {data : Bytes} {start : Nat} {value : Value}
     (canonical : abiType.decodeStrict data start = some value) {path : Path} (absent : value.at path = none)
     {hint : Hint} (compiled : abiType.compile? path = some hint) :
@@ -1145,9 +1151,9 @@ theorem LoopHint.resolveArray_of_error {loop : LoopHint} {data : Bytes} {start :
     (chain : resolveHops data loop.hops start = .error fault) : loop.resolveArray data start = .error fault := by
   simp [LoopHint.resolveArray, chain, bind, Except.bind]
 
-/-- Theorem 24 for loops: on canonical calldata, the hint of a loop over an array the value holds yields as many
-elements as the array holds, each starting where its canonical encoding lies, so the body's hints resolve from each by
-theorem 24. -/
+/-- Theorem 24 for loops: on canonical calldata, a loop's hint over an array the value has yields as many elements as
+the array has. Each element starts where its canonical encoding lies. The body's hints therefore resolve from each
+element by theorem 24. -/
 theorem AbiType.resolveArray_compileLoop?_ok {abiType : AbiType} {data : Bytes} {start : Nat} {value : Value}
     (canonical : abiType.decodeStrict data start = some value) {arrayPath : Path} {items : List Value}
     (array : value.at arrayPath = some (.list items)) {loop : LoopHint}
@@ -1220,8 +1226,8 @@ theorem AbiType.resolveArray_compileLoop?_ok {abiType : AbiType} {data : Bytes} 
           (element.decodeStrict_eq_some_iff data elementStart item).mpr ⟨elementAdmits, fits, elementPlaced⟩⟩
     | word | bytes | string | tuple => simp [AbiType.compileLoop?, walked] at compiled
 
-/-- Theorem 24 for loops, an array the value does not hold: on canonical calldata, the loop's hint stops at a fixed
-index past a dynamic array's length, never at a read past the end of the calldata. -/
+/-- Theorem 24 for loops, an array the value does not have. On canonical calldata, the loop's hint stops at a fixed
+index past a dynamic array's length. It never reads past the end of the calldata. -/
 theorem AbiType.resolveArray_compileLoop?_absent {abiType : AbiType} {data : Bytes} {start : Nat} {value : Value}
     (canonical : abiType.decodeStrict data start = some value) {arrayPath : Path} (absent : value.at arrayPath = none)
     {loop : LoopHint} (compiled : abiType.compileLoop? arrayPath = some loop) :
@@ -1271,8 +1277,8 @@ theorem Descriptor.skipNodes_encodeNodes (types : List AbiType) (fit : AbiType.a
       simp only [skipNodes, AbiType.encodeNodes, List.append_assoc, skipNode_encodeNode abiType fit.1,
         Option.bind_some, dropped, more fit.2 within, Option.map_some, List.take_succ_cons, AbiType.sumNodeLength]
 
-/-- Theorem 14 at path level, for parameters: on a valid descriptor, parameter `index` lies where repeated `skipNode`
-finds it, `sumNodeLength (types.take index)` past the parameter count, and the walk reaches it. -/
+/-- Theorem 14 at path level, for parameters: on a valid descriptor, parameter `index` lies at `sumNodeLength
+(types.take index)` past the parameter count. Repeated `skipNode` finds it there, and the walk reaches it. -/
 theorem Descriptor.skipNodes_param {desc : Bytes} (isValid : valid desc = true) {types : List AbiType}
     (decoded : decode desc = some types) {index : Nat} (below : index < types.length) :
     skipNodes index (desc.drop 2) = some (AbiType.sumNodeLength (types.take index)) ∧
@@ -1288,9 +1294,9 @@ theorem Descriptor.skipNodes_param {desc : Bytes} (isValid : valid desc = true) 
     exact below
   · simpa using decodeNodes_take encoded fit index (Nat.le_of_lt below) []
 
-/-- Theorem 14 at path level, for tuple fields: on a valid descriptor, field `index` of a tuple node the walk reaches
-lies where repeated `skipNode` finds it, `TUPLE_HEADER_SIZE + sumNodeLength (fields.take index)` past the tuple, and the
-walk reaches it. An array's element needs no skipping: it follows the array's header. -/
+/-- Theorem 14 at path level, for tuple fields: on a valid descriptor, the walk reaches field `index` of a tuple node.
+Repeated `skipNode` finds that field at `TUPLE_HEADER_SIZE + sumNodeLength (fields.take index)` past the tuple. An
+array's element needs no skipping: it follows the array's header. -/
 theorem Descriptor.skipNodes_field {desc : Bytes} {offset : Nat} (isValid : valid desc = true)
     (reached : NodeAt desc offset) {fields : List AbiType} {span : Nat}
     (tupleAt : decodeNode (desc.drop offset) = some (.tuple fields, span)) {index : Nat}

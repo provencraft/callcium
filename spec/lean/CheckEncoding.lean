@@ -4,7 +4,8 @@ import Corpus
 # Encoding differential check
 
 Recomputes `Policy.encode` of the formula on every line of an implementation's encoding corpus, over the signature its
-blob embeds, and compares it with the blob the implementation's encoder wrote (`Corpus.check`). From `spec/lean`:
+blob embeds. It compares the result with the blob the implementation's encoder wrote (`Corpus.check`). Run the
+executable from the `spec/lean` directory.
 
 ```
 lake exe check-encoding <generated corpus> <implementation corpus>

@@ -8,10 +8,10 @@ import Callcium.Theorems.Load
 # Enforcement
 
 Theorem 19: whenever the enforcer does not abort on a well-formed formula's blob, its verdict is the value-level
-evaluator's on the normal form over the arguments `decodeSolc` reads. Theorem 35: that verdict is the denotation's.
-Theorem 1: a pass means the policy holds. Theorem 8: on canonical calldata within limits the enforcer never aborts.
-Theorem 2: there a policy that holds passes. Theorem 5: on every blob storage accepts, the enforcer reads the policy
-the format defines and takes at most `workBound` steps.
+evaluator's on the normal form. The arguments are the values that `decodeSolc` reads. Theorem 35: that verdict is the
+denotation's. Theorem 1: a pass means the policy holds. Theorem 8: on canonical calldata within limits the enforcer
+never aborts. Theorem 2: there a policy that holds passes. Theorem 5: on every blob storage accepts, the enforcer reads
+the policy the format defines and takes at most `workBound` steps.
 -/
 
 namespace Callcium
@@ -46,8 +46,8 @@ theorem Quantifier.run_verdict {Item : Type} (run : Item → Trace) (quantifier 
     cases quantifier <;> simp only [Quantifier.run, Quantifier.evaluate] <;>
       rcases first : (run item).outcome with _ | _ | reason <;> simp [rest]
 
-/-- Two evaluations over lists that agree item by item wherever the first does not abort agree wherever the first does
-not abort. -/
+/-- Two evaluations over lists that agree item by item wherever the first does not abort agree wherever the first
+evaluation does not abort. -/
 theorem Quantifier.evaluate_agree {Item Other : Type} {evaluate : Item → Verdict} {other : Other → Verdict}
     (quantifier : Quantifier) :
     ∀ {items : List Item} {others : List Other}, items.length = others.length →
@@ -137,8 +137,8 @@ theorem extent_of_ne_abort {within : Prop} [Decidable within] {outcome : Outcome
     (noAbort : (if within then outcome else .abort reason).verdict ≠ .abort) : within ∧ outcome.verdict ≠ .abort := by
   by_cases holds : within <;> simp_all
 
-/-- Wherever the enforcer reaches a verdict on a compiled hint's target, it is the operator's on the value
-`decodeSolc` reads there. -/
+/-- Wherever the enforcer reaches a verdict on a compiled hint's target, it is the operator's on the value that
+`decodeSolc` reads at that path. -/
 theorem Hint.wire_compare (hint : Hint) (operator : Operator) (ctx : Context) (data : Bytes) (target : Nat)
     (noAbort : (hint.wire.compare operator ctx data target).verdict ≠ .abort) :
     (hint.wire.compare operator ctx data target).verdict =
@@ -194,8 +194,8 @@ theorem Policy.argumentsStart_lt (selector : Option UInt32) : Policy.argumentsSt
   unfold Policy.argumentsStart Policy.SELECTOR_SIZE
   split <;> omega
 
-/-- A compiled test the enforcer reaches a verdict on decides as its rule does over the value `decodeSolc` reads from
-the starting point. -/
+/-- A compiled test the enforcer reaches a verdict on decides as its rule does. It decides over the value that
+`decodeSolc` reads from the starting point of the walk. -/
 theorem Rule.compileTest_refines {root : AbiType} {rule : Rule} {test : CompiledTest}
     (compiled : rule.compileTest root = some test) {data : Bytes} {start : Nat} (inRange : start < 2 ^ 256)
     (ctx : Context) (position : Option Nat) (outer : Stack)
@@ -230,7 +230,7 @@ theorem Rule.compileTest_refines {root : AbiType} {rule : Rule} {test : Compiled
   | loop => simp [Rule.compileTest] at compiled
 
 /-- A compiled rule the enforcer reaches a verdict on decides as its rule does over the value `decodeSolc` reads from
-the starting point: a loop over the elements `decodeSolc` reads, its body from each. -/
+the starting point. For a loop, the elements are those `decodeSolc` reads, and the body decides from each. -/
 theorem Rule.compile_refines {root : AbiType} {rule : Rule} {compiled : CompiledRule}
     (compiledEq : rule.compile root = some compiled) {data : Bytes} {start : Nat} (inRange : start < 2 ^ 256)
     (ctx : Context) (position : Option Nat) (outer : Stack)
@@ -285,7 +285,7 @@ theorem Rule.compile_refines {root : AbiType} {rule : Rule} {compiled : Compiled
     exact Rule.compileTest_refines compiledTest inRange ctx position outer noAbort
 
 /-- Theorem 19 over compiled policies: whenever the enforcer does not abort on a compiled formula, its verdict is the
-value-level evaluator's over the arguments `decodeSolc` reads. -/
+value-level evaluator's. The arguments are those `decodeSolc` reads. -/
 theorem CompiledPolicy.compile_refines {signature : Signature} {formula : Formula} {policy : CompiledPolicy}
     (compiled : CompiledPolicy.compile signature formula = some policy) (data : Bytes) (ctx : Context)
     (noAbort : (policy.run data ctx).outcome.verdict ≠ .abort) :
@@ -536,7 +536,7 @@ theorem run_encode {signature : Signature} {formula : Formula} (wellFormed : Wel
   simp [run, headed, loaded, Option.filter, supports_header]
 
 /-- Theorem 19: whenever the enforcer does not abort on a well-formed formula's blob, its verdict is the value-level
-evaluator's on the normal form, over the arguments Solidity's decoder reads. -/
+evaluator's on the normal form. The arguments are those Solidity's decoder reads. -/
 theorem enforce_refines {signature : Signature} {formula : Formula} (wellFormed : WellFormed signature formula)
     {data : Bytes} {ctx : Context} (noAbort : enforce (encode signature formula) data ctx ≠ .abort) :
     enforce (encode signature formula) data ctx =
@@ -554,8 +554,8 @@ theorem enforce_exact {signature : Signature} {formula : Formula} (wellFormed : 
   rw [refines] at noAbort ⊢
   rw [evaluateValues_exact _ _ _ noAbort, normalize_holds]
 
-/-- Theorem 1: a pass means the policy holds over the arguments Solidity's decoder reads, so no crafted calldata
-passes. -/
+/-- Theorem 1: a pass means the policy holds over the arguments Solidity's decoder reads. Therefore, no crafted calldata
+can make the policy pass. -/
 theorem enforce_sound {signature : Signature} {formula : Formula} (wellFormed : WellFormed signature formula)
     {data : Bytes} {ctx : Context} (passes : enforce (encode signature formula) data ctx = .pass) :
     formula.holds ctx [⟨signature.decodeSolc data, none⟩] = true := by
@@ -921,9 +921,8 @@ theorem supports_of_parse {blob : Bytes} {policy : CompiledPolicy} (parsed : par
   · contradiction
 
 /-- Theorem 5: storage validation makes evaluation safe. On every blob it accepts, the enforcer reads the policy the
-format defines, every field within the blob (`load_of_parse`); it takes at most `workBound` steps on any calldata; and
-every calldata read is checked against the end, so bytes after the calldata never change a verdict
-(`outcome_append`). -/
+format defines, with every field within the blob (`load_of_parse`). It takes at most `workBound` steps on any calldata.
+Each calldata read is bounded by the end, so bytes after the calldata never alter the verdict (`outcome_append`). -/
 theorem enforce_safe {blob : Bytes} (validates : validate blob = true) :
     ∃ policy, parse blob = some policy ∧ load blob = some policy ∧
       ∀ data ctx, run blob data ctx = policy.run data ctx ∧ (run blob data ctx).steps ≤ policy.workBound ∧

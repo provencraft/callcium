@@ -4,7 +4,7 @@ import Corpus
 # Enforcement differential check
 
 Recomputes `Policy.outcome` on every line of an implementation's enforcement corpus and compares it with the outcome the
-implementation wrote (`Corpus.check`). From `spec/lean`:
+implementation wrote (`Corpus.check`). Run the executable from the `spec/lean` directory.
 
 ```
 lake exe check-enforcement <generated corpus> <implementation corpus>

@@ -4,8 +4,8 @@ import Callcium.Theorems.Normalize
 /-!
 # Byte order
 
-Over one signature, the size-free bytes of the encoded rules order them as `Rule.key` does, so the encoder's layout of
-`normalize`'s order is the byte order the implementations sort by.
+Over one signature, the size-free bytes of the encoded rules order them as `Rule.key` does. The encoder's layout of
+`normalize`'s order is therefore the byte order the implementations sort by.
 -/
 
 namespace Callcium
@@ -58,8 +58,7 @@ theorem separate_of_length {Item : Type} :
       exact ⟨first :: common, item, otherItem, tail, otherTail, itemsDiffer, rfl, rfl⟩
     · exact ⟨[], first, second, rest, otherRest, same, rfl, rfl⟩
 
-/-- A key and its bytes order two items alike: both are equal, or both differ within both lists and in the same
-direction. -/
+/-- A key and its bytes order two items alike. Both are equal, or both differ within both lists in one direction. -/
 def Agree (key otherKey : List Nat) (bytes otherBytes : Bytes) : Prop :=
   (key = otherKey ∧ bytes = otherBytes) ∨
     (Separate key otherKey ∧ Separate bytes otherBytes ∧ (key < otherKey ↔ bytes < otherBytes))
@@ -621,8 +620,8 @@ theorem Rule.key_ne_nil (rule : Rule) : rule.key ≠ [] := by
 theorem CompiledRule.sizeFree_ne_nil (rule : CompiledRule) : rule.sizeFree ≠ [] := by
   cases rule <;> simp [CompiledRule.sizeFree, CompiledRule.content, CompiledTest.sizeFree]
 
-/-- Two groups compiled from one starting point order by the concatenation of their rules' size-free bytes as by their
-keys. -/
+/-- Two groups compiled from one starting point order by the concatenation of their rules' size-free bytes in the same
+order as their keys. -/
 theorem Group.keyOf_lt_iff {start : AbiType} {group other : Group} {rules otherRules : List CompiledRule}
     (compiled : group.mapM (Rule.compile start) = some rules)
     (otherCompiled : other.mapM (Rule.compile start) = some otherRules) (fit : ∀ rule ∈ rules, rule.fits = true)
@@ -647,9 +646,9 @@ theorem Group.keyOf_lt_iff {start : AbiType} {group other : Group} {rules otherR
   · obtain ⟨compiledRule, compiledEq, -⟩ := compiles rule isMember
     simpa [compiledEq] using compiledRule.sizeFree_ne_nil
 
-/-- Over one signature, a well-formed formula's normal form compiles to rules and groups in canonical order: every
-group and every loop body strictly ascending by size-free bytes, and the groups by their rules' bytes. The encoder
-writes `normalize`'s order and needs no sort. -/
+/-- Over one signature, a well-formed formula's normal form compiles to rules and groups in canonical order. Every group
+and every loop body is strictly ascending by size-free bytes, and the groups are ordered by their rules' bytes. The
+encoder writes `normalize`'s order and needs no sort. -/
 theorem Policy.ordered_compile {signature : Signature} {formula : Formula} {policy : CompiledPolicy}
     (wellFormed : WellFormed signature formula)
     (compiled : CompiledPolicy.compile signature (normalize formula) = some policy) : policy.ordered = true := by

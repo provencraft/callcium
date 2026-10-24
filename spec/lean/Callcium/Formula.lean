@@ -3,9 +3,9 @@ import Callcium.Abi.Value
 /-!
 # Core formulas
 
-The logical model of the policy core: a policy is a disjunction of groups, a group a conjunction of rules, and a rule a
-test, a context test or a loop whose body is again a group. `holds` is the denotation, `normalize` the
-canonical form, and `Formula.WellFormed` what build-time validation accepts.
+The logical model of the policy core. A policy is a disjunction of groups. A group is a conjunction of rules. A rule is
+a test, a context test or a loop whose body is again a group. `holds` is the denotation, `normalize` the canonical form,
+and `Formula.WellFormed` what build-time validation accepts.
 -/
 
 namespace Callcium
@@ -18,7 +18,7 @@ def MAX_PATH_DEPTH : Nat := 32
 /-- The most elements a loop walks. -/
 def MAX_QUANTIFIED_ARRAY_LENGTH : Nat := 256
 
-/-- The first path-step value reserved for markers; the steps below it are field and element indices. -/
+/-- The first path-step value reserved for markers. The steps below it are field and element indices. -/
 def PATH_MARKER_BASE : Nat := 0xFF00
 
 /-- A context property ID. -/
@@ -49,11 +49,11 @@ def CTX_MAX : PropertyId := CTX_GAS_PRICE
 structure StartingPoint where
   /-- The value paths read from. -/
   value : Value
-  /-- The element's index inside a loop; `none` at the arguments. -/
+  /-- The element's index inside a loop, or `none` at the arguments. -/
   position : Option Nat
   deriving Repr
 
-/-- The starting points, current first; the arguments lie at the bottom. -/
+/-- The starting points, current first. The arguments lie at the bottom. -/
 abbrev Stack := List StartingPoint
 
 /-- The context properties a call provides, as raw words. -/
@@ -70,7 +70,7 @@ inductive Comparison where
 
 /-- Where a comparison's operand values come from. -/
 inductive Operand where
-  /-- One value; two for `BETWEEN` and `LENGTH_BETWEEN`; the ascending members for `IN`. -/
+  /-- One value. Two values for `BETWEEN` and `LENGTH_BETWEEN`. The ascending members for `IN`. -/
   | constant (values : List Word)
   /-- The value of a context property. -/
   | context (property : PropertyId)
@@ -199,8 +199,8 @@ def Formula.holds (ctx : Context) (stack : Stack) : Formula → Bool
 /-! ## Limits -/
 
 mutual
-  /-- Whether every loop the rule can reach, under every element, walks at most `MAX_QUANTIFIED_ARRAY_LENGTH`
-  elements. -/
+  /-- Whether every loop the rule can reach, under every element, walks at most `MAX_QUANTIFIED_ARRAY_LENGTH` elements.
+  -/
   def Rule.withinLimits (stack : Stack) : Rule → Bool
     | .loop _ arrayPath body =>
       match stack.at arrayPath with
@@ -390,8 +390,8 @@ def sortByKey {Item : Type} [DecidableEq Item] (key : Item → List Nat) (items 
 def sortRules (rules : List Rule) : List Rule :=
   sortByKey Rule.key rules
 
-/-- The canonical order of a formula's groups, compared by their rules. A repeated group adds nothing to a
-disjunction. -/
+/-- The canonical order of a formula's groups, compared by their rules. A repeated group adds nothing to a disjunction.
+-/
 def sortGroups (groups : List (List Rule)) : List (List Rule) :=
   sortByKey Group.keyOf groups
 
@@ -400,7 +400,7 @@ def Rule.isLoop : Rule → Bool
   | .loop .. => true
   | _ => false
 
-/-- The array path and body of an `ALL` loop whose body holds no loop. -/
+/-- The array path and body of an `ALL` loop whose body contains no loop. -/
 def Rule.joinable? : Rule → Option (Path × Group)
   | .loop .all arrayPath group => if group.all (!·.isLoop) then some (arrayPath, group) else none
   | _ => none
@@ -460,8 +460,8 @@ def Rule.lonePartner? (rules : List Rule) (rule : Rule) : Option Rule :=
     | _, _ => none
   | none => none
 
-/-- What a rule becomes when the lone pairs of `rules` fuse: the lower bound of a lone pair becomes the range, the
-upper bound leaves, every other rule stays. -/
+/-- What a rule becomes when the lone pairs of `rules` fuse. The lower bound of a lone pair becomes the range. The upper
+bound leaves, and every other rule stays. -/
 def Rule.fused (rules : List Rule) (rule : Rule) : Option Rule :=
   match rule.bound?, rule.lonePartner? rules with
   | some ((subject, length, true), lower), some partner =>
@@ -469,13 +469,13 @@ def Rule.fused (rules : List Rule) (rule : Rule) : Option Rule :=
   | some _, some _ => none
   | _, _ => some rule
 
-/-- Fuses each lone pair of bounds on one subject into a range. The range is defined as the pair, so no bound needs
-comparing. -/
+/-- Fuses each lone pair of bounds on one subject into a range. The range is defined as the pair, so no bound needs to
+be compared with another bound. -/
 def fuseRanges (rules : List Rule) : List Rule :=
   rules.filterMap (Rule.fused rules)
 
-/-- Sorts, drops repeats, fuses lone range pairs, and sorts again. Fusing counts distinct rules, so it follows
-dropping repeats; a range can repeat a rule already present, so sorting follows fusing. -/
+/-- Sorts, drops repeats, fuses lone range pairs, and sorts again. Fusing counts distinct rules, so it follows dropping
+repeats. A range can repeat a rule already present, so sorting follows fusing. -/
 def finishRules (rules : List Rule) : List Rule :=
   sortRules (fuseRanges (sortRules rules))
 
@@ -489,8 +489,8 @@ def Rule.isContextTest : Rule → Bool
   | .contextTest .. => true
   | _ => false
 
-/-- The context tests an `ANY` loop gives up to its group: all of them, when its body holds a test that reads the
-element. -/
+/-- The context tests an `ANY` loop gives up to its group. The loop gives up all of them when its body contains a test
+that reads the element. -/
 def Rule.hoisted : Rule → List Rule
   | .loop .any _ body => if body.any Rule.isTest then body.filter Rule.isContextTest else []
   | _ => []
@@ -502,13 +502,13 @@ def Rule.withoutHoisted : Rule → Rule
     else .loop .any arrayPath body
   | rule => rule
 
-/-- Moves the context tests of every `ANY` loop whose body reads the element into the group:
-`∃i.(P ∧ Q(i)) ≡ P ∧ ∃i.Q(i)`, and `P` runs once instead of once per element. -/
+/-- Moves the context tests of every `ANY` loop whose body reads the element into the group. The rewrite is `∃i.(P ∧
+Q(i)) ≡ P ∧ ∃i.Q(i)`, and `P` runs once instead of once per element. -/
 def hoistContext (rules : List Rule) : List Rule :=
   rules.map Rule.withoutHoisted ++ rules.flatMap Rule.hoisted
 
-/-- Joins every joinable loop into the first joinable loop over the same array. `ANY` loops stay apart: they are
-independent existentials. -/
+/-- Joins every joinable loop into the first joinable loop over the same array. `ANY` loops stay apart, because each of
+them is an independent existential. -/
 def joinLoops : List Rule → List Rule
   | [] => []
   | rule :: rules =>
@@ -538,8 +538,8 @@ mutual
     | rule :: rules => rule.normalize :: Group.normalizeEach rules
 end
 
-/-- The canonical form of a group: rules in canonical form, joinable loops joined, context tests hoisted out of
-`ANY` bodies, repeats dropped, lone range pairs fused, sorted. -/
+/-- The canonical form of a group. Its rules are in canonical form, joinable loops are joined and context tests are
+hoisted out of `ANY` bodies. Repeats are dropped, lone range pairs are fused and the rules are sorted. -/
 def Group.normalize (group : Group) : Group :=
   finishRules (hoistContext (joinLoops (Group.normalizeEach group)))
 
@@ -585,8 +585,8 @@ def Group.noLonePair (group : Group) : Bool :=
 def Group.nothingHoisted (group : Group) : Bool :=
   group.all fun rule => rule.hoisted.isEmpty
 
-/-- Whether a group's rules are in canonical arrangement: strictly ascending, joinable loops over distinct arrays, no
-lone pair of bounds, no context test left to hoist. -/
+/-- Whether a group's rules are in canonical arrangement. The arrangement means strictly ascending order, joinable loops
+over distinct arrays, no lone pair of bounds, and no context test left to hoist. -/
 def Group.arranged (group : Group) : Bool :=
   strictlySorted Rule.key group && Group.joinsApart group && Group.noLonePair group && Group.nothingHoisted group
 
@@ -614,8 +614,8 @@ def Formula.normal (formula : Formula) : Bool :=
 
 /-! ## Well-formedness -/
 
-/-- Whether the operand has the shape the comparison takes. A context operand serves `EQ`, `GT`, `LT`, `GTE` and
-`LTE`. `IN` takes at least two members, strictly ascending; normalization turns a one-member set into `EQ`. -/
+/-- Whether the operand has the shape the comparison takes. A context operand serves `EQ`, `GT`, `LT`, `GTE` and `LTE`.
+`IN` takes at least two members, strictly ascending. Normalization turns a one-member set into `EQ`. -/
 def Operator.admissible (operator : Operator) : Bool :=
   match operator.comparison, operator.operand with
   | .eq, .context property | .gt, .context property | .lt, .context property | .gte, .context property
@@ -631,16 +631,16 @@ def Operator.admissible (operator : Operator) : Bool :=
 def Path.indicesOnly (path : Path) : Bool :=
   path.all (· < PATH_MARKER_BASE)
 
-/-- Whether a test or context test is admissible after `depth` path steps; at the root a test's path is nonempty. -/
+/-- Whether a test or context test is admissible after `depth` path steps. At the root, a test's path is nonempty. -/
 def Rule.admissibleTest (root : Bool) (depth : Nat) : Rule → Bool
   | .test path operator =>
     (!root || !path.isEmpty) && path.indicesOnly && depth + path.length ≤ MAX_PATH_DEPTH && operator.admissible
   | .contextTest property operator => property ≤ CTX_MAX && operator.admissible
   | .loop .. => false
 
-/-- Whether a loop's body holds a test that reads the element. A body of context tests alone means `P ∨ (array
-empty)` under `ALL` and `P ∧ (array nonempty)` under `ANY`; rewriting either needs to know whether the array is
-static, which normalization does not. -/
+/-- Whether a loop's body contains a test that reads the element. A body of context tests alone means `P ∨ (array
+empty)` under `ALL` and `P ∧ (array nonempty)` under `ANY`. Rewriting either needs to know whether the array is static,
+which normalization does not. -/
 def Group.readsElement (body : Group) : Bool :=
   body.any Rule.isTest
 

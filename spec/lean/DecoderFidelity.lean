@@ -5,14 +5,14 @@ import Std.Data.HashMap
 /-!
 # Decoder fidelity
 
-Checks `AbiType.decodeSolc` against how Solidity reads function parameters, `memory` parameters (`Eager`) and
-`calldata` parameters read element by element (`Access`), on a corpus of their readings: one line per calldata a reader
-accepted, `reader descriptor calldata encoding`, where `encoding` is Solidity's encoding of the arguments the reader
-read. A line agrees when `decodeSolc` reads, from byte 4 on, values that encode to the same bytes; on accepted input
-every word passed Solidity's validator, so equal encodings are equal values.
+Checks `AbiType.decodeSolc` against how Solidity reads function parameters. `memory` parameters (`Eager`) and `calldata`
+parameters read element by element (`Access`). The corpus of their readings contains one line per calldata a reader
+accepted, in the form `reader descriptor calldata encoding`. `encoding` is Solidity's encoding of the arguments the
+reader read. A line agrees when `decodeSolc` reads, from byte 4 on, values that encode to the same bytes. On accepted
+input, every word passed Solidity's validator. Equal encodings are therefore equal values.
 
 The Foundry script `packages/contracts/script/LeanDecoderFidelity.s.sol` writes the corpus from a number of cases per
-shape, drawn from Foundry's random cheatcodes. From `spec/lean`:
+shape, drawn from Foundry's random cheatcodes. The commands below run from `spec/lean`.
 
 ```
 (cd ../../packages/contracts && FOUNDRY_FUZZ_SEED=<seed> bun run corpus:decoder-fidelity 5000)
@@ -20,8 +20,8 @@ lake build decoder-fidelity
 (ulimit -v 8000000; .lake/build/bin/decoder-fidelity ../../packages/contracts/out/decoder-fidelity.txt)
 ```
 
-A model that reads a length no reader read builds a value that size; the memory limit makes that a failed run. Exits
-nonzero on any disagreement or unreadable line.
+A model that reads a length no reader read builds a value that size. The memory limit makes that a failed run. The
+program exits nonzero on any disagreement or unreadable line.
 -/
 
 open Callcium
@@ -32,8 +32,8 @@ structure Tally where
   nonCanonical : Nat := 0
   disagreements : Nat := 0
 
-/-- Whether `decodeSolc` reads the values the line's encoding holds, and whether the line's data is canonical; none for
-an unreadable line. -/
+/-- Whether `decodeSolc` reads the values the line's encoding contains, and whether the line's data is canonical. The
+result is none for an unreadable line. -/
 def checkLine (fields : List String) : Option (Bool × Bool) := do
   let [_, descriptorHex, callDataHex, encodingHex] := fields | none
   let types ← Descriptor.decode (← parseHex descriptorHex)

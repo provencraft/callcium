@@ -37,7 +37,7 @@ def joint : Formula := [[.loop .any [0] [paysTreasury, atLeast1000]]]
 /-- Each test quantified on its own: the per-rule reading of the two rules. -/
 def perRule : Formula := [[.loop .any [0] [paysTreasury], .loop .any [0] [atLeast1000]]]
 
-/-- One transfer pays the treasury nothing; another pays someone else 1000. -/
+/-- One transfer pays the treasury nothing. Another pays someone else 1000. -/
 def decoy : Stack := call [(treasury, 0), (recipient, 1000)]
 
 theorem perRule_accepts_decoy : perRule.holds noContext decoy = true := by decide
