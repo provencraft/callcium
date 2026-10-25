@@ -64,7 +64,7 @@ const policy = PolicyBuilder
 
 ## Validate and enforce
 
-[`PolicyBuilder.build()`](/docs/sdk/reference/policy-builder) validates the policy at build time and throws a `ValidationError` carrying every issue it finds, of any severity. [`PolicyEnforcer`](/docs/sdk/reference/policy-enforcer) evaluates ABI-encoded calldata against a built policy. Use it for offchain enforcement, simulation, and tests.
+[`PolicyBuilder.build()`](/docs/sdk/reference/policy-builder) validates the policy at build time and throws a `ValidationError` carrying every issue it finds, of any severity. [`PolicyEnforcer`](/docs/sdk/reference/policy-enforcer) evaluates ABI-encoded calldata against a built policy. Use it for offchain enforcement and tests.
 
 ```ts
 import { PolicyEnforcer } from "@callcium/sdk";
