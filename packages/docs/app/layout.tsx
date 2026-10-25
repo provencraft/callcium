@@ -1,16 +1,17 @@
-import { Banner } from "fumadocs-ui/components/banner";
 import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import "./global.css";
 import { Provider } from "./provider";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/shared";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://callcium.dev"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    template: "%s | Callcium",
-    default: "Callcium",
+    template: `%s | ${SITE_NAME}`,
+    default: SITE_NAME,
   },
-  description: "Define type-safe constraints on ABI-encoded data. Enforce offchain or onchain.",
+  description: SITE_DESCRIPTION,
+  openGraph: { images: "/og/image.png" },
   icons: { icon: "/icon.svg" },
 };
 
@@ -24,7 +25,6 @@ export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${hankenGrotesk.className} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
-        <Banner>Pre-release — The API surface may change. Unaudited.</Banner>
         <Provider>{children}</Provider>
       </body>
     </html>

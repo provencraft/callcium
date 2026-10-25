@@ -1,13 +1,11 @@
-import { source } from "@/lib/source";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/shared";
+import { docsLlms, source } from "@/lib/source";
 
 export const revalidate = false;
 
-export async function GET() {
-  const lines: string[] = [];
-  lines.push("# Documentation");
-  lines.push("");
-  for (const page of source.getPages()) {
-    lines.push(`- [${page.data.title}](${page.url}): ${page.data.description}`);
-  }
-  return new Response(lines.join("\n"));
+export function GET() {
+  // The header names the site, which the root of the page tree does not.
+  const sections = source.getPageTree().children.map((node) => docsLlms.indexNode(node));
+
+  return new Response([`# ${SITE_NAME}`, "", `> ${SITE_DESCRIPTION}`, "", ...sections].join("\n"));
 }
