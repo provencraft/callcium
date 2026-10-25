@@ -13,16 +13,15 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: (
         <>
-          <Image src="/icon.svg" alt="Callcium Logo" width={28} height={28} priority />
-          <span
-            style={{
-              fontSize: "1.2rem",
-              fontWeight: 600,
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            Callcium
-          </span>
+          <Image src="/logo-horizontal.svg" alt="Callcium" width={118} height={34} className="dark:hidden" priority />
+          <Image
+            src="/logo-horizontal-dark.svg"
+            alt="Callcium"
+            width={118}
+            height={34}
+            className="hidden dark:block"
+            priority
+          />
         </>
       ),
     },

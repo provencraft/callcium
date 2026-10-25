@@ -3,7 +3,7 @@ import type { ThemeRegistration } from "shiki";
 /**
  * Custom Shiki themes derived from the Callcium brand palette.
  *
- * Palette: #177E89 teal, #084C61 navy, #DB3A34 red, #FFC857 amber, #323031 charcoal.
+ * Palette: #177E89 teal, #DB3A34 red, #FFC857 amber, #323031 charcoal.
  */
 
 const callciumLight = {
@@ -12,7 +12,7 @@ const callciumLight = {
   colors: {
     "editor.background": "#faf9f7",
     "editor.foreground": "#323031",
-    "editorLineNumber.foreground": "#b0a8a0",
+    "editorLineNumber.foreground": "#998f85",
     "editor.selectionBackground": "#ffc85733",
     "editor.lineHighlightBackground": "#ffc85718",
   },
@@ -20,7 +20,7 @@ const callciumLight = {
     { settings: { foreground: "#323031" } },
     {
       scope: ["comment", "punctuation.definition.comment"],
-      settings: { foreground: "#9e9490", fontStyle: "italic" },
+      settings: { foreground: "#7b706b", fontStyle: "italic" },
     },
     {
       scope: ["keyword", "storage.type", "storage.modifier"],
@@ -32,11 +32,11 @@ const callciumLight = {
     },
     {
       scope: ["string", "string.quoted"],
-      settings: { foreground: "#a6841e" },
+      settings: { foreground: "#8c6f19" },
     },
     {
       scope: ["constant.numeric", "constant.language"],
-      settings: { foreground: "#a6841e" },
+      settings: { foreground: "#8c6f19" },
     },
     {
       scope: ["variable", "variable.other", "variable.parameter"],
@@ -64,7 +64,7 @@ const callciumLight = {
     },
     {
       scope: ["constant.other", "variable.other.constant"],
-      settings: { foreground: "#a6841e" },
+      settings: { foreground: "#8c6f19" },
     },
     {
       scope: ["entity.name.tag"],
@@ -72,7 +72,7 @@ const callciumLight = {
     },
     {
       scope: ["entity.other.attribute-name"],
-      settings: { foreground: "#DB3A34" },
+      settings: { foreground: "#d9312a" },
     },
     {
       scope: ["keyword.operator", "keyword.operator.assignment"],
@@ -87,7 +87,7 @@ const callciumDark = {
   colors: {
     "editor.background": "#1a1817",
     "editor.foreground": "#e8dfd6",
-    "editorLineNumber.foreground": "#6b6260",
+    "editorLineNumber.foreground": "#6c6361",
     "editor.selectionBackground": "#ffc85722",
     "editor.lineHighlightBackground": "#ffc85710",
   },
@@ -95,7 +95,7 @@ const callciumDark = {
     { settings: { foreground: "#e8dfd6" } },
     {
       scope: ["comment", "punctuation.definition.comment"],
-      settings: { foreground: "#7a706a", fontStyle: "italic" },
+      settings: { foreground: "#8b7f79", fontStyle: "italic" },
     },
     {
       scope: ["keyword", "storage.type", "storage.modifier"],

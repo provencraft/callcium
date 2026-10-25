@@ -1,5 +1,8 @@
 <div align="center">
-<img src="logo.svg" width="256" alt="Callcium Logo" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="packages/docs/public/logo-vertical-dark.svg" />
+  <img src="packages/docs/public/logo-vertical.svg" width="160" alt="Callcium" />
+</picture>
 <h1>Callcium</h1>
 <p><strong>Programmable Policy Engine for ABI-Encoded Data</strong></p>
 <p>Enforce offchain or onchain.</p>
