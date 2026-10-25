@@ -38,9 +38,7 @@ export function PolicyLens({ data }: { data: LensData }) {
 
   return (
     <div>
-      <p className="mb-3 text-center font-mono text-[0.7rem] text-fd-muted-foreground/50">
-        A policy is just canonical bytes
-      </p>
+      <p className="mb-3 text-center font-mono text-[0.8125rem] text-fd-muted-foreground/50">Encoded policy</p>
 
       <div className="overflow-hidden rounded-lg border border-fd-border bg-fd-card">
         <div className="border-b border-fd-border bg-fd-muted/30 px-4 py-3">
@@ -50,10 +48,11 @@ export function PolicyLens({ data }: { data: LensData }) {
             active={active}
             onHover={setHovered}
             onSelect={(span) => span && togglePin(span)}
+            className="text-[0.8125rem]"
           />
         </div>
 
-        <div className="font-mono text-xs">
+        <div className="font-mono text-[0.8125rem]">
           <Row span={data.signatureSpan} active={active} onHover={setHovered} onToggle={togglePin}>
             <span className="min-w-0 truncate font-semibold text-fd-foreground group-[.is-active]:text-fd-info-foreground">
               {data.signature}
@@ -79,7 +78,7 @@ export function PolicyLens({ data }: { data: LensData }) {
         </div>
       </div>
 
-      <p className="mt-3 text-center font-mono text-[0.7rem] text-fd-muted-foreground/50">Hover or tap a field</p>
+      <p className="mt-3 text-center font-mono text-[0.8125rem] text-fd-muted-foreground/50">Hover or tap a field</p>
     </div>
   );
 }

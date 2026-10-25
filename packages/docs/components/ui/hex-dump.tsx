@@ -13,12 +13,14 @@ export function HexDump({
   active,
   onHover,
   onSelect,
+  className,
 }: {
   hex: string;
   byteToSpan: (Span | null)[];
   active: Span | null;
   onHover: (span: Span | null) => void;
   onSelect?: (span: Span | null) => void;
+  className?: string;
 }) {
   const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
   const totalBytes = cleanHex.length / 2;
@@ -32,7 +34,7 @@ export function HexDump({
     // Hover and tap have no per-byte keyboard equivalent; consumers expose the same spans through focusable rows.
     // oxlint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
     <div
-      className="flex flex-wrap gap-x-0.5 gap-y-0.5 font-mono text-xs leading-relaxed"
+      className={cn("flex flex-wrap gap-x-0.5 gap-y-0.5 font-mono text-xs leading-relaxed", className)}
       onMouseMove={(e) => {
         const span = spanAt(e.target);
         if (span) onHover(span);

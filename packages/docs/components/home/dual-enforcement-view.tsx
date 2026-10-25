@@ -1,46 +1,64 @@
 import { CodeBlock } from "fumadocs-ui/components/codeblock";
 import type { ReactNode } from "react";
+import { DualPanes } from "./dual-panes";
+import { PolicyLens } from "./policy-lens";
+import type { LensData } from "./policy-lens-data";
 
-function Pane({ label, scenario, children }: { label: string; scenario: string; children: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <div>
-        <p className="font-mono text-xs font-semibold text-fd-primary">{label}</p>
-        <p className="font-mono text-xs text-fd-muted-foreground">{scenario}</p>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-export function DualEnforcementView({ solidity, typescript }: { solidity: ReactNode; typescript: ReactNode }) {
+export function DualEnforcementView({
+  solidity,
+  typescript,
+  lens,
+}: {
+  solidity: ReactNode;
+  typescript: ReactNode;
+  lens: LensData;
+}) {
   return (
     <section className="border-t border-fd-border bg-fd-primary/[0.04]">
       <div className="mx-auto max-w-5xl px-6 py-24">
         <div className="flex max-w-2xl flex-col gap-3">
           <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-            One spec, two implementations
+            Enforce onchain, offchain, or both
           </h2>
           <p className="text-fd-muted-foreground text-pretty">
-            The policy format is a specification with two independent implementations, a Solidity library and a
-            TypeScript SDK. Reach for whichever your scenario needs: embed the engine in your contracts for dynamic
-            onchain rules, or check payloads in TypeScript before they&rsquo;re signed. Use one, the other, or both.
+            Two complete implementations, each standalone. Same API, same bytes, same verdict.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-2">
-          <Pane label="Solidity library" scenario="Dynamic guardrails in your contracts">
-            <CodeBlock className="min-h-[12rem]">{solidity}</CodeBlock>
-          </Pane>
-          <Pane label="TypeScript SDK" scenario="Check payloads before signing">
-            <CodeBlock className="min-h-[12rem]">{typescript}</CodeBlock>
-          </Pane>
+        <div className="mt-8">
+          <DualPanes
+            solidity={<CodeBlock className="my-0">{solidity}</CodeBlock>}
+            typescript={<CodeBlock className="my-0">{typescript}</CodeBlock>}
+          />
         </div>
 
-        <p className="mt-5 max-w-2xl text-sm text-fd-muted-foreground text-pretty">
-          Both implementations also expose <code className="font-mono text-fd-foreground">check</code>, which returns a
-          result instead of reverting or throwing.
-        </p>
+        <div aria-hidden="true" className="my-3 flex flex-col items-center text-fd-muted-foreground/50">
+          {/* Pane centre to pane centre: half the row plus half the panes' gap-4. */}
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            fill="none"
+            className="hidden h-14 w-[calc(50%+0.5rem)] overflow-visible xl:block"
+          >
+            {["M0 0C0 60 50 40 50 100", "M100 0C100 60 50 40 50 100"].map((d) => (
+              <path key={d} d={d} stroke="currentColor" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+            ))}
+          </svg>
+          <span className="h-8 w-[1.5px] bg-current xl:hidden" />
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="block shrink-0">
+            <path
+              d="M6 0v11M1 6l5 5 5-5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+
+        <div className="mx-auto max-w-3xl">
+          <PolicyLens data={lens} />
+        </div>
       </div>
     </section>
   );

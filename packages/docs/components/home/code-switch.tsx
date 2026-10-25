@@ -5,7 +5,7 @@ import { useLanguage } from "./language-provider";
 import { PillToggle } from "@/components/ui/pill-toggle";
 import { cn } from "@/lib/utils";
 
-const LANG_OPTIONS = [
+export const LANG_OPTIONS = [
   { value: "solidity", label: "Solidity" },
   { value: "typescript", label: "TypeScript" },
 ] as const;
@@ -17,26 +17,21 @@ const LANG_OPTIONS = [
 export function CodeSwitch({
   solidity,
   typescript,
-  label,
+  toggleClassName,
 }: {
   solidity: ReactNode;
   typescript: ReactNode;
-  label?: string;
+  toggleClassName?: string;
 }) {
   const { lang, setLang } = useLanguage();
 
   return (
-    <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        {label ? (
-          <span className="font-mono text-xs text-fd-muted-foreground">{label}</span>
-        ) : (
-          <span aria-hidden="true" />
-        )}
-        <PillToggle value={lang} options={LANG_OPTIONS} onChange={setLang} />
+    <div className="flex h-full min-w-0 flex-col gap-3">
+      <div className={cn("flex items-center justify-end gap-3", toggleClassName)}>
+        <PillToggle value={lang} options={LANG_OPTIONS} onChange={setLang} className="[&_button]:text-sm" />
       </div>
-      <div className={cn("min-w-0", lang !== "solidity" && "hidden")}>{solidity}</div>
-      <div className={cn("min-w-0", lang !== "typescript" && "hidden")}>{typescript}</div>
+      <div className={cn("flex min-w-0 flex-1 flex-col", lang !== "solidity" && "hidden")}>{solidity}</div>
+      <div className={cn("flex min-w-0 flex-1 flex-col", lang !== "typescript" && "hidden")}>{typescript}</div>
     </div>
   );
 }

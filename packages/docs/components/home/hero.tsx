@@ -1,40 +1,25 @@
 import { SiGithub } from "@icons-pack/react-simple-icons";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
-import Image from "next/image";
 import Link from "next/link";
+import { Film } from "./film";
 import { GridBackground } from "./grid-background";
-import { PolicyLens } from "./policy-lens";
-import { buildApproveLens } from "./policy-lens-data";
 import { gitConfig } from "@/lib/layout.shared";
 import { cn } from "@/lib/utils";
 
 export function Hero() {
-  const lens = buildApproveLens();
-
   return (
     <section className="relative overflow-hidden px-6 py-12 lg:py-16">
       <GridBackground />
 
       <div className="relative mx-auto flex max-w-5xl flex-col items-center gap-7 text-center">
-        <Image
-          src="/logo.svg"
-          alt="Callcium"
-          aria-hidden="true"
-          className="w-24 sm:w-28"
-          width={144}
-          height={144}
-          priority
-        />
-
         <div className="flex flex-col items-center gap-4">
-          <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-            Programmable Calldata Policy Engine
-          </h1>
-          <p className="max-w-2xl text-lg text-pretty text-fd-muted-foreground">
-            Define type-safe constraints on ABI-encoded data. Enforce them{" "}
-            <span className="text-fd-foreground">onchain in Solidity</span>, or{" "}
-            <span className="text-fd-foreground">offchain in TypeScript</span>.
-          </p>
+          <h1 className="text-4xl font-bold tracking-tight text-balance sm:text-5xl">Calldata Policy Engine</h1>
+          <div className="flex flex-col items-center gap-2">
+            <p className="font-medium text-balance">Change the rules, not the contract</p>
+            <p className="max-w-xl text-pretty text-fd-muted-foreground">
+              Type-safe constraints on calldata, enforced onchain and offchain
+            </p>
+          </div>
         </div>
 
         <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
@@ -52,9 +37,11 @@ export function Hero() {
           </Link>
         </div>
 
-        <div className="w-full max-w-2xl text-left">
-          <PolicyLens data={lens} />
-        </div>
+        <Film
+          name="hero"
+          label="Demo of a Solidity policy reverting two approve transactions and executing a third"
+          className="w-full max-w-3xl"
+        />
       </div>
     </section>
   );

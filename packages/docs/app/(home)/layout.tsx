@@ -5,7 +5,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
   return (
     <HomeLayout {...baseOptions()}>
       {children}
-      <footer className="mt-auto border-t border-fd-border py-6 text-center text-xs text-fd-muted-foreground">
+      <footer className="mt-auto border-t border-fd-border py-6 text-center text-sm text-fd-muted-foreground">
         Callcium by{" "}
         <a
           href="https://provencraft.com"
@@ -15,7 +15,7 @@ export default function Layout({ children }: LayoutProps<"/">) {
         >
           Provencraft
         </a>{" "}
-        · MIT License
+        · MIT License · Lean is a trademark of Lean FRO
       </footer>
     </HomeLayout>
   );

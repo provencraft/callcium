@@ -1,12 +1,13 @@
 import { DualEnforcementView } from "./dual-enforcement-view";
-import { APPROVE, ENFORCE } from "./snippets";
+import { buildApproveLens } from "./policy-lens-data";
+import { APPROVE } from "./snippets";
 import { renderCode } from "@/lib/highlight";
 
 export async function DualEnforcement() {
   const [solidity, typescript] = await Promise.all([
-    renderCode(`${APPROVE.solidity}\n\n${ENFORCE.solidity}`, "solidity"),
-    renderCode(`${APPROVE.typescript}\n\n${ENFORCE.typescript}`, "typescript"),
+    renderCode(APPROVE.solidity, "solidity"),
+    renderCode(APPROVE.typescript, "typescript"),
   ]);
 
-  return <DualEnforcementView solidity={solidity} typescript={typescript} />;
+  return <DualEnforcementView solidity={solidity} typescript={typescript} lens={buildApproveLens()} />;
 }

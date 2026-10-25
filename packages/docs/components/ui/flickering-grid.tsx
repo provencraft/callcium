@@ -168,7 +168,8 @@ export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
       { threshold: 0 },
     );
 
-    intersectionObserver.observe(canvas);
+    // Under reduced motion the grid stays as first drawn.
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) intersectionObserver.observe(canvas);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
