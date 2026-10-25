@@ -2,7 +2,7 @@
 
 TypeScript SDK for the [Callcium](https://callcium.dev) policy engine.
 
-Callcium defines type-safe constraints on ABI-encoded data, such as function arguments or a raw payload with no selector, using value ranges, set membership, array quantifiers, and transaction context. This SDK builds policies into canonical policy bytes and validates ABI-encoded data, such as transaction calldata, against a policy offchain, before it is signed.
+Callcium defines type-safe constraints on ABI-encoded data, such as function arguments or a raw payload with no selector, using value ranges, set membership, array quantifiers, and transaction context. This SDK builds policies into canonical policy bytes, validates them, and enforces them offchain against ABI-encoded data such as transaction calldata.
 
 ## Install
 
