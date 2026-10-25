@@ -1,6 +1,6 @@
 ---
 title: What is Callcium
-description: Programmable policy engine for ABI-encoded data.
+description: Type-safe constraints on calldata, enforced onchain and offchain.
 ---
 
 ABI-encoded calldata is opaque at the contract boundary. Contracts that delegate, proxy, or relay calls have no standard way to constrain what those calls contain. Existing checks are hand-rolled in each contract, with no shared wire format that offchain tooling can evaluate.
@@ -15,17 +15,6 @@ Constraints can also target transaction context — caller address, call value, 
 
 ## Pick an environment
 
-<Cards>
-  <Card
-    title="Solidity"
-    href="/docs/solidity"
-    description="Build, validate, store, and enforce policies onchain. Foundry-first workflow."
-  />
-  <Card
-    title="TypeScript SDK"
-    href="/docs/sdk"
-    description="Build, validate, and enforce policies offchain. TypeScript-first workflow."
-  />
-</Cards>
+<EnvironmentCards />
 
 The wire format is identical across environments — a policy built offchain enforces the same way as one built in Solidity. See the [Specifications](/docs/specifications/policy-v3) for the normative binary format.

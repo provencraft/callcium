@@ -1,6 +1,6 @@
 {
   "title": "TypeScript",
-  "description": "Offchain tooling and simulation.",
+  "description": "Build and enforce policies offchain.",
   "icon": "typescript",
   "root": true,
   "pages": [

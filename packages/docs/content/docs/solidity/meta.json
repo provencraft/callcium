@@ -1,6 +1,6 @@
 {
   "title": "Solidity",
-  "description": "Onchain enforcement and storage.",
+  "description": "Build, store and enforce policies onchain.",
   "icon": "solidity",
   "root": true,
   "pages": [
