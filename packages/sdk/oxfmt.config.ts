@@ -3,6 +3,7 @@ import { defineConfig } from "oxfmt";
 export default defineConfig({
   ignorePatterns: ["node_modules", "dist"],
   printWidth: 120,
+  overrides: [{ files: ["*.md"], options: { embeddedLanguageFormatting: "off" } }],
   sortImports: {
     groups: [
       ["value-builtin", "value-external"],

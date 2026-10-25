@@ -9,9 +9,8 @@ pre-commit:
       run: forge fmt --check {staged_files}
 
     sdk-fmt:
-      root: "packages/sdk/"
       glob: "packages/sdk/**/*.{ts,json,md}"
-      run: bunx oxfmt --check {staged_files}
+      run: bun run --cwd packages/sdk fmt:check
 
     sdk-lint:
       root: "packages/sdk/"
