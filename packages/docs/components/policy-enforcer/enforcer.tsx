@@ -45,7 +45,7 @@ const CONTEXT_PLACEHOLDERS: Record<string, string> = {
 export function Enforcer() {
   const searchParams = useSearchParams();
   const [policyInput, setPolicyInput] = useState(() => searchParams.get("policy") ?? "");
-  const [calldataInput, setCalldataInput] = useState("");
+  const [calldataInput, setCalldataInput] = useState(() => searchParams.get("calldata") ?? "");
   const [contextOpen, setContextOpen] = useState(false);
   const [ctxValues, setCtxValues] = useState<Record<string, string>>({});
 
