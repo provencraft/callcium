@@ -16,5 +16,8 @@
   },
   "devDependencies": {
     "lefthook": "2.1.5"
+  },
+  "overrides": {
+    "lightningcss": "1.33.0"
   }
 }
