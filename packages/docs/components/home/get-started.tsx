@@ -11,7 +11,7 @@ const guides = [
 
 export function GetStarted() {
   return (
-    <section className="relative overflow-hidden bg-fd-primary/[0.04]">
+    <section className="relative overflow-hidden bg-fd-section">
       <GridBackground maxOpacity={0.1} />
       <div className="relative mx-auto flex max-w-5xl flex-col items-center gap-8 px-6 py-24 text-center">
         <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">Start building</h2>

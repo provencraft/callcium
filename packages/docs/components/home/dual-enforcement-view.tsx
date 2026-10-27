@@ -14,7 +14,7 @@ export function DualEnforcementView({
   lens: LensData;
 }) {
   return (
-    <section className="border-t border-fd-border bg-fd-primary/[0.04]">
+    <section className="border-t border-fd-border bg-fd-section">
       <div className="mx-auto max-w-5xl px-6 py-24">
         <div className="flex max-w-2xl flex-col gap-3">
           <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
