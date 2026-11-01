@@ -4,35 +4,23 @@ import {
   type DecodedFrameHint,
   type DecodedHint,
   type DecodedPolicy,
-  type Hex,
   lookupQuantifier,
   lookupScope,
   parsePathSteps,
-  PolicyCoder,
   type Span,
   lookupTypeCode,
 } from "@callcium/sdk";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui/components/ui/collapsible";
-import { ChevronDown, ArrowRight } from "lucide-react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import type { Abi } from "viem";
-import { ErrorBox } from "@/components/ui/error-box";
+import { memo, useMemo, useState } from "react";
 import { HexDump } from "@/components/ui/hex-dump";
-import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { PillToggle } from "@/components/ui/pill-toggle";
-import { lookup4byte, parseAbiJson } from "@/lib/abi";
-import { formatError } from "@/lib/format-error";
 import {
+  type DecodeResult,
   type ExplainedGroup,
   type ExplainedLoop,
   type ExplainedPolicy,
   type ExplainedTest,
-  explainPolicy,
   formatOperands,
 } from "@/lib/policy-inspector";
-import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
 
 const plural = (n: number) => (n === 1 ? "" : "s");
@@ -54,155 +42,41 @@ function formatFrameHint(hint: DecodedFrameHint): string {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Decode logic
-///////////////////////////////////////////////////////////////////////////
-
-type DecodeResult =
-  | {
-      ok: true;
-      decoded: DecodedPolicy;
-      explained: ExplainedPolicy;
-      hex: string;
-    }
-  | { ok: false; error: string };
-
-function tryDecode(hex: string, abi: Abi | undefined): DecodeResult | null {
-  const trimmed = hex.trim();
-  if (!trimmed) return null;
-
-  const normalized = trimmed.startsWith("0x") ? trimmed : `0x${trimmed}`;
-  if (!/^0x[0-9a-fA-F]+$/.test(normalized)) {
-    return { ok: false, error: "Invalid hex string." };
-  }
-
-  try {
-    const decoded = PolicyCoder.inspect(normalized as Hex);
-    const explained = explainPolicy(decoded, abi ? { abi } : undefined);
-    return { ok: true, decoded, explained, hex: normalized };
-  } catch (e) {
-    return { ok: false, error: formatError(e) };
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Main component
 ///////////////////////////////////////////////////////////////////////////
 
-export function Inspector() {
-  const searchParams = useSearchParams();
-  const [hexInput, setHexInput] = useState(() => searchParams.get("policy") ?? "");
-  const [abiInput, setAbiInput] = useState("");
-  const [abiOpen, setAbiOpen] = useState(false);
-  const [lookup, setLookup] = useState<{ selector: string; name: string | null } | null>(null);
+/** Summary and byte-level views of a decoded policy. */
+export function Inspector({
+  result,
+  functionName,
+  lookingUp,
+}: {
+  result: Extract<DecodeResult, { ok: true }>;
+  functionName: string | null;
+  lookingUp: boolean;
+}) {
   const [inspectMode, setInspectMode] = useState(false);
-
-  const debouncedHex = useDebounce(hexInput, 300);
-  const abi = useMemo(() => {
-    const parsed = parseAbiJson(abiInput);
-    return parsed instanceof Error ? undefined : parsed;
-  }, [abiInput]);
-
-  const result = useMemo(() => tryDecode(debouncedHex, abi), [debouncedHex, abi]);
-
-  // 4byte lookup when we have a selector without an ABI-resolved name.
-  const lookupSelector =
-    result?.ok && !result.explained.functionName && !result.explained.isSelectorless ? result.explained.selector : null;
-
-  useEffect(() => {
-    if (!lookupSelector) return;
-
-    const controller = new AbortController();
-    void lookup4byte(lookupSelector, controller.signal).then((name) => {
-      if (!controller.signal.aborted) setLookup({ selector: lookupSelector, name });
-    });
-    return () => controller.abort();
-  }, [lookupSelector]);
-
-  const lookupSettled = lookup?.selector === lookupSelector;
-  const lookedUpName = lookupSettled ? lookup.name : null;
-  const lookingUp = lookupSelector !== null && !lookupSettled;
-
-  const resolvedName = result?.ok && result.explained.functionName ? result.explained.functionName : lookedUpName;
-
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const pasted = e.clipboardData.getData("text");
-    if (pasted.trim()) {
-      setHexInput(pasted);
-      e.preventDefault();
-    }
-  }, []);
 
   return (
     <div className="space-y-4">
-      {/* Policy blob input */}
-      <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <label htmlFor="policy-hex" className="text-sm font-medium text-fd-foreground">
-            Policy Blob
-          </label>
-          {result?.ok && (
-            <Link
-              href={`/policy-enforcer?policy=${encodeURIComponent(debouncedHex)}`}
-              className="text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-            >
-              Enforcer <ArrowRight className="inline size-3" />
-            </Link>
-          )}
-        </div>
-        <MonoTextarea
-          id="policy-hex"
-          className={cn(result && !result.ok && "border-red-500/50")}
-          rows={3}
-          placeholder="0x60095ea7b3..."
-          value={hexInput}
-          onChange={(e) => setHexInput(e.target.value)}
-          onPaste={handlePaste}
-        />
-      </div>
-
-      {/* ABI input (collapsible) */}
-      <Collapsible open={abiOpen} onOpenChange={setAbiOpen}>
-        <CollapsibleTrigger className="flex items-center gap-1.5 text-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground">
-          <ChevronDown className={cn("size-4 transition-transform", abiOpen && "rotate-180")} />
-          ABI (optional)
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <MonoTextarea
-            className="mt-2"
-            rows={4}
-            placeholder='[{"type":"function","name":"approve",...}]'
-            value={abiInput}
-            onChange={(e) => setAbiInput(e.target.value)}
-          />
-        </CollapsibleContent>
-      </Collapsible>
-
-      {/* Error */}
-      {result && !result.ok && <ErrorBox>{result.error}</ErrorBox>}
-
-      {/* Loading indicator for 4byte lookup */}
       {lookingUp && <div className="text-xs text-fd-muted-foreground">Looking up function name…</div>}
+      <div>
+        <PillToggle
+          className="mb-3"
+          value={inspectMode ? "inspect" : "summary"}
+          options={[
+            { value: "summary", label: "Summary" },
+            { value: "inspect", label: "Inspect" },
+          ]}
+          onChange={(v) => setInspectMode(v === "inspect")}
+        />
 
-      {/* Output */}
-      {result?.ok && (
-        <div>
-          <PillToggle
-            className="mb-3"
-            value={inspectMode ? "inspect" : "summary"}
-            options={[
-              { value: "summary", label: "Summary" },
-              { value: "inspect", label: "Inspect" },
-            ]}
-            onChange={(v) => setInspectMode(v === "inspect")}
-          />
-
-          {inspectMode ? (
-            <InspectView decoded={result.decoded} explained={result.explained} hex={result.hex} />
-          ) : (
-            <SummaryView policy={result.explained} functionName={resolvedName} />
-          )}
-        </div>
-      )}
+        {inspectMode ? (
+          <InspectView decoded={result.decoded} explained={result.explained} hex={result.hex} />
+        ) : (
+          <SummaryView policy={result.explained} functionName={functionName} />
+        )}
+      </div>
     </div>
   );
 }

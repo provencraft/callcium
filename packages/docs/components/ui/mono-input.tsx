@@ -9,7 +9,7 @@ const MonoInput = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<"input">
       ref={ref}
       type={type}
       className={cn(
-        "h-9 w-full rounded-lg border border-fd-border bg-fd-card px-3 py-1.5 font-mono text-sm",
+        "h-9 w-full rounded-lg border border-fd-border bg-fd-card px-3 py-1.5 font-mono text-base sm:text-sm",
         "placeholder:text-fd-muted-foreground/50",
         "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
         className,

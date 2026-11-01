@@ -12,10 +12,6 @@
     "enforcement",
     "inspection",
     "---Reference---",
-    "reference",
-    "---Tools---",
-    "[Blocks][Policy Builder](/policy-builder)",
-    "[SearchCode][Policy Inspector](/policy-inspector)",
-    "[Shield][Policy Enforcer](/policy-enforcer)"
+    "reference"
   ]
 }

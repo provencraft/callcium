@@ -16,6 +16,7 @@
     "sync:reference": "bun run --cwd ../contracts docs && bun tools/sync-reference.ts",
     "sync:sdk-reference": "bun run --cwd ../sdk typedoc && bun tools/sync-sdk-reference.ts",
     "sync:specs": "bun tools/sync-specs.ts",
+    "sync:chains": "bun tools/sync-chains.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -24,6 +25,7 @@
     "@icons-pack/react-simple-icons": "13.15.1",
     "@radix-ui/react-select": "2.4.1",
     "clsx": "2.1.1",
+    "cmdk": "1.1.1",
     "fumadocs-core": "16.17.7",
     "fumadocs-mdx": "15.4.9",
     "fumadocs-typescript": "5.5.2",

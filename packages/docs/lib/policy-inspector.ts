@@ -2,7 +2,9 @@ import {
   type DecodedLoop,
   type DecodedPolicy,
   type DecodedTest,
+  DescriptorCoder,
   type Hex,
+  hexToBytes,
   type Operands,
   Scope,
   type Span,
@@ -10,8 +12,11 @@ import {
   lookupScope,
   lookupTypeCode,
   parsePathSteps,
+  PolicyCoder,
 } from "@callcium/sdk";
-import { type Abi, type AbiFunction, type AbiParameter, toFunctionSelector } from "viem";
+import { type Abi, type AbiFunction, toFunctionSelector } from "viem";
+import { formatAbiItem } from "viem/utils";
+import { formatError } from "./format-error";
 import { formatBodyPath, formatCalldataPath, formatContextPath, formatOpLabel, loopSteps } from "./format-path";
 import { decodeOperands, formatOperandList } from "./format-value";
 import { type ParamNode, toNameTree, toParamNodes } from "./policy-builder";
@@ -75,24 +80,23 @@ export function formatOperands(test: ExplainedTest): string {
 // Explainer
 ///////////////////////////////////////////////////////////////////////////
 
+/** The ABI function a policy's selector names, and the parameter trees named by its inputs. */
+export function resolveParams(
+  policy: DecodedPolicy,
+  abi?: Abi,
+): { abiFunction: AbiFunction | undefined; params: ParamNode[] } {
+  const abiFunction = policy.header.value.isSelectorless
+    ? undefined
+    : abi?.find(
+        (item): item is AbiFunction => item.type === "function" && toFunctionSelector(item) === policy.selector.value,
+      );
+  return { abiFunction, params: toParamNodes(policy.descriptor.params, abiFunction?.inputs.map(toNameTree) ?? []) };
+}
+
 export function explainPolicy(policy: DecodedPolicy, options?: ExplainOptions): ExplainedPolicy {
   const { isSelectorless } = policy.header.value;
-
-  let functionName: string | null = null;
-  let abiInputs: readonly AbiParameter[] | undefined;
-
-  if (options?.abi && !isSelectorless) {
-    const matched = options.abi.find(
-      (item): item is AbiFunction => item.type === "function" && toFunctionSelector(item) === policy.selector.value,
-    );
-    if (matched) {
-      functionName = matched.name;
-      abiInputs = matched.inputs;
-    }
-  }
-
-  const nameTrees = abiInputs?.map(toNameTree) ?? [];
-  const paramNodes = toParamNodes(policy.descriptor.params, nameTrees);
+  const { abiFunction, params: paramNodes } = resolveParams(policy, options?.abi);
+  const functionName = abiFunction?.name ?? null;
 
   const params: ExplainedParam[] = paramNodes.map((pn, i) => ({
     index: i,
@@ -113,6 +117,42 @@ export function explainPolicy(policy: DecodedPolicy, options?: ExplainOptions): 
     groups,
     span: policy.span,
   };
+}
+
+/** An inspected and explained policy blob, or the error that stopped decoding. */
+export type DecodeResult =
+  | { ok: true; decoded: DecodedPolicy; explained: ExplainedPolicy; hex: string }
+  | { ok: false; error: string };
+
+/** Inspect and explain a policy blob, or null when the input is blank. */
+export function tryDecode(hex: string, abi: Abi | undefined): DecodeResult | null {
+  const trimmed = hex.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.startsWith("0x") ? trimmed : `0x${trimmed}`;
+  try {
+    const decoded = PolicyCoder.inspect(normalized as Hex);
+    return { ok: true, decoded, explained: explainPolicy(decoded, abi ? { abi } : undefined), hex: normalized };
+  } catch (error) {
+    return { ok: false, error: formatError(error) };
+  }
+}
+
+/**
+ * The signature a decoded policy was built from. A function-bound policy takes its name from the ABI, or from
+ * `functionName` when that name hashes to the policy's selector. Null when a function-bound policy gets no name.
+ */
+export function recoverSignature(
+  result: Extract<DecodeResult, { ok: true }>,
+  abi: Abi | undefined,
+  functionName: string | null,
+): string | null {
+  const { span } = result.decoded.descriptor;
+  const types = DescriptorCoder.toTypes(hexToBytes(result.hex).subarray(span.start, span.end));
+  if (result.explained.isSelectorless) return types;
+  const { abiFunction } = resolveParams(result.decoded, abi);
+  if (abiFunction) return formatAbiItem(abiFunction, { includeName: true });
+  const signature = `${functionName}(${types})`;
+  return functionName && toFunctionSelector(signature) === result.explained.selector ? signature : null;
 }
 
 /** Explain a test; a body test takes the steps of its loop, quantifier step included. */

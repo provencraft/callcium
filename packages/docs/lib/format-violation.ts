@@ -59,10 +59,14 @@ function renderValueMismatch(v: ValueMismatchViolation, path: string): string {
  * Render a structured violation as a one-line human-readable string.
  *
  * Path, constraint, and value formatting all live here — the SDK exposes raw semantic data only. `policy` is the
- * inspected policy the violation came from: it supplies the loop a body test's path starts in and the parameter trees
- * behind positional path labels (`arg(0).field(1)`).
+ * inspected policy the violation came from: it supplies the loop a body test's path starts in. `params` are the
+ * parameter trees behind path labels, positional (`arg(0).field(1)`) unless they carry names.
  */
-export function formatViolation(v: Violation, policy: DecodedPolicy): string {
+export function formatViolation(
+  v: Violation,
+  policy: DecodedPolicy,
+  params: ParamNode[] = toParamNodes(policy.descriptor.params),
+): string {
   switch (v.code) {
     case "MISSING_SELECTOR":
       return "calldata too short to contain a selector";
@@ -70,7 +74,7 @@ export function formatViolation(v: Violation, policy: DecodedPolicy): string {
       return `selector mismatch: expected ${v.expectedValue}, got ${v.resolvedValue}`;
   }
 
-  const path = formatPath(v, policy, toParamNodes(policy.descriptor.params));
+  const path = formatPath(v, policy, params);
   switch (v.code) {
     case "MISSING_CONTEXT":
       // With a context operand the missing property is the operand; the path names the target.

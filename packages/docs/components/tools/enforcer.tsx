@@ -2,17 +2,18 @@
 
 import { TypeCode } from "@callcium/sdk";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui/components/ui/collapsible";
-import { ChevronDown, ArrowRight, ShieldCheck, ShieldX, ShieldQuestion } from "lucide-react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { ChevronDown, ShieldCheck, ShieldX, ShieldQuestion } from "lucide-react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { Context, Hex } from "@callcium/sdk";
+import type { Abi } from "viem";
 import { ErrorBox } from "@/components/ui/error-box";
 import { MonoInput } from "@/components/ui/mono-input";
 import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { CONTEXT_PROPERTIES } from "@/lib/format-path";
 import { formatViolation } from "@/lib/format-violation";
 import { checkPolicy, type EnforceOutput } from "@/lib/policy-enforcer";
+import { resolveParams } from "@/lib/policy-inspector";
+import { loadState, saveState } from "@/lib/tools-storage";
 import { useDebounce } from "@/lib/use-debounce";
 import { cn } from "@/lib/utils";
 
@@ -42,15 +43,23 @@ const CONTEXT_PLACEHOLDERS: Record<string, string> = {
 // Main component
 ///////////////////////////////////////////////////////////////////////////
 
-export function Enforcer() {
-  const searchParams = useSearchParams();
-  const [policyInput, setPolicyInput] = useState(() => searchParams.get("policy") ?? "");
-  const [calldataInput, setCalldataInput] = useState(() => searchParams.get("calldata") ?? "");
-  const [contextOpen, setContextOpen] = useState(false);
-  const [ctxValues, setCtxValues] = useState<Record<string, string>>({});
+type SavedEnforcer = { calldataInput: string; ctxValues: Record<string, string> };
 
-  const debouncedPolicy = useDebounce(policyInput, 300);
+const ENFORCER_KEY = "enforcer";
+
+/** Calldata and context checked against the workspace policy. `abi` names the parameters in violations. */
+export function Enforcer({ policyHex, abi }: { policyHex: string | null; abi: Abi | undefined }) {
+  const [saved] = useState(() => loadState<SavedEnforcer>(ENFORCER_KEY, { calldataInput: "", ctxValues: {} }));
+  const [calldataInput, setCalldataInput] = useState(saved.calldataInput);
+  // Restored context values open the section, so none of them apply out of sight.
+  const [contextOpen, setContextOpen] = useState(() => Object.values(saved.ctxValues).some((value) => value.trim()));
+  const [ctxValues, setCtxValues] = useState(saved.ctxValues);
+
   const debouncedCalldata = useDebounce(calldataInput, 300);
+
+  useEffect(() => {
+    saveState(ENFORCER_KEY, { calldataInput, ctxValues } satisfies SavedEnforcer);
+  }, [calldataInput, ctxValues]);
 
   const context = useMemo((): Context | undefined => {
     const ctx: Record<string, Hex | bigint> = {};
@@ -68,38 +77,13 @@ export function Enforcer() {
   }, [ctxValues]);
 
   const result = useMemo((): EnforceOutput | null => {
-    const policy = debouncedPolicy.trim();
     const calldata = debouncedCalldata.trim();
-    if (!policy || !calldata) return null;
-    return checkPolicy(policy as Hex, calldata as Hex, context);
-  }, [debouncedPolicy, debouncedCalldata, context]);
+    if (!policyHex || !calldata) return null;
+    return checkPolicy(policyHex as Hex, calldata as Hex, context);
+  }, [policyHex, debouncedCalldata, context]);
 
   return (
     <div className="space-y-4">
-      {/* Policy input */}
-      <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <label htmlFor="enforcer-policy-hex" className="text-sm font-medium text-fd-foreground">
-            Policy Blob
-          </label>
-          {policyInput.trim() && (
-            <Link
-              href={`/policy-inspector?policy=${encodeURIComponent(policyInput.trim())}`}
-              className="text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-            >
-              Inspector <ArrowRight className="inline size-3" />
-            </Link>
-          )}
-        </div>
-        <MonoTextarea
-          id="enforcer-policy-hex"
-          rows={3}
-          placeholder="0x60095ea7b3..."
-          value={policyInput}
-          onChange={(e) => setPolicyInput(e.target.value)}
-        />
-      </div>
-
       {/* Calldata input */}
       <div>
         <label htmlFor="enforcer-calldata-hex" className="mb-1.5 block text-sm font-medium text-fd-foreground">
@@ -117,7 +101,7 @@ export function Enforcer() {
       {/* Context (collapsible) */}
       <Collapsible open={contextOpen} onOpenChange={setContextOpen}>
         <CollapsibleTrigger className="flex items-center gap-1.5 text-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground">
-          <ChevronDown className={cn("size-4 transition-transform", contextOpen && "rotate-180")} />
+          <ChevronDown className={cn("size-3.5 transition-transform", contextOpen && "rotate-180")} />
           Context (optional)
         </CollapsibleTrigger>
         <CollapsibleContent>
@@ -148,7 +132,8 @@ export function Enforcer() {
       </Collapsible>
 
       {/* Result */}
-      {result && <ResultDisplay result={result} />}
+      {!policyHex && <p className="text-sm text-fd-muted-foreground">Build or paste a policy to check calldata.</p>}
+      {result && <ResultDisplay result={result} abi={abi} />}
     </div>
   );
 }
@@ -170,10 +155,13 @@ function ContextField({
   onChange: (v: string) => void;
   action?: { label: string; onClick: () => void };
 }) {
+  const inputId = useId();
   return (
     <div>
       <div className="mb-1 flex items-center justify-between">
-        <label className="text-xs font-medium text-fd-muted-foreground">{label}</label>
+        <label htmlFor={inputId} className="font-mono text-xs text-fd-muted-foreground">
+          {label}
+        </label>
         {action && (
           <button
             type="button"
@@ -184,7 +172,7 @@ function ContextField({
           </button>
         )}
       </div>
-      <MonoInput placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+      <MonoInput id={inputId} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -217,10 +205,11 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-function ResultDisplay({ result }: { result: EnforceOutput }) {
+function ResultDisplay({ result, abi }: { result: EnforceOutput; abi: Abi | undefined }) {
   if (result.status === "error") {
     return <ErrorBox>{result.errorMessage}</ErrorBox>;
   }
+  const { params } = resolveParams(result.policy, abi);
 
   const config = STATUS_CONFIG[result.status];
   const Icon = config.icon;
@@ -233,7 +222,7 @@ function ResultDisplay({ result }: { result: EnforceOutput }) {
         <Icon className={cn("size-5 shrink-0", config.iconClass)} />
         <span className="font-semibold">{config.label}</span>
         {result.matchedGroup !== undefined && <span>Matched group {result.matchedGroup + 1}</span>}
-        {items[0] && <span className="font-mono">{formatViolation(items[0], result.policy)}</span>}
+        {items[0] && <span className="font-mono">{formatViolation(items[0], result.policy, params)}</span>}
       </div>
     );
   }
@@ -249,7 +238,7 @@ function ResultDisplay({ result }: { result: EnforceOutput }) {
           // oxlint-disable-next-line react/no-array-index-key
           <div key={i} className="py-1.5">
             {isMultiGroup && "group" in v && <span className="mr-2 font-semibold">Group {v.group + 1}</span>}
-            <span className="font-mono">{formatViolation(v, result.policy)}</span>
+            <span className="font-mono">{formatViolation(v, result.policy, params)}</span>
           </div>
         ))}
       </div>

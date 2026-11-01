@@ -1,28 +1,50 @@
-import { DescriptorCoder } from "@callcium/sdk";
-import type { Abi } from "viem";
+import { type Abi, type AbiFunction, toFunctionSelector } from "viem";
+import { formatAbiItem } from "viem/utils";
 
 ///////////////////////////////////////////////////////////////////////////
-// JSON parsing
+// ABI parsing
 ///////////////////////////////////////////////////////////////////////////
 
-/** Parse a JSON ABI string into an Abi, or return an Error on failure. */
-export function parseAbiJson(input: string): Abi | Error {
-  const trimmed = input.trim();
-  if (!trimmed) return new Error("Empty input.");
+/** True when a function has no name or viem cannot hash or format it, such as without `inputs` or with an untyped input. */
+function isMalformed(abiFunction: AbiFunction): boolean {
+  if (!abiFunction.name) return true;
   try {
-    const parsed = JSON.parse(trimmed);
-    if (!Array.isArray(parsed)) return new Error("ABI must be a JSON array.");
-    return parsed as Abi;
-  } catch (e) {
-    return e instanceof Error ? e : new Error("Invalid JSON.");
+    toFunctionSelector(abiFunction);
+    formatAbiItem(abiFunction);
+    return false;
+  } catch {
+    return true;
   }
+}
+
+/** Parse the functions of a JSON ABI string, state-changing ones first, or return an Error on failure. */
+export function parseAbiFunctions(input: string): AbiFunction[] | Error {
+  if (!input.trim()) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(input);
+  } catch (error) {
+    return error instanceof Error ? error : new Error("Invalid JSON.");
+  }
+  if (!Array.isArray(parsed)) return new Error("ABI must be a JSON array.");
+  const functions = parsed.filter((item): item is AbiFunction => item?.type === "function");
+  const malformed = functions.find(isMalformed);
+  if (malformed) return new Error(`Function "${malformed.name ?? ""}" is malformed.`);
+  // View and pure functions follow the state-changing ones, each in ABI order.
+  return functions.toSorted((left, right) => Number(isReadOnly(left)) - Number(isReadOnly(right)));
+}
+
+function isReadOnly(abiFunction: AbiFunction): boolean {
+  return abiFunction.stateMutability === "view" || abiFunction.stateMutability === "pure";
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // 4-byte selector lookup
 ///////////////////////////////////////////////////////////////////////////
 
-/** Look up a function name by its 4-byte selector via the Sourcify API. */
+const identifier = /^[A-Za-z_$][\w$]*$/;
+
+/** Look up a function name by its 4-byte selector via the Sourcify API, or null when no valid name is found. */
 export async function lookup4byte(selector: string, signal?: AbortSignal): Promise<string | null> {
   try {
     const response = await fetch(`https://api.4byte.sourcify.dev/signature-database/v1/lookup?function=${selector}`, {
@@ -38,15 +60,43 @@ export async function lookup4byte(selector: string, signal?: AbortSignal): Promi
     if (typeof signature !== "string") return null;
 
     const parenIndex = signature.indexOf("(");
-    return parenIndex > 0 ? signature.slice(0, parenIndex) : signature;
+    const name = parenIndex > 0 ? signature.slice(0, parenIndex) : signature;
+    return identifier.test(name) ? name : null;
   } catch {
     return null;
   }
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Descriptor → type string recovery
+// Sourcify ABI lookup
 ///////////////////////////////////////////////////////////////////////////
 
-/** Reconstruct the parameter types string from a binary descriptor. */
-export const descriptorToTypes = DescriptorCoder.toTypes;
+const SOURCIFY_TIMEOUT = 15_000;
+
+type SourcifyContract = {
+  abi: Abi | null;
+  proxyResolution?: { isProxy: boolean; implementations: { address: string; name?: string }[] } | null;
+};
+
+/** Fetch a verified contract's ABI from Sourcify, or its implementation's for a proxy. Null when Sourcify has none. Throws when the request fails. */
+export async function fetchAbi(chainId: number, address: string): Promise<Abi | null> {
+  const contract = await getSourcifyContract(chainId, address);
+  if (!contract?.abi) return null;
+  // ponytail: first implementation only; merge them all when a proxy with several needs it.
+  const implementation = contract.proxyResolution?.isProxy ? contract.proxyResolution.implementations[0] : undefined;
+  // Sourcify names an implementation only when the implementation is verified.
+  if (!implementation?.name) return contract.abi;
+  return (await getSourcifyContract(chainId, implementation.address))?.abi ?? contract.abi;
+}
+
+async function getSourcifyContract(chainId: number, address: string): Promise<SourcifyContract | null> {
+  // Sourcify rejects a mixed-case address with a wrong checksum, so the address goes lowercase.
+  const response = await fetch(
+    `https://sourcify.dev/server/v2/contract/${chainId}/${address.toLowerCase()}?fields=abi,proxyResolution`,
+    { signal: AbortSignal.timeout(SOURCIFY_TIMEOUT) },
+  );
+  // Sourcify answers 404 for an address without a verified contract.
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Sourcify returned ${response.status}.`);
+  return response.json();
+}

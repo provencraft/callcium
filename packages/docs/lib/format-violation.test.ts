@@ -12,6 +12,7 @@ import {
 import { encodeFunctionData, parseAbi, toFunctionSelector } from "viem";
 import { describe, expect, it } from "vitest";
 import { formatViolation } from "./format-violation";
+import { resolveParams } from "./policy-inspector";
 
 ///////////////////////////////////////////////////////////////////////////
 // Helpers
@@ -48,6 +49,15 @@ describe("formatViolation", () => {
     expect(render(policy, f(105_200_000_000_000_000_000_000n))).toBe(
       "arg(0): < 1000000000000000000 violated by 105200000000000000000000",
     );
+  });
+
+  it("labels the path with the parameter names it is given", () => {
+    const policy = PolicyBuilder.create("f(uint256)").add(arg(0).lt(10n)).build();
+    const result = PolicyEnforcer.check(policy, f(20n));
+    if (result.ok) throw new Error("Policy passed");
+    const inspected = PolicyCoder.inspect(policy);
+    const { params } = resolveParams(inspected, parseAbi(["function f(uint256 amount)"]));
+    expect(formatViolation(result.violations[0], inspected, params)).toBe("amount: < 10 violated by 20");
   });
 
   it("braces a set operand list and brackets a range one", () => {

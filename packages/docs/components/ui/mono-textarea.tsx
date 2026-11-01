@@ -8,7 +8,7 @@ const MonoTextarea = forwardRef<HTMLTextAreaElement, ComponentPropsWithoutRef<"t
     <textarea
       ref={ref}
       className={cn(
-        "w-full rounded-lg border border-fd-border bg-fd-card px-3 py-2 font-mono text-sm",
+        "w-full rounded-lg border border-fd-border bg-fd-card px-3 py-2 font-mono text-base sm:text-sm",
         "placeholder:text-fd-muted-foreground/50",
         "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
         "resize-y",

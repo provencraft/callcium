@@ -7,18 +7,18 @@ import { cn } from "@/lib/utils";
 const Select = SelectPrimitive.Root;
 const SelectValue = SelectPrimitive.Value;
 
+/** Box, type size, focus ring and disabled state of a button that opens a list of field values. */
+const FIELD_TRIGGER = cn(
+  "flex h-9 items-center justify-between gap-2 rounded-lg border border-fd-border bg-fd-card px-3 py-1.5 text-base sm:text-sm",
+  "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
+  "disabled:cursor-not-allowed disabled:opacity-50",
+);
+
 const SelectTrigger = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>>(
   ({ className, children, ...props }, ref) => (
     <SelectPrimitive.Trigger
       ref={ref}
-      className={cn(
-        "flex h-9 items-center justify-between gap-2 rounded-lg border border-fd-border bg-fd-card px-3 py-1.5 text-sm",
-        "placeholder:text-fd-muted-foreground/50",
-        "focus:outline-none focus:ring-2 focus:ring-inset focus:ring-fd-ring",
-        "disabled:cursor-not-allowed disabled:opacity-50",
-        "[&>span]:truncate",
-        className,
-      )}
+      className={cn(FIELD_TRIGGER, "data-[placeholder]:text-fd-muted-foreground/50 [&>span]:truncate", className)}
       {...props}
     >
       {children}
@@ -63,7 +63,7 @@ const SelectItem = forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-default items-center py-1.5 pl-8 pr-3 text-sm outline-none select-none",
+      "relative flex w-full cursor-default items-center py-1.5 pl-8 pr-3 text-base outline-none select-none sm:text-sm",
       "data-[highlighted]:bg-fd-accent data-[highlighted]:text-fd-accent-foreground",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
@@ -83,4 +83,4 @@ const SelectItem = forwardRef<
 ));
 SelectItem.displayName = "SelectItem";
 
-export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue };
+export { FIELD_TRIGGER, Select, SelectContent, SelectItem, SelectTrigger, SelectValue };

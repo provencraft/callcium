@@ -1,0 +1,1154 @@
+[
+  {
+    "id": 16602,
+    "name": "0G Galileo Testnet"
+  },
+  {
+    "id": 16661,
+    "name": "0G Mainnet"
+  },
+  {
+    "id": 36888,
+    "name": "AB Core Mainnet"
+  },
+  {
+    "id": 2741,
+    "name": "Abstract Mainnet"
+  },
+  {
+    "id": 11124,
+    "name": "Abstract Sepolia Testnet"
+  },
+  {
+    "id": 36900,
+    "name": "ADI Chain"
+  },
+  {
+    "id": 69420,
+    "name": "Alchemy Sepolia"
+  },
+  {
+    "id": 3111,
+    "name": "Alpha Chain Mainnet"
+  },
+  {
+    "id": 511111,
+    "name": "Alpha Chain Testnet"
+  },
+  {
+    "id": 33139,
+    "name": "ApeChain"
+  },
+  {
+    "id": 42170,
+    "name": "Arbitrum Nova"
+  },
+  {
+    "id": 42161,
+    "name": "Arbitrum One Mainnet"
+  },
+  {
+    "id": 421614,
+    "name": "Arbitrum Sepolia Testnet"
+  },
+  {
+    "id": 5042,
+    "name": "Arc Mainnet"
+  },
+  {
+    "id": 5042002,
+    "name": "Arc Testnet"
+  },
+  {
+    "id": 592,
+    "name": "Astar"
+  },
+  {
+    "id": 81,
+    "name": "Astar Shibuya"
+  },
+  {
+    "id": 904,
+    "name": "Ault Blockchain Mainnet"
+  },
+  {
+    "id": 10904,
+    "name": "Ault Blockchain Testnet"
+  },
+  {
+    "id": 1313161554,
+    "name": "Aurora Mainnet"
+  },
+  {
+    "id": 205205,
+    "name": "Auroria Testnet"
+  },
+  {
+    "id": 43114,
+    "name": "Avalanche C-Chain"
+  },
+  {
+    "id": 43113,
+    "name": "Avalanche Fuji Testnet"
+  },
+  {
+    "id": 6497,
+    "name": "Awaji"
+  },
+  {
+    "id": 223,
+    "name": "B2 Mainnet"
+  },
+  {
+    "id": 8453,
+    "name": "Base Mainnet"
+  },
+  {
+    "id": 84532,
+    "name": "Base Sepolia Testnet"
+  },
+  {
+    "id": 80069,
+    "name": "Berachain Bepolia Testnet"
+  },
+  {
+    "id": 80094,
+    "name": "Berachain Mainnet"
+  },
+  {
+    "id": 482120,
+    "name": "Bitcoin Swap"
+  },
+  {
+    "id": 96,
+    "name": "Bitkub Chain"
+  },
+  {
+    "id": 25925,
+    "name": "Bitkub Chain Testnet"
+  },
+  {
+    "id": 199,
+    "name": "BitTorrent Chain Mainnet"
+  },
+  {
+    "id": 1029,
+    "name": "BitTorrent Chain Testnet"
+  },
+  {
+    "id": 81457,
+    "name": "Blast"
+  },
+  {
+    "id": 168587773,
+    "name": "Blast Sepolia Testnet"
+  },
+  {
+    "id": 56,
+    "name": "BNB Smart Chain Mainnet"
+  },
+  {
+    "id": 97,
+    "name": "BNB Smart Chain Testnet"
+  },
+  {
+    "id": 60808,
+    "name": "BOB"
+  },
+  {
+    "id": 808813,
+    "name": "BOB Sepolia"
+  },
+  {
+    "id": 288,
+    "name": "Boba Network"
+  },
+  {
+    "id": 3637,
+    "name": "Botanix Mainnet"
+  },
+  {
+    "id": 488,
+    "name": "BXN"
+  },
+  {
+    "id": 4888,
+    "name": "BXN Testnet"
+  },
+  {
+    "id": 42220,
+    "name": "Celo Mainnet"
+  },
+  {
+    "id": 11142220,
+    "name": "Celo Sepolia Testnet"
+  },
+  {
+    "id": 4114,
+    "name": "Citrea Mainnet"
+  },
+  {
+    "id": 5115,
+    "name": "Citrea Testnet"
+  },
+  {
+    "id": 1030,
+    "name": "Conflux eSpace"
+  },
+  {
+    "id": 1116,
+    "name": "Core Blockchain Mainnet"
+  },
+  {
+    "id": 1114,
+    "name": "Core Blockchain Testnet2"
+  },
+  {
+    "id": 102030,
+    "name": "Creditcoin"
+  },
+  {
+    "id": 102032,
+    "name": "Creditcoin Devnet"
+  },
+  {
+    "id": 102031,
+    "name": "Creditcoin Testnet"
+  },
+  {
+    "id": 25,
+    "name": "Cronos Mainnet"
+  },
+  {
+    "id": 338,
+    "name": "Cronos Testnet"
+  },
+  {
+    "id": 388,
+    "name": "Cronos zkEVM Mainnet"
+  },
+  {
+    "id": 240,
+    "name": "Cronos zkEVM Testnet"
+  },
+  {
+    "id": 612055,
+    "name": "Cross Mainnet"
+  },
+  {
+    "id": 612044,
+    "name": "Cross Testnet"
+  },
+  {
+    "id": 33111,
+    "name": "Curtis"
+  },
+  {
+    "id": 7560,
+    "name": "Cyber Mainnet"
+  },
+  {
+    "id": 1514,
+    "name": "DATA Network"
+  },
+  {
+    "id": 1315,
+    "name": "DATA Network Aeneid"
+  },
+  {
+    "id": 6281971,
+    "name": "DogeOS Chikyu Testnet"
+  },
+  {
+    "id": 97477,
+    "name": "Doma Mainnet"
+  },
+  {
+    "id": 97476,
+    "name": "Doma Testnet"
+  },
+  {
+    "id": 714,
+    "name": "Eden"
+  },
+  {
+    "id": 3343,
+    "name": "Edge"
+  },
+  {
+    "id": 52014,
+    "name": "Electroneum"
+  },
+  {
+    "id": 5201420,
+    "name": "Electroneum Testnet"
+  },
+  {
+    "id": 99801,
+    "name": "Elysium Testnet"
+  },
+  {
+    "id": 61,
+    "name": "Ethereum Classic"
+  },
+  {
+    "id": 63,
+    "name": "Ethereum Classic Mordor"
+  },
+  {
+    "id": 560048,
+    "name": "Ethereum Hoodi Testnet"
+  },
+  {
+    "id": 1,
+    "name": "Ethereum Mainnet"
+  },
+  {
+    "id": 11155111,
+    "name": "Ethereum Sepolia Testnet"
+  },
+  {
+    "id": 42793,
+    "name": "Etherlink"
+  },
+  {
+    "id": 127823,
+    "name": "Etherlink Shadownet"
+  },
+  {
+    "id": 61803,
+    "name": "Etica Mainnet"
+  },
+  {
+    "id": 250,
+    "name": "Fantom Opera"
+  },
+  {
+    "id": 314159,
+    "name": "Filecoin Calibration Testnet"
+  },
+  {
+    "id": 314,
+    "name": "Filecoin Virtual Machine"
+  },
+  {
+    "id": 14,
+    "name": "Flare Mainnet"
+  },
+  {
+    "id": 114,
+    "name": "Flare Testnet Coston2"
+  },
+  {
+    "id": 747,
+    "name": "Flow Mainnet"
+  },
+  {
+    "id": 545,
+    "name": "Flow Testnet"
+  },
+  {
+    "id": 2523,
+    "name": "Fraxtal Hoodi Testnet"
+  },
+  {
+    "id": 252,
+    "name": "Fraxtal Mainnet"
+  },
+  {
+    "id": 122,
+    "name": "Fuse"
+  },
+  {
+    "id": 123,
+    "name": "Fuse Sparknet"
+  },
+  {
+    "id": 685689,
+    "name": "Gensyn"
+  },
+  {
+    "id": 685685,
+    "name": "Gensyn Testnet"
+  },
+  {
+    "id": 100,
+    "name": "Gnosis"
+  },
+  {
+    "id": 10200,
+    "name": "Gnosis Chiado Testnet"
+  },
+  {
+    "id": 2345,
+    "name": "GOAT Network"
+  },
+  {
+    "id": 127001,
+    "name": "Gravity"
+  },
+  {
+    "id": 1625,
+    "name": "Gravity Alpha Mainnet"
+  },
+  {
+    "id": 13505,
+    "name": "Gravity Alpha Testnet Sepolia"
+  },
+  {
+    "id": 54211,
+    "name": "Haqq Chain Testnet"
+  },
+  {
+    "id": 11235,
+    "name": "Haqq Network"
+  },
+  {
+    "id": 1666600000,
+    "name": "Harmony Mainnet Shard 0"
+  },
+  {
+    "id": 177,
+    "name": "HashKey"
+  },
+  {
+    "id": 2443,
+    "name": "Haus Chain Testnet"
+  },
+  {
+    "id": 295,
+    "name": "Hedera Mainnet"
+  },
+  {
+    "id": 296,
+    "name": "Hedera Testnet"
+  },
+  {
+    "id": 43111,
+    "name": "Hemi"
+  },
+  {
+    "id": 743111,
+    "name": "Hemi Sepolia"
+  },
+  {
+    "id": 17000,
+    "name": "Holesky"
+  },
+  {
+    "id": 190415,
+    "name": "HPP Mainnet"
+  },
+  {
+    "id": 181228,
+    "name": "HPP Sepolia Testnet"
+  },
+  {
+    "id": 133,
+    "name": "HSKChain Testnet"
+  },
+  {
+    "id": 7080969,
+    "name": "Humanity Protocol testnet"
+  },
+  {
+    "id": 999,
+    "name": "HyperEVM Mainnet"
+  },
+  {
+    "id": 998,
+    "name": "Hyperliquid EVM Testnet"
+  },
+  {
+    "id": 13371,
+    "name": "Immutable zkEVM"
+  },
+  {
+    "id": 13473,
+    "name": "Immutable zkEVM Testnet"
+  },
+  {
+    "id": 1776,
+    "name": "Injective"
+  },
+  {
+    "id": 1439,
+    "name": "Injective Testnet"
+  },
+  {
+    "id": 57073,
+    "name": "Ink"
+  },
+  {
+    "id": 763373,
+    "name": "Ink Sepolia"
+  },
+  {
+    "id": 8822,
+    "name": "IOTA EVM"
+  },
+  {
+    "id": 4689,
+    "name": "IoTeX Network Mainnet"
+  },
+  {
+    "id": 4690,
+    "name": "IoTeX Network Testnet"
+  },
+  {
+    "id": 5734951,
+    "name": "Jovay Mainnet"
+  },
+  {
+    "id": 1001,
+    "name": "Kaia Kairos Testnet"
+  },
+  {
+    "id": 8217,
+    "name": "Kaia Mainnet"
+  },
+  {
+    "id": 737373,
+    "name": "Katana Bokuto"
+  },
+  {
+    "id": 747474,
+    "name": "Katana Mainnet"
+  },
+  {
+    "id": 2222,
+    "name": "Kava"
+  },
+  {
+    "id": 2221,
+    "name": "Kava Testnet"
+  },
+  {
+    "id": 2366,
+    "name": "KiteAI Mainnet"
+  },
+  {
+    "id": 2368,
+    "name": "KiteAI Testnet"
+  },
+  {
+    "id": 232,
+    "name": "Lens"
+  },
+  {
+    "id": 37111,
+    "name": "Lens Testnet"
+  },
+  {
+    "id": 1891,
+    "name": "LightLink Pegasus Testnet"
+  },
+  {
+    "id": 1890,
+    "name": "LightLink Phoenix Mainnet"
+  },
+  {
+    "id": 59144,
+    "name": "Linea Mainnet"
+  },
+  {
+    "id": 59141,
+    "name": "Linea Sepolia Testnet"
+  },
+  {
+    "id": 1135,
+    "name": "Lisk"
+  },
+  {
+    "id": 4202,
+    "name": "Lisk Sepolia Testnet"
+  },
+  {
+    "id": 169,
+    "name": "Manta Pacific Mainnet"
+  },
+  {
+    "id": 3441006,
+    "name": "Manta Pacific Sepolia Testnet"
+  },
+  {
+    "id": 5000,
+    "name": "Mantle Mainnet"
+  },
+  {
+    "id": 5003,
+    "name": "Mantle Sepolia Testnet"
+  },
+  {
+    "id": 698,
+    "name": "Matchain"
+  },
+  {
+    "id": 6292,
+    "name": "MAYA CHAIN"
+  },
+  {
+    "id": 4326,
+    "name": "MegaETH Mainnet"
+  },
+  {
+    "id": 6343,
+    "name": "MegaETH Testnet"
+  },
+  {
+    "id": 43522,
+    "name": "Memecore Insectarium Testnet"
+  },
+  {
+    "id": 4352,
+    "name": "Memecore Mainnet"
+  },
+  {
+    "id": 4200,
+    "name": "Merlin Mainnet"
+  },
+  {
+    "id": 1750,
+    "name": "Metal L2"
+  },
+  {
+    "id": 1740,
+    "name": "Metal L2 Testnet"
+  },
+  {
+    "id": 83,
+    "name": "Meter Testnet"
+  },
+  {
+    "id": 1088,
+    "name": "Metis Andromeda Mainnet"
+  },
+  {
+    "id": 59902,
+    "name": "Metis Sepolia Testnet"
+  },
+  {
+    "id": 31612,
+    "name": "Mezo"
+  },
+  {
+    "id": 31611,
+    "name": "Mezo Testnet"
+  },
+  {
+    "id": 6498,
+    "name": "Mizuhiki"
+  },
+  {
+    "id": 2288,
+    "name": "Moca Chain"
+  },
+  {
+    "id": 222888,
+    "name": "Moca Chain Testnet"
+  },
+  {
+    "id": 34443,
+    "name": "Mode"
+  },
+  {
+    "id": 919,
+    "name": "Mode Testnet"
+  },
+  {
+    "id": 143,
+    "name": "Monad Mainnet"
+  },
+  {
+    "id": 10143,
+    "name": "Monad Testnet"
+  },
+  {
+    "id": 1287,
+    "name": "Moonbase Alpha"
+  },
+  {
+    "id": 1285,
+    "name": "Moonriver"
+  },
+  {
+    "id": 2818,
+    "name": "Morph"
+  },
+  {
+    "id": 2910,
+    "name": "Morph Hoodi"
+  },
+  {
+    "id": 61901,
+    "name": "Mova Mainnet V2"
+  },
+  {
+    "id": 47763,
+    "name": "Neo X Mainnet"
+  },
+  {
+    "id": 12227332,
+    "name": "Neo X Testnet T4"
+  },
+  {
+    "id": 245022934,
+    "name": "Neon"
+  },
+  {
+    "id": 32026,
+    "name": "Numen Mainnet"
+  },
+  {
+    "id": 320261,
+    "name": "Numen Testnet"
+  },
+  {
+    "id": 42262,
+    "name": "Oasis Emerald Mainnet"
+  },
+  {
+    "id": 42261,
+    "name": "Oasis Emerald Testnet"
+  },
+  {
+    "id": 23294,
+    "name": "Oasis Sapphire Mainnet"
+  },
+  {
+    "id": 23295,
+    "name": "Oasis Sapphire Testnet"
+  },
+  {
+    "id": 66,
+    "name": "OKXChain Mainnet"
+  },
+  {
+    "id": 10,
+    "name": "OP Mainnet"
+  },
+  {
+    "id": 11155420,
+    "name": "OP Sepolia Testnet"
+  },
+  {
+    "id": 204,
+    "name": "opBNB Mainnet"
+  },
+  {
+    "id": 5611,
+    "name": "opBNB Testnet"
+  },
+  {
+    "id": 291,
+    "name": "Orderly"
+  },
+  {
+    "id": 4460,
+    "name": "Orderly Testnet"
+  },
+  {
+    "id": 4000,
+    "name": "Ozone Chain Mainnet"
+  },
+  {
+    "id": 401,
+    "name": "Ozone Chain Testnet"
+  },
+  {
+    "id": 3338,
+    "name": "peaq"
+  },
+  {
+    "id": 97741,
+    "name": "Pepe Unchained"
+  },
+  {
+    "id": 688689,
+    "name": "Pharos Atlantic Testnet"
+  },
+  {
+    "id": 1672,
+    "name": "Pharos Mainnet"
+  },
+  {
+    "id": 9745,
+    "name": "Plasma Mainnet"
+  },
+  {
+    "id": 9746,
+    "name": "Plasma Testnet"
+  },
+  {
+    "id": 1829,
+    "name": "Playnance Playblock"
+  },
+  {
+    "id": 98866,
+    "name": "Plume Mainnet"
+  },
+  {
+    "id": 98867,
+    "name": "Plume Testnet"
+  },
+  {
+    "id": 80002,
+    "name": "Polygon Amoy Testnet"
+  },
+  {
+    "id": 137,
+    "name": "Polygon Mainnet"
+  },
+  {
+    "id": 1101,
+    "name": "Polygon zkEVM"
+  },
+  {
+    "id": 2442,
+    "name": "Polygon zkEVM Cardona Testnet"
+  },
+  {
+    "id": 369,
+    "name": "PulseChain Mainnet"
+  },
+  {
+    "id": 9280,
+    "name": "Rabbit Chain Testnet"
+  },
+  {
+    "id": 5318007,
+    "name": "Reactive Network Lasna"
+  },
+  {
+    "id": 1597,
+    "name": "Reactive Network Mainnet"
+  },
+  {
+    "id": 1729,
+    "name": "Reya"
+  },
+  {
+    "id": 4153,
+    "name": "RISE"
+  },
+  {
+    "id": 11155931,
+    "name": "RISE Testnet"
+  },
+  {
+    "id": 4663,
+    "name": "Robinhood Chain"
+  },
+  {
+    "id": 46630,
+    "name": "Robinhood Chain Testnet"
+  },
+  {
+    "id": 2020,
+    "name": "Ronin Mainnet"
+  },
+  {
+    "id": 202601,
+    "name": "Ronin Saigon Testnet"
+  },
+  {
+    "id": 30,
+    "name": "Rootstock"
+  },
+  {
+    "id": 31,
+    "name": "Rootstock Testnet"
+  },
+  {
+    "id": 7741,
+    "name": "RWA Chain"
+  },
+  {
+    "id": 77410,
+    "name": "RWA Chain Sepolia"
+  },
+  {
+    "id": 534352,
+    "name": "Scroll"
+  },
+  {
+    "id": 534351,
+    "name": "Scroll Sepolia Testnet"
+  },
+  {
+    "id": 1329,
+    "name": "Sei Mainnet"
+  },
+  {
+    "id": 1328,
+    "name": "Sei Testnet"
+  },
+  {
+    "id": 360,
+    "name": "Shape"
+  },
+  {
+    "id": 11011,
+    "name": "Shape Testnet"
+  },
+  {
+    "id": 109,
+    "name": "Shibarium"
+  },
+  {
+    "id": 1868,
+    "name": "Soneium"
+  },
+  {
+    "id": 1946,
+    "name": "Soneium Minato Testnet"
+  },
+  {
+    "id": 19,
+    "name": "Songbird Canary Network"
+  },
+  {
+    "id": 146,
+    "name": "Sonic Mainnet"
+  },
+  {
+    "id": 14601,
+    "name": "Sonic Testnet"
+  },
+  {
+    "id": 101010,
+    "name": "Stability Global Trust Network"
+  },
+  {
+    "id": 20180427,
+    "name": "Stability Testnet"
+  },
+  {
+    "id": 988,
+    "name": "Stable Mainnet"
+  },
+  {
+    "id": 2201,
+    "name": "Stable Testnet"
+  },
+  {
+    "id": 964,
+    "name": "Subtensor EVM"
+  },
+  {
+    "id": 945,
+    "name": "Subtensor EVM Testnet"
+  },
+  {
+    "id": 5330,
+    "name": "Superseed"
+  },
+  {
+    "id": 53302,
+    "name": "Superseed Sepolia Testnet"
+  },
+  {
+    "id": 1923,
+    "name": "Swellchain"
+  },
+  {
+    "id": 1924,
+    "name": "Swellchain Testnet"
+  },
+  {
+    "id": 57,
+    "name": "Syscoin Mainnet"
+  },
+  {
+    "id": 5700,
+    "name": "Syscoin Testnet Tanenbaum"
+  },
+  {
+    "id": 239,
+    "name": "TAC Mainnet"
+  },
+  {
+    "id": 2391,
+    "name": "TAC SPB"
+  },
+  {
+    "id": 167013,
+    "name": "Taiko Hoodi"
+  },
+  {
+    "id": 167000,
+    "name": "Taiko Mainnet"
+  },
+  {
+    "id": 6122,
+    "name": "Tea Mainnet"
+  },
+  {
+    "id": 2017,
+    "name": "Telcoin Network Testnet"
+  },
+  {
+    "id": 40,
+    "name": "Telos Mainnet"
+  },
+  {
+    "id": 4217,
+    "name": "Tempo Mainnet"
+  },
+  {
+    "id": 42431,
+    "name": "Tempo Testnet Moderato"
+  },
+  {
+    "id": 728126428,
+    "name": "Tron Mainnet"
+  },
+  {
+    "id": 3448148188,
+    "name": "Tron Nile"
+  },
+  {
+    "id": 2494104990,
+    "name": "Tron Shasta"
+  },
+  {
+    "id": 130,
+    "name": "Unichain Mainnet"
+  },
+  {
+    "id": 1301,
+    "name": "Unichain Sepolia Testnet"
+  },
+  {
+    "id": 1480,
+    "name": "Vana"
+  },
+  {
+    "id": 14800,
+    "name": "Vana Moksha Testnet"
+  },
+  {
+    "id": 100009,
+    "name": "VeChain Mainnet"
+  },
+  {
+    "id": 106,
+    "name": "Velas Mainnet"
+  },
+  {
+    "id": 88,
+    "name": "Viction"
+  },
+  {
+    "id": 89,
+    "name": "Viction Testnet"
+  },
+  {
+    "id": 888,
+    "name": "Wanchain Mainnet"
+  },
+  {
+    "id": 1111,
+    "name": "WEMIX3.0 Mainnet"
+  },
+  {
+    "id": 1112,
+    "name": "WEMIX3.0 Testnet"
+  },
+  {
+    "id": 1874,
+    "name": "Whitechain Sepolia Testnet"
+  },
+  {
+    "id": 480,
+    "name": "World Mainnet"
+  },
+  {
+    "id": 869,
+    "name": "World Mobile"
+  },
+  {
+    "id": 323432,
+    "name": "World Mobile Testnet"
+  },
+  {
+    "id": 4801,
+    "name": "World Sepolia Testnet"
+  },
+  {
+    "id": 196,
+    "name": "X Layer Mainnet"
+  },
+  {
+    "id": 1952,
+    "name": "X Layer Testnet"
+  },
+  {
+    "id": 660279,
+    "name": "Xai Mainnet"
+  },
+  {
+    "id": 51,
+    "name": "XDC Apothem Testnet"
+  },
+  {
+    "id": 50,
+    "name": "XDC Mainnet"
+  },
+  {
+    "id": 1643,
+    "name": "XGR Mainnet"
+  },
+  {
+    "id": 1440000,
+    "name": "XRPL EVM Sidechain"
+  },
+  {
+    "id": 1449000,
+    "name": "XRPL EVM Sidechain Testnet"
+  },
+  {
+    "id": 7000,
+    "name": "ZetaChain"
+  },
+  {
+    "id": 7001,
+    "name": "ZetaChain: Athens Testnet"
+  },
+  {
+    "id": 32769,
+    "name": "Zilliqa 2 Mainnet"
+  },
+  {
+    "id": 33101,
+    "name": "Zilliqa 2 Testnet"
+  },
+  {
+    "id": 48898,
+    "name": "Zircuit Garfield Testnet"
+  },
+  {
+    "id": 48900,
+    "name": "Zircuit Mainnet"
+  },
+  {
+    "id": 324,
+    "name": "ZKsync Era"
+  },
+  {
+    "id": 300,
+    "name": "ZKsync Era Sepolia Testnet"
+  },
+  {
+    "id": 57057,
+    "name": "zkTanenbaum Testnet"
+  },
+  {
+    "id": 7777777,
+    "name": "Zora"
+  },
+  {
+    "id": 999999999,
+    "name": "Zora Sepolia Testnet"
+  }
+]

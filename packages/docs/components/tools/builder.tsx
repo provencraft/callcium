@@ -1,22 +1,14 @@
 "use client";
 
-import { CallciumError, PolicyCoder, TypeCode, hexToBytes, lookupContextProperty, Quantifier } from "@callcium/sdk";
-import { ChevronDown, Copy, Check, Plus, Trash2, ArrowRight, AlertTriangle, Info as InfoIcon } from "lucide-react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatAbiItem } from "viem/utils";
-import type { Hex, Issue, ScalarValue } from "@callcium/sdk";
-import type { AbiFunction } from "viem";
-import { EXAMPLES, type BuilderExample } from "./examples";
+import { TypeCode, lookupContextProperty, Quantifier } from "@callcium/sdk";
+import { buttonVariants } from "fumadocs-ui/components/ui/button";
+import { Plus, Trash2, AlertTriangle, Info as InfoIcon } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import type { Issue, ScalarValue } from "@callcium/sdk";
 import { ErrorBox } from "@/components/ui/error-box";
 import { MonoInput } from "@/components/ui/mono-input";
-import { MonoTextarea } from "@/components/ui/mono-textarea";
 import { PillToggle } from "@/components/ui/pill-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { lookup4byte, descriptorToTypes } from "@/lib/abi";
-import { parseAbiJson } from "@/lib/abi";
-import { formatError } from "@/lib/format-error";
 import {
   CONTEXT_PROPERTIES,
   CONTEXT_PROPERTY_COUNT,
@@ -26,7 +18,6 @@ import {
 } from "@/lib/format-path";
 import { formatOperandList } from "@/lib/format-value";
 import {
-  createSession,
   addConstraint,
   removeConstraint,
   addGroup,
@@ -63,399 +54,88 @@ const QUANTIFIER_OPTIONS = [
 ] as const;
 
 ///////////////////////////////////////////////////////////////////////////
-// Shared policy link
-///////////////////////////////////////////////////////////////////////////
-
-/** The builder input a `policy` link describes, or null when the link carries no policy that decodes. */
-function readPolicyLink(policyHex: string | null) {
-  if (!policyHex) return null;
-  try {
-    const decoded = PolicyCoder.decode(policyHex as Hex);
-    const types = descriptorToTypes(hexToBytes(decoded.descriptor));
-    if (decoded.isSelectorless) return { types, signature: types, selectorless: true, selector: null };
-    return { types, signature: `unknown(${types})`, selectorless: false, selector: decoded.selector };
-  } catch (e) {
-    // An invalid policy in the link leaves the builder empty.
-    if (!(e instanceof CallciumError)) throw e;
-    return null;
-  }
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Main component
 ///////////////////////////////////////////////////////////////////////////
 
-export function Builder() {
-  const searchParams = useSearchParams();
-  const [link] = useState(() => readPolicyLink(searchParams.get("policy")));
-  const [session, setSession] = useState<BuilderSession | null>(() =>
-    link ? createSession(link.signature, { selectorless: link.selectorless }) : null,
-  );
-  const [signatureInput, setSignatureInput] = useState(link?.signature ?? "");
-  const [isSelectorless, setIsSelectorless] = useState(link?.selectorless ?? false);
-  const [copied, setCopied] = useState(false);
-  const [activeExample, setActiveExample] = useState<BuilderExample | null>(null);
-  const [exampleDropdownOpen, setExampleDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [inputMode, setInputMode] = useState<"signature" | "abi">("signature");
-  const [abiInput, setAbiInput] = useState("");
-  const [selectedFunctionSignature, setSelectedFunctionSignature] = useState("");
-
-  const abiFunctions = useMemo<AbiFunction[] | Error>(() => {
-    if (!abiInput.trim()) return [];
-    const parsed = parseAbiJson(abiInput);
-    if (parsed instanceof Error) return parsed;
-    return parsed.filter((item): item is AbiFunction => item?.type === "function");
-  }, [abiInput]);
-
-  const debouncedSignature = useDebounce(signatureInput, 300);
-
-  // The session follows the debounced signature unless an example owns it.
-  const sessionKey = `${debouncedSignature}\n${isSelectorless}\n${activeExample?.name ?? ""}`;
-  const [syncedKey, setSyncedKey] = useState(sessionKey);
-  if (sessionKey !== syncedKey) {
-    setSyncedKey(sessionKey);
-    const signature = debouncedSignature.trim();
-    if (signature && !activeExample) setSession(createSession(signature, { selectorless: isSelectorless }));
-  }
-
-  // A link to a function-bound policy names its function by selector; resolve the name once.
-  useEffect(() => {
-    if (!link?.selector) return;
-    void lookup4byte(link.selector).then((name) => {
-      if (!name) return;
-      const signature = `${name}(${link.types})`;
-      setSignatureInput(signature);
-      setSession(createSession(signature));
-    });
-  }, [link]);
-
-  useEffect(() => {
-    if (!exampleDropdownOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setExampleDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [exampleDropdownOpen]);
-
-  const handleSelectExample = useCallback((example: BuilderExample) => {
-    setActiveExample(example);
-    setSignatureInput(example.signature);
-    setIsSelectorless(example.selectorless ?? false);
-    let s = createSession(example.signature, { selectorless: example.selectorless });
-    for (const { groupIndex, config } of example.constraints) {
-      while (s.groups.length <= groupIndex) {
-        s = addGroup(s);
-      }
-      s = addConstraint(s, groupIndex, config);
-    }
-    setSession(s);
-    setExampleDropdownOpen(false);
-  }, []);
-
-  const handleChangeInputMode = useCallback(
-    (mode: "signature" | "abi") => {
-      setInputMode(mode);
-      // A signature that failed to parse is only reachable from the field that produced it.
-      if (session?.error !== undefined) {
-        setSignatureInput("");
-        setSelectedFunctionSignature("");
-        setSession(null);
-      }
-    },
-    [session?.error],
-  );
-
-  const handleClear = useCallback(() => {
-    setActiveExample(null);
-    setSignatureInput("");
-    setIsSelectorless(false);
-    setSession(null);
-  }, []);
-
-  const sessionHex = session?.hex;
-  const handleCopy = useCallback(() => {
-    if (!sessionHex) return;
-    void navigator.clipboard.writeText(sessionHex);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }, [sessionHex]);
-
-  const handleAddConstraint = useCallback(
-    (groupIndex: number, config: ConstraintInput) => {
-      if (!session) return;
-      setSession(addConstraint(session, groupIndex, config));
-    },
-    [session],
-  );
-
-  const handleRemoveConstraint = useCallback(
-    (groupIndex: number, constraintIndex: number) => {
-      if (!session) return;
-      setSession(removeConstraint(session, groupIndex, constraintIndex));
-    },
-    [session],
-  );
-
-  const handleAddGroup = useCallback(() => {
-    if (!session) return;
-    setSession(addGroup(session));
-  }, [session]);
-
-  const handleRemoveGroup = useCallback(
-    (groupIndex: number) => {
-      if (!session) return;
-      setSession(removeGroup(session, groupIndex));
-    },
-    [session],
-  );
-
+/** The constraint groups of a session, as an editor. */
+export function Builder({
+  session,
+  onChange,
+}: {
+  session: BuilderSession;
+  onChange: (session: BuilderSession) => void;
+}) {
   return (
     <div className="space-y-4">
-      {/* Signature input */}
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <PillToggle
-            value={inputMode}
-            options={[
-              { value: "signature", label: "Signature" },
-              { value: "abi", label: "ABI" },
-            ]}
-            onChange={handleChangeInputMode}
-          />
-
-          {/* Examples dropdown */}
-          <div ref={dropdownRef} className="relative">
-            <button
-              type="button"
-              className="flex items-center gap-1 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-              onClick={() => setExampleDropdownOpen(!exampleDropdownOpen)}
-            >
-              Examples
-              <ChevronDown className={cn("size-3.5 transition-transform", exampleDropdownOpen && "rotate-180")} />
-            </button>
-            {exampleDropdownOpen && (
-              <div className="absolute right-0 z-10 mt-1 w-48 rounded-lg border border-fd-border bg-fd-popover py-1 shadow-md">
-                {EXAMPLES.map((example) => (
-                  <button
-                    key={example.name}
-                    type="button"
-                    className={cn(
-                      "w-full px-3 py-1.5 text-left text-sm transition-colors",
-                      "hover:bg-fd-accent hover:text-fd-accent-foreground",
-                      activeExample?.name === example.name ? "text-fd-primary font-medium" : "text-fd-muted-foreground",
-                    )}
-                    onClick={() => handleSelectExample(example)}
-                  >
-                    {example.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Example banner */}
-        {activeExample && (
-          <div className="mb-2 flex items-center justify-between rounded-lg bg-fd-info px-3 py-2 text-sm text-fd-info-foreground ring-1 ring-fd-info-foreground/30">
-            <span>
-              <span className="font-semibold">Example:</span>{" "}
-              <span className="text-fd-foreground">{activeExample.name}</span>
-            </span>
-            <button
-              type="button"
-              className="font-semibold transition-colors hover:text-fd-foreground"
-              onClick={handleClear}
-            >
-              Clear
-            </button>
-          </div>
-        )}
-
-        {inputMode === "signature" ? (
-          <div className="space-y-2">
-            <label className="flex items-center gap-1.5 text-sm text-fd-muted-foreground">
-              <input
-                type="checkbox"
-                checked={isSelectorless}
-                onChange={(e) => setIsSelectorless(e.target.checked)}
-                className="size-3.5 accent-fd-primary"
-                disabled={!!activeExample}
-              />
-              Selectorless
-            </label>
-
-            <MonoInput
-              id="signature-input"
-              className={cn(activeExample && "cursor-default opacity-70", session?.error && "border-red-500/50")}
-              placeholder={isSelectorless ? "address,uint256" : "transfer(address to, uint256 amount)"}
-              value={signatureInput}
-              onChange={(e) => setSignatureInput(e.target.value)}
-              readOnly={!!activeExample}
-            />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <MonoTextarea
-              rows={4}
-              placeholder='[{"type":"function","name":"approve","inputs":[...]}]'
-              value={abiInput}
-              onChange={(e) => setAbiInput(e.target.value)}
-            />
-
-            {Array.isArray(abiFunctions) && abiFunctions.length > 0 && (
-              <Select
-                value={selectedFunctionSignature}
-                onValueChange={(signature) => {
-                  setSelectedFunctionSignature(signature);
-                  setActiveExample(null);
-                  setIsSelectorless(false);
-                  setSignatureInput(signature);
-                }}
-              >
-                <SelectTrigger className="w-full font-mono">
-                  <SelectValue placeholder="Select function" />
-                </SelectTrigger>
-                <SelectContent>
-                  {abiFunctions.map((abiFunction) => {
-                    const signature = formatAbiItem(abiFunction, { includeName: true });
-                    return (
-                      <SelectItem key={signature} value={signature} className="font-mono">
-                        {signature}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            )}
-
-            {abiInput.trim() && (
-              <>
-                {abiFunctions instanceof Error && <ErrorBox>Invalid ABI: {formatError(abiFunctions)}</ErrorBox>}
-                {Array.isArray(abiFunctions) && abiFunctions.length === 0 && (
-                  <ErrorBox>No functions found in ABI.</ErrorBox>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {session?.error && <ErrorBox className="mt-1.5">{humanizeError(session.error)}</ErrorBox>}
-      </div>
-
-      {/* Parameter tree + constraint management */}
-      {session && !session.error && (
-        <>
-          {/* Constraint groups */}
-          {session.groups.map((group, gi) => (
-            <div key={group.id}>
-              {gi > 0 && (
-                <div className="flex items-center gap-2 py-2">
-                  <div className="h-px flex-1 bg-fd-border" />
-                  <span className="text-xs font-semibold text-fd-info-foreground">OR</span>
-                  <div className="h-px flex-1 bg-fd-border" />
-                </div>
-              )}
-              <div className="rounded-lg border border-fd-border bg-fd-card">
-                <div className="flex items-center justify-between border-b border-fd-border px-3 py-2">
-                  <span className="text-sm font-medium text-fd-foreground">
-                    Group {gi + 1}
-                    {group.constraints.length > 0 && (
-                      <span className="ml-1 text-fd-muted-foreground">
-                        ({group.constraints.length} constraint{group.constraints.length !== 1 ? "s" : ""})
-                      </span>
-                    )}
-                  </span>
-                  {session.groups.length > 1 && (
-                    <button
-                      type="button"
-                      className="text-fd-muted-foreground hover:text-red-500 transition-colors"
-                      onClick={() => handleRemoveGroup(gi)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {group.constraints.map((config, ci) => {
-                  const rowIssues = session.issues.filter((i) => i.groupIndex === gi && issueMatches(i, config));
-                  return (
-                    <ConstraintRow
-                      key={config.id}
-                      config={config}
-                      issues={rowIssues}
-                      params={session.params}
-                      onRemove={() => handleRemoveConstraint(gi, ci)}
-                    />
-                  );
-                })}
-
-                {/* Add constraint form */}
-                <AddConstraintForm
-                  session={session}
-                  groupIndex={gi}
-                  onAdd={(config) => handleAddConstraint(gi, config)}
-                />
-              </div>
-            </div>
-          ))}
-
-          {/* Add group button */}
-          <button
-            type="button"
-            className="flex items-center gap-1.5 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-            onClick={handleAddGroup}
-          >
-            <Plus className="size-3.5" />
-            Add OR group
-          </button>
-
-          {/* Validation issues */}
-          {session.errors.length > 0 && (
-            <div className="space-y-1">
-              {session.errors.map((error, i) => (
-                // oxlint-disable-next-line react/no-array-index-key
-                <ErrorBox key={i}>{humanizeError(error)}</ErrorBox>
-              ))}
+      {session.groups.map((group, gi) => (
+        <div key={group.id}>
+          {gi > 0 && (
+            <div className="flex items-center gap-2 py-2">
+              <div className="h-px flex-1 bg-fd-border" />
+              <span className="text-xs font-semibold text-fd-info-foreground">OR</span>
+              <div className="h-px flex-1 bg-fd-border" />
             </div>
           )}
-
-          {/* Output */}
-          {session.hex && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-fd-foreground">Policy Blob</span>
-                <div className="flex items-center gap-3">
-                  <Link
-                    href={`/policy-inspector?policy=${encodeURIComponent(session.hex)}`}
-                    className="text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-                  >
-                    Inspector <ArrowRight className="inline size-3" />
-                  </Link>
-                  <Link
-                    href={`/policy-enforcer?policy=${encodeURIComponent(session.hex)}`}
-                    className="text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-                  >
-                    Enforcer <ArrowRight className="inline size-3" />
-                  </Link>
-                </div>
-              </div>
-              <div className="relative">
-                <MonoTextarea className="resize-none pr-9" rows={3} value={session.hex} readOnly />
+          <div className="rounded-lg border border-fd-border bg-fd-card">
+            <div className="flex items-center justify-between border-b border-fd-border px-3 py-2">
+              <span className="text-sm font-medium text-fd-foreground">
+                Group {gi + 1}
+                {group.constraints.length > 0 && (
+                  <span className="ml-1 text-fd-muted-foreground">
+                    ({group.constraints.length} constraint{group.constraints.length !== 1 ? "s" : ""})
+                  </span>
+                )}
+              </span>
+              {session.groups.length > 1 && (
                 <button
                   type="button"
-                  className="absolute top-2 right-3 rounded-md p-1 text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-                  onClick={handleCopy}
+                  className="text-fd-muted-foreground hover:text-red-500 transition-colors"
+                  aria-label="Remove group"
+                  onClick={() => onChange(removeGroup(session, gi))}
                 >
-                  {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                  <Trash2 className="size-3.5" />
                 </button>
-              </div>
+              )}
             </div>
-          )}
-        </>
+
+            {group.constraints.map((config, ci) => {
+              const rowIssues = session.issues.filter((i) => i.groupIndex === gi && issueMatches(i, config));
+              return (
+                <ConstraintRow
+                  key={config.id}
+                  config={config}
+                  issues={rowIssues}
+                  params={session.params}
+                  onRemove={() => onChange(removeConstraint(session, gi, ci))}
+                />
+              );
+            })}
+
+            {/* Add constraint form */}
+            <AddConstraintForm
+              session={session}
+              groupIndex={gi}
+              onAdd={(config) => onChange(addConstraint(session, gi, config))}
+            />
+          </div>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        className={buttonVariants({ variant: "outline", size: "sm" })}
+        onClick={() => onChange(addGroup(session))}
+      >
+        Add OR group
+      </button>
+
+      {session.errors.length > 0 && (
+        <div className="space-y-1">
+          {session.errors.map((error, i) => (
+            // oxlint-disable-next-line react/no-array-index-key
+            <ErrorBox key={i}>{humanizeError(error)}</ErrorBox>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -559,6 +239,7 @@ function ConstraintRow({
         <button
           type="button"
           className="text-fd-muted-foreground hover:text-red-500 transition-colors"
+          aria-label="Remove constraint"
           onClick={onRemove}
         >
           <Trash2 className="size-3.5" />
@@ -588,7 +269,7 @@ function ConstraintRow({
 ///////////////////////////////////////////////////////////////////////////
 
 /** Strip error codes and hex paths from structural error messages. */
-function humanizeError(error: string): string {
+export function humanizeError(error: string): string {
   // "UNKNOWN_CONTEXT_PROPERTY: Unknown context property ID 0x0009" → "Unknown context property ID"
   const stripped = error.replace(/^[A-Z_]+:\s*/, "");
   return stripped
@@ -868,18 +549,19 @@ function AddConstraintForm({
   if (!expanded) {
     if (!hasAvailableCalldata && !hasAvailableContext) return null;
     return (
-      <button
-        type="button"
-        className="flex w-full items-center gap-1.5 px-3 py-2 text-sm text-fd-muted-foreground hover:text-fd-foreground transition-colors"
-        onClick={() => {
-          if (hasAvailableCalldata) setScope("calldata");
-          else setScope("context");
-          setExpanded(true);
-        }}
-      >
-        <Plus className="size-3.5" />
-        Add constraint
-      </button>
+      <div className="px-3 py-2">
+        <button
+          type="button"
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+          onClick={() => {
+            if (hasAvailableCalldata) setScope("calldata");
+            else setScope("context");
+            setExpanded(true);
+          }}
+        >
+          Add constraint
+        </button>
+      </div>
     );
   }
 
@@ -888,7 +570,7 @@ function AddConstraintForm({
       {/* First row: path controls + first operator/value inline. */}
       <div className="flex flex-wrap items-end gap-2">
         {/* Path controls */}
-        <div className="flex flex-col items-start gap-1">
+        <div className="flex max-w-full flex-col items-start gap-1">
           <PillToggle
             value={scope}
             options={[
@@ -911,10 +593,10 @@ function AddConstraintForm({
               }}
               disabled={rules.length > 0}
             >
-              <SelectTrigger className="w-64 shrink-0">
+              <SelectTrigger className="w-64 max-w-full shrink-0 font-mono">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="font-mono">
                 {session.params.map((p, i) => {
                   if (isLeafNode(p) && usedCalldataPaths.has(pathKey([i]))) return null;
                   return (
@@ -935,10 +617,10 @@ function AddConstraintForm({
               }}
               disabled={rules.length > 0}
             >
-              <SelectTrigger className="w-64 shrink-0">
+              <SelectTrigger className="w-64 max-w-full shrink-0 font-mono">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="font-mono">
                 {CONTEXT_PROPERTIES.map(
                   (property) =>
                     !usedContextProperties.has(property.contextKey) && (
@@ -988,7 +670,7 @@ function AddConstraintForm({
                 onValueChange={(v) => setQuantifier(v ? Number(v) : undefined)}
                 disabled={rules.length > 0}
               >
-                <SelectTrigger className="w-42">
+                <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1049,7 +731,7 @@ function AddConstraintForm({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex min-w-30 flex-1 flex-col items-start gap-1">
+            <div className="flex min-w-32 flex-1 flex-col items-start gap-1">
               {rules.length === 0 && (
                 <label htmlFor="constraint-value" className="text-xs text-fd-muted-foreground">
                   value
@@ -1057,10 +739,10 @@ function AddConstraintForm({
               )}
               {isContextOperator(operator) ? (
                 <Select value={valueInput} onValueChange={setValueInput}>
-                  <SelectTrigger id="constraint-value" className="w-full">
+                  <SelectTrigger id="constraint-value" className="w-full font-mono">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="font-mono">
                     {CONTEXT_PROPERTIES.filter(
                       (property) => (targetTypeCode === TypeCode.ADDRESS) === (property.typeCode === TypeCode.ADDRESS),
                     ).map((property) => (
@@ -1137,9 +819,10 @@ function AddConstraintForm({
               <button
                 type="button"
                 className="text-fd-muted-foreground hover:text-red-500 transition-colors"
+                aria-label="Remove operator"
                 onClick={() => setRules((prev) => prev.filter((_, i) => i !== ri))}
               >
-                <Trash2 className="size-3" />
+                <Trash2 className="size-3.5" />
               </button>
             </div>
           ))}
@@ -1217,7 +900,7 @@ function FieldSelector({
   const currentChild = currentIndex !== undefined ? node.children[currentIndex] : null;
 
   return (
-    <div className="flex items-start gap-2">
+    <div className="flex max-w-full flex-wrap items-start gap-2">
       <div className="flex flex-col items-start gap-1">
         <span className="text-xs text-fd-muted-foreground">field</span>
         <Select
@@ -1230,10 +913,10 @@ function FieldSelector({
             }
           }}
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-48 font-mono">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="font-mono">
             {node.children.map((child, i) => {
               if (isLeafNode(child) && usedPaths?.has(pathKey([...prefix, i]))) return null;
               return (

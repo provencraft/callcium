@@ -5,7 +5,7 @@ import type { Hex } from "@callcium/sdk";
 import enforcementVectors from "../../../spec/vectors/enforcement.json";
 import policyVectors from "../../../spec/vectors/policies.json";
 import validationVectors from "../../../spec/vectors/validation.json";
-import { type ExplainedLoop, type ExplainedTest, explainPolicy } from "./policy-inspector";
+import { type ExplainedLoop, type ExplainedTest, explainPolicy, recoverSignature, tryDecode } from "./policy-inspector";
 
 ///////////////////////////////////////////////////////////////////////////
 // Test helpers
@@ -24,6 +24,13 @@ const validation = (id: string) => vectorBlob(validationVectors, id);
 
 function explain(blob: Hex, abi?: Abi) {
   return explainPolicy(PolicyCoder.inspect(blob), abi ? { abi } : undefined);
+}
+
+/** The decoded form of `blob`, which must decode. */
+function decode(blob: Hex) {
+  const result = tryDecode(blob, undefined);
+  if (!result?.ok) throw new Error("Vector failed to decode");
+  return result;
 }
 
 /** The root test at `index` of the first group. */
@@ -270,6 +277,30 @@ describe("ABI enrichment", () => {
     const explained = explain(policy("selectorless"), abi);
     expect(explained.functionName).toBeNull();
     expect(explained.params[0].name).toBeNull();
+  });
+});
+
+///////////////////////////////////////////////////////////////////////////
+// Signature recovery
+///////////////////////////////////////////////////////////////////////////
+
+describe("signature recovery", () => {
+  it("names a policy only with a name that hashes to its selector", () => {
+    // The vector's function is `foo(uint256,uint8)`.
+    const result = decode(enforcement("group-order-from-blob"));
+    expect(recoverSignature(result, undefined, "bar")).toBeNull();
+    expect(recoverSignature(result, undefined, "foo")).toBe("foo(uint256,uint8)");
+  });
+
+  it("names a policy from the ABI function that matches its selector", () => {
+    const result = decode(enforcement("group-order-from-blob"));
+    const abi = parseAbi(["function foo(uint256 amount, uint8 decimals)"]);
+    expect(recoverSignature(result, abi, null)).toBe("foo(uint256 amount, uint8 decimals)");
+  });
+
+  it("recovers the types of a selectorless policy", () => {
+    const result = decode(policy("selectorless"));
+    expect(recoverSignature(result, undefined, null)).toBe("uint256");
   });
 });
 

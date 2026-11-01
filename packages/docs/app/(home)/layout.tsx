@@ -1,7 +1,11 @@
+"use client";
+
 import { HomeLayout } from "fumadocs-ui/layouts/home";
+import { usePathname } from "next/navigation";
 import { baseOptions } from "@/lib/layout.shared";
 
 export default function Layout({ children }: LayoutProps<"/">) {
+  const isHomepage = usePathname() === "/";
   return (
     <HomeLayout {...baseOptions()}>
       {children}
@@ -15,7 +19,8 @@ export default function Layout({ children }: LayoutProps<"/">) {
         >
           Provencraft
         </a>{" "}
-        · MIT License · Lean is a trademark of Lean FRO
+        · MIT License
+        {isHomepage && " · Lean is a trademark of Lean FRO"}
       </footer>
     </HomeLayout>
   );
