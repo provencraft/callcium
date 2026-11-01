@@ -1,6 +1,7 @@
 "use client";
 
 import { TypeCode, lookupContextProperty, Quantifier } from "@callcium/sdk";
+import { useOpenPanel } from "@openpanel/nextjs";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { Plus, Trash2, AlertTriangle, Info as InfoIcon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
@@ -65,6 +66,7 @@ export function Builder({
   session: BuilderSession;
   onChange: (session: BuilderSession) => void;
 }) {
+  const { track } = useOpenPanel();
   return (
     <div className="space-y-4">
       {session.groups.map((group, gi) => (
@@ -115,7 +117,10 @@ export function Builder({
             <AddConstraintForm
               session={session}
               groupIndex={gi}
-              onAdd={(config) => onChange(addConstraint(session, gi, config))}
+              onAdd={(config) => {
+                onChange(addConstraint(session, gi, config));
+                track("tools_constraint_added");
+              }}
             />
           </div>
         </div>

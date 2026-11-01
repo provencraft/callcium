@@ -1,3 +1,6 @@
-/policy-builder /tools#build 301
-/policy-inspector /tools#inspect 301
-/policy-enforcer /tools#enforce 301
+/policy-builder /tools?from=policy-builder#build 301
+/policy-builder/ /tools?from=policy-builder#build 301
+/policy-inspector /tools?from=policy-inspector#inspect 301
+/policy-inspector/ /tools?from=policy-inspector#inspect 301
+/policy-enforcer /tools?from=policy-enforcer#enforce 301
+/policy-enforcer/ /tools?from=policy-enforcer#enforce 301

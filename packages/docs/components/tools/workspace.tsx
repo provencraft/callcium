@@ -1,5 +1,6 @@
 "use client";
 
+import { useOpenPanel } from "@openpanel/nextjs";
 import { buttonVariants } from "fumadocs-ui/components/ui/button";
 import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "fumadocs-ui/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "fumadocs-ui/components/ui/tabs";
@@ -62,6 +63,7 @@ export function Workspace() {
 }
 
 function WorkspaceBody() {
+  const { track } = useOpenPanel();
   const [saved] = useState(() =>
     loadState<SavedWorkspace>(WORKSPACE_KEY, {
       inputMode: "signature",
@@ -87,6 +89,8 @@ function WorkspaceBody() {
   );
   const [pastedHex, setPastedHex] = useState(saved.pastedHex);
   const [lookup, setLookup] = useState<{ selector: string; name: string | null } | null>(null);
+  // Fumadocs Tabs calls onValueChange only for a controlled value.
+  const [activeTab, setActiveTab] = useState("builder");
 
   const parsedAbi = useMemo(() => parseAbiFunctions(abiInput), [abiInput]);
   const abiFunctions = useMemo(() => (parsedAbi instanceof Error ? [] : parsedAbi), [parsedAbi]);
@@ -183,12 +187,13 @@ function WorkspaceBody() {
     }
   }
 
-  function handleSelectPreset(presetAbi: Abi) {
+  function handleSelectPreset(preset: (typeof abiPresets)[number]) {
     handleChangeInputMode("abi");
-    setAbiInput(JSON.stringify(presetAbi, null, 2));
+    setAbiInput(JSON.stringify(preset.abi, null, 2));
     setContractAddress("");
     setAbiFetch("idle");
     fetchRequest.current++;
+    track("tools_abi_preset_selected", { preset: preset.name });
   }
 
   async function handleFetchAbi(event: React.FormEvent<HTMLFormElement>) {
@@ -200,8 +205,11 @@ function WorkspaceBody() {
       if (request !== fetchRequest.current) return;
       if (fetched) setAbiInput(JSON.stringify(fetched, null, 2));
       setAbiFetch(fetched ? "idle" : "unverified");
+      track("tools_abi_fetched", { chain_id: chainId, result: fetched ? "verified" : "unverified" });
     } catch {
-      if (request === fetchRequest.current) setAbiFetch("failed");
+      if (request !== fetchRequest.current) return;
+      setAbiFetch("failed");
+      track("tools_abi_fetched", { chain_id: chainId, result: "failed" });
     }
   }
 
@@ -216,6 +224,7 @@ function WorkspaceBody() {
     if (pasted.trim()) {
       setPastedHex(pasted);
       event.preventDefault();
+      track("tools_policy_pasted");
     }
   }
 
@@ -227,7 +236,10 @@ function WorkspaceBody() {
     setIsSelectorless(result.explained.isSelectorless);
   }
 
-  const [copied, handleCopy] = useCopyButton(() => navigator.clipboard.writeText(session?.hex ?? ""));
+  const [copied, handleCopy] = useCopyButton(async () => {
+    await navigator.clipboard.writeText(session?.hex ?? "");
+    track("tools_policy_copied");
+  });
 
   return (
     <div className="flex flex-col gap-12">
@@ -254,7 +266,7 @@ function WorkspaceBody() {
                   <PopoverClose
                     key={preset.name}
                     className="w-full rounded-md px-3 py-1.5 text-left text-sm text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
-                    onClick={() => handleSelectPreset(preset.abi)}
+                    onClick={() => handleSelectPreset(preset)}
                   >
                     {preset.name}
                   </PopoverClose>
@@ -429,7 +441,14 @@ function WorkspaceBody() {
       </div>
 
       {/* Builder and Inspector */}
-      <Tabs defaultValue="builder" className={CARD}>
+      <Tabs
+        value={activeTab}
+        className={CARD}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          if (value === "inspector" && result?.ok) track("tools_policy_inspected");
+        }}
+      >
         <TabsList className="flex items-center gap-8">
           {TOOL_TABS.map(({ value, label, Icon }) => (
             <TabsTrigger

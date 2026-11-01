@@ -1,6 +1,7 @@
 "use client";
 
 import { TypeCode } from "@callcium/sdk";
+import { useOpenPanel } from "@openpanel/nextjs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "fumadocs-ui/components/ui/collapsible";
 import { ChevronDown, ShieldCheck, ShieldX, ShieldQuestion } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
@@ -49,6 +50,7 @@ const ENFORCER_KEY = "enforcer";
 
 /** Calldata and context checked against the workspace policy. `abi` names the parameters in violations. */
 export function Enforcer({ policyHex, abi }: { policyHex: string | null; abi: Abi | undefined }) {
+  const { track } = useOpenPanel();
   const [saved] = useState(() => loadState<SavedEnforcer>(ENFORCER_KEY, { calldataInput: "", ctxValues: {} }));
   const [calldataInput, setCalldataInput] = useState(saved.calldataInput);
   // Restored context values open the section, so none of them apply out of sight.
@@ -95,6 +97,7 @@ export function Enforcer({ policyHex, abi }: { policyHex: string | null; abi: Ab
           placeholder="0x095ea7b3..."
           value={calldataInput}
           onChange={(e) => setCalldataInput(e.target.value)}
+          onPaste={() => track("tools_calldata_pasted")}
         />
       </div>
 
