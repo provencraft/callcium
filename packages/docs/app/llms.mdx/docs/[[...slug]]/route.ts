@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getPageMarkdownUrl } from "@/lib/shared";
-import { docsLlms, source } from "@/lib/source";
+import { source } from "@/lib/source";
 
 export const revalidate = false;
 
@@ -9,7 +9,9 @@ export async function GET(_req: Request, { params }: RouteContext<"/llms.mdx/doc
   const page = source.getPage(slug.slice(0, -1));
   if (!page) notFound();
 
-  return new Response(await docsLlms.page(page), {
+  const markdown = `# ${page.data.title} (${page.url})\n\n${await page.data.getText("processed")}`;
+
+  return new Response(markdown, {
     headers: { "Content-Type": "text/markdown" },
   });
 }

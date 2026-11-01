@@ -3,16 +3,17 @@ import { Hanken_Grotesk, JetBrains_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import "./global.css";
 import { Provider } from "./provider";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/shared";
+import { OPEN_GRAPH, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/shared";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     template: `%s | ${SITE_NAME}`,
-    default: SITE_NAME,
+    default: `${SITE_NAME}: Calldata Policy Engine for the EVM`,
   },
   description: SITE_DESCRIPTION,
-  openGraph: { images: "/og/image.png" },
+  openGraph: OPEN_GRAPH,
+  twitter: { card: "summary_large_image", site: "@CallciumDev" },
   icons: { icon: "/icon.svg" },
 };
 

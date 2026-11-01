@@ -63,7 +63,7 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
   },
   "policy-coder": {
     title: "PolicyCoder",
-    description: "Encode and decode binary policies.",
+    description: "Encode policies in canonical form, and decode and inspect binary policy blobs.",
     sections: { primary: ["PolicyCoder"], helpers: [], types: [] },
   },
   path: {
@@ -77,12 +77,12 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
   },
   descriptor: {
     title: "Descriptor",
-    description: "ABI descriptor coder.",
+    description: "Encode ABI type strings into binary descriptors, inspect them, and read the type strings back.",
     sections: { primary: ["DescriptorCoder"], helpers: [], types: [] },
   },
   bytes: {
     title: "Bytes",
-    description: "Byte and hex utilities.",
+    description: "Convert between 0x-prefixed hex strings and byte arrays.",
     sections: { primary: [], helpers: ["hexToBytes", "bytesToHex"], types: [] },
   },
   constants: {
@@ -165,7 +165,8 @@ export const ASSEMBLY_MAP: Record<string, PageSpec> = {
   },
   errors: {
     title: "Errors",
-    description: "Error classes thrown by the SDK.",
+    description:
+      "Error classes the SDK throws for malformed input, failed validation and policy violations, with their error codes.",
     sections: {
       primary: ["CallciumError", "ValidationError", "PolicyViolationError"],
       helpers: [],

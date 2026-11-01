@@ -3,9 +3,9 @@ title: What is Callcium
 description: Type-safe constraints on calldata, enforced onchain and offchain.
 ---
 
-ABI-encoded calldata is opaque at the contract boundary. Contracts that delegate, proxy, or relay calls have no standard way to constrain what those calls contain. Existing checks are hand-rolled in each contract, with no shared wire format that offchain tooling can evaluate.
+Callcium is a calldata policy engine for the EVM. It encodes constraints on function arguments into a compact binary policy. The same policy is enforced onchain by Solidity contracts or offchain by the TypeScript SDK — one binary, two evaluators. Selectorless policies extend the same format to any ABI-encoded data.
 
-Callcium encodes constraints on function arguments into a compact binary policy. The same policy is enforced onchain by Solidity contracts or offchain by the TypeScript SDK — one binary, two evaluators. Selectorless policies extend the same format to any ABI-encoded data.
+ABI-encoded calldata is opaque at the contract boundary. Contracts that delegate, proxy, or relay calls have no standard way to constrain what those calls contain. Existing checks are hand-rolled in each contract, with no shared wire format that offchain tooling can evaluate.
 
 ## How it works
 

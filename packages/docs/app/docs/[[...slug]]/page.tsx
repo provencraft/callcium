@@ -8,9 +8,10 @@ import {
 } from "fumadocs-ui/layouts/docs/page";
 import { createRelativeLink } from "fumadocs-ui/mdx";
 import { notFound } from "next/navigation";
+import type { InferPageType } from "fumadocs-core/source";
 import type { Metadata } from "next";
 import { gitConfig } from "@/lib/layout.shared";
-import { getPageMarkdownUrl } from "@/lib/shared";
+import { getPageMarkdownUrl, OPEN_GRAPH } from "@/lib/shared";
 import { getPageImage, source } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 
@@ -61,10 +62,34 @@ export async function generateMetadata(props: PageProps<"/docs/[[...slug]]">): P
   if (!page) notFound();
 
   return {
-    title: page.data.title,
+    title: metadataTitle(page),
     description: page.data.description,
+    alternates: {
+      canonical: page.url,
+      types: { "text/markdown": getPageMarkdownUrl(page).url },
+    },
     openGraph: {
-      images: getPageImage(page).url,
+      ...OPEN_GRAPH,
+      type: "article",
+      url: page.url,
+      images: { ...OPEN_GRAPH.images, url: getPageImage(page).url, alt: page.data.title },
     },
   };
+}
+
+// The sections a page URL starts with, which the sidebar names and a search result does not.
+const sectionTitles: Partial<Record<string, string>> = {
+  solidity: "Solidity",
+  sdk: "TypeScript",
+  specifications: "Specifications",
+};
+
+/** The metadata title of a page, naming the sidebar context that a search result does not show. */
+function metadataTitle(page: InferPageType<typeof source>): string {
+  const [section, ...rest] = page.slugs;
+  const sectionTitle = sectionTitles[section];
+  if (!sectionTitle) return page.data.title;
+  // Solidity and TypeScript pages share titles, so the section title tells them apart.
+  if (section !== "specifications") return `${page.data.title} (${sectionTitle})`;
+  return rest.length === 0 ? sectionTitle : `${page.data.title} Specification`;
 }

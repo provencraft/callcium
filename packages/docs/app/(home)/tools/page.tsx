@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { Workspace } from "@/components/tools/workspace";
+import { OPEN_GRAPH } from "@/lib/shared";
 
 export const metadata: Metadata = {
   title: "Policy Tools",
   description: "Build, inspect and enforce Callcium policies with the TypeScript SDK, in the browser.",
+  alternates: { canonical: "/tools" },
+  openGraph: { ...OPEN_GRAPH, url: "/tools" },
 };
 
 export default function ToolsPage() {

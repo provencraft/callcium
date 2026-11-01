@@ -1,6 +1,6 @@
 ---
 title: Selectorless Policies
-description: Validate raw ABI-encoded data without a function selector.
+description: Validate raw ABI-encoded data with the TypeScript SDK, without a function selector.
 ---
 
 Policies created with `PolicyBuilder.create(signature)` are bound to a specific function selector: the first 4 bytes of calldata are matched against it before arguments are evaluated. Selectorless policies validate the ABI-encoded payload directly.
