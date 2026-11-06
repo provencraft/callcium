@@ -21,15 +21,21 @@ export function Verification() {
           </Link>
         </div>
 
-        {/* Lean FRO provides only a dark-ink logo, which disappears on dark grounds. */}
-        <div className="shrink-0 dark:hidden">
-          {/* The negative margins cancel the file's built-in padding, so the mark itself meets the text edges. */}
+        {/* The negative margins cancel the file's built-in padding, so the mark itself meets the text edges. */}
+        <div className="shrink-0">
           <Image
-            src="/lean/lean-logo-official-TM-transparent-2400x900.svg"
+            src="/lean/lean-logo-TM.svg"
             alt="Lean logo"
             width={240}
             height={90}
-            className="-mx-[24.5px] -my-[15px] max-w-none"
+            className="-mx-[24.5px] -my-[15px] max-w-none dark:hidden"
+          />
+          <Image
+            src="/lean/lean-logo-TM-white-ink.svg"
+            alt="Lean logo"
+            width={240}
+            height={90}
+            className="-mx-[24.5px] -my-[15px] hidden max-w-none dark:block"
           />
         </div>
       </div>
