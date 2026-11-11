@@ -55,7 +55,7 @@ runs = 10000
 runs = 50000
 
 [dependencies]
-forge-std = "1.16.2"
+forge-std = "1.17.0"
 
 [lint]
 ignore = ["src/vendor/**/*.sol"]
